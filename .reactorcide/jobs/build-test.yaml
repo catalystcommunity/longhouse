@@ -1,10 +1,16 @@
 name: longhouse-build-test
 description: "Build and test the Go API and webapp modules"
 job:
-  image: golang:1.23-alpine
+  image: 10.16.0.1:5000/public/reactorcide/runnerbase:dev
   command: |
     set -e
-    apk add --no-cache git
+
+    # Install Go toolchain
+    export HOME=/home/runner
+    curl -fsSL https://go.dev/dl/go1.23.8.linux-amd64.tar.gz -o /tmp/go.tar.gz
+    sudo tar -C /usr/local -xzf /tmp/go.tar.gz
+    rm /tmp/go.tar.gz
+    export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
 
     git clone --branch "${REACTORCIDE_PR_REF}" "${REACTORCIDE_SOURCE_URL}" /workspace
     cd /workspace
