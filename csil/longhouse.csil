@@ -1,0 +1,256 @@
+options {
+    package: "longhouse",
+    version: "v1alpha"
+}
+
+;; ============================================================
+;; Core types
+;; ============================================================
+
+HouseID = text
+MemberID = text
+EventID = text
+TaskID = text
+CommentID = text
+ShareID = text
+Timestamp = text  ;; RFC3339
+
+TaskStatus = "open" / "in_progress" / "done" / "cancelled"
+TargetType = "event" / "task"
+AccessLevel = "read"
+ResourceType = "event" / "task" / "house"
+
+;; ============================================================
+;; Domain objects
+;; ============================================================
+
+House = {
+    @receive-only
+    house_id: HouseID,
+
+    name: text .size (1..256),
+    ? description: text,
+
+    @receive-only
+    created_at: Timestamp,
+
+    @receive-only
+    updated_at: Timestamp
+}
+
+Member = {
+    @receive-only
+    member_id: MemberID,
+
+    house_id: HouseID,
+    linkkeys_domain: text,
+    linkkeys_user_id: text,
+    ? display_name: text,
+    ? cached_public_key: bytes,
+    ? roles: [* text],
+
+    @receive-only
+    created_at: Timestamp,
+
+    @receive-only
+    updated_at: Timestamp,
+
+    @receive-only
+    ? last_seen_at: Timestamp
+}
+
+TrustedDomain = {
+    @receive-only
+    trusted_domain_id: text,
+
+    house_id: HouseID,
+    domain: text,
+
+    @receive-only
+    created_at: Timestamp
+}
+
+Event = {
+    @receive-only
+    event_id: EventID,
+
+    house_id: HouseID,
+
+    @receive-only
+    created_by: MemberID,
+
+    title: text .size (1..512),
+    ? description: text,
+    ? location: text,
+    ? starts_at: Timestamp,
+    ? ends_at: Timestamp,
+    ? all_day: bool .default false,
+
+    @receive-only
+    created_at: Timestamp,
+
+    @receive-only
+    updated_at: Timestamp
+}
+
+Task = {
+    @receive-only
+    task_id: TaskID,
+
+    house_id: HouseID,
+
+    @receive-only
+    created_by: MemberID,
+
+    ? assigned_to: MemberID,
+    title: text .size (1..512),
+    ? description: text,
+    ? status: TaskStatus .default "open",
+    ? due_at: Timestamp,
+
+    @receive-only
+    created_at: Timestamp,
+
+    @receive-only
+    updated_at: Timestamp
+}
+
+Comment = {
+    @receive-only
+    comment_id: CommentID,
+
+    house_id: HouseID,
+
+    @receive-only
+    member_id: MemberID,
+
+    target_type: TargetType,
+    target_id: text,
+    body: text .size (1..10000),
+
+    @receive-only
+    created_at: Timestamp,
+
+    @receive-only
+    updated_at: Timestamp
+}
+
+Share = {
+    @receive-only
+    share_id: ShareID,
+
+    house_id: HouseID,
+
+    @receive-only
+    shared_by: MemberID,
+
+    linkkeys_domain: text,
+    linkkeys_user_id: text,
+    resource_type: ResourceType,
+    resource_id: text,
+    ? access_level: AccessLevel .default "read",
+
+    @receive-only
+    created_at: Timestamp,
+
+    ? expires_at: Timestamp
+}
+
+;; ============================================================
+;; Request/Response wrappers
+;; ============================================================
+
+ListRequest = {
+    ? limit: uint .default 50,
+    ? offset: uint .default 0
+}
+
+HouseListRequest = {
+    ? limit: uint .default 50,
+    ? offset: uint .default 0
+}
+
+HouseScopedListRequest = {
+    house_id: HouseID,
+    ? limit: uint .default 50,
+    ? offset: uint .default 0
+}
+
+CommentListRequest = {
+    target_type: TargetType,
+    target_id: text,
+    ? limit: uint .default 50,
+    ? offset: uint .default 0
+}
+
+ShareAccessRequest = {
+    linkkeys_domain: text,
+    linkkeys_user_id: text,
+    resource_type: ResourceType,
+    resource_id: text
+}
+
+;; Error type
+ServiceError = {
+    code: uint,
+    message: text
+}
+
+;; ============================================================
+;; Service definitions
+;; ============================================================
+
+service HouseService {
+    create-house: House -> House / ServiceError,
+    get-house: HouseID -> House / ServiceError,
+    update-house: House -> House / ServiceError,
+    delete-house: HouseID -> null / ServiceError,
+    list-houses: HouseListRequest -> [* House] / ServiceError
+}
+
+service MemberService {
+    create-member: Member -> Member / ServiceError,
+    get-member: MemberID -> Member / ServiceError,
+    get-member-by-identity: Member -> Member / ServiceError,
+    update-member: Member -> Member / ServiceError,
+    delete-member: MemberID -> null / ServiceError,
+    list-members: HouseScopedListRequest -> [* Member] / ServiceError
+}
+
+service TrustedDomainService {
+    add-trusted-domain: TrustedDomain -> TrustedDomain / ServiceError,
+    remove-trusted-domain: text -> null / ServiceError,
+    list-trusted-domains: HouseID -> [* TrustedDomain] / ServiceError,
+    is-domain-trusted: TrustedDomain -> bool / ServiceError
+}
+
+service EventService {
+    create-event: Event -> Event / ServiceError,
+    get-event: EventID -> Event / ServiceError,
+    update-event: Event -> Event / ServiceError,
+    delete-event: EventID -> null / ServiceError,
+    list-events: HouseScopedListRequest -> [* Event] / ServiceError
+}
+
+service TaskService {
+    create-task: Task -> Task / ServiceError,
+    get-task: TaskID -> Task / ServiceError,
+    update-task: Task -> Task / ServiceError,
+    delete-task: TaskID -> null / ServiceError,
+    list-tasks: HouseScopedListRequest -> [* Task] / ServiceError
+}
+
+service CommentService {
+    create-comment: Comment -> Comment / ServiceError,
+    get-comment: CommentID -> Comment / ServiceError,
+    update-comment: Comment -> Comment / ServiceError,
+    delete-comment: CommentID -> null / ServiceError,
+    list-comments: CommentListRequest -> [* Comment] / ServiceError
+}
+
+service ShareService {
+    create-share: Share -> Share / ServiceError,
+    delete-share: ShareID -> null / ServiceError,
+    list-shares-by-resource: ShareAccessRequest -> [* Share] / ServiceError,
+    check-access: ShareAccessRequest -> Share / ServiceError
+}

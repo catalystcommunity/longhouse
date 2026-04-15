@@ -1,0 +1,21 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: {{ include "longhouse.fullname" . }}-postgres
+  labels:
+    {{- include "longhouse.labels" . | nindent 4 }}
+spec:
+  teamId: {{ .Values.postgresql.teamId | quote }}
+  postgresql:
+    version: {{ .Values.postgresql.version | quote }}
+  numberOfInstances: {{ .Values.postgresql.instances }}
+  volume:
+    size: {{ .Values.postgresql.storage.size }}
+  databases:
+    {{ .Values.postgresql.database | default "longhouse_db" }}: {{ .Values.postgresql.user | default "longhouse" }}
+  users:
+    {{ .Values.postgresql.user | default "longhouse" }}:
+      - superuser
+      - createdb
+{{- end }}

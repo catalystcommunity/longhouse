@@ -1,0 +1,12 @@
+Longhouse has been deployed!
+
+API Server:
+  kubectl port-forward svc/{{ include "longhouse.fullname" . }}-api {{ .Values.service.api.httpPort }}:{{ .Values.service.api.httpPort }}
+
+TCP/CSIL Server:
+  kubectl port-forward svc/{{ include "longhouse.fullname" . }}-api {{ .Values.service.api.tcp.port }}:{{ .Values.service.api.tcp.port }}
+
+Web UI:
+  kubectl port-forward svc/{{ include "longhouse.fullname" . }}-web {{ .Values.service.web.port }}:{{ .Values.service.web.port }}
+
+Then open http://localhost:{{ .Values.service.web.port }}/app/ in your browser.

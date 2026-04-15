@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "longhouse.fullname" . }}-web
+  labels:
+    {{- include "longhouse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  {{- if not .Values.autoscaling.web.enabled }}
+  replicas: {{ .Values.replicaCount.web }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "longhouse.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "longhouse.labels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "longhouse.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: web
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.web.repository }}:{{ .Values.image.web.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.web.pullPolicy }}
+          args: ["serve"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.server.webPort }}
+              protocol: TCP
+          env:
+            - name: LONGHOUSE_WEB_PORT
+              value: {{ .Values.server.webPort | quote }}
+            - name: LONGHOUSE_API_URL
+              value: "http://{{ include "longhouse.fullname" . }}-api:{{ .Values.service.api.httpPort }}"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

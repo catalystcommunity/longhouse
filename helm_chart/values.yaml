@@ -1,0 +1,141 @@
+# Longhouse Helm chart values
+
+replicaCount:
+  api: 1
+  web: 1
+
+image:
+  api:
+    repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-api
+    pullPolicy: IfNotPresent
+    tag: ""
+  web:
+    repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-web
+    pullPolicy: IfNotPresent
+    tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Database configuration
+database:
+  url: "postgresql://longhouse:longhouse@longhouse-postgresql:5432/longhouse_db?sslmode=disable"
+
+# Server configuration
+server:
+  apiPort: 6080
+  tcpPort: 6081
+  webPort: 4080
+  logLevel: "info"
+  # Linkkeys IDP configuration
+  linkkeysDomain: ""
+  linkkeysUrl: ""
+
+# PostgreSQL via Zalando postgres-operator
+postgresql:
+  enabled: false
+  teamId: "longhouse"
+  database: "longhouse_db"
+  user: "longhouse"
+  version: "17"
+  instances: 1
+  storage:
+    size: 1Gi
+
+# Service configuration
+service:
+  api:
+    type: ClusterIP
+    httpPort: 6080
+    tcp:
+      type: ClusterIP
+      port: 6081
+      nodePort: ""
+  web:
+    type: ClusterIP
+    port: 4080
+
+# Legacy Ingress (networking.k8s.io/v1)
+ingress:
+  api:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: longhouse-api.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  web:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: longhouse.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+# Gateway API (gateway.networking.k8s.io)
+gateway:
+  httpRoute:
+    api:
+      enabled: false
+      parentGateway: ""
+      parentNamespace: ""
+      parentSection: ""
+      hostnames: []
+      pathPrefixes: []
+    web:
+      enabled: false
+      parentGateway: ""
+      parentNamespace: ""
+      parentSection: ""
+      hostnames: []
+      pathPrefixes: []
+  tcpRoute:
+    enabled: false
+    parentGateway: ""
+    parentNamespace: ""
+    parentSection: ""
+
+resources: {}
+
+autoscaling:
+  api:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+  web:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL

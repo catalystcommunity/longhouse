@@ -1,0 +1,18 @@
+FROM golang:1.23-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /build/webapp
+COPY webapp/go.mod webapp/go.sum ./
+RUN go mod download
+
+COPY webapp/ ./
+RUN CGO_ENABLED=0 GOOS=linux go build -a -o longhouse-web .
+
+FROM scratch
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /build/webapp/longhouse-web /longhouse-web
+
+EXPOSE 4080
+USER 1000:1000
+ENTRYPOINT ["/longhouse-web"]

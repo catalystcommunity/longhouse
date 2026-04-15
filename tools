@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+    cat <<EOF
+Usage: ./tools <command>
+
+Commands:
+  build           Build all Go binaries
+  build-api       Build the API server
+  build-web       Build the web UI server
+  test            Run all tests
+  test-api        Run API tests
+  test-web        Run webapp tests
+  run-api         Run the API server locally
+  run-web         Run the web UI locally
+  docker-build    Build Docker images
+  clean           Remove build artifacts
+  check-deps      Verify required tools are installed
+EOF
+}
+
+check_deps() {
+    local missing=()
+    command -v go >/dev/null 2>&1 || missing+=("go")
+    command -v docker >/dev/null 2>&1 || missing+=("docker")
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "Missing required tools: ${missing[*]}"
+        exit 1
+    fi
+    echo "All dependencies present"
+}
+
+build_api() {
+    echo "Building API server..."
+    cd "$SCRIPT_DIR/api"
+    go build -o longhouse .
+    echo "Built: api/longhouse"
+}
+
+build_web() {
+    echo "Building web UI..."
+    cd "$SCRIPT_DIR/webapp"
+    go build -o longhouse-web .
+    echo "Built: webapp/longhouse-web"
+}
+
+build() {
+    build_api
+    build_web
+}
+
+test_api() {
+    echo "Testing API..."
+    cd "$SCRIPT_DIR/api"
+    go test ./...
+}
+
+test_web() {
+    echo "Testing webapp..."
+    cd "$SCRIPT_DIR/webapp"
+    go test ./...
+}
+
+run_tests() {
+    test_api
+    test_web
+}
+
+run_api() {
+    cd "$SCRIPT_DIR/api"
+    go run . serve "$@"
+}
+
+run_web() {
+    cd "$SCRIPT_DIR/webapp"
+    go run . serve "$@"
+}
+
+docker_build() {
+    echo "Building Docker images..."
+    cd "$SCRIPT_DIR"
+    docker build -f Dockerfile.api -t longhouse/api:dev .
+    docker build -f Dockerfile.web -t longhouse/web:dev .
+    echo "Done"
+}
+
+clean() {
+    echo "Cleaning build artifacts..."
+    rm -f "$SCRIPT_DIR/api/longhouse"
+    rm -f "$SCRIPT_DIR/webapp/longhouse-web"
+    echo "Done"
+}
+
+case "${1:-}" in
+    build)        build ;;
+    build-api)    build_api ;;
+    build-web)    build_web ;;
+    test)         run_tests ;;
+    test-api)     test_api ;;
+    test-web)     test_web ;;
+    run-api)      shift; run_api "$@" ;;
+    run-web)      shift; run_web "$@" ;;
+    docker-build) docker_build ;;
+    clean)        clean ;;
+    check-deps)   check_deps ;;
+    *)            usage ;;
+esac

@@ -1,0 +1,67 @@
+# Local development docker-compose for Longhouse
+# Usage: docker compose up -d
+
+services:
+    postgres:
+        image: postgres:17
+        container_name: longhouse-postgres-dev
+        environment:
+            POSTGRES_USER: longhouse
+            POSTGRES_PASSWORD: devpass123
+            POSTGRES_DB: longhouse_db
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U longhouse"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        networks:
+            - longhouse
+
+    api:
+        build:
+            context: .
+            dockerfile: Dockerfile.api
+        image: longhouse/api:dev
+        container_name: longhouse-api-dev
+        command: ["serve"]
+        environment:
+            LONGHOUSE_DB_URI: "postgresql://longhouse:devpass123@postgres:5432/longhouse_db?sslmode=disable"
+            LONGHOUSE_API_PORT: "6080"
+            LONGHOUSE_TCP_PORT: "6081"
+        ports:
+            - "6080:6080"
+            - "6081:6081"
+        depends_on:
+            postgres:
+                condition: service_healthy
+        networks:
+            - longhouse
+
+    web:
+        build:
+            context: .
+            dockerfile: Dockerfile.web
+        image: longhouse/web:dev
+        container_name: longhouse-web-dev
+        command: ["serve"]
+        environment:
+            LONGHOUSE_WEB_PORT: "4080"
+            LONGHOUSE_API_URL: "http://api:6080"
+        ports:
+            - "4080:4080"
+        depends_on:
+            api:
+                condition: service_started
+        networks:
+            - longhouse
+
+networks:
+    longhouse:
+        driver: bridge
+
+volumes:
+    postgres_data:

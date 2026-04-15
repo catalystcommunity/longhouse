@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "longhouse.fullname" . }}-api
+  labels:
+    {{- include "longhouse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  {{- if not .Values.autoscaling.api.enabled }}
+  replicas: {{ .Values.replicaCount.api }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "longhouse.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "longhouse.labels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "longhouse.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: api
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.api.pullPolicy }}
+          args: ["serve"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.server.apiPort }}
+              protocol: TCP
+            - name: tcp
+              containerPort: {{ .Values.server.tcpPort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "longhouse.fullname" . }}
+            - secretRef:
+                name: {{ include "longhouse.fullname" . }}
+          {{- if .Values.postgresql.enabled }}
+          env:
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.user | default "longhouse" }}.{{ include "longhouse.fullname" . }}-postgres.credentials.postgresql.acid.zalan.do
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.user | default "longhouse" }}.{{ include "longhouse.fullname" . }}-postgres.credentials.postgresql.acid.zalan.do
+                  key: password
+            - name: LONGHOUSE_DB_URI
+              value: "postgresql://$(PGUSER):$(PGPASSWORD)@{{ include "longhouse.fullname" . }}-postgres:5432/{{ .Values.postgresql.database | default "longhouse_db" }}?sslmode=require"
+          {{- end }}
+          livenessProbe:
+            tcpSocket:
+              port: tcp
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "longhouse.fullname" . }}-api
+  labels:
+    {{- include "longhouse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  type: {{ .Values.service.api.type }}
+  ports:
+    - port: {{ .Values.service.api.httpPort }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    {{- if eq .Values.service.api.type .Values.service.api.tcp.type }}
+    - port: {{ .Values.service.api.tcp.port }}
+      targetPort: tcp
+      protocol: TCP
+      name: tcp
+      {{- if and (eq .Values.service.api.tcp.type "NodePort") .Values.service.api.tcp.nodePort }}
+      nodePort: {{ .Values.service.api.tcp.nodePort }}
+      {{- end }}
+    {{- end }}
+  selector:
+    {{- include "longhouse.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+---
+{{- if ne .Values.service.api.type .Values.service.api.tcp.type }}
+# Separate service for TCP when using a different service type
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "longhouse.fullname" . }}-api-tcp
+  labels:
+    {{- include "longhouse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  type: {{ .Values.service.api.tcp.type }}
+  ports:
+    - port: {{ .Values.service.api.tcp.port }}
+      targetPort: tcp
+      protocol: TCP
+      name: tcp
+      {{- if and (eq .Values.service.api.tcp.type "NodePort") .Values.service.api.tcp.nodePort }}
+      nodePort: {{ .Values.service.api.tcp.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "longhouse.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+{{- end }}

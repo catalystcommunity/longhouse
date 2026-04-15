@@ -1,0 +1,25 @@
+{{define "dashboard.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+<h1>Dashboard</h1>
+<div class="card">
+    <h2>Welcome to Longhouse</h2>
+    <p>Your coordination hub for tasks, events, and communication.</p>
+</div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+    <div class="card">
+        <h2>Upcoming Events</h2>
+        <div id="upcoming-events" hx-get="/app/fragments/upcoming-events" hx-trigger="load" hx-swap="innerHTML">
+            <p class="empty">Loading events...</p>
+        </div>
+    </div>
+    <div class="card">
+        <h2>Open Tasks</h2>
+        <div id="open-tasks" hx-get="/app/fragments/open-tasks" hx-trigger="load" hx-swap="innerHTML">
+            <p class="empty">Loading tasks...</p>
+        </div>
+    </div>
+</div>
+{{end}}

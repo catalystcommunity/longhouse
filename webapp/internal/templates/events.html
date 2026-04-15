@@ -1,0 +1,12 @@
+{{define "events.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+<h1>Events</h1>
+<div class="card">
+    <div id="events-list" hx-get="/app/fragments/events-list" hx-trigger="load" hx-swap="innerHTML">
+        <p class="empty">Loading events...</p>
+    </div>
+</div>
+{{end}}

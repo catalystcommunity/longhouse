@@ -1,0 +1,39 @@
+{{- if .Values.gateway.httpRoute.web.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "longhouse.fullname" . }}-web
+  labels:
+    {{- include "longhouse.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.httpRoute.web.parentGateway }}
+      {{- if .Values.gateway.httpRoute.web.parentNamespace }}
+      namespace: {{ .Values.gateway.httpRoute.web.parentNamespace }}
+      {{- end }}
+      {{- if .Values.gateway.httpRoute.web.parentSection }}
+      sectionName: {{ .Values.gateway.httpRoute.web.parentSection }}
+      {{- end }}
+  {{- if .Values.gateway.httpRoute.web.hostnames }}
+  hostnames:
+    {{- range .Values.gateway.httpRoute.web.hostnames }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- if .Values.gateway.httpRoute.web.pathPrefixes }}
+    {{- range .Values.gateway.httpRoute.web.pathPrefixes }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ . | quote }}
+      backendRefs:
+        - name: {{ include "longhouse.fullname" $ }}-web
+          port: {{ $.Values.service.web.port }}
+    {{- end }}
+    {{- else }}
+    - backendRefs:
+        - name: {{ include "longhouse.fullname" . }}-web
+          port: {{ .Values.service.web.port }}
+    {{- end }}
+{{- end }}
