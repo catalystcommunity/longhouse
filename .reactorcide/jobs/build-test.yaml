@@ -5,15 +5,24 @@ job:
   command: |
     set -e
 
-    # Install Go toolchain
+    # Install Go toolchain into user home (sudo only allows apt-get)
     export HOME=/home/runner
     curl -fsSL https://go.dev/dl/go1.23.8.linux-amd64.tar.gz -o /tmp/go.tar.gz
-    sudo tar -C /usr/local -xzf /tmp/go.tar.gz
+    mkdir -p "$HOME/.local"
+    tar -C "$HOME/.local" -xzf /tmp/go.tar.gz
     rm /tmp/go.tar.gz
-    export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
+    export PATH="$HOME/.local/go/bin:$HOME/go/bin:$PATH"
 
-    git clone --branch "${REACTORCIDE_PR_REF}" "${REACTORCIDE_SOURCE_URL}" /workspace
-    cd /workspace
+    # Use mounted source for run-local, clone for CI
+    if [ -n "${REACTORCIDE_SOURCE_URL:-}" ]; then
+      git clone --branch "${REACTORCIDE_PR_REF}" "${REACTORCIDE_SOURCE_URL}" /workspace
+      cd /workspace
+    else
+      cd /job/src
+    fi
+
+    # Mark repo safe for git (mounted dir may have different owner)
+    git config --global --add safe.directory '*'
 
     echo "=== Building API ==="
     cd api
