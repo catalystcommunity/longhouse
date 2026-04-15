@@ -1,0 +1,16 @@
+name: longhouse-api-build-test
+description: "Verify the API Docker image builds successfully on PR"
+triggers:
+  events:
+    - pull_request_opened
+    - pull_request_updated
+  branches:
+    - main
+paths:
+  include: ["api/**", "coredb/**", "Dockerfile.api"]
+job:
+  image: 10.16.0.1:5000/public/reactorcide/runnerbase:dev
+  command: "bash /job/src/.reactorcide/jobs/scripts/api-build-test.sh"
+  timeout: 600
+  capabilities:
+    - docker
