@@ -1,0 +1,16 @@
+name: longhouse-web-build-test
+description: "Verify the web UI Docker image builds successfully on PR"
+triggers:
+  events:
+    - pull_request_opened
+    - pull_request_updated
+  branches:
+    - main
+paths:
+  include: ["webapp/**", "Dockerfile.web"]
+job:
+  image: 10.16.0.1:5000/public/reactorcide/runnerbase:dev
+  command: "bash /job/src/.reactorcide/jobs/scripts/web-build-test.sh"
+  timeout: 600
+  capabilities:
+    - docker

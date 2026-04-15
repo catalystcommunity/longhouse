@@ -1,0 +1,22 @@
+name: longhouse-api-build-and-deploy
+description: "Build API Docker image and push to registries"
+triggers:
+  events:
+    - push
+  branches:
+    - main
+paths:
+  include: ["version/VERSION.txt"]
+job:
+  image: 10.16.0.1:5000/public/reactorcide/runnerbase:dev
+  command: "bash /job/src/.reactorcide/jobs/scripts/api-build-and-deploy.sh"
+  timeout: 1200
+  capabilities:
+    - docker
+environment:
+  REGISTRY_INTERNAL: "10.16.0.1:5000"
+  REGISTRY_INTERNAL_PATH: "public/catalystcommunity/longhouse-api"
+  REGISTRY_EXTERNAL: "containers.catalystsquad.com"
+  REGISTRY_EXTERNAL_PATH: "public/catalystcommunity/longhouse-api"
+  REGISTRY_USER: "${secret:catalystcommunity/registry:user}"
+  REGISTRY_PASSWORD: "${secret:catalystcommunity/registry:password}"

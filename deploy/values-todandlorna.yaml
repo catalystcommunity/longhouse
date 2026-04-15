@@ -1,0 +1,49 @@
+image:
+  api:
+    repository: 10.16.0.1:5000/public/catalystcommunity/longhouse-api
+  web:
+    repository: 10.16.0.1:5000/public/catalystcommunity/longhouse-web
+
+imagePullSecrets:
+  - name: regcred
+
+database:
+  url: ""  # Overridden by Zalando operator credentials in deployment
+
+postgresql:
+  enabled: true
+  teamId: longhouse
+  database: longhouse_db
+  user: longhouse
+  instances: 1
+  storage:
+    size: 1Gi
+
+server:
+  linkkeysDomain: "todandlorna.com"
+  linkkeysUrl: "https://linkkeys.todandlorna.com"
+
+gateway:
+  httpRoute:
+    api:
+      enabled: true
+      parentGateway: contour
+      parentNamespace: projectcontour
+      parentSection: http
+      hostnames:
+        - longhouse-api.todandlorna.com
+    web:
+      enabled: true
+      parentGateway: contour
+      parentNamespace: projectcontour
+      parentSection: http
+      hostnames:
+        - longhouse.todandlorna.com
+  tcpRoute:
+    # Disabled until a TCP listener is added to the contour gateway.
+    # Requires adding a listener section to the Gateway resource in foundry
+    # with a dedicated port for the CSIL protocol.
+    enabled: false
+    parentGateway: contour
+    parentNamespace: projectcontour
+    parentSection: longhouse-tcp

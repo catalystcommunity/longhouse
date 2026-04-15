@@ -1,0 +1,22 @@
+name: longhouse-web-build-and-deploy
+description: "Build web UI Docker image and push to registries"
+triggers:
+  events:
+    - push
+  branches:
+    - main
+paths:
+  include: ["version/VERSION.txt"]
+job:
+  image: 10.16.0.1:5000/public/reactorcide/runnerbase:dev
+  command: "bash /job/src/.reactorcide/jobs/scripts/web-build-and-deploy.sh"
+  timeout: 1200
+  capabilities:
+    - docker
+environment:
+  REGISTRY_INTERNAL: "10.16.0.1:5000"
+  REGISTRY_INTERNAL_PATH: "public/catalystcommunity/longhouse-web"
+  REGISTRY_EXTERNAL: "containers.catalystsquad.com"
+  REGISTRY_EXTERNAL_PATH: "public/catalystcommunity/longhouse-web"
+  REGISTRY_USER: "${secret:catalystcommunity/registry:user}"
+  REGISTRY_PASSWORD: "${secret:catalystcommunity/registry:password}"

@@ -1,0 +1,29 @@
+name: longhouse-build-test
+description: "Build and test the Go API and webapp modules"
+job:
+  image: golang:1.23-alpine
+  command: |
+    set -e
+    apk add --no-cache git
+
+    git clone --branch "${REACTORCIDE_PR_REF}" "${REACTORCIDE_SOURCE_URL}" /workspace
+    cd /workspace
+
+    echo "=== Building API ==="
+    cd api
+    go build ./...
+
+    echo "=== Testing API ==="
+    go test ./...
+
+    echo "=== Building Webapp ==="
+    cd ../webapp
+    go build ./...
+
+    echo "=== Testing Webapp ==="
+    go test ./...
+
+    echo "=== All builds and tests passed ==="
+  timeout: 600
+  priority: 10
+  raw_command: true

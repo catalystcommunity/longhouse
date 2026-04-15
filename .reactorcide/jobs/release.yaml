@@ -1,0 +1,21 @@
+name: longhouse-release
+description: "Version bump with semver-tags and create GitHub release on merge to main"
+triggers:
+  events:
+    - pull_request_merged
+  branches:
+    - main
+job:
+  image: golang:1.23-alpine
+  command: |
+    set -e
+    apk add --no-cache git wget curl tar sed
+
+    git clone "https://x-access-token:${GITHUB_PAT}@github.com/${REACTORCIDE_REPO}.git" /workspace
+    cd /workspace
+    sh .reactorcide/jobs/scripts/release.sh
+  timeout: 600
+  priority: 15
+  raw_command: true
+environment:
+  GITHUB_PAT: "${secret:catalystcommunity/ci:githubpat}"

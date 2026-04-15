@@ -1,0 +1,15 @@
+name: longhouse-deploy
+description: "Deploy longhouse to Kubernetes via Helm. Use with an overlay to set namespace, release name, values, and secrets."
+job:
+  image: 10.16.0.1:5000/public/reactorcide/runnerbase:dev
+  command: "bash /job/src/.reactorcide/jobs/scripts/deploy.sh"
+  timeout: 600
+environment:
+  REGISTRY_USER: "${secret:catalystcommunity/registry:user}"
+  REGISTRY_PASSWORD: "${secret:catalystcommunity/registry:password}"
+  KUBECONFIG_CONTENT: "${secret:catalystcommunity/k8s:kubeconfig}"
+  # These must be set via overlay:
+  K8S_NAMESPACE: ""
+  HELM_RELEASE: ""
+  HELM_VALUES_FILE: ""
+  IMAGE_TAG: "0.1.0"
