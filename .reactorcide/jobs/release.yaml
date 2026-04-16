@@ -6,10 +6,15 @@ triggers:
   branches:
     - main
 job:
-  image: golang:1.23-alpine
+  image: 10.16.0.1:5000/public/reactorcide/runnerbase:dev
   command: |
     set -e
-    apk add --no-cache git wget curl tar sed
+    export HOME=/home/runner
+    curl -fsSL https://go.dev/dl/go1.23.8.linux-amd64.tar.gz -o /tmp/go.tar.gz
+    mkdir -p "$HOME/.local"
+    tar -C "$HOME/.local" -xzf /tmp/go.tar.gz
+    rm /tmp/go.tar.gz
+    export PATH="$HOME/.local/go/bin:$HOME/go/bin:$PATH"
 
     git clone "https://x-access-token:${GITHUB_PAT}@github.com/${REACTORCIDE_REPO}.git" /workspace
     cd /workspace
