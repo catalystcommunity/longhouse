@@ -7,20 +7,28 @@ triggers:
     - main
 job:
   image: 10.16.0.1:5000/public/reactorcide/runnerbase:dev
+  source:
+    type: git
+    url: "https://github.com/catalystcommunity/longhouse.git"
+    ref: main
   command: |
     set -e
-    export HOME=/home/runner
-    curl -fsSL https://go.dev/dl/go1.23.8.linux-amd64.tar.gz -o /tmp/go.tar.gz
+    export HOME="${HOME:-/tmp/home}"
     mkdir -p "$HOME/.local"
+
+    # Install Go toolchain
+    curl -fsSL https://go.dev/dl/go1.23.8.linux-amd64.tar.gz -o /tmp/go.tar.gz
     tar -C "$HOME/.local" -xzf /tmp/go.tar.gz
     rm /tmp/go.tar.gz
     export PATH="$HOME/.local/go/bin:$HOME/go/bin:$PATH"
 
-    git clone "https://x-access-token:${GITHUB_PAT}@github.com/${REACTORCIDE_REPO}.git" /workspace
-    cd /workspace
+    cd /job/src
+    # Set up git auth for pushing tags and version bumps
+    git remote set-url origin "https://x-access-token:${GITHUB_PAT}@github.com/${REACTORCIDE_REPO}.git"
+
     sh .reactorcide/jobs/scripts/release.sh
   timeout: 600
   priority: 15
-  raw_command: true
 environment:
+  REACTORCIDE_REPO: "catalystcommunity/longhouse"
   GITHUB_PAT: "${secret:catalystcommunity/ci:githubpat}"
