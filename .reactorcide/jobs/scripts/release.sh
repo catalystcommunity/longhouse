@@ -4,14 +4,14 @@ set -e
 SEMVER_TAGS_VERSION="v0.4.0"
 GHCLI_VERSION="2.63.2"
 
-cd /workspace
+# Script is invoked from the repo root (by the release job)
 
 # -------------------------------------------------------------------
 # 1. Install semver-tags
 # -------------------------------------------------------------------
 echo "=== Installing semver-tags ${SEMVER_TAGS_VERSION} ==="
-wget -q "https://github.com/catalystcommunity/semver-tags/releases/download/${SEMVER_TAGS_VERSION}/semver-tags.tar.gz" \
-  -O /tmp/semver-tags.tar.gz
+curl -fsSL "https://github.com/catalystcommunity/semver-tags/releases/download/${SEMVER_TAGS_VERSION}/semver-tags.tar.gz" \
+  -o /tmp/semver-tags.tar.gz
 tar -xzf /tmp/semver-tags.tar.gz -C /tmp
 chmod +x /tmp/semver-tags
 export PATH="/tmp:$PATH"
@@ -20,7 +20,7 @@ export PATH="/tmp:$PATH"
 # 2. Determine version bump from conventional commits
 # -------------------------------------------------------------------
 echo "=== Running semver-tags ==="
-semver-tags run --output_json > /tmp/semver-output.txt 2>&1
+semver-tags run --output_json > /tmp/semver-output.txt 2>&1 || true
 OUTPUT=$(tail -1 /tmp/semver-output.txt)
 echo "Output: ${OUTPUT}"
 
@@ -72,7 +72,7 @@ tar -czf "${RELEASE_DIR}/longhouse-web-${VERSION}-linux-amd64.tar.gz" -C /tmp lo
 # 5. Install gh CLI and create GitHub release
 # -------------------------------------------------------------------
 echo "=== Creating GitHub release ==="
-wget -q "https://github.com/cli/cli/releases/download/v${GHCLI_VERSION}/gh_${GHCLI_VERSION}_linux_amd64.tar.gz" -O /tmp/gh.tar.gz
+curl -fsSL "https://github.com/cli/cli/releases/download/v${GHCLI_VERSION}/gh_${GHCLI_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
 tar -xzf /tmp/gh.tar.gz -C /tmp
 export PATH="/tmp/gh_${GHCLI_VERSION}_linux_amd64/bin:$PATH"
 
