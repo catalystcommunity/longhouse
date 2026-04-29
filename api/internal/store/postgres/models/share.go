@@ -3,7 +3,7 @@ package models
 import "time"
 
 type Share struct {
-	ShareID        string     `gorm:"column:share_id;primaryKey" json:"share_id"`
+	ShareID        string     `gorm:"column:share_id;primaryKey;default:generate_ulid()" json:"share_id"`
 	HouseID        string     `gorm:"column:house_id;not null" json:"house_id"`
 	SharedBy       string     `gorm:"column:shared_by;not null" json:"shared_by"`
 	LinkkeysDomain string     `gorm:"column:linkkeys_domain;not null" json:"linkkeys_domain"`

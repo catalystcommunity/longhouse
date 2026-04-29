@@ -13,3 +13,12 @@ data:
   {{- if .Values.server.linkkeysUrl }}
   LONGHOUSE_LINKKEYS_URL: {{ .Values.server.linkkeysUrl | quote }}
   {{- end }}
+  {{- if .Values.server.initialAdmin.domain }}
+  LONGHOUSE_INITIAL_ADMIN_DOMAIN: {{ .Values.server.initialAdmin.domain | quote }}
+  {{- end }}
+  {{- if .Values.server.initialAdmin.userId }}
+  LONGHOUSE_INITIAL_ADMIN_USER_ID: {{ .Values.server.initialAdmin.userId | quote }}
+  {{- end }}
+  {{- if .Values.server.initialHouseName }}
+  LONGHOUSE_INITIAL_HOUSE_NAME: {{ .Values.server.initialHouseName | quote }}
+  {{- end }}

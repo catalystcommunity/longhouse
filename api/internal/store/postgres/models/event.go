@@ -3,7 +3,7 @@ package models
 import "time"
 
 type Event struct {
-	EventID     string     `gorm:"column:event_id;primaryKey" json:"event_id"`
+	EventID     string     `gorm:"column:event_id;primaryKey;default:generate_ulid()" json:"event_id"`
 	HouseID     string     `gorm:"column:house_id;not null" json:"house_id"`
 	CreatedBy   string     `gorm:"column:created_by;not null" json:"created_by"`
 	Title       string     `gorm:"column:title;not null" json:"title"`

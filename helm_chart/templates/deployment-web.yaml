@@ -17,6 +17,7 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -45,11 +46,38 @@ spec:
             - name: http
               containerPort: {{ .Values.server.webPort }}
               protocol: TCP
+          envFrom:
+            - secretRef:
+                name: {{ include "longhouse.fullname" . }}
           env:
             - name: LONGHOUSE_WEB_PORT
               value: {{ .Values.server.webPort | quote }}
             - name: LONGHOUSE_API_URL
               value: "http://{{ include "longhouse.fullname" . }}-api:{{ .Values.service.api.httpPort }}"
+            {{- if .Values.linkkeysRp.enabled }}
+            - name: LONGHOUSE_LINKKEYS_PKI_URL
+              value: "https://{{ include "longhouse.fullname" . }}-linkkeys-rp:{{ .Values.linkkeysRp.port }}"
+            {{- end }}
+            {{- if .Values.linkkeysRp.allowInvalidCerts }}
+            - name: LONGHOUSE_LINKKEYS_PKI_ALLOW_INVALID_CERTS
+              value: "true"
+            {{- end }}
+            {{- if .Values.server.linkkeysIdpUrl }}
+            - name: LONGHOUSE_LINKKEYS_IDP_URL
+              value: {{ .Values.server.linkkeysIdpUrl | quote }}
+            {{- end }}
+            {{- if .Values.server.linkkeysIdpDomain }}
+            - name: LONGHOUSE_LINKKEYS_IDP_DOMAIN
+              value: {{ .Values.server.linkkeysIdpDomain | quote }}
+            {{- end }}
+            {{- if .Values.server.rpDomain }}
+            - name: LONGHOUSE_RP_DOMAIN
+              value: {{ .Values.server.rpDomain | quote }}
+            {{- end }}
+            {{- if .Values.server.rpCallbackUrl }}
+            - name: LONGHOUSE_RP_CALLBACK_URL
+              value: {{ .Values.server.rpCallbackUrl | quote }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /

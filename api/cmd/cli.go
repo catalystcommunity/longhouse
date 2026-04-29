@@ -10,6 +10,8 @@ const usage = `longhouse - coordination system for organizations and neighborhoo
 
 Usage:
   longhouse serve [--db-uri=URI] [--api-port=PORT] [--tcp-port=PORT]
+                  [--initial-admin-domain=DOMAIN] [--initial-admin-user-id=UUID]
+                  [--initial-house-name=NAME]
   longhouse migrate [--db-uri=URI]
   longhouse --help
   longhouse --version
@@ -19,11 +21,14 @@ Commands:
   migrate   Run database migrations
 
 Options:
-  --db-uri=URI      PostgreSQL connection string [env: LONGHOUSE_DB_URI]
-  --api-port=PORT   HTTP API port [default: 6080] [env: LONGHOUSE_API_PORT]
-  --tcp-port=PORT   TCP/CSIL protocol port [default: 6081] [env: LONGHOUSE_TCP_PORT]
-  --help            Show this help message
-  --version         Show version
+  --db-uri=URI                    PostgreSQL connection string [env: LONGHOUSE_DB_URI]
+  --api-port=PORT                 HTTP API port [default: 6080] [env: LONGHOUSE_API_PORT]
+  --tcp-port=PORT                 TCP/CSIL protocol port [default: 6081] [env: LONGHOUSE_TCP_PORT]
+  --initial-admin-domain=DOMAIN   Linkkeys domain of the bootstrap admin [env: LONGHOUSE_INITIAL_ADMIN_DOMAIN]
+  --initial-admin-user-id=UUID    Linkkeys user_id (UUID) of the bootstrap admin [env: LONGHOUSE_INITIAL_ADMIN_USER_ID]
+  --initial-house-name=NAME       Name for the auto-created house on first boot [default: Longhouse] [env: LONGHOUSE_INITIAL_HOUSE_NAME]
+  --help                          Show this help message
+  --version                       Show version
 `
 
 const version = "0.1.0"

@@ -12,7 +12,11 @@ import (
 func Serve(flags map[string]string) error {
 	config.ApplyFlags(flags)
 
-	handler := handlers.NewRouter()
+	if config.SessionSecret == "" {
+		return fmt.Errorf("LONGHOUSE_SESSION_SECRET must be set")
+	}
+
+	handler := handlers.NewRouter(nil)
 	log.Infof("Starting web UI on :%d (API: %s)", config.WebPort, config.APIURL)
 	return http.ListenAndServe(fmt.Sprintf(":%d", config.WebPort), handler)
 }

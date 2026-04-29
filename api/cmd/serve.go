@@ -31,6 +31,10 @@ func Serve(flags map[string]string) error {
 	}
 	log.Info("Store initialized")
 
+	if err := SeedInitialAdmin(); err != nil {
+		return fmt.Errorf("failed to seed initial admin: %w", err)
+	}
+
 	// Start TCP server in background
 	go func() {
 		log.Infof("Starting TCP server on :%d", config.TCPPort)
