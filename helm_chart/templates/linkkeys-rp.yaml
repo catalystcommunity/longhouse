@@ -1,0 +1,91 @@
+{{- if .Values.linkkeysRp.enabled }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "longhouse.fullname" . }}-linkkeys-rp
+  labels:
+    {{- include "longhouse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: linkkeys-rp
+type: Opaque
+stringData:
+  {{- with .Values.linkkeysRp.apiKey }}
+  API_KEY: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.linkkeysRp.domainKeyPassphrase }}
+  DOMAIN_KEY_PASSPHRASE: {{ . | quote }}
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "longhouse.fullname" . }}-linkkeys-rp
+  labels:
+    {{- include "longhouse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: linkkeys-rp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "longhouse.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: linkkeys-rp
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "longhouse.labels" . | nindent 8 }}
+        app.kubernetes.io/component: linkkeys-rp
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "longhouse.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: linkkeys-rp
+          image: "{{ .Values.linkkeysRp.image.repository }}:{{ .Values.linkkeysRp.image.tag }}"
+          imagePullPolicy: {{ .Values.linkkeysRp.image.pullPolicy }}
+          ports:
+            - name: https
+              containerPort: {{ .Values.linkkeysRp.port }}
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: {{ include "longhouse.fullname" . }}-linkkeys-rp
+          env:
+            - name: ENABLE_RP_ENDPOINTS
+              value: "true"
+            - name: DISABLE_PASSWORD_AUTH
+              value: "true"
+            {{- with .Values.linkkeysRp.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "longhouse.fullname" . }}-linkkeys-rp
+  labels:
+    {{- include "longhouse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: linkkeys-rp
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.linkkeysRp.port }}
+      targetPort: https
+      protocol: TCP
+      name: https
+  selector:
+    {{- include "longhouse.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: linkkeys-rp
+{{- end }}

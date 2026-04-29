@@ -33,9 +33,51 @@ server:
   tcpPort: 6081
   webPort: 4080
   logLevel: "info"
-  # Linkkeys IDP configuration
+  # Linkkeys IDP metadata cached on the api (legacy — kept for api-side auth helpers).
   linkkeysDomain: ""
   linkkeysUrl: ""
+
+  # Bootstrap the first admin + house when the members table is empty.
+  # userId MUST be a proper UUID issued by the linkkeys IDP; anything else is refused.
+  initialAdmin:
+    domain: ""
+    userId: ""
+  initialHouseName: ""
+
+  # Webapp-facing auth config. Required for login to work.
+  rpDomain: ""            # this longhouse instance's public hostname
+  rpCallbackUrl: ""       # full https://.../auth/callback URL
+  linkkeysIdpUrl: ""      # IDP base URL (for the /auth/authorize redirect)
+  linkkeysIdpDomain: ""   # IDP domain (for assertion verification)
+
+# Linkkeys RP PKI sidecar (same linkkeys image, RP-mode config). Holds this
+# instance's Ed25519 keypair so the webapp never touches private keys.
+#
+# Operator setup after first deploy:
+#   1. exec into the pod and run `linkkeys domain init` to generate keys.
+#   2. run `linkkeys user create longhouse-web "Longhouse webapp" --api-key`
+#      and save the printed key as linkkeysRp.apiKey.
+#   3. publish the TXT record shown by `linkkeys domain dns-check`.
+linkkeysRp:
+  enabled: false
+  image:
+    repository: containers.catalystsquad.com/public/catalystcommunity/linkkeys
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  port: 8443
+  # Generate with a password manager; rotate by redeploying + re-running user create.
+  apiKey: ""
+  domainKeyPassphrase: ""
+  # Accept self-signed RP certs when the webapp calls the sidecar.
+  allowInvalidCerts: false
+  # Extra env vars to pass through to the linkkeys container (for any
+  # deployment-specific knobs not covered above).
+  extraEnv: []
+
+# Session cookie signing secret for the webapp. REQUIRED for login to work.
+# Generate with: openssl rand -base64 48
+webapp:
+  sessionSecret: ""
 
 # PostgreSQL via Zalando postgres-operator
 postgresql:

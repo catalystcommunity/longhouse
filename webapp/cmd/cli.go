@@ -10,6 +10,10 @@ const usage = `longhouse-web - web UI for longhouse
 
 Usage:
   longhouse-web serve [--port=PORT] [--api-url=URL]
+                      [--linkkeys-pki-url=URL] [--linkkeys-pki-api-key=KEY]
+                      [--linkkeys-idp-url=URL] [--linkkeys-idp-domain=DOMAIN]
+                      [--rp-domain=DOMAIN] [--rp-callback-url=URL]
+                      [--session-secret=SECRET]
   longhouse-web --help
   longhouse-web --version
 
@@ -17,10 +21,17 @@ Commands:
   serve    Start the web UI server
 
 Options:
-  --port=PORT      Web UI port [default: 4080] [env: LONGHOUSE_WEB_PORT]
-  --api-url=URL    API server URL [default: http://localhost:6080] [env: LONGHOUSE_API_URL]
-  --help           Show this help message
-  --version        Show version
+  --port=PORT                  Web UI port [default: 4080] [env: LONGHOUSE_WEB_PORT]
+  --api-url=URL                API server URL [default: http://localhost:6080] [env: LONGHOUSE_API_URL]
+  --linkkeys-pki-url=URL       Linkkeys RP PKI sidecar base URL [env: LONGHOUSE_LINKKEYS_PKI_URL]
+  --linkkeys-pki-api-key=KEY   Bearer token for the PKI sidecar [env: LONGHOUSE_LINKKEYS_PKI_API_KEY]
+  --linkkeys-idp-url=URL       Linkkeys IDP base URL for the /auth/authorize redirect [env: LONGHOUSE_LINKKEYS_IDP_URL]
+  --linkkeys-idp-domain=DOMAIN Linkkeys IDP domain (for assertion verification) [env: LONGHOUSE_LINKKEYS_IDP_DOMAIN]
+  --rp-domain=DOMAIN           This instance's relying-party domain [env: LONGHOUSE_RP_DOMAIN]
+  --rp-callback-url=URL        Public callback URL for this RP [env: LONGHOUSE_RP_CALLBACK_URL]
+  --session-secret=SECRET      HMAC secret for session cookies [env: LONGHOUSE_SESSION_SECRET]
+  --help                       Show this help message
+  --version                    Show version
 `
 
 const version = "0.1.0"

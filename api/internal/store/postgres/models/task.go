@@ -3,7 +3,7 @@ package models
 import "time"
 
 type Task struct {
-	TaskID      string     `gorm:"column:task_id;primaryKey" json:"task_id"`
+	TaskID      string     `gorm:"column:task_id;primaryKey;default:generate_ulid()" json:"task_id"`
 	HouseID     string     `gorm:"column:house_id;not null" json:"house_id"`
 	CreatedBy   string     `gorm:"column:created_by;not null" json:"created_by"`
 	AssignedTo  *string    `gorm:"column:assigned_to" json:"assigned_to,omitempty"`

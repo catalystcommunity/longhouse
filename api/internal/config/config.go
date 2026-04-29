@@ -13,6 +13,10 @@ var (
 
 	LinkkeysDomain = getEnvOrDefault("LONGHOUSE_LINKKEYS_DOMAIN", "")
 	LinkkeysURL    = getEnvOrDefault("LONGHOUSE_LINKKEYS_URL", "")
+
+	InitialAdminDomain = getEnvOrDefault("LONGHOUSE_INITIAL_ADMIN_DOMAIN", "")
+	InitialAdminUserID = getEnvOrDefault("LONGHOUSE_INITIAL_ADMIN_USER_ID", "")
+	InitialHouseName   = getEnvOrDefault("LONGHOUSE_INITIAL_HOUSE_NAME", "Longhouse")
 )
 
 func getEnvOrDefault(key, defaultVal string) string {
@@ -45,5 +49,14 @@ func ApplyFlags(flags map[string]string) {
 		if i, err := strconv.Atoi(v); err == nil {
 			TCPPort = i
 		}
+	}
+	if v, ok := flags["initial-admin-domain"]; ok {
+		InitialAdminDomain = v
+	}
+	if v, ok := flags["initial-admin-user-id"]; ok {
+		InitialAdminUserID = v
+	}
+	if v, ok := flags["initial-house-name"]; ok {
+		InitialHouseName = v
 	}
 }
