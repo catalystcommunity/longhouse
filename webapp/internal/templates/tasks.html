@@ -4,9 +4,80 @@
 
 {{define "content"}}
 <h1>Tasks</h1>
+
 <div class="card">
-    <div id="tasks-list" hx-get="/app/fragments/tasks-list" hx-trigger="load" hx-swap="innerHTML">
-        <p class="empty">Loading tasks...</p>
-    </div>
+    <h2>Open + recent</h2>
+    {{if .Tasks}}
+        <table>
+            <thead><tr><th>Title</th><th>Status</th><th>Assigned to</th></tr></thead>
+            <tbody>
+            {{range .Tasks}}
+                <tr>
+                    <td><a href="/app/tasks/{{.TaskID}}">{{.Title}}</a></td>
+                    <td>{{.Status}}</td>
+                    <td>
+                        {{if .AssignedToMemberID}}member: <code>{{.AssignedToMemberID}}</code>{{end}}
+                        {{if .AssignedToSkillID}}skill: <code>{{.AssignedToSkillID}}</code>{{end}}
+                    </td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    {{else}}
+        <p class="empty">No tasks yet.</p>
+    {{end}}
+</div>
+
+<div class="card">
+    <h2>Create task</h2>
+    <form method="post" action="/app/tasks">
+        <label>Title <input name="title" required></label>
+        <label>Description <textarea name="description"></textarea></label>
+        <label>Assign to member
+            <select name="assigned_to_member_id">
+                <option value="">— none —</option>
+                {{range .Members}}<option value="{{.MemberID}}">{{if .DisplayName}}{{.DisplayName}}{{else}}{{.LinkkeysUserID}}{{end}}</option>{{end}}
+            </select>
+        </label>
+        <label>Or by skill
+            <select name="assigned_to_skill_id">
+                <option value="">— none —</option>
+                {{range .Skills}}<option value="{{.SkillID}}">{{.Name}}</option>{{end}}
+            </select>
+        </label>
+        <label>Parent task (optional, makes this a subtask)
+            <select name="parent_task_id">
+                <option value="">— none —</option>
+                {{range .ParentTask}}<option value="{{.TaskID}}">{{.Title}}</option>{{end}}
+            </select>
+        </label>
+        <fieldset style="border:1px solid #eee;padding:0.75rem;margin-top:0.75rem">
+            <legend>Recurrence (optional)</legend>
+            <label>Frequency
+                <select name="recurrence_freq">
+                    <option value="">— none —</option>
+                    <option value="hourly">Hourly</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </label>
+            <label>Every <input type="number" name="recurrence_interval" min="1" value="1" style="width:5em"> period(s)</label>
+            <label>Weekdays (weekly only — pick any)<br>
+                <label style="display:inline">Sun <input type="checkbox" name="recurrence_by_weekday" value="0"></label>
+                <label style="display:inline">Mon <input type="checkbox" name="recurrence_by_weekday" value="1"></label>
+                <label style="display:inline">Tue <input type="checkbox" name="recurrence_by_weekday" value="2"></label>
+                <label style="display:inline">Wed <input type="checkbox" name="recurrence_by_weekday" value="3"></label>
+                <label style="display:inline">Thu <input type="checkbox" name="recurrence_by_weekday" value="4"></label>
+                <label style="display:inline">Fri <input type="checkbox" name="recurrence_by_weekday" value="5"></label>
+                <label style="display:inline">Sat <input type="checkbox" name="recurrence_by_weekday" value="6"></label>
+            </label>
+            <label>First occurrence (UTC RFC3339) <input name="next_recurrence_at" placeholder="2026-05-04T08:00:00Z"></label>
+        </fieldset>
+        <button type="submit">Create</button>
+    </form>
+    <p><small>Pick a member <em>or</em> a skill, not both.</small></p>
 </div>
 {{end}}

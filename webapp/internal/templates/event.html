@@ -1,0 +1,45 @@
+{{define "event.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+<h1>{{.Event.Title}}</h1>
+<p><a href="/app/events">← All events</a></p>
+
+<div class="card">
+    {{if .Event.Description}}<p>{{.Event.Description}}</p>{{end}}
+    {{if .Event.Location}}<p><strong>Location:</strong> {{.Event.Location}}</p>{{end}}
+    {{if .Event.StartsAt}}<p><strong>Starts:</strong> {{.Event.StartsAt}}</p>{{end}}
+    {{if .Event.EndsAt}}<p><strong>Ends:</strong> {{.Event.EndsAt}}</p>{{end}}
+    {{if .Event.AllDay}}<p><strong>All-day</strong></p>{{end}}
+    <p><small>Owner: <code>{{.Event.OwnerMemberID}}</code></small></p>
+</div>
+
+<div class="card">
+    <h2>Comments</h2>
+    {{if .Comments}}
+        <ul style="list-style:none;padding:0">
+        {{range .Comments}}
+            <li style="border-bottom:1px solid #eee;padding:0.6rem 0">
+                <small>by <code>{{.MemberID}}</code> at {{.CreatedAt}}</small>
+                <p>{{.Body}}</p>
+                {{if or (eq .MemberID $.Identity.MemberID) ($.Identity.HasRole "admin")}}
+                    <form method="post" action="/app/comments/{{.CommentID}}/delete" style="display:inline">
+                        <input type="hidden" name="return_to" value="/app/events/{{$.Event.EventID}}">
+                        <button type="submit">Delete</button>
+                    </form>
+                {{end}}
+            </li>
+        {{end}}
+        </ul>
+    {{else}}
+        <p class="empty">No comments yet.</p>
+    {{end}}
+
+    <h3>Add a comment</h3>
+    <form method="post" action="/app/comments/event/{{.Event.EventID}}">
+        <textarea name="body" required></textarea>
+        <button type="submit">Post</button>
+    </form>
+</div>
+{{end}}

@@ -22,3 +22,12 @@ data:
   {{- if .Values.server.initialHouseName }}
   LONGHOUSE_INITIAL_HOUSE_NAME: {{ .Values.server.initialHouseName | quote }}
   {{- end }}
+  {{- if .Values.linkkeysRp.enabled }}
+  LONGHOUSE_LINKKEYS_PKI_URL: "https://{{ include "longhouse.fullname" . }}-linkkeys-rp:{{ .Values.linkkeysRp.port }}"
+  {{- end }}
+  {{- if .Values.linkkeysRp.allowInvalidCerts }}
+  LONGHOUSE_LINKKEYS_PKI_ALLOW_INVALID_CERTS: "true"
+  {{- end }}
+  {{- if .Values.server.linkkeysIdpDomain }}
+  LONGHOUSE_LINKKEYS_IDP_DOMAIN: {{ .Values.server.linkkeysIdpDomain | quote }}
+  {{- end }}

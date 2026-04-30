@@ -1,0 +1,61 @@
+{{define "task.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+<h1>{{.Task.Title}}</h1>
+<p><a href="/app/tasks">← All tasks</a></p>
+
+<div class="card">
+    <p>{{.Task.Description}}</p>
+    <p><strong>Status:</strong> {{.Task.Status}}</p>
+    {{if .Task.AssignedToMemberID}}<p><strong>Assigned to member:</strong> <code>{{.Task.AssignedToMemberID}}</code></p>{{end}}
+    {{if .Task.AssignedToSkillID}}<p><strong>Assigned to skill:</strong> <code>{{.Task.AssignedToSkillID}}</code></p>{{end}}
+    {{if .Task.ParentTaskID}}<p><strong>Parent task:</strong> <a href="/app/tasks/{{.Task.ParentTaskID}}"><code>{{.Task.ParentTaskID}}</code></a></p>{{end}}
+</div>
+
+<div class="card">
+    <h2>Update</h2>
+    <form method="post" action="/app/tasks/{{.Task.TaskID}}">
+        <label>Title <input name="title" value="{{.Task.Title}}"></label>
+        <label>Description <textarea name="description">{{.Task.Description}}</textarea></label>
+        <label>Status
+            <select name="status">
+                <option value="open" {{if eq .Task.Status "open"}}selected{{end}}>open</option>
+                <option value="in_progress" {{if eq .Task.Status "in_progress"}}selected{{end}}>in progress</option>
+                <option value="done" {{if eq .Task.Status "done"}}selected{{end}}>done</option>
+                <option value="cancelled" {{if eq .Task.Status "cancelled"}}selected{{end}}>cancelled</option>
+            </select>
+        </label>
+        <button type="submit">Save</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Comments</h2>
+    {{if .Comments}}
+        <ul style="list-style:none;padding:0">
+        {{range .Comments}}
+            <li style="border-bottom:1px solid #eee;padding:0.6rem 0">
+                <small>by <code>{{.MemberID}}</code> at {{.CreatedAt}}</small>
+                <p>{{.Body}}</p>
+                {{if or (eq .MemberID $.Identity.MemberID) ($.Identity.HasRole "admin")}}
+                    <form method="post" action="/app/comments/{{.CommentID}}/delete" style="display:inline">
+                        <input type="hidden" name="return_to" value="/app/tasks/{{$.Task.TaskID}}">
+                        <button type="submit">Delete</button>
+                    </form>
+                {{end}}
+            </li>
+        {{end}}
+        </ul>
+    {{else}}
+        <p class="empty">No comments yet.</p>
+    {{end}}
+
+    <h3>Add a comment</h3>
+    <form method="post" action="/app/comments/task/{{.Task.TaskID}}">
+        <textarea name="body" required placeholder="What's on your mind?"></textarea>
+        <button type="submit">Post</button>
+    </form>
+</div>
+{{end}}

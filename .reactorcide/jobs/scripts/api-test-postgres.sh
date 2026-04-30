@@ -4,10 +4,11 @@
 # postgres + Go via apt, initdb + pg_ctl as the runner user, point the
 # integration tests at it via LONGHOUSE_TEST_DB_URI.
 #
-# Note: this is a CI-only job by way of how reactorcide-run-local mounts
-# /etc/passwd and /etc/group read-only, which breaks the postgres apt
-# postinst. The job is structured for the CI runner where /etc is writable
-# and the runnerbase 'runner' user has passwordless sudo.
+# Run-local parity: this script reads its source from
+# ${REACTORCIDE_REPOROOT:-/job/src}. In CI, runnerlib clones into /job/src;
+# in `reactorcide run-local`, the bind mount populates the same path. No
+# git clone / push / gh-release here, so no REACTORCIDE_WORKER_MODE branch
+# is needed (Bucket B per reactorcide/linkkeys-runlocal-migration.md).
 set -euo pipefail
 
 echo "================================================"

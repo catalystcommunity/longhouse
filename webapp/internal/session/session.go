@@ -17,11 +17,16 @@ import (
 )
 
 const (
-	SessionCookie    = "longhouse_session"
-	LoginStateCookie = "longhouse_login_state"
+	SessionCookie         = "longhouse_session"
+	LoginStateCookie      = "longhouse_login_state"
+	HousePickCookie       = "longhouse_house_pick"
 
 	SessionTTL    = 24 * time.Hour
 	LoginStateTTL = 10 * time.Minute
+	// HousePickTTL is the window between hitting the multi-house 409 and
+	// the user choosing a house. Short — the signed assertion stashed in
+	// this cookie is short-lived too.
+	HousePickTTL = 10 * time.Minute
 )
 
 var (
@@ -34,12 +39,37 @@ type Identity struct {
 	Domain      string    `json:"domain"`
 	UserID      string    `json:"user_id"`
 	DisplayName string    `json:"display_name,omitempty"`
-	ExpiresAt   time.Time `json:"expires_at"`
+	// MemberID, HouseID, and APIToken are populated after the webapp
+	// exchanges the verified linkkeys assertion for an api bearer token
+	// at /api/v1/auth/login. Subsequent webapp→api calls send APIToken.
+	MemberID  string    `json:"member_id,omitempty"`
+	HouseID   string    `json:"house_id,omitempty"`
+	APIToken  string    `json:"api_token,omitempty"`
+	Roles     []string  `json:"roles,omitempty"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// HasRole returns true if the session's roles include name. Lower-cased
+// canonical comparison; values come from the api at login time.
+func (i *Identity) HasRole(name string) bool {
+	for _, r := range i.Roles {
+		if r == name {
+			return true
+		}
+	}
+	return false
 }
 
 type LoginState struct {
 	Nonce     string    `json:"nonce"`
 	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// PendingHousePick survives the round-trip between the multi-house 409 from
+// /auth/login and the user picking which house to scope their token to.
+type PendingHousePick struct {
+	SignedAssertion string    `json:"signed_assertion"`
+	ExpiresAt       time.Time `json:"expires_at"`
 }
 
 type Manager struct {
@@ -80,6 +110,23 @@ func (m *Manager) ClearIdentity(w http.ResponseWriter) {
 func (m *Manager) SetLoginState(w http.ResponseWriter, state LoginState) error {
 	state.ExpiresAt = time.Now().Add(LoginStateTTL)
 	return m.setSigned(w, LoginStateCookie, state, "/auth/callback", LoginStateTTL)
+}
+
+func (m *Manager) SetPendingHousePick(w http.ResponseWriter, p PendingHousePick) error {
+	p.ExpiresAt = time.Now().Add(HousePickTTL)
+	return m.setSigned(w, HousePickCookie, p, "/", HousePickTTL)
+}
+
+func (m *Manager) ConsumePendingHousePick(w http.ResponseWriter, r *http.Request) (*PendingHousePick, error) {
+	var p PendingHousePick
+	if err := m.getSigned(r, HousePickCookie, &p); err != nil {
+		return nil, err
+	}
+	m.clear(w, HousePickCookie, "/")
+	if time.Now().After(p.ExpiresAt) {
+		return nil, ErrExpired
+	}
+	return &p, nil
 }
 
 func (m *Manager) ConsumeLoginState(w http.ResponseWriter, r *http.Request) (*LoginState, error) {

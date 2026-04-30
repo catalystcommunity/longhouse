@@ -6,7 +6,7 @@ triggers:
   branches:
     - main
 job:
-  image: 10.16.0.1:5000/public/reactorcide/runnerbase:dev
+  image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
   source:
     type: git
     url: "https://github.com/catalystcommunity/longhouse.git"
@@ -23,9 +23,8 @@ job:
     export PATH="$HOME/.local/go/bin:$HOME/go/bin:$PATH"
 
     cd /job/src
-    # Set up git auth for pushing tags and version bumps
-    git remote set-url origin "https://x-access-token:${GITHUB_PAT}@github.com/${REACTORCIDE_REPO}.git"
-
+    # release.sh handles git remote auth itself, gated on
+    # REACTORCIDE_WORKER_MODE / SKIP_GITHUB so run-local stays read-only.
     sh .reactorcide/jobs/scripts/release.sh
   timeout: 600
   priority: 15

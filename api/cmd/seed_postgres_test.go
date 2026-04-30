@@ -131,14 +131,17 @@ func TestSeedInitialAdmin_Postgres_CreatesHouseAndAdmin(t *testing.T) {
 	if m.MemberID == "" {
 		t.Errorf("member_id should be server-generated, got empty")
 	}
-	hasAdmin := false
-	for _, r := range m.Roles {
-		if r == "admin" {
-			hasAdmin = true
-		}
+
+	roles, err := store.AppStore.ListRolesForMember(ctx, m.MemberID)
+	if err != nil {
+		t.Fatalf("ListRolesForMember: %v", err)
 	}
-	if !hasAdmin {
-		t.Errorf("member missing admin role: %v", m.Roles)
+	got := map[string]bool{}
+	for _, r := range roles {
+		got[r.Name] = true
+	}
+	if !got["admin"] || !got["member"] {
+		t.Errorf("want admin+member roles; got %+v", got)
 	}
 }
 

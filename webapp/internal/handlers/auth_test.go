@@ -8,9 +8,21 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/catalystcommunity/longhouse/webapp/internal/api"
 	"github.com/catalystcommunity/longhouse/webapp/internal/linkkeys"
 	"github.com/catalystcommunity/longhouse/webapp/internal/session"
 )
+
+type fakeAPI struct {
+	login func(signedAssertion string, houseID *string) (*api.LoginResponse, error)
+}
+
+func (f *fakeAPI) Login(s string, h *string) (*api.LoginResponse, error) {
+	if f.login != nil {
+		return f.login(s, h)
+	}
+	return &api.LoginResponse{Token: "tok", MemberID: "m1", HouseID: "h1"}, nil
+}
 
 type fakePKI struct {
 	signRequest     func(callbackURL, nonce string) (string, error)
@@ -28,6 +40,7 @@ func testDeps(pki PKIClient) *Deps {
 	return &Deps{
 		Sessions:    session.New("test-secret", false),
 		PKI:         pki,
+		API:         &fakeAPI{},
 		IDPURL:      "https://idp.example",
 		IDPDomain:   "idp.example",
 		RPDomain:    "longhouse.example",
@@ -257,6 +270,179 @@ func TestRequireAuth_AllowsValidSession(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", rec.Code)
+	}
+}
+
+func TestCallback_APILoginError(t *testing.T) {
+	pki := &fakePKI{
+		signRequest:  func(cb, n string) (string, error) { return "SIGNED", nil },
+		decryptToken: func(tok string) (string, error) { return "ASSERT", nil },
+	}
+	d := testDeps(pki)
+	d.API = &fakeAPI{
+		login: func(string, *string) (*api.LoginResponse, error) {
+			return nil, errors.New("api unreachable")
+		},
+	}
+
+	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
+		UserID: "u1", Domain: "idp.example", Audience: "longhouse.example",
+	}, "")
+
+	if rec.Code != http.StatusBadGateway {
+		t.Errorf("status: got %d, want 502", rec.Code)
+	}
+}
+
+func TestCallback_MultiHouseRendersPicker(t *testing.T) {
+	pki := &fakePKI{
+		signRequest:  func(cb, n string) (string, error) { return "SIGNED", nil },
+		decryptToken: func(tok string) (string, error) { return "ASSERT", nil },
+	}
+	d := testDeps(pki)
+	d.API = &fakeAPI{
+		login: func(string, *string) (*api.LoginResponse, error) {
+			return nil, &api.MultiHouseError{Houses: []api.HouseChoice{
+				{HouseID: "h1", Name: "First"}, {HouseID: "h2", Name: "Second"},
+			}}
+		},
+	}
+
+	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
+		UserID: "u1", Domain: "idp.example", Audience: "longhouse.example",
+	}, "")
+
+	if rec.Code != http.StatusConflict {
+		t.Errorf("status: got %d, want 409", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "First") || !strings.Contains(body, "Second") {
+		t.Errorf("expected both house names in picker; body=%s", body)
+	}
+	// The pending-house-pick cookie must come back with the response.
+	sawPending := false
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == session.HousePickCookie && c.Value != "" {
+			sawPending = true
+		}
+	}
+	if !sawPending {
+		t.Error("expected longhouse_house_pick cookie")
+	}
+}
+
+func TestPickHouse_HappyPath(t *testing.T) {
+	d := testDeps(&fakePKI{})
+	d.API = &fakeAPI{
+		login: func(s string, h *string) (*api.LoginResponse, error) {
+			if s != "SIGNED-ASSERTION" {
+				t.Errorf("expected stashed assertion, got %q", s)
+			}
+			if h == nil || *h != "h2" {
+				t.Errorf("expected house h2, got %v", h)
+			}
+			return &api.LoginResponse{Token: "T", MemberID: "m9", HouseID: "h2", Roles: []string{"member"}}, nil
+		},
+	}
+
+	// Stash a pending-house-pick cookie by exercising SetPendingHousePick
+	// through the session manager directly.
+	stashRec := httptest.NewRecorder()
+	if err := d.Sessions.SetPendingHousePick(stashRec, session.PendingHousePick{
+		SignedAssertion: "SIGNED-ASSERTION",
+	}); err != nil {
+		t.Fatalf("SetPendingHousePick: %v", err)
+	}
+
+	form := url.Values{}
+	form.Set("house_id", "h2")
+	req := httptest.NewRequest(http.MethodPost, "/auth/pick-house", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	for _, c := range stashRec.Result().Cookies() {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	NewRouter(d).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status: %d, body=%s", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("Location") != "/app/dashboard" {
+		t.Errorf("redirect: %q", rec.Header().Get("Location"))
+	}
+	// The new session cookie should now be present.
+	gotSession := false
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == session.SessionCookie && c.Value != "" {
+			gotSession = true
+		}
+	}
+	if !gotSession {
+		t.Error("expected session cookie after picker submission")
+	}
+}
+
+func TestPickHouse_NoPendingCookie(t *testing.T) {
+	d := testDeps(&fakePKI{})
+	form := url.Values{}
+	form.Set("house_id", "h1")
+	req := httptest.NewRequest(http.MethodPost, "/auth/pick-house", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	NewRouter(d).ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", rec.Code)
+	}
+}
+
+func TestPickHouse_NoHouseID(t *testing.T) {
+	d := testDeps(&fakePKI{})
+	stashRec := httptest.NewRecorder()
+	_ = d.Sessions.SetPendingHousePick(stashRec, session.PendingHousePick{SignedAssertion: "S"})
+
+	form := url.Values{}
+	req := httptest.NewRequest(http.MethodPost, "/auth/pick-house", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	for _, c := range stashRec.Result().Cookies() {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	NewRouter(d).ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", rec.Code)
+	}
+}
+
+func TestCallback_StashesTokenInSession(t *testing.T) {
+	pki := &fakePKI{
+		signRequest:  func(cb, n string) (string, error) { return "SIGNED", nil },
+		decryptToken: func(tok string) (string, error) { return "ASSERT", nil },
+	}
+	d := testDeps(pki)
+	d.API = &fakeAPI{
+		login: func(string, *string) (*api.LoginResponse, error) {
+			return &api.LoginResponse{Token: "TOK", MemberID: "m9", HouseID: "h9"}, nil
+		},
+	}
+
+	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
+		UserID: "u1", Domain: "idp.example", Audience: "longhouse.example",
+	}, "")
+	if rec.Code != http.StatusFound {
+		t.Fatalf("callback status: got %d, body=%s", rec.Code, rec.Body.String())
+	}
+
+	// Replay the cookie back through the session manager and check fields.
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	for _, c := range rec.Result().Cookies() {
+		req.AddCookie(c)
+	}
+	id, err := d.Sessions.GetIdentity(req)
+	if err != nil {
+		t.Fatalf("GetIdentity: %v", err)
+	}
+	if id.APIToken != "TOK" || id.MemberID != "m9" || id.HouseID != "h9" {
+		t.Errorf("identity missing api fields: %+v", id)
 	}
 }
 

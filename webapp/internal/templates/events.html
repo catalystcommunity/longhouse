@@ -4,9 +4,39 @@
 
 {{define "content"}}
 <h1>Events</h1>
+
 <div class="card">
-    <div id="events-list" hx-get="/app/fragments/events-list" hx-trigger="load" hx-swap="innerHTML">
-        <p class="empty">Loading events...</p>
-    </div>
+    <h2>Upcoming + recent</h2>
+    {{if .Events}}
+        <table>
+            <thead><tr><th>Title</th><th>Starts</th><th>Ends</th><th>Where</th></tr></thead>
+            <tbody>
+            {{range .Events}}
+                <tr>
+                    <td><a href="/app/events/{{.EventID}}">{{.Title}}</a></td>
+                    <td>{{.StartsAt}}</td>
+                    <td>{{.EndsAt}}</td>
+                    <td>{{.Location}}</td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    {{else}}
+        <p class="empty">No events yet.</p>
+    {{end}}
+</div>
+
+<div class="card">
+    <h2>Create event</h2>
+    <form method="post" action="/app/events">
+        <label>Title <input name="title" required></label>
+        <label>Description <textarea name="description"></textarea></label>
+        <label>Location <input name="location"></label>
+        <label>Starts at <input name="starts_at" placeholder="2026-05-01T09:00:00Z"></label>
+        <label>Ends at <input name="ends_at" placeholder="2026-05-01T10:00:00Z"></label>
+        <label><input type="checkbox" name="all_day"> All-day</label>
+        <button type="submit">Create</button>
+    </form>
+    <p><small>Times use UTC RFC3339 (<code>YYYY-MM-DDTHH:MM:SSZ</code>) for now — friendlier pickers come later.</small></p>
 </div>
 {{end}}

@@ -9,7 +9,7 @@ triggers:
 paths:
   include: ["api/**", "coredb/**", "Dockerfile.api"]
 job:
-  image: 10.16.0.1:5000/public/reactorcide/runnerbase:dev
+  image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
   command: "bash /job/src/.reactorcide/jobs/scripts/api-build-test.sh"
   timeout: 600
   capabilities:

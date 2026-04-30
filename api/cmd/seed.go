@@ -13,11 +13,12 @@ import (
 
 var uuidRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
-// SeedInitialAdmin creates a default house and an admin member from the
-// LONGHOUSE_INITIAL_ADMIN_* config if the members table is empty. The
-// linkkeys_user_id must be a valid UUID; anything else is refused so we never
-// persist an identity that linkkeys cannot assert. No-op once any member
-// exists.
+// SeedInitialAdmin creates a default house, the canonical admin/member
+// roles for that house, and an admin member from the
+// LONGHOUSE_INITIAL_ADMIN_* config — but only if the members table is
+// empty. The linkkeys_user_id must be a valid UUID; anything else is
+// refused so we never persist an identity that linkkeys cannot assert.
+// No-op once any member exists.
 func SeedInitialAdmin() error {
 	ctx := context.Background()
 
@@ -51,14 +52,39 @@ func SeedInitialAdmin() error {
 		return fmt.Errorf("creating initial house: %w", err)
 	}
 
+	adminRole := &models.Role{HouseID: house.HouseID, Name: models.RoleAdmin, Description: "Full administrative access"}
+	if err := store.AppStore.CreateRole(ctx, adminRole); err != nil {
+		return fmt.Errorf("creating admin role: %w", err)
+	}
+	memberRole := &models.Role{HouseID: house.HouseID, Name: models.RoleMember, Description: "Standard member"}
+	if err := store.AppStore.CreateRole(ctx, memberRole); err != nil {
+		return fmt.Errorf("creating member role: %w", err)
+	}
+
 	member := &models.Member{
 		HouseID:        house.HouseID,
 		LinkkeysDomain: domain,
 		LinkkeysUserID: userID,
-		Roles:          models.StringList{"admin", "member"},
 	}
 	if err := store.AppStore.CreateMember(ctx, member); err != nil {
 		return fmt.Errorf("creating initial admin member: %w", err)
+	}
+
+	for _, r := range []*models.Role{adminRole, memberRole} {
+		if err := store.AppStore.AssignRole(ctx, member.MemberID, r.RoleID); err != nil {
+			return fmt.Errorf("assigning %q role: %w", r.Name, err)
+		}
+		audit := &models.MemberAudit{
+			HouseID:         house.HouseID,
+			SubjectMemberID: member.MemberID,
+			Action:          models.AuditActionRoleGranted,
+			TargetType:      strPtr("role"),
+			TargetID:        &r.RoleID,
+			Detail:          models.JSONMap{"role_name": r.Name, "via": "initial_admin_bootstrap"},
+		}
+		if err := store.AppStore.RecordMemberAudit(ctx, audit); err != nil {
+			return fmt.Errorf("recording audit for %q role grant: %w", r.Name, err)
+		}
 	}
 
 	log.WithFields(log.Fields{
@@ -69,3 +95,5 @@ func SeedInitialAdmin() error {
 	}).Info("Bootstrapped initial admin")
 	return nil
 }
+
+func strPtr(s string) *string { return &s }

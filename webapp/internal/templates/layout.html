@@ -18,14 +18,37 @@
         .card h2 { margin-bottom: 1rem; color: #2c3e50; }
         h1 { margin-bottom: 1.5rem; color: #2c3e50; }
         .empty { color: #999; font-style: italic; padding: 2rem; text-align: center; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #eee; vertical-align: top; }
+        th { background: #fafafa; }
+        form label { display: block; margin: 0.5rem 0; }
+        form input[type=text], form input:not([type]), form textarea, form select { width: 100%; padding: 0.4rem 0.5rem; box-sizing: border-box; }
+        form button { margin-top: 0.5rem; padding: 0.5rem 1rem; background: #2c3e50; color: white; border: 0; border-radius: 4px; cursor: pointer; }
+        form button:hover { background: #34495e; }
+        .admin-link { background: #34495e; }
     </style>
 </head>
 <body>
     <nav>
         <span class="brand">Longhouse</span>
         <a href="/app/dashboard">Dashboard</a>
-        <a href="/app/events">Events</a>
+        <a href="/app/projects">Projects</a>
         <a href="/app/tasks">Tasks</a>
+        <a href="/app/members">Members</a>
+        <a href="/app/skills">Skills</a>
+        {{if and .Identity (.Identity.HasRole "admin")}}
+            <a class="admin-link" href="/app/admin/roles">Admin · Roles</a>
+            <a class="admin-link" href="/app/admin/trusted-domains">Admin · Domains</a>
+            <a class="admin-link" href="/app/admin/groups">Admin · Groups</a>
+            <a class="admin-link" href="/app/admin/shares">Admin · Shares</a>
+        {{end}}
+        <span style="flex:1"></span>
+        {{if .Identity}}
+            <span style="color:#bdc3c7;font-size:0.9em">{{.Identity.DisplayName}}{{if not .Identity.DisplayName}}{{.Identity.UserID}}@{{.Identity.Domain}}{{end}}</span>
+            <form method="post" action="/logout" style="display:inline;margin:0">
+                <button type="submit" style="background:transparent;color:#ecf0f1;cursor:pointer;border:1px solid #34495e">Sign out</button>
+            </form>
+        {{end}}
     </nav>
     <main>
         {{template "content" .}}

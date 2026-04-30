@@ -80,8 +80,8 @@ if [[ -n "${DOCKER_HOST:-}" ]]; then
     docker save "${INTERNAL_IMAGE}:${VERSION}" -o "${IMAGE_TAR}"
 
     echo "Pushing to internal registry..."
-    crane push --insecure "${IMAGE_TAR}" "${INTERNAL_IMAGE}:${VERSION}"
-    crane push --insecure "${IMAGE_TAR}" "${INTERNAL_IMAGE}:latest"
+    crane push "${IMAGE_TAR}" "${INTERNAL_IMAGE}:${VERSION}"
+    crane push "${IMAGE_TAR}" "${INTERNAL_IMAGE}:latest"
 
     echo "Pushing to external registry..."
     if crane push "${IMAGE_TAR}" "${EXTERNAL_IMAGE}:${VERSION}" 2>/dev/null && \
@@ -130,14 +130,14 @@ else
         --local context=. \
         --local dockerfile=. \
         --opt filename=Dockerfile.api \
-        --output "type=image,name=${INTERNAL_IMAGE}:${VERSION},push=true,registry.insecure=true"
+        --output "type=image,name=${INTERNAL_IMAGE}:${VERSION},push=true"
 
     buildctl build \
         --frontend dockerfile.v0 \
         --local context=. \
         --local dockerfile=. \
         --opt filename=Dockerfile.api \
-        --output "type=image,name=${INTERNAL_IMAGE}:latest,push=true,registry.insecure=true"
+        --output "type=image,name=${INTERNAL_IMAGE}:latest,push=true"
 
     echo "Pushing to external registry..."
     if buildctl build \
