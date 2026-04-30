@@ -15,12 +15,11 @@ echo "================================================"
 cd "${REACTORCIDE_REPOROOT:-/job/src}"
 export HOME="${HOME:-/home/runner}"
 
-export DEBIAN_FRONTEND=noninteractive
-APT_OPTS=(-y --no-install-recommends -o 'Dpkg::Options::=--force-confold' -o 'Dpkg::Options::=--force-confdef')
-
+# `sudo -E` is rejected by the runner's sudoers (no preserve-env), so pass
+# nothing through env. apt-get -y is non-interactive enough on its own.
 echo "=== Installing system packages ==="
-sudo -E apt-get update -qq
-sudo -E apt-get install "${APT_OPTS[@]}" build-essential curl ca-certificates
+sudo apt-get update -qq
+sudo apt-get install -y --no-install-recommends build-essential curl ca-certificates
 
 echo "=== Installing Go toolchain ==="
 GO_VERSION="${GO_VERSION:-1.23.8}"
