@@ -1,0 +1,18 @@
+{{define "error.html"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Error - Longhouse</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 2rem; max-width: 720px; margin: 0 auto; }
+        .err { background: #fee; padding: 1rem 1.25rem; border-radius: 6px; color: #933; }
+    </style>
+</head>
+<body>
+    <h1>Something went wrong</h1>
+    <div class="err">{{.Message}}</div>
+    <p><a href="/app/dashboard">← Back to dashboard</a></p>
+</body>
+</html>
+{{end}}

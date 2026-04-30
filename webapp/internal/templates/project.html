@@ -1,0 +1,22 @@
+{{define "project.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+<h1>{{.Project.Name}}</h1>
+<p>{{.Project.Description}}</p>
+<p><a href="/app/projects">← All projects</a></p>
+
+<div class="card">
+    <h2>Tasks in this project</h2>
+    {{if .Tasks}}
+        <ul>
+        {{range .Tasks}}
+            <li><a href="/app/tasks/{{.TaskID}}">{{.Title}}</a> {{if .Status}}<em>({{.Status}})</em>{{end}}</li>
+        {{end}}
+        </ul>
+    {{else}}
+        <p class="empty">No tasks linked to this project yet.</p>
+    {{end}}
+</div>
+{{end}}

@@ -1,7 +1,7 @@
 name: longhouse-build-test
 description: "Build and test the Go API and webapp modules"
 job:
-  image: 10.16.0.1:5000/public/reactorcide/runnerbase:dev
+  image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
   source:
     type: git
     url: "https://github.com/catalystcommunity/longhouse.git"

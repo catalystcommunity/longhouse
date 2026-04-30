@@ -118,6 +118,63 @@ func TestLoginStateConsume(t *testing.T) {
 	}
 }
 
+func TestPendingHousePick_RoundTripAndConsume(t *testing.T) {
+	m := New("s", false)
+	rec := httptest.NewRecorder()
+	if err := m.SetPendingHousePick(rec, PendingHousePick{SignedAssertion: "ASSERT"}); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/pick-house", nil)
+	copyCookies(t, rec, req)
+
+	rec2 := httptest.NewRecorder()
+	got, err := m.ConsumePendingHousePick(rec2, req)
+	if err != nil {
+		t.Fatalf("ConsumePendingHousePick: %v", err)
+	}
+	if got.SignedAssertion != "ASSERT" {
+		t.Errorf("signed assertion: %q", got.SignedAssertion)
+	}
+
+	// Consume should clear the cookie on the response.
+	cleared := false
+	for _, c := range rec2.Result().Cookies() {
+		if c.Name == HousePickCookie && c.MaxAge < 0 {
+			cleared = true
+		}
+	}
+	if !cleared {
+		t.Error("expected pending-house-pick cookie to be cleared on consume")
+	}
+}
+
+func TestPendingHousePick_TamperDetected(t *testing.T) {
+	m := New("s", false)
+	rec := httptest.NewRecorder()
+	if err := m.SetPendingHousePick(rec, PendingHousePick{SignedAssertion: "X"}); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/pick-house", nil)
+	for _, c := range rec.Result().Cookies() {
+		c.Value = c.Value + "X"
+		req.AddCookie(c)
+	}
+	rec2 := httptest.NewRecorder()
+	if _, err := m.ConsumePendingHousePick(rec2, req); err != ErrInvalid {
+		t.Errorf("got %v, want ErrInvalid", err)
+	}
+}
+
+func TestPendingHousePick_Missing(t *testing.T) {
+	m := New("s", false)
+	req := httptest.NewRequest(http.MethodPost, "/auth/pick-house", nil)
+	if _, err := m.ConsumePendingHousePick(httptest.NewRecorder(), req); err != ErrMissing {
+		t.Errorf("got %v, want ErrMissing", err)
+	}
+}
+
 func TestNew_PanicsOnEmptySecret(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {

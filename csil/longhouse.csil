@@ -4,24 +4,32 @@ options {
 }
 
 ;; ============================================================
-;; Core types
+;; Core ID + scalar types
 ;; ============================================================
 
-HouseID = text
-MemberID = text
-EventID = text
-TaskID = text
-CommentID = text
-ShareID = text
-Timestamp = text  ;; RFC3339
+HouseID       = text
+MemberID      = text
+RoleID        = text
+SkillID       = text
+GroupID       = text
+ProjectID     = text
+EventID       = text
+TaskID        = text
+CommentID     = text
+ShareID       = text
+TrustedDomainID = text
+MemberAuditID = text
+Timestamp     = text  ;; RFC3339, always UTC
 
-TaskStatus = "open" / "in_progress" / "done" / "cancelled"
-TargetType = "event" / "task"
-AccessLevel = "read"
-ResourceType = "event" / "task" / "house"
+TaskStatus       = "open" / "in_progress" / "done" / "cancelled"
+TargetType       = "event" / "task"
+AccessLevel      = "read"
+ResourceType     = "event" / "task" / "house"
+ProjectStatus    = "active" / "archived"
+RecurrenceFreq   = "hourly" / "daily" / "weekly" / "monthly" / "quarterly" / "yearly"
 
 ;; ============================================================
-;; Domain objects
+;; House + Membership
 ;; ============================================================
 
 House = {
@@ -47,7 +55,6 @@ Member = {
     linkkeys_user_id: text,
     ? display_name: text,
     ? cached_public_key: bytes,
-    ? roles: [* text],
 
     @receive-only
     created_at: Timestamp,
@@ -61,7 +68,7 @@ Member = {
 
 TrustedDomain = {
     @receive-only
-    trusted_domain_id: text,
+    trusted_domain_id: TrustedDomainID,
 
     house_id: HouseID,
     domain: text,
@@ -70,14 +77,144 @@ TrustedDomain = {
     created_at: Timestamp
 }
 
+;; ============================================================
+;; Roles + role assignment
+;; ============================================================
+
+Role = {
+    @receive-only
+    role_id: RoleID,
+
+    house_id: HouseID,
+    name: text .size (1..128),
+    ? description: text,
+
+    @receive-only
+    created_at: Timestamp,
+
+    @receive-only
+    updated_at: Timestamp
+}
+
+MemberRole = {
+    member_id: MemberID,
+    role_id: RoleID,
+
+    @receive-only
+    created_at: Timestamp
+}
+
+;; Append-only audit trail of role/skill/group attachments and admin
+;; actions taken against a member.
+MemberAudit = {
+    @receive-only
+    audit_id: MemberAuditID,
+
+    house_id: HouseID,
+    subject_member_id: MemberID,
+    ? actor_member_id: MemberID,
+    action: text,
+    ? target_type: text,
+    ? target_id: text,
+    ? detail: text,  ;; JSON-encoded; CSIL doesn't model jsonb directly
+
+    @receive-only
+    created_at: Timestamp
+}
+
+;; ============================================================
+;; Skills + member skills
+;; ============================================================
+
+Skill = {
+    @receive-only
+    skill_id: SkillID,
+
+    house_id: HouseID,
+    name: text .size (1..256),
+    ? description: text,
+
+    @receive-only
+    created_at: Timestamp,
+
+    @receive-only
+    updated_at: Timestamp
+}
+
+MemberSkill = {
+    member_id: MemberID,
+    skill_id: SkillID,
+
+    @receive-only
+    created_at: Timestamp
+}
+
+;; ============================================================
+;; Groups
+;; ============================================================
+
+Group = {
+    @receive-only
+    group_id: GroupID,
+
+    house_id: HouseID,
+    name: text .size (1..256),
+    ? description: text,
+
+    @receive-only
+    created_at: Timestamp,
+
+    @receive-only
+    updated_at: Timestamp
+}
+
+GroupMember = {
+    group_id: GroupID,
+    member_id: MemberID,
+
+    @receive-only
+    created_at: Timestamp
+}
+
+;; ============================================================
+;; Projects + ordered task collections
+;; ============================================================
+
+Project = {
+    @receive-only
+    project_id: ProjectID,
+
+    house_id: HouseID,
+    name: text .size (1..256),
+    ? description: text,
+    ? status: ProjectStatus .default "active",
+
+    @receive-only
+    created_at: Timestamp,
+
+    @receive-only
+    updated_at: Timestamp
+}
+
+ProjectTask = {
+    project_id: ProjectID,
+    task_id: TaskID,
+    position: int,
+
+    @receive-only
+    created_at: Timestamp
+}
+
+;; ============================================================
+;; Calendaring + tasking
+;; ============================================================
+
 Event = {
     @receive-only
     event_id: EventID,
 
     house_id: HouseID,
-
-    @receive-only
-    created_by: MemberID,
+    owner_member_id: MemberID,
 
     title: text .size (1..512),
     ? description: text,
@@ -98,15 +235,23 @@ Task = {
     task_id: TaskID,
 
     house_id: HouseID,
+    owner_member_id: MemberID,
 
-    @receive-only
-    created_by: MemberID,
+    ? assigned_to_member_id: MemberID,
+    ? assigned_to_skill_id: SkillID,
+    ? parent_task_id: TaskID,
 
-    ? assigned_to: MemberID,
     title: text .size (1..512),
     ? description: text,
     ? status: TaskStatus .default "open",
     ? due_at: Timestamp,
+
+    ? recurrence_freq: RecurrenceFreq,
+    ? recurrence_interval: int .default 1,
+    ? recurrence_by_weekday: [* int],
+    ? next_recurrence_at: Timestamp,
+    ? recurrence_root_task_id: TaskID,
+    ? deleted_at: Timestamp,
 
     @receive-only
     created_at: Timestamp,
@@ -157,12 +302,57 @@ Share = {
 }
 
 ;; ============================================================
-;; Request/Response wrappers
+;; Auth (issues bearer tokens for any client of the API)
 ;; ============================================================
 
-ListRequest = {
-    ? limit: uint .default 50,
-    ? offset: uint .default 0
+;; Linkkeys-style summary used to disambiguate when a caller is a member of
+;; multiple houses.
+HouseSummary = {
+    house_id: HouseID,
+    name: text
+}
+
+LoginRequest = {
+    ;; base64url-encoded SignedIdentityAssertion produced by a linkkeys IDP
+    ;; (the same blob the webapp gets from /auth/callback).
+    signed_assertion: text,
+
+    ;; If the caller is a member of multiple houses, they must specify
+    ;; which one to scope the token to.
+    ? house_id: HouseID
+}
+
+LoginResponse = {
+    token: text,
+    member_id: MemberID,
+    house_id: HouseID,
+    roles: [* text],
+    expires_at: Timestamp
+}
+
+;; Returned with HTTP 409 when LoginRequest omits house_id and the caller
+;; is a member of more than one house.
+LoginMultiHouseResponse = {
+    error: text,
+    houses: [* HouseSummary]
+}
+
+MeResponse = {
+    member_id: MemberID,
+    house_id: HouseID,
+    roles: [* text],
+    expires_at: Timestamp
+}
+
+;; ============================================================
+;; Common request/response wrappers
+;; ============================================================
+
+EmptyRequest = {}
+EmptyResponse = {}
+
+BoolResponse = {
+    value: bool
 }
 
 HouseListRequest = {
@@ -172,6 +362,21 @@ HouseListRequest = {
 
 HouseScopedListRequest = {
     house_id: HouseID,
+    ? limit: uint .default 50,
+    ? offset: uint .default 0
+}
+
+;; List requests scoped to a single member (used for skills, roles, audits).
+MemberScopedListRequest = {
+    house_id: HouseID,
+    member_id: MemberID,
+    ? limit: uint .default 50,
+    ? offset: uint .default 0
+}
+
+ProjectScopedListRequest = {
+    house_id: HouseID,
+    project_id: ProjectID,
     ? limit: uint .default 50,
     ? offset: uint .default 0
 }
@@ -190,21 +395,62 @@ ShareAccessRequest = {
     resource_id: text
 }
 
+ResourceRef = {
+    resource_type: ResourceType,
+    resource_id: text
+}
+
+;; Member <-> attachment refs.
+MemberRoleRef = {
+    member_id: MemberID,
+    role_id: RoleID
+}
+
+MemberSkillRef = {
+    member_id: MemberID,
+    skill_id: SkillID
+}
+
+GroupMemberRef = {
+    group_id: GroupID,
+    member_id: MemberID
+}
+
+ProjectTaskRef = {
+    project_id: ProjectID,
+    task_id: TaskID
+}
+
+ProjectTaskOrderRequest = {
+    project_id: ProjectID,
+    task_id: TaskID,
+    position: int
+}
+
+;; ============================================================
 ;; Error type
+;; ============================================================
+
 ServiceError = {
     code: uint,
     message: text
 }
 
 ;; ============================================================
-;; Service definitions
+;; Services
 ;; ============================================================
+
+;; Auth: token issuance + introspection. Unauthenticated except for /me.
+service AuthService {
+    login: LoginRequest -> LoginResponse / ServiceError,
+    me: EmptyRequest -> MeResponse / ServiceError
+}
 
 service HouseService {
     create-house: House -> House / ServiceError,
     get-house: HouseID -> House / ServiceError,
     update-house: House -> House / ServiceError,
-    delete-house: HouseID -> null / ServiceError,
+    delete-house: HouseID -> EmptyResponse / ServiceError,
     list-houses: HouseListRequest -> [* House] / ServiceError
 }
 
@@ -213,22 +459,63 @@ service MemberService {
     get-member: MemberID -> Member / ServiceError,
     get-member-by-identity: Member -> Member / ServiceError,
     update-member: Member -> Member / ServiceError,
-    delete-member: MemberID -> null / ServiceError,
+    delete-member: MemberID -> EmptyResponse / ServiceError,
     list-members: HouseScopedListRequest -> [* Member] / ServiceError
 }
 
 service TrustedDomainService {
     add-trusted-domain: TrustedDomain -> TrustedDomain / ServiceError,
-    remove-trusted-domain: text -> null / ServiceError,
+    remove-trusted-domain: TrustedDomainID -> EmptyResponse / ServiceError,
     list-trusted-domains: HouseID -> [* TrustedDomain] / ServiceError,
-    is-domain-trusted: TrustedDomain -> bool / ServiceError
+    is-domain-trusted: TrustedDomain -> BoolResponse / ServiceError
+}
+
+service RoleService {
+    create-role: Role -> Role / ServiceError,
+    update-role: Role -> Role / ServiceError,
+    delete-role: RoleID -> EmptyResponse / ServiceError,
+    list-roles: HouseScopedListRequest -> [* Role] / ServiceError,
+    grant-role: MemberRoleRef -> EmptyResponse / ServiceError,
+    revoke-role: MemberRoleRef -> EmptyResponse / ServiceError,
+    list-member-roles: MemberScopedListRequest -> [* Role] / ServiceError
+}
+
+service SkillService {
+    create-skill: Skill -> Skill / ServiceError,
+    update-skill: Skill -> Skill / ServiceError,
+    delete-skill: SkillID -> EmptyResponse / ServiceError,
+    list-skills: HouseScopedListRequest -> [* Skill] / ServiceError,
+    add-member-skill: MemberSkillRef -> EmptyResponse / ServiceError,
+    remove-member-skill: MemberSkillRef -> EmptyResponse / ServiceError,
+    list-member-skills: MemberScopedListRequest -> [* Skill] / ServiceError
+}
+
+service GroupService {
+    create-group: Group -> Group / ServiceError,
+    update-group: Group -> Group / ServiceError,
+    delete-group: GroupID -> EmptyResponse / ServiceError,
+    list-groups: HouseScopedListRequest -> [* Group] / ServiceError,
+    add-group-member: GroupMemberRef -> EmptyResponse / ServiceError,
+    remove-group-member: GroupMemberRef -> EmptyResponse / ServiceError,
+    list-group-members: MemberScopedListRequest -> [* Member] / ServiceError
+}
+
+service ProjectService {
+    create-project: Project -> Project / ServiceError,
+    update-project: Project -> Project / ServiceError,
+    delete-project: ProjectID -> EmptyResponse / ServiceError,
+    list-projects: HouseScopedListRequest -> [* Project] / ServiceError,
+    list-project-tasks: ProjectScopedListRequest -> [* Task] / ServiceError,
+    add-project-task: ProjectTaskOrderRequest -> EmptyResponse / ServiceError,
+    remove-project-task: ProjectTaskRef -> EmptyResponse / ServiceError,
+    set-project-task-position: ProjectTaskOrderRequest -> EmptyResponse / ServiceError
 }
 
 service EventService {
     create-event: Event -> Event / ServiceError,
     get-event: EventID -> Event / ServiceError,
     update-event: Event -> Event / ServiceError,
-    delete-event: EventID -> null / ServiceError,
+    delete-event: EventID -> EmptyResponse / ServiceError,
     list-events: HouseScopedListRequest -> [* Event] / ServiceError
 }
 
@@ -236,7 +523,7 @@ service TaskService {
     create-task: Task -> Task / ServiceError,
     get-task: TaskID -> Task / ServiceError,
     update-task: Task -> Task / ServiceError,
-    delete-task: TaskID -> null / ServiceError,
+    delete-task: TaskID -> EmptyResponse / ServiceError,
     list-tasks: HouseScopedListRequest -> [* Task] / ServiceError
 }
 
@@ -244,13 +531,17 @@ service CommentService {
     create-comment: Comment -> Comment / ServiceError,
     get-comment: CommentID -> Comment / ServiceError,
     update-comment: Comment -> Comment / ServiceError,
-    delete-comment: CommentID -> null / ServiceError,
+    delete-comment: CommentID -> EmptyResponse / ServiceError,
     list-comments: CommentListRequest -> [* Comment] / ServiceError
 }
 
 service ShareService {
     create-share: Share -> Share / ServiceError,
-    delete-share: ShareID -> null / ServiceError,
-    list-shares-by-resource: ShareAccessRequest -> [* Share] / ServiceError,
+    delete-share: ShareID -> EmptyResponse / ServiceError,
+    list-shares-by-resource: ResourceRef -> [* Share] / ServiceError,
     check-access: ShareAccessRequest -> Share / ServiceError
+}
+
+service MemberAuditService {
+    list-audits-for-member: MemberScopedListRequest -> [* MemberAudit] / ServiceError
 }

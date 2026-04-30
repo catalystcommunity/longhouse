@@ -1,0 +1,29 @@
+{{define "member_audits.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+<h1>Audit log for <code>{{.MemberID}}</code></h1>
+<p><a href="/app/members">← Members</a></p>
+
+<div class="card">
+    {{if .Audits}}
+        <table>
+            <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Target</th><th>Detail</th></tr></thead>
+            <tbody>
+            {{range .Audits}}
+                <tr>
+                    <td><small>{{.CreatedAt}}</small></td>
+                    <td><strong>{{.Action}}</strong></td>
+                    <td>{{if .ActorMemberID}}<code>{{.ActorMemberID}}</code>{{else}}—{{end}}</td>
+                    <td>{{if .TargetType}}{{.TargetType}}{{end}} {{if .TargetID}}<code>{{.TargetID}}</code>{{end}}</td>
+                    <td><small>{{if .Detail}}<pre style="margin:0;font-size:0.85em">{{.Detail}}</pre>{{end}}</small></td>
+                </tr>
+            {{end}}
+            </tbody>
+        </table>
+    {{else}}
+        <p class="empty">No audit history yet.</p>
+    {{end}}
+</div>
+{{end}}

@@ -62,7 +62,7 @@ if [[ -n "${REGISTRY_USER:-}" ]] && [[ -n "${REGISTRY_PASSWORD:-}" ]]; then
         --namespace "${K8S_NAMESPACE}" \
         --save-config \
         --dry-run=client \
-        --docker-server="10.16.0.1:5000" \
+        --docker-server="containers.catalystsquad.com" \
         --docker-username="${REGISTRY_USER}" \
         --docker-password="${REGISTRY_PASSWORD}" \
         -o yaml | kubectl apply -f -

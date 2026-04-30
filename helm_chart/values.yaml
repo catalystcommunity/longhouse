@@ -79,6 +79,12 @@ linkkeysRp:
 webapp:
   sessionSecret: ""
 
+# api-only signing secret for bearer tokens issued at /api/v1/auth/login.
+# REQUIRED for any client (including the webapp) to authenticate against
+# the api. Generate with: openssl rand -base64 48
+api:
+  jwtSecret: ""
+
 # PostgreSQL via Zalando postgres-operator
 postgresql:
   enabled: false

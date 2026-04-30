@@ -4,7 +4,17 @@ set -e
 SEMVER_TAGS_VERSION="v0.4.0"
 GHCLI_VERSION="2.63.2"
 
-# Script is invoked from the repo root (by the release job)
+# Script is invoked from the repo root (by the release job).
+#
+# Run-local parity: SKIP_GITHUB=true skips the version-bump push and the
+# `gh release create` step; on-disk file edits + binary build still run, so
+# the release flow is exercisable end-to-end against a working tree without
+# publishing anything. The release job auto-enables this when invoked under
+# `reactorcide run-local` (REACTORCIDE_WORKER_MODE=local).
+if [ "${REACTORCIDE_WORKER_MODE:-remote}" = "local" ] && [ -z "${SKIP_GITHUB:-}" ]; then
+  echo "=== run-local detected: SKIP_GITHUB=true ==="
+  SKIP_GITHUB=true
+fi
 
 # -------------------------------------------------------------------
 # 1. Install semver-tags
@@ -43,13 +53,17 @@ sed -i "s/^version: .*/version: ${VERSION}/" helm_chart/Chart.yaml
 sed -i "s/^appVersion: .*/appVersion: \"${VERSION}\"/" helm_chart/Chart.yaml
 echo "${VERSION}" > version/VERSION.txt
 
-# Commit the version bump
-git config user.name "Catalyst Community (automation)"
-git config user.email "automation@catalystcommunity.dev"
-git remote set-url origin "https://x-access-token:${GITHUB_PAT}@github.com/${REACTORCIDE_REPO}.git"
-git add helm_chart/Chart.yaml version/VERSION.txt
-git commit -m "ci: bump version to ${VERSION}" || echo "No version changes to commit"
-git push || echo "Push failed, continuing with release"
+# Commit the version bump (push requires GITHUB_PAT — CI only).
+if [ "${SKIP_GITHUB:-false}" = "true" ]; then
+  echo "=== SKIP_GITHUB=true: skipping version-bump commit and push ==="
+else
+  git config user.name "Catalyst Community (automation)"
+  git config user.email "automation@catalystcommunity.dev"
+  git remote set-url origin "https://x-access-token:${GITHUB_PAT}@github.com/${REACTORCIDE_REPO}.git"
+  git add helm_chart/Chart.yaml version/VERSION.txt
+  git commit -m "ci: bump version to ${VERSION}" || echo "No version changes to commit"
+  git push || echo "Push failed, continuing with release"
+fi
 
 # -------------------------------------------------------------------
 # 4. Build the release binaries
@@ -71,15 +85,20 @@ tar -czf "${RELEASE_DIR}/longhouse-web-${VERSION}-linux-amd64.tar.gz" -C /tmp lo
 # -------------------------------------------------------------------
 # 5. Install gh CLI and create GitHub release
 # -------------------------------------------------------------------
-echo "=== Creating GitHub release ==="
-curl -fsSL "https://github.com/cli/cli/releases/download/v${GHCLI_VERSION}/gh_${GHCLI_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
-tar -xzf /tmp/gh.tar.gz -C /tmp
-export PATH="/tmp/gh_${GHCLI_VERSION}_linux_amd64/bin:$PATH"
+if [ "${SKIP_GITHUB:-false}" = "true" ]; then
+  echo "=== SKIP_GITHUB=true: skipping GitHub release create ==="
+  echo "=== Built artifacts left in ${RELEASE_DIR} for inspection ==="
+else
+  echo "=== Creating GitHub release ==="
+  curl -fsSL "https://github.com/cli/cli/releases/download/v${GHCLI_VERSION}/gh_${GHCLI_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+  tar -xzf /tmp/gh.tar.gz -C /tmp
+  export PATH="/tmp/gh_${GHCLI_VERSION}_linux_amd64/bin:$PATH"
 
-GH_TOKEN="${GITHUB_PAT}" gh release create "${NEW_TAG}" \
-  --repo "${REACTORCIDE_REPO}" \
-  --title "${NEW_TAG}" \
-  --generate-notes \
-  ${RELEASE_DIR}/*
+  GH_TOKEN="${GITHUB_PAT}" gh release create "${NEW_TAG}" \
+    --repo "${REACTORCIDE_REPO}" \
+    --title "${NEW_TAG}" \
+    --generate-notes \
+    ${RELEASE_DIR}/*
 
-echo "=== Released ${NEW_TAG} ==="
+  echo "=== Released ${NEW_TAG} ==="
+fi

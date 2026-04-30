@@ -1,0 +1,49 @@
+{{define "skills.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+<h1>Skills</h1>
+
+<div class="card">
+    <h2>House skills</h2>
+    <table>
+        <thead><tr><th>Name</th><th>Description</th><th></th></tr></thead>
+        <tbody>
+        {{range .Skills}}
+            <tr>
+                <td>{{.Name}}</td>
+                <td>{{.Description}}</td>
+                <td>
+                    {{if (index $.OwnSkillID .SkillID)}}
+                        <form method="post" action="/app/skills/{{.SkillID}}/remove" style="display:inline">
+                            <button type="submit">Remove from me</button>
+                        </form>
+                    {{else}}
+                        <form method="post" action="/app/skills/{{.SkillID}}/add" style="display:inline">
+                            <button type="submit">Add to me</button>
+                        </form>
+                    {{end}}
+                    {{if $.IsAdmin}}
+                        <form method="post" action="/app/admin/skills/{{.SkillID}}/delete" style="display:inline">
+                            <button type="submit">Delete</button>
+                        </form>
+                    {{end}}
+                </td>
+            </tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
+
+{{if .IsAdmin}}
+<div class="card">
+    <h2>Create skill</h2>
+    <form method="post" action="/app/admin/skills">
+        <label>Name <input name="name" required></label>
+        <label>Description <input name="description"></label>
+        <button type="submit">Create</button>
+    </form>
+</div>
+{{end}}
+{{end}}

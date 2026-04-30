@@ -1,0 +1,15 @@
+name: longhouse-webapp-test
+description: "Build + run webapp module tests (no DB; webapp tests use fakes)"
+triggers:
+  events:
+    - pull_request_opened
+    - pull_request_updated
+  branches:
+    - main
+paths:
+  include: ["webapp/**"]
+job:
+  image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
+  command: "bash /job/src/.reactorcide/jobs/scripts/webapp-test.sh"
+  timeout: 1200
+  priority: 10

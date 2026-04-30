@@ -1,0 +1,29 @@
+{{define "projects.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+<h1>Projects</h1>
+
+<div class="card">
+    <h2>Active projects</h2>
+    {{if .Projects}}
+        <ul>
+        {{range .Projects}}
+            <li><a href="/app/projects/{{.ProjectID}}">{{.Name}}</a> {{if .Description}}— {{.Description}}{{end}} <em>({{.Status}})</em></li>
+        {{end}}
+        </ul>
+    {{else}}
+        <p class="empty">No projects yet.</p>
+    {{end}}
+</div>
+
+<div class="card">
+    <h2>Create project</h2>
+    <form method="post" action="/app/projects">
+        <label>Name <input name="name" required></label>
+        <label>Description <input name="description"></label>
+        <button type="submit">Create</button>
+    </form>
+</div>
+{{end}}

@@ -3,9 +3,11 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/url"
 
+	"github.com/catalystcommunity/longhouse/webapp/internal/api"
 	"github.com/catalystcommunity/longhouse/webapp/internal/session"
 	log "github.com/sirupsen/logrus"
 )
@@ -89,10 +91,38 @@ func (d *Deps) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Exchange the verified assertion for an api bearer token. The webapp
+	// is just one client of the api; the token authenticates subsequent
+	// /api/* calls regardless of who's calling.
+	loginResp, err := d.API.Login(signedAssertion, nil)
+	if err != nil {
+		var multi *api.MultiHouseError
+		if errors.As(err, &multi) {
+			// Stash the verified assertion + show a picker. The user
+			// re-submits with their chosen house_id at /auth/pick-house.
+			if perr := d.Sessions.SetPendingHousePick(w, session.PendingHousePick{
+				SignedAssertion: signedAssertion,
+			}); perr != nil {
+				log.WithError(perr).Error("Failed to set pending-house-pick cookie")
+				renderLogin(w, http.StatusInternalServerError, "Could not start house selection.")
+				return
+			}
+			renderHousePicker(w, multi.Houses, "")
+			return
+		}
+		log.WithError(err).Error("api login failed")
+		renderLogin(w, http.StatusBadGateway, "Could not exchange identity for a session.")
+		return
+	}
+
 	if err := d.Sessions.SetIdentity(w, session.Identity{
 		Domain:      assertion.Domain,
 		UserID:      assertion.UserID,
 		DisplayName: assertion.DisplayName,
+		MemberID:    loginResp.MemberID,
+		HouseID:     loginResp.HouseID,
+		APIToken:    loginResp.Token,
+		Roles:       loginResp.Roles,
 	}); err != nil {
 		log.WithError(err).Error("Failed to set session cookie")
 		renderLogin(w, http.StatusInternalServerError, "Could not complete login.")
@@ -105,6 +135,62 @@ func (d *Deps) callback(w http.ResponseWriter, r *http.Request) {
 func (d *Deps) logout(w http.ResponseWriter, r *http.Request) {
 	d.Sessions.ClearIdentity(w)
 	http.Redirect(w, r, "/login", http.StatusFound)
+}
+
+// pickHouse handles the picker form: pulls the pending signed assertion
+// from the cookie, re-calls api.Login with the chosen house_id, sets the
+// session, and redirects to the dashboard.
+func (d *Deps) pickHouse(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	houseID := r.FormValue("house_id")
+	if houseID == "" {
+		renderLogin(w, http.StatusBadRequest, "Pick a house to continue.")
+		return
+	}
+	pending, err := d.Sessions.ConsumePendingHousePick(w, r)
+	if err != nil {
+		renderLogin(w, http.StatusBadRequest, "House selection expired. Please sign in again.")
+		return
+	}
+	loginResp, err := d.API.Login(pending.SignedAssertion, &houseID)
+	if err != nil {
+		log.WithError(err).Error("api login (with house) failed")
+		renderLogin(w, http.StatusBadGateway, "Could not log in to that house.")
+		return
+	}
+
+	// We don't have the original linkkeys assertion here (only the signed
+	// blob), so identity domain/user_id come from the LoginResponse-related
+	// fields on the api side. The webapp's session keeps the same fields
+	// as before; for picker flows we only have what /auth/login returned.
+	if err := d.Sessions.SetIdentity(w, session.Identity{
+		MemberID: loginResp.MemberID,
+		HouseID:  loginResp.HouseID,
+		APIToken: loginResp.Token,
+		Roles:    loginResp.Roles,
+	}); err != nil {
+		log.WithError(err).Error("Failed to set session cookie after picker")
+		renderLogin(w, http.StatusInternalServerError, "Could not complete login.")
+		return
+	}
+	http.Redirect(w, r, "/app/dashboard", http.StatusFound)
+}
+
+// renderHousePicker draws the house-picker template with the supplied
+// list. errMsg is rendered above the picker if non-empty.
+func renderHousePicker(w http.ResponseWriter, houses []api.HouseChoice, errMsg string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusConflict)
+	if err := standalones.ExecuteTemplate(w, "house_picker.html", map[string]any{
+		"Title":  "Pick a house",
+		"Houses": houses,
+		"Error":  errMsg,
+	}); err != nil {
+		log.WithError(err).Error("Failed to render house picker")
+	}
 }
 
 func newNonce() (string, error) {
