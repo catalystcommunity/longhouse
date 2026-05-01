@@ -17,17 +17,23 @@ if [ "${REACTORCIDE_WORKER_MODE:-remote}" = "local" ] && [ -z "${SKIP_GITHUB:-}"
 fi
 
 # -------------------------------------------------------------------
-# 0. Configure git auth up-front. semver-tags pushes the new tag
-#    itself, so the credential needs to be on `origin` *before* we
-#    call it — not after. SKIP_GITHUB=true leaves origin untouched so
-#    a run-local pass uses whatever the working tree already has.
+# 0. Configure git auth + land on main. semver-tags pushes the new
+#    tag itself, so the credential needs to be on `origin` *before*
+#    we call it. runnerlib checks the source out at a specific SHA
+#    (detached HEAD), so we also fetch + checkout origin/main so the
+#    eventual `git push` has an upstream branch to push to.
+#    SKIP_GITHUB=true leaves both alone — run-local uses whatever the
+#    working tree already has.
 # -------------------------------------------------------------------
 if [ "${SKIP_GITHUB:-false}" = "true" ]; then
-  echo "=== SKIP_GITHUB=true: leaving git auth alone ==="
+  echo "=== SKIP_GITHUB=true: leaving git auth + branch state alone ==="
 else
   git config user.name "Catalyst Community (automation)"
   git config user.email "automation@catalystcommunity.dev"
   git remote set-url origin "https://x-access-token:${GITHUB_PAT}@github.com/${REACTORCIDE_REPO}.git"
+  echo "=== Aligning to origin/main ==="
+  git fetch origin main
+  git checkout -B main origin/main
 fi
 
 # -------------------------------------------------------------------
