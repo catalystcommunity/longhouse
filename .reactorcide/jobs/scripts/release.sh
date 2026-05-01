@@ -17,6 +17,20 @@ if [ "${REACTORCIDE_WORKER_MODE:-remote}" = "local" ] && [ -z "${SKIP_GITHUB:-}"
 fi
 
 # -------------------------------------------------------------------
+# 0. Configure git auth up-front. semver-tags pushes the new tag
+#    itself, so the credential needs to be on `origin` *before* we
+#    call it — not after. SKIP_GITHUB=true leaves origin untouched so
+#    a run-local pass uses whatever the working tree already has.
+# -------------------------------------------------------------------
+if [ "${SKIP_GITHUB:-false}" = "true" ]; then
+  echo "=== SKIP_GITHUB=true: leaving git auth alone ==="
+else
+  git config user.name "Catalyst Community (automation)"
+  git config user.email "automation@catalystcommunity.dev"
+  git remote set-url origin "https://x-access-token:${GITHUB_PAT}@github.com/${REACTORCIDE_REPO}.git"
+fi
+
+# -------------------------------------------------------------------
 # 1. Install semver-tags
 # -------------------------------------------------------------------
 echo "=== Installing semver-tags ${SEMVER_TAGS_VERSION} ==="
@@ -30,9 +44,12 @@ export PATH="/tmp:$PATH"
 # 2. Determine version bump from conventional commits
 # -------------------------------------------------------------------
 echo "=== Running semver-tags ==="
+# Echo the full semver-tags output (including any push errors) before we
+# try to parse the JSON tail — silent failures here have masked release
+# breakage in the past.
 semver-tags run --output_json > /tmp/semver-output.txt 2>&1 || true
+cat /tmp/semver-output.txt
 OUTPUT=$(tail -1 /tmp/semver-output.txt)
-echo "Output: ${OUTPUT}"
 
 NEW_TAG=$(echo "${OUTPUT}" | grep -o '"New_release_git_tag":"[^"]*"' | cut -d'"' -f4)
 PUBLISHED=$(echo "${OUTPUT}" | grep -o '"New_release_published":"[^"]*"' | cut -d'"' -f4)
@@ -54,12 +71,10 @@ sed -i "s/^appVersion: .*/appVersion: \"${VERSION}\"/" helm_chart/Chart.yaml
 echo "${VERSION}" > version/VERSION.txt
 
 # Commit the version bump (push requires GITHUB_PAT — CI only).
+# Auth was already configured at the top of the script.
 if [ "${SKIP_GITHUB:-false}" = "true" ]; then
   echo "=== SKIP_GITHUB=true: skipping version-bump commit and push ==="
 else
-  git config user.name "Catalyst Community (automation)"
-  git config user.email "automation@catalystcommunity.dev"
-  git remote set-url origin "https://x-access-token:${GITHUB_PAT}@github.com/${REACTORCIDE_REPO}.git"
   git add helm_chart/Chart.yaml version/VERSION.txt
   git commit -m "ci: bump version to ${VERSION}" || echo "No version changes to commit"
   git push || echo "Push failed, continuing with release"
