@@ -107,7 +107,8 @@ func NewRouter(deps *Deps) http.Handler {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", healthCheck)
+	mux.HandleFunc("GET /healthz", healthCheck)
+	mux.HandleFunc("GET /", rootRedirect)
 	mux.HandleFunc("GET /login", deps.login)
 	mux.HandleFunc("GET /auth/callback", deps.callback)
 	mux.HandleFunc("POST /logout", deps.logout)
@@ -196,6 +197,16 @@ func NewRouter(deps *Deps) http.Handler {
 func healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok"))
+}
+
+// rootRedirect bounces "/" to the app, which the auth middleware will
+// itself redirect to /login if the caller has no session.
+func rootRedirect(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	http.Redirect(w, r, "/app/", http.StatusFound)
 }
 
 func dashboard(w http.ResponseWriter, r *http.Request) {
