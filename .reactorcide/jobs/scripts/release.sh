@@ -82,8 +82,18 @@ if [ "${SKIP_GITHUB:-false}" = "true" ]; then
   echo "=== SKIP_GITHUB=true: skipping version-bump commit and push ==="
 else
   git add helm_chart/Chart.yaml version/VERSION.txt
-  git commit -m "ci: bump version to ${VERSION}" || echo "No version changes to commit"
-  git push || echo "Push failed, continuing with release"
+  if git diff --cached --quiet; then
+    echo "No version changes to commit"
+  else
+    git commit -m "ci: bump version to ${VERSION}"
+    # Be explicit about the refspec: `git checkout -B main origin/main`
+    # didn't set upstream tracking, so a bare `git push` fails with "no
+    # upstream". Letting set -e propagate this is intentional — if the
+    # bump can't land on main, the path-triggered build/deploy never
+    # fires, and a half-baked release (tag without main bump) is worse
+    # than a loud failure here.
+    git push origin HEAD:main
+  fi
 fi
 
 # -------------------------------------------------------------------
