@@ -1,8 +1,8 @@
 image:
   api:
-    repository: 10.16.0.1:5000/public/catalystcommunity/longhouse-api
+    repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-api
   web:
-    repository: 10.16.0.1:5000/public/catalystcommunity/longhouse-web
+    repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-web
 
 imagePullSecrets:
   - name: regcred
