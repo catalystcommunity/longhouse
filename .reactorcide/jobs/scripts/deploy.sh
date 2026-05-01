@@ -20,10 +20,22 @@ if [[ -z "${HELM_VALUES_FILE:-}" ]]; then
     exit 1
 fi
 
+# Default IMAGE_TAG to whatever VERSION.txt says (the canonical "what's
+# the released version right now"), so a deploy fired on a release-bump
+# commit lines up with the build-and-deploy job that just pushed the
+# image. Falls back to "latest" if VERSION.txt is missing or empty.
+if [[ -z "${IMAGE_TAG:-}" ]]; then
+    if [[ -s version/VERSION.txt ]]; then
+        IMAGE_TAG="$(tr -d '[:space:]' < version/VERSION.txt)"
+    else
+        IMAGE_TAG="latest"
+    fi
+fi
+
 echo "Namespace:  ${K8S_NAMESPACE}"
 echo "Release:    ${HELM_RELEASE}"
 echo "Values:     ${HELM_VALUES_FILE}"
-echo "Image tag:  ${IMAGE_TAG:-latest}"
+echo "Image tag:  ${IMAGE_TAG}"
 
 # ================================================
 # Setup tools
@@ -81,9 +93,9 @@ RUNTIME_VALUES="/tmp/runtime-values.yaml"
 cat > "${RUNTIME_VALUES}" <<VALS
 image:
   api:
-    tag: "${IMAGE_TAG:-latest}"
+    tag: "${IMAGE_TAG}"
   web:
-    tag: "${IMAGE_TAG:-latest}"
+    tag: "${IMAGE_TAG}"
 VALS
 
 helm upgrade \

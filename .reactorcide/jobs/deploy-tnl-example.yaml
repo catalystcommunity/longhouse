@@ -1,0 +1,108 @@
+# Auto-deploy example: longhouse → todandlorna ("tnl") environment.
+#
+# This file is the template for any maintainer who runs longhouse in
+# their own k8s. Copy it to `deploy-<your-env>.yaml`, edit the four
+# per-env values noted below, and commit. From then on:
+#
+#   * Every push to `main` that bumps `version/VERSION.txt` (i.e. every
+#     successful release) fires this job in CI alongside the
+#     `*-build-and-deploy` jobs. The build job pushes new images; this
+#     job runs `helm upgrade` against the chart in the working tree.
+#     If helm runs before the registry has the new tag, the imagePull
+#     retry loop handles it — the deploy will converge within a minute.
+#
+#   * `reactorcide run-local --job-dir ./ ./.reactorcide/jobs/deploy-<env>.yaml`
+#     runs the same flow against your laptop's docker. Your local
+#     `reactorcide secrets` store needs the `${secret:…}` keys this file
+#     references — see "Run-local notes" at the bottom.
+#
+# What to change before committing your copy:
+#
+#   1. `name`            — distinct per env (so logs/checks don't collide)
+#   2. `K8S_NAMESPACE`   — target namespace in the cluster
+#   3. `HELM_RELEASE`    — Helm release name
+#   4. `HELM_VALUES_FILE`— path (relative to repo root) to your env's
+#                          values overrides; commit one alongside this
+#                          yaml, e.g. helm_chart/values-<env>.yaml
+#   5. `KUBECONFIG_CONTENT` secret path — use a per-env secret path so
+#                          two envs don't read the same kubeconfig
+name: longhouse-deploy-tnl
+description: "Auto-deploy longhouse to the todandlorna environment after a release"
+
+# Fire on the same signal as the build-and-deploy jobs: a push to main
+# that bumped version/VERSION.txt. release.sh produces exactly that
+# commit, so a successful release → fresh images in the registry → this
+# helm upgrade.
+triggers:
+  events:
+    - push
+  branches:
+    - main
+paths:
+  include: ["version/VERSION.txt"]
+
+job:
+  image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
+  command: "bash /job/src/.reactorcide/jobs/scripts/deploy.sh"
+  timeout: 600
+  priority: 5
+
+environment:
+  # Cluster + chart selection (per-env — change these in your copy)
+  K8S_NAMESPACE: "longhouse"
+  HELM_RELEASE: "longhouse"
+  HELM_VALUES_FILE: "deploy/values-todandlorna.yaml"
+
+  # IMAGE_TAG is intentionally left unset. deploy.sh defaults it from
+  # version/VERSION.txt at runtime, so the job is always in lockstep
+  # with the commit that triggered it. Override here only if you want
+  # a deploy of this yaml to pin to a specific tag instead.
+  # IMAGE_TAG: "0.2.0"
+
+  # Registry pull credentials (used to create the regcred Secret in
+  # the target namespace so the cluster can pull from
+  # containers.catalystsquad.com).
+  REGISTRY_USER: "${secret:catalystcommunity/registry:user}"
+  REGISTRY_PASSWORD: "${secret:catalystcommunity/registry:password}"
+
+  # Kubeconfig for the target cluster. The shared
+  # `catalystcommunity/k8s:kubeconfig` is what's currently in both the
+  # local reactorcide secrets store and the CI database, so we use it
+  # here. If you fork this for a different environment (staging, prod,
+  # another tenant), please move to a per-env secret path like
+  # `${secret:<env>/k8s:kubeconfig}` so envs don't share a kubeconfig
+  # and a rotation in one doesn't quietly affect the others.
+  KUBECONFIG_CONTENT: "${secret:catalystcommunity/k8s:kubeconfig}"
+
+# ----------------------------------------------------------------------
+# Run-local notes
+# ----------------------------------------------------------------------
+# To deploy without going through CI (e.g. CI is down, or you want to
+# test a chart change before merging):
+#
+#   REACTORCIDE_SECRETS_PASSWORD="$(cat ~/.reactorcide-pass)" \
+#     HOME="$HOME" sudo --preserve-env=REACTORCIDE_SECRETS_PASSWORD,HOME \
+#     reactorcide run-local --job-dir ./ \
+#     ./.reactorcide/jobs/deploy-tnl-example.yaml
+#
+# The sudo dance is only necessary if your user isn't in the `docker`
+# group. Drop it once you `usermod -aG docker $USER` + re-login.
+#
+# For run-local to succeed, your *local* reactorcide secrets store
+# (`reactorcide secrets list-paths`) must have everything this file
+# references via `${secret:…}`. Verify with:
+#
+#   REACTORCIDE_SECRETS_PASSWORD="$(cat ~/.reactorcide-pass)" \
+#     reactorcide secrets list-paths
+#
+# You should see (at minimum):
+#
+#   catalystcommunity/registry      keys: user, password
+#   catalystcommunity/k8s           keys: kubeconfig
+#
+# Set any missing entries with `reactorcide secrets set <path> <key>`
+# (which reads the value from stdin so it never ends up in your shell
+# history).
+#
+# Run-local will skip the github-status callback (no PR context); the
+# helm upgrade itself runs identically to the CI path.

@@ -12,4 +12,6 @@ environment:
   K8S_NAMESPACE: ""
   HELM_RELEASE: ""
   HELM_VALUES_FILE: ""
-  IMAGE_TAG: "0.1.0"
+  # IMAGE_TAG defaults to whatever version/VERSION.txt currently has.
+  # Set it explicitly via overlay if you want to pin a deploy to a
+  # specific tag instead of tracking the working tree.
