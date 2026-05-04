@@ -57,6 +57,9 @@ spec:
             {{- if .Values.linkkeysRp.enabled }}
             - name: LONGHOUSE_LINKKEYS_PKI_URL
               value: "https://{{ include "longhouse.fullname" . }}-linkkeys-rp:{{ .Values.linkkeysRp.port }}"
+            {{- else if .Values.linkkeysRp.url }}
+            - name: LONGHOUSE_LINKKEYS_PKI_URL
+              value: {{ .Values.linkkeysRp.url | quote }}
             {{- end }}
             {{- if .Values.linkkeysRp.allowInvalidCerts }}
             - name: LONGHOUSE_LINKKEYS_PKI_ALLOW_INVALID_CERTS

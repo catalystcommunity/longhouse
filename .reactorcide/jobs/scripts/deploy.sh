@@ -88,15 +88,30 @@ echo "================================================"
 echo "Deploying with Helm"
 echo "================================================"
 
-# Write runtime overrides to a temp values file
+# Write runtime overrides to a temp values file. The file may hold
+# secret-sourced values (LINKKEYS_PKI_API_KEY, etc.) that we don't want
+# lingering, so chmod it tight and `shred -u` on EXIT.
 RUNTIME_VALUES="/tmp/runtime-values.yaml"
-cat > "${RUNTIME_VALUES}" <<VALS
+( umask 077 && : > "${RUNTIME_VALUES}" )
+trap 'shred -u "${RUNTIME_VALUES}" 2>/dev/null || rm -f "${RUNTIME_VALUES}"' EXIT
+
+{
+    cat <<VALS
 image:
   api:
     tag: "${IMAGE_TAG}"
   web:
     tag: "${IMAGE_TAG}"
 VALS
+    if [[ -n "${LINKKEYS_PKI_API_KEY:-}" ]]; then
+        # Quoted YAML scalar — base64url + literal '.' from the linkkeys
+        # api-key format are all safe inside double-quoted YAML strings.
+        cat <<VALS
+linkkeysRp:
+  apiKey: "${LINKKEYS_PKI_API_KEY}"
+VALS
+    fi
+} > "${RUNTIME_VALUES}"
 
 helm upgrade \
     --install \
@@ -106,8 +121,6 @@ helm upgrade \
     ./helm_chart \
     -f "${HELM_VALUES_FILE}" \
     -f "${RUNTIME_VALUES}"
-
-rm -f "${RUNTIME_VALUES}"
 
 echo ""
 echo "================================================"

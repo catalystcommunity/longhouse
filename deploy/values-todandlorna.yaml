@@ -4,6 +4,14 @@ image:
   web:
     repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-web
 
+# External RP — reusing linkkeys.todandlorna.com (which has
+# ENABLE_RP_ENDPOINTS=true). No sidecar in this pod. apiKey is injected
+# at deploy time by deploy.sh from the LINKKEYS_PKI_API_KEY env var
+# (sourced from reactorcide secret tnl/longhouse:linkkeys_api_key).
+linkkeysRp:
+  enabled: false
+  url: "https://linkkeys.todandlorna.com"
+
 imagePullSecrets:
   - name: regcred
 
@@ -20,8 +28,17 @@ postgresql:
     size: 1Gi
 
 server:
+  # Legacy api-side keys (kept for compatibility with older code paths).
   linkkeysDomain: "todandlorna.com"
   linkkeysUrl: "https://linkkeys.todandlorna.com"
+
+  # Webapp-side login config. All four are required for /login to work —
+  # the handler returns "Login is not configured on this server." if any
+  # of rpDomain / rpCallbackUrl / linkkeysIdpUrl is empty.
+  linkkeysIdpUrl: "https://linkkeys.todandlorna.com"
+  linkkeysIdpDomain: "todandlorna.com"
+  rpDomain: "longhouse.todandlorna.com"
+  rpCallbackUrl: "https://longhouse.todandlorna.com/auth/callback"
 
 gateway:
   httpRoute:

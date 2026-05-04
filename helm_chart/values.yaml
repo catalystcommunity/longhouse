@@ -53,11 +53,20 @@ server:
 # Linkkeys RP PKI sidecar (same linkkeys image, RP-mode config). Holds this
 # instance's Ed25519 keypair so the webapp never touches private keys.
 #
-# Operator setup after first deploy:
-#   1. exec into the pod and run `linkkeys domain init` to generate keys.
-#   2. run `linkkeys user create longhouse-web "Longhouse webapp" --api-key`
-#      and save the printed key as linkkeysRp.apiKey.
-#   3. publish the TXT record shown by `linkkeys domain dns-check`.
+# RP (Relying Party) configuration. Two operating modes:
+#
+#   A) Sidecar mode (linkkeysRp.enabled: true) — the chart deploys a
+#      linkkeys container alongside the webapp pod, configured in RP
+#      mode. Operator setup after first deploy:
+#        1. exec into the pod and run `linkkeys domain init` to generate keys.
+#        2. run `linkkeys user create longhouse-web "Longhouse webapp" --api-key`
+#           and save the printed key as linkkeysRp.apiKey.
+#        3. publish the TXT record shown by `linkkeys domain dns-check`.
+#
+#   B) External RP mode (linkkeysRp.enabled: false, linkkeysRp.url set) —
+#      the webapp talks to an existing linkkeys instance with
+#      ENABLE_RP_ENDPOINTS=true. Provide the URL here and an API key
+#      issued by `linkkeys user create --api-key` on that instance.
 linkkeysRp:
   enabled: false
   image:
@@ -65,7 +74,13 @@ linkkeysRp:
     pullPolicy: IfNotPresent
     tag: "latest"
   port: 8443
-  # Generate with a password manager; rotate by redeploying + re-running user create.
+  # External RP URL. Used when `enabled: false`. Must be a fully-qualified
+  # https://... pointing at a linkkeys instance with ENABLE_RP_ENDPOINTS=true.
+  # If `enabled: true`, the sidecar's in-cluster Service URL wins and
+  # this field is ignored.
+  url: ""
+  # API key for whichever RP we're talking to (sidecar or external).
+  # Generate via `linkkeys user create --api-key`. Rotate by re-running.
   apiKey: ""
   domainKeyPassphrase: ""
   # Accept self-signed RP certs when the webapp calls the sidecar.

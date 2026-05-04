@@ -74,6 +74,15 @@ environment:
   # and a rotation in one doesn't quietly affect the others.
   KUBECONFIG_CONTENT: "${secret:catalystcommunity/k8s:kubeconfig}"
 
+  # API key for the linkkeys RP that the longhouse webapp authenticates
+  # against (i.e. linkkeys.todandlorna.com with ENABLE_RP_ENDPOINTS=true).
+  # deploy.sh writes this into the helm runtime values as
+  # `linkkeysRp.apiKey`, which the chart's secret.yaml turns into the
+  # `LONGHOUSE_LINKKEYS_PKI_API_KEY` env var on the web pod.
+  # Per-env path: each environment's RP gets its own API-key user
+  # registered on the linkkeys side, so revocation is per-app.
+  LINKKEYS_PKI_API_KEY: "${secret:tnl/longhouse:linkkeys_api_key}"
+
 # ----------------------------------------------------------------------
 # Run-local notes
 # ----------------------------------------------------------------------
@@ -99,6 +108,7 @@ environment:
 #
 #   catalystcommunity/registry      keys: user, password
 #   catalystcommunity/k8s           keys: kubeconfig
+#   tnl/longhouse                   keys: linkkeys_api_key
 #
 # Set any missing entries with `reactorcide secrets set <path> <key>`
 # (which reads the value from stdin so it never ends up in your shell
