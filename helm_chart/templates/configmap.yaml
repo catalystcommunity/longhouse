@@ -24,6 +24,8 @@ data:
   {{- end }}
   {{- if .Values.linkkeysRp.enabled }}
   LONGHOUSE_LINKKEYS_PKI_URL: "https://{{ include "longhouse.fullname" . }}-linkkeys-rp:{{ .Values.linkkeysRp.port }}"
+  {{- else if .Values.linkkeysRp.url }}
+  LONGHOUSE_LINKKEYS_PKI_URL: {{ .Values.linkkeysRp.url | quote }}
   {{- end }}
   {{- if .Values.linkkeysRp.allowInvalidCerts }}
   LONGHOUSE_LINKKEYS_PKI_ALLOW_INVALID_CERTS: "true"
