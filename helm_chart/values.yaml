@@ -45,10 +45,9 @@ server:
   initialHouseName: ""
 
   # Webapp-facing auth config. Required for login to work.
-  rpDomain: ""            # this longhouse instance's public hostname
-  rpCallbackUrl: ""       # full https://.../auth/callback URL
+  rpCallbackUrl: ""       # full https://.../auth/callback URL — where the IDP redirects users back to
   linkkeysIdpUrl: ""      # IDP base URL (for the /auth/authorize redirect)
-  linkkeysIdpDomain: ""   # IDP domain (for assertion verification)
+  linkkeysIdpDomain: ""   # IDP identity domain (also the audience check on returned assertions)
 
 # Linkkeys RP PKI sidecar (same linkkeys image, RP-mode config). Holds this
 # instance's Ed25519 keypair so the webapp never touches private keys.
