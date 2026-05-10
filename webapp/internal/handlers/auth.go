@@ -16,7 +16,7 @@ import (
 // sidecar to sign an AuthRequest bound to our callback URL, stash the nonce in
 // a short-lived cookie, and redirect the user to the IDP.
 func (d *Deps) login(w http.ResponseWriter, r *http.Request) {
-	if d.IDPURL == "" || d.RPDomain == "" || d.CallbackURL == "" {
+	if d.IDPURL == "" || d.IDPDomain == "" || d.CallbackURL == "" {
 		renderLogin(w, http.StatusInternalServerError, "Login is not configured on this server.")
 		return
 	}
@@ -40,10 +40,11 @@ func (d *Deps) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The IDP reads relying_party + callback_url + nonce from the verified
+	// CBOR inside signed_request, so we don't pass them as URL parameters.
+	// (Older linkkeys versions required them; the trust-the-CBOR change
+	// landed in linkkeys >= 0.5.6.)
 	q := url.Values{}
-	q.Set("callback_url", d.CallbackURL)
-	q.Set("nonce", nonce)
-	q.Set("relying_party", d.RPDomain)
 	q.Set("signed_request", signedRequest)
 	http.Redirect(w, r, d.IDPURL+"/auth/authorize?"+q.Encode(), http.StatusFound)
 }
@@ -86,7 +87,12 @@ func (d *Deps) callback(w http.ResponseWriter, r *http.Request) {
 		renderLogin(w, http.StatusUnauthorized, "Assertion from unexpected domain.")
 		return
 	}
-	if assertion.Audience != "" && assertion.Audience != d.RPDomain {
+	// In our deployment topology the RP's identity domain equals the IDP's
+	// identity domain (single linkkeys instance serving both roles), so
+	// the assertion's audience should match d.IDPDomain. If a future
+	// deployment splits IDP and RP across different identity domains,
+	// this check needs a separate config knob.
+	if assertion.Audience != "" && assertion.Audience != d.IDPDomain {
 		renderLogin(w, http.StatusUnauthorized, "Assertion audience mismatch.")
 		return
 	}

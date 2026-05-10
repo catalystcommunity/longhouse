@@ -15,11 +15,17 @@ var (
 	LinkkeysPKIAllowInvalid = getEnvOrDefault("LONGHOUSE_LINKKEYS_PKI_ALLOW_INVALID_CERTS", "") == "true"
 
 	// Linkkeys IDP — where the user is redirected to authenticate.
+	// IDPDomain is also used as the RP identity domain check on returned
+	// assertions (assertion.Audience): in our deployment topology the RP
+	// at linkkeys.<domain>.com signs auth requests using <domain>.com's
+	// keys, so the assertion's audience equals our IDP domain. If a
+	// future deployment splits IDP and RP across different identity
+	// domains, this assumption needs revisiting.
 	LinkkeysIDPURL    = getEnvOrDefault("LONGHOUSE_LINKKEYS_IDP_URL", "")
 	LinkkeysIDPDomain = getEnvOrDefault("LONGHOUSE_LINKKEYS_IDP_DOMAIN", "")
 
-	// This longhouse instance as a relying party.
-	RPDomain      = getEnvOrDefault("LONGHOUSE_RP_DOMAIN", "")
+	// Public callback URL for this RP (where the IDP redirects back to
+	// after the user authenticates).
 	RPCallbackURL = getEnvOrDefault("LONGHOUSE_RP_CALLBACK_URL", "")
 
 	// Session cookie signing secret. Must be non-empty for auth to work.
@@ -62,9 +68,6 @@ func ApplyFlags(flags map[string]string) {
 	}
 	if v, ok := flags["linkkeys-idp-domain"]; ok {
 		LinkkeysIDPDomain = v
-	}
-	if v, ok := flags["rp-domain"]; ok {
-		RPDomain = v
 	}
 	if v, ok := flags["rp-callback-url"]; ok {
 		RPCallbackURL = v

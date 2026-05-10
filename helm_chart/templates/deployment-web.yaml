@@ -73,10 +73,6 @@ spec:
             - name: LONGHOUSE_LINKKEYS_IDP_DOMAIN
               value: {{ .Values.server.linkkeysIdpDomain | quote }}
             {{- end }}
-            {{- if .Values.server.rpDomain }}
-            - name: LONGHOUSE_RP_DOMAIN
-              value: {{ .Values.server.rpDomain | quote }}
-            {{- end }}
             {{- if .Values.server.rpCallbackUrl }}
             - name: LONGHOUSE_RP_CALLBACK_URL
               value: {{ .Values.server.rpCallbackUrl | quote }}

@@ -32,12 +32,13 @@ server:
   linkkeysDomain: "todandlorna.com"
   linkkeysUrl: "https://linkkeys.todandlorna.com"
 
-  # Webapp-side login config. All four are required for /login to work —
+  # Webapp-side login config. All three are required for /login to work —
   # the handler returns "Login is not configured on this server." if any
-  # of rpDomain / rpCallbackUrl / linkkeysIdpUrl is empty.
+  # of linkkeysIdpUrl / linkkeysIdpDomain / rpCallbackUrl is empty.
+  # The IDP reads relying_party from the verified signed_request CBOR,
+  # so we no longer pass an `rpDomain` URL parameter / env var.
   linkkeysIdpUrl: "https://linkkeys.todandlorna.com"
   linkkeysIdpDomain: "todandlorna.com"
-  rpDomain: "longhouse.todandlorna.com"
   rpCallbackUrl: "https://longhouse.todandlorna.com/auth/callback"
 
 gateway:

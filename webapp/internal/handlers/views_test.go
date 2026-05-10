@@ -409,7 +409,6 @@ func TestViewMembers_RendersOK(t *testing.T) {
 		},
 	}
 	d := viewDeps(fake)
-	d.RPDomain = "rp.example"
 	cookies := signedIn(t, d, session.Identity{
 		MemberID: "m1", HouseID: "h1", APIToken: "tok",
 	})

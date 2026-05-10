@@ -39,7 +39,6 @@ type Deps struct {
 
 	IDPURL      string
 	IDPDomain   string
-	RPDomain    string
 	CallbackURL string
 }
 
@@ -101,7 +100,6 @@ func NewRouter(deps *Deps) http.Handler {
 			NewSessionAPI: func(token string) SessionAPI { return base.WithToken(token) },
 			IDPURL:        config.LinkkeysIDPURL,
 			IDPDomain:     config.LinkkeysIDPDomain,
-			RPDomain:      config.RPDomain,
 			CallbackURL:   config.RPCallbackURL,
 		}
 	}

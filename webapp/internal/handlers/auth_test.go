@@ -43,7 +43,6 @@ func testDeps(pki PKIClient) *Deps {
 		API:         &fakeAPI{},
 		IDPURL:      "https://idp.example",
 		IDPDomain:   "idp.example",
-		RPDomain:    "longhouse.example",
 		CallbackURL: "https://longhouse.example/auth/callback",
 	}
 }
@@ -78,14 +77,19 @@ func TestLogin_RedirectsToIDPWithNonceAndSignedRequest(t *testing.T) {
 		t.Errorf("redirect target: %q", loc)
 	}
 	q := u.Query()
-	if q.Get("nonce") != capturedNonce {
-		t.Errorf("nonce mismatch: url=%q captured=%q", q.Get("nonce"), capturedNonce)
-	}
+	// Only signed_request is sent — IDP reads nonce, callback_url and
+	// relying_party from the verified CBOR inside it.
 	if q.Get("signed_request") != "SIGNED-"+capturedNonce {
 		t.Errorf("signed_request: %q", q.Get("signed_request"))
 	}
-	if q.Get("relying_party") != "longhouse.example" {
-		t.Errorf("relying_party: %q", q.Get("relying_party"))
+	if got := q.Get("nonce"); got != "" {
+		t.Errorf("nonce should not be sent as URL param, got %q", got)
+	}
+	if got := q.Get("relying_party"); got != "" {
+		t.Errorf("relying_party should not be sent as URL param, got %q", got)
+	}
+	if got := q.Get("callback_url"); got != "" {
+		t.Errorf("callback_url should not be sent as URL param, got %q", got)
 	}
 
 	sawState := false
@@ -120,22 +124,35 @@ func fullLoginFlow(t *testing.T, d *Deps, assertion *linkkeys.Assertion, overrid
 	t.Helper()
 	router := NewRouter(d)
 
+	// The webapp no longer puts the nonce in the redirect URL — it's only
+	// inside the verified signed_request CBOR, which the fake doesn't
+	// model. Wrap the fake's signRequest to capture the nonce the webapp
+	// generates so the test can echo it back as the assertion's nonce.
+	f := d.PKI.(*fakePKI)
+	var capturedNonce string
+	origSign := f.signRequest
+	f.signRequest = func(cb, n string) (string, error) {
+		capturedNonce = n
+		if origSign != nil {
+			return origSign(cb, n)
+		}
+		return "SIGNED", nil
+	}
+
 	rec1 := httptest.NewRecorder()
 	router.ServeHTTP(rec1, httptest.NewRequest(http.MethodGet, "/login", nil))
 	if rec1.Code != http.StatusFound {
 		t.Fatalf("login: got %d", rec1.Code)
 	}
-	u, _ := url.Parse(rec1.Header().Get("Location"))
-	nonce := u.Query().Get("nonce")
+
 	if overrideNonce != "" {
 		assertion.Nonce = overrideNonce
 	} else {
-		assertion.Nonce = nonce
+		assertion.Nonce = capturedNonce
 	}
 
 	// Re-point the fake verifier now that we know the nonce. The fake is
 	// shared across the two requests via the Deps struct.
-	f := d.PKI.(*fakePKI)
 	f.verifyAssertion = func(sa, dom string) (*linkkeys.Assertion, error) {
 		return assertion, nil
 	}
@@ -157,7 +174,7 @@ func TestCallback_HappyPath(t *testing.T) {
 	d := testDeps(pki)
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "longhouse.example", DisplayName: "Tod",
+		UserID: "u1", Domain: "idp.example", Audience: "idp.example", DisplayName: "Tod",
 	}, "")
 
 	if rec.Code != http.StatusFound {
@@ -185,7 +202,7 @@ func TestCallback_NonceMismatch(t *testing.T) {
 	d := testDeps(pki)
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "longhouse.example",
+		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
 	}, "bogus-nonce")
 
 	if rec.Code != http.StatusUnauthorized {
@@ -204,7 +221,7 @@ func TestCallback_WrongDomain(t *testing.T) {
 	d := testDeps(pki)
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "evil.example", Audience: "longhouse.example",
+		UserID: "u1", Domain: "evil.example", Audience: "idp.example",
 	}, "")
 
 	if rec.Code != http.StatusUnauthorized {
@@ -286,7 +303,7 @@ func TestCallback_APILoginError(t *testing.T) {
 	}
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "longhouse.example",
+		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
 	}, "")
 
 	if rec.Code != http.StatusBadGateway {
@@ -309,7 +326,7 @@ func TestCallback_MultiHouseRendersPicker(t *testing.T) {
 	}
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "longhouse.example",
+		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
 	}, "")
 
 	if rec.Code != http.StatusConflict {
@@ -426,7 +443,7 @@ func TestCallback_StashesTokenInSession(t *testing.T) {
 	}
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "longhouse.example",
+		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
 	}, "")
 	if rec.Code != http.StatusFound {
 		t.Fatalf("callback status: got %d, body=%s", rec.Code, rec.Body.String())
