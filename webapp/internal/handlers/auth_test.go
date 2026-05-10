@@ -174,7 +174,7 @@ func TestCallback_HappyPath(t *testing.T) {
 	d := testDeps(pki)
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "idp.example", DisplayName: "Tod",
+		UserID: "u1", Domain: "idp.example", Audience: "https://longhouse.example/auth/callback", DisplayName: "Tod",
 	}, "")
 
 	if rec.Code != http.StatusFound {
@@ -202,7 +202,7 @@ func TestCallback_NonceMismatch(t *testing.T) {
 	d := testDeps(pki)
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
+		UserID: "u1", Domain: "idp.example", Audience: "https://longhouse.example/auth/callback",
 	}, "bogus-nonce")
 
 	if rec.Code != http.StatusUnauthorized {
@@ -221,7 +221,7 @@ func TestCallback_WrongDomain(t *testing.T) {
 	d := testDeps(pki)
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "evil.example", Audience: "idp.example",
+		UserID: "u1", Domain: "evil.example", Audience: "https://longhouse.example/auth/callback",
 	}, "")
 
 	if rec.Code != http.StatusUnauthorized {
@@ -303,7 +303,7 @@ func TestCallback_APILoginError(t *testing.T) {
 	}
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
+		UserID: "u1", Domain: "idp.example", Audience: "https://longhouse.example/auth/callback",
 	}, "")
 
 	if rec.Code != http.StatusBadGateway {
@@ -326,7 +326,7 @@ func TestCallback_MultiHouseRendersPicker(t *testing.T) {
 	}
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
+		UserID: "u1", Domain: "idp.example", Audience: "https://longhouse.example/auth/callback",
 	}, "")
 
 	if rec.Code != http.StatusConflict {
@@ -443,7 +443,7 @@ func TestCallback_StashesTokenInSession(t *testing.T) {
 	}
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
+		UserID: "u1", Domain: "idp.example", Audience: "https://longhouse.example/auth/callback",
 	}, "")
 	if rec.Code != http.StatusFound {
 		t.Fatalf("callback status: got %d, body=%s", rec.Code, rec.Body.String())

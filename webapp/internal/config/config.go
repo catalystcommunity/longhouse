@@ -15,12 +15,9 @@ var (
 	LinkkeysPKIAllowInvalid = getEnvOrDefault("LONGHOUSE_LINKKEYS_PKI_ALLOW_INVALID_CERTS", "") == "true"
 
 	// Linkkeys IDP — where the user is redirected to authenticate.
-	// IDPDomain is also used as the RP identity domain check on returned
-	// assertions (assertion.Audience): in our deployment topology the RP
-	// at linkkeys.<domain>.com signs auth requests using <domain>.com's
-	// keys, so the assertion's audience equals our IDP domain. If a
-	// future deployment splits IDP and RP across different identity
-	// domains, this assumption needs revisiting.
+	// IDPDomain is the user-identity domain (matched against
+	// assertion.Domain to confirm the assertion came from the right IDP).
+	// Audience matching uses RPCallbackURL, not this — see auth.go.
 	LinkkeysIDPURL    = getEnvOrDefault("LONGHOUSE_LINKKEYS_IDP_URL", "")
 	LinkkeysIDPDomain = getEnvOrDefault("LONGHOUSE_LINKKEYS_IDP_DOMAIN", "")
 
