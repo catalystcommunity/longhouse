@@ -87,12 +87,12 @@ func (d *Deps) callback(w http.ResponseWriter, r *http.Request) {
 		renderLogin(w, http.StatusUnauthorized, "Assertion from unexpected domain.")
 		return
 	}
-	// In our deployment topology the RP's identity domain equals the IDP's
-	// identity domain (single linkkeys instance serving both roles), so
-	// the assertion's audience should match d.IDPDomain. If a future
-	// deployment splits IDP and RP across different identity domains,
-	// this check needs a separate config knob.
-	if assertion.Audience != "" && assertion.Audience != d.IDPDomain {
+	// linkkeys uses the callback URL as the assertion's audience (the
+	// IDP signs each assertion bound to a specific callback URL — see
+	// linkkeys' encrypt_token_test.rs:76 fixture and sign_assertion_for_user
+	// caller passing &request.callback_url). So the audience we expect
+	// is exactly the callback URL we already advertise as our RP.
+	if assertion.Audience != "" && assertion.Audience != d.CallbackURL {
 		renderLogin(w, http.StatusUnauthorized, "Assertion audience mismatch.")
 		return
 	}
