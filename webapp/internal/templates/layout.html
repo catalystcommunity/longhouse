@@ -5,7 +5,6 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{.Title}} - Longhouse</title>
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; color: #333; }
@@ -25,7 +24,29 @@
         form input[type=text], form input:not([type]), form textarea, form select { width: 100%; padding: 0.4rem 0.5rem; box-sizing: border-box; }
         form button { margin-top: 0.5rem; padding: 0.5rem 1rem; background: #2c3e50; color: white; border: 0; border-radius: 4px; cursor: pointer; }
         form button:hover { background: #34495e; }
-        .admin-link { background: #34495e; }
+
+        /* Hover/focus dropdown for the Admin nav menu. focus-within keeps it
+           keyboard-reachable; tabindex=0 on the toggle makes the wrapper
+           focus-able without giving it link semantics. */
+        .nav-dropdown { position: relative; }
+        .nav-dropdown > .nav-dropdown-toggle {
+            color: #ecf0f1; padding: 0.5rem 1rem; border-radius: 4px;
+            cursor: pointer; user-select: none; display: inline-block;
+        }
+        .nav-dropdown > .nav-dropdown-toggle:hover,
+        .nav-dropdown:focus-within > .nav-dropdown-toggle { background: #34495e; }
+        .nav-dropdown > .nav-dropdown-menu {
+            display: none; position: absolute; top: 100%; left: 0; z-index: 10;
+            background: #2c3e50; border-radius: 0 4px 4px 4px; padding: 0.25rem 0;
+            min-width: 180px; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .nav-dropdown:hover > .nav-dropdown-menu,
+        .nav-dropdown:focus-within > .nav-dropdown-menu { display: block; }
+        .nav-dropdown-menu a {
+            display: block; padding: 0.5rem 1rem; color: #ecf0f1;
+            text-decoration: none; border-radius: 0;
+        }
+        .nav-dropdown-menu a:hover { background: #34495e; }
     </style>
 </head>
 <body>
@@ -37,10 +58,15 @@
         <a href="/app/members">Members</a>
         <a href="/app/skills">Skills</a>
         {{if and .Identity (.Identity.HasRole "admin")}}
-            <a class="admin-link" href="/app/admin/roles">Admin · Roles</a>
-            <a class="admin-link" href="/app/admin/trusted-domains">Admin · Domains</a>
-            <a class="admin-link" href="/app/admin/groups">Admin · Groups</a>
-            <a class="admin-link" href="/app/admin/shares">Admin · Shares</a>
+            <div class="nav-dropdown" tabindex="0" aria-haspopup="true">
+                <span class="nav-dropdown-toggle">Admin ▾</span>
+                <div class="nav-dropdown-menu" role="menu">
+                    <a href="/app/admin/roles" role="menuitem">Roles</a>
+                    <a href="/app/admin/trusted-domains" role="menuitem">Domains</a>
+                    <a href="/app/admin/groups" role="menuitem">Groups</a>
+                    <a href="/app/admin/shares" role="menuitem">Shares</a>
+                </div>
+            </div>
         {{end}}
         <span style="flex:1"></span>
         {{if .Identity}}

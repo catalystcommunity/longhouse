@@ -3,23 +3,256 @@
 {{end}}
 
 {{define "content"}}
+<style>
+    .dash-grid { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 2fr); gap: 1rem; align-items: start; }
+    @media (max-width: 800px) { .dash-grid { grid-template-columns: 1fr; } }
+
+    /* Priority tasks list */
+    .ptask-list { list-style: none; padding: 0; margin: 0; }
+    .ptask-row { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid #f0f0f0; }
+    .ptask-row:last-child { border-bottom: 0; }
+    .ptask-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ptask-due { font-size: 0.8rem; color: #888; white-space: nowrap; }
+    .ptask-due.overdue { color: #c0392b; font-weight: 600; }
+    .ptask-mine { background: #2c3e50; color: white; font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Calendar widget — responsive day-column count via media queries on
+       the OUTER viewport. Visibility classes hide columns that don't fit.
+       Hour grid is absolute-positioned inside each day cell. */
+    .cal-card { padding: 1rem; }
+    .cal-headers, .cal-body { display: grid; grid-template-columns: 56px 1fr; }
+    @media (min-width: 720px) { .cal-headers, .cal-body { grid-template-columns: 56px 1fr 1fr; } }
+    @media (min-width: 1080px) { .cal-headers, .cal-body { grid-template-columns: 56px 1fr 1fr 1fr; } }
+    .cal-day-2 { display: none; } @media (min-width: 720px) { .cal-day-2 { display: block; } }
+    .cal-day-3 { display: none; } @media (min-width: 1080px) { .cal-day-3 { display: block; } }
+    .cal-corner { } /* spacer above hour gutter */
+    .cal-day-header { font-weight: 600; font-size: 0.85rem; color: #2c3e50; padding: 0.4rem 0.5rem; border-bottom: 1px solid #e6e6e6; text-align: center; }
+    .cal-day-header .cal-dow { display: block; font-size: 0.7rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
+    .cal-allday { display: grid; grid-template-columns: 56px 1fr; gap: 2px 0; padding: 0.25rem 0; min-height: 0; }
+    @media (min-width: 720px) { .cal-allday { grid-template-columns: 56px 1fr 1fr; } }
+    @media (min-width: 1080px) { .cal-allday { grid-template-columns: 56px 1fr 1fr 1fr; } }
+    .cal-allday-label { font-size: 0.7rem; color: #888; text-align: right; padding: 0.2rem 0.4rem; }
+    .cal-allday-cell { padding: 0.15rem 0.2rem; min-height: 1.6rem; }
+    .cal-allday-cell .cal-allday-chip {
+        display: block; background: #1abc9c; color: white; font-size: 0.75rem;
+        padding: 0.15rem 0.4rem; border-radius: 3px; margin-bottom: 2px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none;
+    }
+    .cal-scroll { max-height: 480px; overflow-y: auto; border-top: 1px solid #e6e6e6; }
+    .cal-hours { position: relative; height: 576px; /* 24h * 24px */ border-right: 1px solid #e6e6e6; }
+    .cal-hour-label {
+        position: absolute; right: 4px; transform: translateY(-50%);
+        font-size: 0.7rem; color: #999;
+    }
+    .cal-day { position: relative; height: 576px; border-right: 1px solid #f0f0f0; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 23px, #eee 23px, #eee 24px); }
+    .cal-day:last-child { border-right: 0; }
+    .cal-now {
+        position: absolute; left: 0; right: 0; height: 0;
+        border-top: 2px solid #e74c3c; pointer-events: none; z-index: 2;
+    }
+    .cal-event {
+        position: absolute; left: 2px; right: 2px;
+        background: #3498db; color: white; border-radius: 3px;
+        padding: 2px 4px; font-size: 0.72rem; line-height: 1.15;
+        overflow: hidden; text-decoration: none;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    }
+    .cal-event:hover { filter: brightness(1.1); }
+    .cal-event .cal-event-time { display: block; opacity: 0.85; font-size: 0.65rem; }
+</style>
+
 <h1>Dashboard</h1>
-<div class="card">
-    <h2>Welcome to Longhouse</h2>
-    <p>Your coordination hub for tasks, events, and communication.</p>
+<div class="dash-grid">
+    <section class="card">
+        <h2>Priority Tasks</h2>
+        <div id="priority-tasks"><p class="empty">Loading…</p></div>
+    </section>
+    <section class="card cal-card">
+        <h2>Calendar</h2>
+        <div id="calendar"><p class="empty">Loading…</p></div>
+    </section>
 </div>
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-    <div class="card">
-        <h2>Upcoming Events</h2>
-        <div id="upcoming-events" hx-get="/app/fragments/upcoming-events" hx-trigger="load" hx-swap="innerHTML">
-            <p class="empty">Loading events...</p>
-        </div>
-    </div>
-    <div class="card">
-        <h2>Open Tasks</h2>
-        <div id="open-tasks" hx-get="/app/fragments/open-tasks" hx-trigger="load" hx-swap="innerHTML">
-            <p class="empty">Loading tasks...</p>
-        </div>
-    </div>
-</div>
+
+<script>
+(function () {
+    var MY_MEMBER_ID = {{if .Identity}}{{.Identity.MemberID}}{{else}}""{{end}};
+
+    function escapeHTML(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+        });
+    }
+    function renderEmpty(el, msg) { el.innerHTML = '<p class="empty">' + escapeHTML(msg) + '</p>'; }
+    function fetchJSON(url) {
+        return fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+    }
+
+    // ----- Priority tasks -----
+
+    function fmtDue(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        var now = new Date();
+        var overdue = d < now;
+        var same = d.toDateString() === now.toDateString();
+        var label;
+        if (same) {
+            label = 'today ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else {
+            label = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+        return '<span class="ptask-due' + (overdue ? ' overdue' : '') + '">' + escapeHTML(label) + '</span>';
+    }
+    function renderPriorityTasks(el, tasks) {
+        if (!tasks.length) { renderEmpty(el, 'No open tasks for you. Nice.'); return; }
+        var rows = tasks.map(function (t) {
+            var mine = t.assigned_to_member_id && t.assigned_to_member_id === MY_MEMBER_ID;
+            return '<li class="ptask-row">' +
+                (mine ? '<span class="ptask-mine">you</span>' : '') +
+                '<a class="ptask-title" href="/app/tasks/' + encodeURIComponent(t.task_id) + '">' +
+                escapeHTML(t.title) + '</a>' +
+                fmtDue(t.due_at) +
+            '</li>';
+        }).join('');
+        el.innerHTML = '<ul class="ptask-list">' + rows + '</ul>';
+    }
+
+    // ----- Calendar -----
+
+    var HOURS_TALL = 24;
+    var PX_PER_HOUR = 24;
+    var DEFAULT_DURATION_MIN = 60;
+
+    function startOfLocalDay(d) {
+        var x = new Date(d);
+        x.setHours(0, 0, 0, 0);
+        return x;
+    }
+    function dayLabel(d) {
+        var dow = d.toLocaleDateString([], { weekday: 'short' });
+        var date = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        return '<span class="cal-dow">' + escapeHTML(dow) + '</span>' + escapeHTML(date);
+    }
+    function fmtTime(d) {
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    function buildHourGutter() {
+        var html = '<div class="cal-hours">';
+        for (var h = 0; h <= 24; h += 2) {
+            var top = h * PX_PER_HOUR;
+            var label = (h < 10 ? '0' + h : h) + ':00';
+            html += '<div class="cal-hour-label" style="top:' + top + 'px">' + label + '</div>';
+        }
+        html += '</div>';
+        return html;
+    }
+    function placeEventInDay(ev, dayStart) {
+        var start = new Date(ev.starts_at);
+        var end = ev.ends_at ? new Date(ev.ends_at) : new Date(start.getTime() + DEFAULT_DURATION_MIN * 60000);
+        // Clip to this day's window
+        var dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
+        var s = start < dayStart ? dayStart : start;
+        var e = end > dayEnd ? dayEnd : end;
+        if (e <= s) return '';
+        var topMin = (s - dayStart) / 60000;
+        var heightMin = Math.max(20 / PX_PER_HOUR * 60, (e - s) / 60000); // min ~20px
+        var top = topMin * (PX_PER_HOUR / 60);
+        var height = heightMin * (PX_PER_HOUR / 60);
+        return '<a class="cal-event" style="top:' + top.toFixed(1) + 'px;height:' + height.toFixed(1) + 'px" href="/app/events/' + encodeURIComponent(ev.event_id) + '">' +
+            escapeHTML(ev.title) +
+            '<span class="cal-event-time">' + escapeHTML(fmtTime(start)) + '</span>' +
+        '</a>';
+    }
+    function nowMarker(dayStart) {
+        var now = new Date();
+        if (now < dayStart || now >= new Date(dayStart.getTime() + 24 * 3600 * 1000)) return '';
+        var top = ((now - dayStart) / 60000) * (PX_PER_HOUR / 60);
+        return '<div class="cal-now" style="top:' + top.toFixed(1) + 'px"></div>';
+    }
+    function renderCalendar(el, events) {
+        // Build 3 day columns from local "today".
+        var today = startOfLocalDay(new Date());
+        var days = [0, 1, 2].map(function (offset) {
+            return new Date(today.getTime() + offset * 24 * 3600 * 1000);
+        });
+
+        // Bucket events by local day; segregate all-day events.
+        var allDayByDay = days.map(function () { return []; });
+        var timedByDay = days.map(function () { return []; });
+        events.forEach(function (ev) {
+            if (!ev.starts_at) return;
+            var start = new Date(ev.starts_at);
+            if (isNaN(start.getTime())) return;
+            var startDay = startOfLocalDay(start);
+            var idx = -1;
+            for (var i = 0; i < days.length; i++) {
+                if (days[i].getTime() === startDay.getTime()) { idx = i; break; }
+            }
+            if (idx < 0) return;
+            if (ev.all_day) {
+                allDayByDay[idx].push(ev);
+            } else {
+                timedByDay[idx].push(ev);
+            }
+        });
+
+        var headerHTML = '<div class="cal-headers">' +
+            '<div class="cal-corner"></div>' +
+            days.map(function (d, i) {
+                return '<div class="cal-day-header cal-day-' + (i + 1) + '">' + dayLabel(d) + '</div>';
+            }).join('') +
+        '</div>';
+
+        var allDayHTML = '<div class="cal-allday">' +
+            '<div class="cal-allday-label">all-day</div>' +
+            allDayByDay.map(function (list, i) {
+                return '<div class="cal-allday-cell cal-day-' + (i + 1) + '">' +
+                    list.map(function (ev) {
+                        return '<a class="cal-allday-chip" href="/app/events/' + encodeURIComponent(ev.event_id) + '">' +
+                            escapeHTML(ev.title) + '</a>';
+                    }).join('') +
+                '</div>';
+            }).join('') +
+        '</div>';
+
+        var bodyHTML = '<div class="cal-body">' +
+            buildHourGutter() +
+            days.map(function (dayStart, i) {
+                var eventsHTML = timedByDay[i].map(function (ev) {
+                    return placeEventInDay(ev, dayStart);
+                }).join('');
+                return '<div class="cal-day cal-day-' + (i + 1) + '">' +
+                    nowMarker(dayStart) +
+                    eventsHTML +
+                '</div>';
+            }).join('') +
+        '</div>';
+
+        el.innerHTML = headerHTML + allDayHTML + '<div class="cal-scroll">' + bodyHTML + '</div>';
+
+        // Auto-scroll the hour grid to ~1h before now (or 7am if now is at the very top).
+        var scroller = el.querySelector('.cal-scroll');
+        if (scroller) {
+            var now = new Date();
+            var minutesIntoDay = now.getHours() * 60 + now.getMinutes();
+            var scrollTo = Math.max(0, (minutesIntoDay - 60) * (PX_PER_HOUR / 60));
+            scroller.scrollTop = scrollTo;
+        }
+    }
+
+    // ----- Wire up -----
+
+    var ptEl = document.getElementById('priority-tasks');
+    fetchJSON('/app/fragments/priority-tasks')
+        .then(function (tasks) { renderPriorityTasks(ptEl, tasks || []); })
+        .catch(function () { renderEmpty(ptEl, 'Could not load tasks.'); });
+
+    var calEl = document.getElementById('calendar');
+    fetchJSON('/app/fragments/calendar')
+        .then(function (events) { renderCalendar(calEl, events || []); })
+        .catch(function () { renderEmpty(calEl, 'Could not load calendar.'); });
+})();
+</script>
 {{end}}

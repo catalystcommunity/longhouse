@@ -115,9 +115,22 @@ func NewRouter(deps *Deps) http.Handler {
 	app := deps.requireAuth
 	admin := deps.requireAdmin
 
-	// Existing app routes
-	mux.Handle("GET /app/", app(http.HandlerFunc(dashboard)))
+	// Existing app routes. /app/{$} is an exact-match for /app/ — without
+	// the {$} anchor, Go's mux would treat /app/ as a subtree and silently
+	// route every unregistered /app/* path to the dashboard handler (which
+	// caused HTMX-style fragment URLs to recursively render the layout
+	// inside itself).
+	mux.Handle("GET /app", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/app/", http.StatusFound)
+	}))
+	mux.Handle("GET /app/{$}", app(http.HandlerFunc(dashboard)))
 	mux.Handle("GET /app/dashboard", app(http.HandlerFunc(dashboard)))
+
+	// Dashboard fragments (JSON for vanilla-JS widgets).
+	mux.Handle("GET /app/fragments/priority-tasks",
+		app(http.HandlerFunc(deps.fragmentPriorityTasks)))
+	mux.Handle("GET /app/fragments/calendar",
+		app(http.HandlerFunc(deps.fragmentCalendar)))
 
 	// Members
 	mux.Handle("GET /app/members", app(http.HandlerFunc(deps.viewMembers)))
