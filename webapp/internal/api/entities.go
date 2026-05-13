@@ -164,6 +164,7 @@ type Task struct {
 	Title              string  `json:"title"`
 	Description        string  `json:"description,omitempty"`
 	Status             string  `json:"status,omitempty"`
+	DueAt              *string `json:"due_at,omitempty"`
 }
 
 type CreateTaskRequest struct {
