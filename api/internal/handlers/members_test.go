@@ -100,8 +100,11 @@ func TestMembers_AuditLog_AdminOnly(t *testing.T) {
 		t.Errorf("expected detail json, got %v", got[0].Detail)
 	}
 
-	// Non-admin can't.
-	memberTok := h.token("m-member1", "h1", "member")
+	// Non-admin can't. (m-member1 was just granted admin above, so use a
+	// separate, genuinely non-admin member — authorization now resolves
+	// roles from the store, not from the token.)
+	h.store.seedMember("h1", "m-plain", "todandlorna.com", "u-plain", "member")
+	memberTok := h.token("m-plain", "h1", "member")
 	rec = h.do(http.MethodGet,
 		"/api/v1/houses/h1/members/m-member1/audits", memberTok, nil)
 	if rec.Code != http.StatusForbidden {

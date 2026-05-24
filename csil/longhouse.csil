@@ -305,43 +305,67 @@ Share = {
 ;; Auth (issues bearer tokens for any client of the API)
 ;; ============================================================
 
-;; Linkkeys-style summary used to disambiguate when a caller is a member of
-;; multiple houses.
+;; Lightweight house descriptor used in /me and (future) join flows.
 HouseSummary = {
     house_id: HouseID,
     name: text
 }
 
-LoginRequest = {
-    ;; base64url-encoded SignedIdentityAssertion produced by a linkkeys IDP
-    ;; (the same blob the webapp gets from /auth/callback).
-    signed_assertion: text,
+;; ---- Token payload ----------------------------------------------------
+;;
+;; The bearer token is CBOR-encoded + HMAC-signed; payload is an Identity.
+;; It carries per-house membership so authorization needs no DB lookup per
+;; request. Mint-time snapshot; staleness is bounded by `exp` and the
+;; /refresh op. Wire encoding is CBOR (not JSON), but the IDL is the same.
 
-    ;; If the caller is a member of multiple houses, they must specify
-    ;; which one to scope the token to.
-    ? house_id: HouseID
+HouseRoles = {
+    house: HouseID,
+    member: MemberID,
+    roles: [* text]
 }
 
+Identity = {
+    domain: text,
+    user_id: text,
+    ? display_name: text,
+    houses: [* HouseRoles],
+    iat: int,
+    exp: int
+}
+
+;; ---- Auth requests / responses ---------------------------------------
+
+;; Programmatic login: caller already holds a verified linkkeys assertion.
+;; (Browser clients use CompleteRequest below, not this.)
+LoginRequest = {
+    signed_assertion: text
+}
+
+;; Browser callback: the SPA POSTs the sealed token it received at the
+;; /auth/callback route. The api decrypts + verifies via the RP.
+CompleteRequest = {
+    encrypted_token: text
+}
+
+;; Shared response shape for /login, /complete, /refresh, /dev/login.
+;; The token is the CBOR-encoded Identity above; the rest are surfaced for
+;; UI convenience so the client doesn't have to decode the token.
 LoginResponse = {
     token: text,
-    member_id: MemberID,
-    house_id: HouseID,
-    roles: [* text],
+    domain: text,
+    user_id: text,
+    ? display_name: text,
     expires_at: Timestamp
 }
 
-;; Returned with HTTP 409 when LoginRequest omits house_id and the caller
-;; is a member of more than one house.
-LoginMultiHouseResponse = {
-    error: text,
-    houses: [* HouseSummary]
-}
-
+;; /me — identity + houses for the in-app switcher. Houses come from the
+;; token; the api adds display names.
 MeResponse = {
-    member_id: MemberID,
-    house_id: HouseID,
-    roles: [* text],
-    expires_at: Timestamp
+    domain: text,
+    user_id: text,
+    ? display_name: text,
+    expires_at: Timestamp,
+    houses: [* HouseSummary]
 }
 
 ;; ============================================================
@@ -440,10 +464,16 @@ ServiceError = {
 ;; Services
 ;; ============================================================
 
-;; Auth: token issuance + introspection. Unauthenticated except for /me.
+;; Auth: token issuance + introspection.
+;;   login     — programmatic: caller already holds a verified assertion
+;;   complete  — browser callback: SPA posts the IDP's sealed token
+;;   refresh   — re-mint with a fresh houses+roles snapshot (needs bearer)
+;;   me        — identity + accessible houses (needs bearer)
 service AuthService {
-    login: LoginRequest -> LoginResponse / ServiceError,
-    me: EmptyRequest -> MeResponse / ServiceError
+    login:    LoginRequest    -> LoginResponse / ServiceError,
+    complete: CompleteRequest -> LoginResponse / ServiceError,
+    refresh:  EmptyRequest    -> LoginResponse / ServiceError,
+    me:       EmptyRequest    -> MeResponse    / ServiceError
 }
 
 service HouseService {

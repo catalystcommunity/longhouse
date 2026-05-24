@@ -1,0 +1,140 @@
+/* ─────────────────────────────────────────────────────────────
+   Longhouse design tokens — Ireland-cool palette.
+   Light theme is :root, dark is [data-theme="dark"].
+   Semantic tokens so theme overrides are clean.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  /* paper / ink */
+  --surface:    #e8ece1;
+  --surface-2:  #dde2d5;
+  --paper:      #f1f3ea;
+  --paper-2:    #e4e8db;
+
+  --ink:        #182520;
+  --ink-soft:   #3a4a42;
+  --ink-mute:   #6a7c74;
+  --ink-faint:  #9eaba3;
+
+  /* sky */
+  --sky-1:      #d4dcde;
+  --sky-2:      #a3b8be;
+  --sky-3:      #6f8e98;
+  --sky-4:      #4d7280;
+
+  /* grass */
+  --grass-1:    #c4d6ae;
+  --grass-2:    #8eb079;
+  --grass-3:    #4f8052;
+  --grass-4:    #2b5536;
+  --grass-5:    #163322;
+
+  /* ocean */
+  --ocean-1:    #4a7880;
+  --ocean-2:    #2e5860;
+  --ocean-3:    #1a3d44;
+
+  /* warm — small accents only */
+  --sun:        #cfc69e;
+  --moss:       #8a8b56;
+  --heather:    #9d8290;
+  --rust:       #9c6244;
+  --berry:      #8e3a3a;
+
+  /* accent — used on CTAs / brand mark / active nav */
+  --accent:     #2b5536;
+  --accent-hi:  #4f8052;
+  --accent-lo:  #163322;
+  --on-accent:  #eef1e6;
+
+  /* surfaces */
+  --line:       rgba(40, 60, 50, 0.12);
+  --line-2:     rgba(40, 60, 50, 0.22);
+  --hl:         rgba(255, 255, 255, 0.6);
+
+  --shadow-cloud:
+    0 30px 80px -40px rgba(20, 40, 30, 0.28),
+    0 10px 24px -12px rgba(20, 40, 30, 0.16),
+    0 1px 0 var(--hl) inset;
+  --shadow-low:
+    0 2px 6px -2px rgba(20, 40, 30, 0.10),
+    0 1px 0 var(--hl) inset;
+
+  /* hero scene gradient */
+  --scene-sky-1:  #dde5e7;
+  --scene-sky-2:  #bccdd3;
+  --scene-sky-3:  #9eb5be;
+  --scene-mid:    #6e9092;
+  --scene-field:  #4a7551;
+  --scene-deep:   #2b5536;
+
+  /* type */
+  --display: "Fraunces", ui-serif, "Iowan Old Style", Georgia, serif;
+  --sans:    "General Sans", ui-sans-serif, -apple-system, "Helvetica Neue", Arial, sans-serif;
+
+  /* radii */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-pill: 999px;
+
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --surface:    #0f1814;
+  --surface-2:  #15201b;
+  --paper:      #1a2520;
+  --paper-2:    #1f2c26;
+
+  --ink:        #e2e8df;
+  --ink-soft:   #b3bfb7;
+  --ink-mute:   #788880;
+  --ink-faint:  #4f5b54;
+
+  --sky-1:      #2a3338;
+  --sky-2:      #3b4d54;
+  --sky-3:      #5d7884;
+  --sky-4:      #87a3ac;
+
+  --grass-1:    #2a3a2c;
+  --grass-2:    #4a704d;
+  --grass-3:    #6a9c6a;
+  --grass-4:    #a6c7a4;
+  --grass-5:    #c8dfc4;
+
+  --ocean-1:    #5d8d97;
+  --ocean-2:    #82adb5;
+  --ocean-3:    #aacad0;
+
+  --sun:        #b8ab84;
+  --moss:       #a8a778;
+  --heather:    #b39aa6;
+  --rust:       #c08b6d;
+
+  --accent:     #3e7548;
+  --accent-hi:  #5a9460;
+  --accent-lo:  #2a5235;
+  --on-accent:  #eef1e6;
+
+  --line:       rgba(180, 200, 190, 0.10);
+  --line-2:     rgba(180, 200, 190, 0.20);
+  --hl:         rgba(255, 255, 255, 0.04);
+
+  --shadow-cloud:
+    0 30px 80px -40px rgba(0, 0, 0, 0.6),
+    0 10px 24px -12px rgba(0, 0, 0, 0.45),
+    0 1px 0 var(--hl) inset;
+  --shadow-low:
+    0 2px 6px -2px rgba(0, 0, 0, 0.4),
+    0 1px 0 var(--hl) inset;
+
+  --scene-sky-1:  #1a242c;
+  --scene-sky-2:  #243340;
+  --scene-sky-3:  #2f4856;
+  --scene-mid:    #2a4550;
+  --scene-field:  #1d3a2a;
+  --scene-deep:   #0f2418;
+
+  color-scheme: dark;
+}

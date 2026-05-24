@@ -10,6 +10,8 @@ import (
 // AuthService defines the service interface
 type AuthService interface {
 	Login(ctx context.Context, req LoginRequest) (interface{}, error)
+	Complete(ctx context.Context, req CompleteRequest) (interface{}, error)
+	Refresh(ctx context.Context, req EmptyRequest) (interface{}, error)
 	Me(ctx context.Context, req EmptyRequest) (interface{}, error)
 }
 

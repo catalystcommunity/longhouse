@@ -33,3 +33,15 @@ data:
   {{- if .Values.server.linkkeysIdpDomain }}
   LONGHOUSE_LINKKEYS_IDP_DOMAIN: {{ .Values.server.linkkeysIdpDomain | quote }}
   {{- end }}
+  {{- if .Values.server.linkkeysIdpUrl }}
+  LONGHOUSE_LINKKEYS_IDP_URL: {{ .Values.server.linkkeysIdpUrl | quote }}
+  {{- end }}
+  {{- if .Values.server.appCallbackUrl }}
+  LONGHOUSE_APP_CALLBACK_URL: {{ .Values.server.appCallbackUrl | quote }}
+  {{- end }}
+  {{- if .Values.server.env }}
+  LONGHOUSE_ENV: {{ .Values.server.env | quote }}
+  {{- end }}
+  {{- if .Values.server.devAuthEnabled }}
+  LONGHOUSE_DEV_AUTH_ENABLED: "true"
+  {{- end }}

@@ -39,44 +39,16 @@ spec:
         - name: web
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+          # The web container is nginx serving the SPA's static dist/. No
+          # backend secrets, no Longhouse env vars, no entrypoint args —
+          # api requests are routed to the api Service by the Gateway above
+          # us, not proxied through here.
           image: "{{ .Values.image.web.repository }}:{{ .Values.image.web.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.web.pullPolicy }}
-          args: ["serve"]
           ports:
             - name: http
               containerPort: {{ .Values.server.webPort }}
               protocol: TCP
-          envFrom:
-            - secretRef:
-                name: {{ include "longhouse.fullname" . }}
-          env:
-            - name: LONGHOUSE_WEB_PORT
-              value: {{ .Values.server.webPort | quote }}
-            - name: LONGHOUSE_API_URL
-              value: "http://{{ include "longhouse.fullname" . }}-api:{{ .Values.service.api.httpPort }}"
-            {{- if .Values.linkkeysRp.enabled }}
-            - name: LONGHOUSE_LINKKEYS_PKI_URL
-              value: "https://{{ include "longhouse.fullname" . }}-linkkeys-rp:{{ .Values.linkkeysRp.port }}"
-            {{- else if .Values.linkkeysRp.url }}
-            - name: LONGHOUSE_LINKKEYS_PKI_URL
-              value: {{ .Values.linkkeysRp.url | quote }}
-            {{- end }}
-            {{- if .Values.linkkeysRp.allowInvalidCerts }}
-            - name: LONGHOUSE_LINKKEYS_PKI_ALLOW_INVALID_CERTS
-              value: "true"
-            {{- end }}
-            {{- if .Values.server.linkkeysIdpUrl }}
-            - name: LONGHOUSE_LINKKEYS_IDP_URL
-              value: {{ .Values.server.linkkeysIdpUrl | quote }}
-            {{- end }}
-            {{- if .Values.server.linkkeysIdpDomain }}
-            - name: LONGHOUSE_LINKKEYS_IDP_DOMAIN
-              value: {{ .Values.server.linkkeysIdpDomain | quote }}
-            {{- end }}
-            {{- if .Values.server.rpCallbackUrl }}
-            - name: LONGHOUSE_RP_CALLBACK_URL
-              value: {{ .Values.server.rpCallbackUrl | quote }}
-            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz

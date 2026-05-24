@@ -41,14 +41,11 @@ server:
     userId: "019d6ac9-58bf-7303-8a5a-e60fba633239"   # tod (Tod Hansmann) in linkkeys-todandlorna
   initialHouseName: "Tod & Lorna's House"
 
-  # Webapp-side login config. All three are required for /login to work —
-  # the handler returns "Login is not configured on this server." if any
-  # of linkkeysIdpUrl / linkkeysIdpDomain / rpCallbackUrl is empty.
-  # The IDP reads relying_party from the verified signed_request CBOR,
-  # so we no longer pass an `rpDomain` URL parameter / env var.
+  # Auth config — all three required for the browser login flow.
+  # /auth/start refuses with 500 if any of these is empty.
   linkkeysIdpUrl: "https://linkkeys.todandlorna.com"
   linkkeysIdpDomain: "todandlorna.com"
-  rpCallbackUrl: "https://longhouse.todandlorna.com/auth/callback"
+  appCallbackUrl: "https://longhouse.todandlorna.com/auth/callback"
 
 gateway:
   httpRoute:

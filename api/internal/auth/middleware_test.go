@@ -7,22 +7,31 @@ import (
 	"time"
 )
 
-func freshToken(t *testing.T, secret []byte, c Claims) string {
+func freshToken(t *testing.T, secret []byte, id Identity) string {
 	t.Helper()
-	tok, err := Mint(secret, c, time.Hour)
+	tok, err := Mint(secret, id, time.Hour)
 	if err != nil {
 		t.Fatalf("Mint: %v", err)
 	}
 	return tok
 }
 
+// idWith builds an identity that is a member of one house with the given roles.
+func idWith(domain, userID, houseID, memberID string, roles ...string) Identity {
+	return Identity{
+		Domain: domain,
+		UserID: userID,
+		Houses: []HouseRoles{{House: houseID, Member: memberID, Roles: roles}},
+	}
+}
+
 func TestRequireBearer_HappyPath(t *testing.T) {
 	secret := []byte("k")
-	tok := freshToken(t, secret, Claims{MemberID: "m1", HouseID: "h1", Roles: []string{"admin"}})
+	tok := freshToken(t, secret, Identity{Domain: "d", UserID: "u", DisplayName: "U"})
 
-	var seen *Claims
+	var seen *Identity
 	h := RequireBearer(secret)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		seen = FromContext(r.Context())
+		seen = IdentityFromContext(r.Context())
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -33,8 +42,8 @@ func TestRequireBearer_HappyPath(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: %d, body=%s", rec.Code, rec.Body.String())
 	}
-	if seen == nil || seen.MemberID != "m1" {
-		t.Errorf("claims not in context: %+v", seen)
+	if seen == nil || seen.Domain != "d" || seen.UserID != "u" {
+		t.Errorf("identity not in context: %+v", seen)
 	}
 }
 
@@ -63,7 +72,7 @@ func TestRequireBearer_MalformedHeader(t *testing.T) {
 }
 
 func TestRequireBearer_BadSignature(t *testing.T) {
-	tok := freshToken(t, []byte("a"), Claims{MemberID: "m1"})
+	tok := freshToken(t, []byte("a"), Identity{Domain: "d", UserID: "u"})
 	h := RequireBearer([]byte("b"))(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("inner handler should not run")
 	}))
@@ -76,18 +85,76 @@ func TestRequireBearer_BadSignature(t *testing.T) {
 	}
 }
 
-func TestRequireAdmin_AdminRolePasses(t *testing.T) {
+// chain wires RequireBearer → RequireHouseMember → inner, mounted on a mux so
+// {house_id} path values resolve. No resolver: authz comes from the token.
+func chain(secret []byte, inner http.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("GET /api/v1/houses/{house_id}/things",
+		RequireBearer(secret)(RequireHouseMember(inner)))
+	return mux
+}
+
+func TestRequireHouseMember_ReadsTokenEntry(t *testing.T) {
 	secret := []byte("k")
-	tok := freshToken(t, secret, Claims{MemberID: "m1", HouseID: "h1", Roles: []string{"admin", "member"}})
+	tok := freshToken(t, secret, idWith("d", "u", "h1", "m1", "admin", "member"))
 
-	chain := RequireBearer(secret)(RequireAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})))
+	var seen *MemberContext
+	h := chain(secret, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = FromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/houses/h1/things", nil)
 	req.Header.Set("Authorization", "Bearer "+tok)
 	rec := httptest.NewRecorder()
-	chain.ServeHTTP(rec, req)
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	}
+	if seen == nil || seen.MemberID != "m1" || seen.HouseID != "h1" {
+		t.Fatalf("member context wrong: %+v", seen)
+	}
+	if !seen.HasRole("admin") || !seen.HasRole("member") {
+		t.Errorf("roles not carried: %+v", seen.Roles)
+	}
+}
+
+func TestRequireHouseMember_NotAMember(t *testing.T) {
+	secret := []byte("k")
+	// token grants h1 only; request hits h2 → no entry → 403
+	tok := freshToken(t, secret, idWith("d", "u", "h1", "m1", "member"))
+
+	h := chain(secret, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("inner handler should not run")
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/houses/h2/things", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("status: got %d, want 403", rec.Code)
+	}
+}
+
+func adminChain(secret []byte, inner http.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("GET /api/v1/houses/{house_id}/admin",
+		RequireBearer(secret)(RequireHouseMember(RequireAdmin(inner))))
+	return mux
+}
+
+func TestRequireAdmin_AdminRolePasses(t *testing.T) {
+	secret := []byte("k")
+	tok := freshToken(t, secret, idWith("d", "u", "h1", "m1", "admin", "member"))
+
+	h := adminChain(secret, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/houses/h1/admin", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNoContent {
 		t.Errorf("status: %d", rec.Code)
 	}
@@ -95,54 +162,15 @@ func TestRequireAdmin_AdminRolePasses(t *testing.T) {
 
 func TestRequireAdmin_NonAdminBlocked(t *testing.T) {
 	secret := []byte("k")
-	tok := freshToken(t, secret, Claims{MemberID: "m1", HouseID: "h1", Roles: []string{"member"}})
+	tok := freshToken(t, secret, idWith("d", "u", "h1", "m1", "member"))
 
-	chain := RequireBearer(secret)(RequireAdmin(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+	h := adminChain(secret, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("inner handler should not run")
-	})))
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/houses/h1/admin", nil)
 	req.Header.Set("Authorization", "Bearer "+tok)
 	rec := httptest.NewRecorder()
-	chain.ServeHTTP(rec, req)
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("status: got %d, want 403", rec.Code)
-	}
-}
-
-func TestRequireHouseFromPath_Match(t *testing.T) {
-	secret := []byte("k")
-	tok := freshToken(t, secret, Claims{MemberID: "m1", HouseID: "h1"})
-
-	mux := http.NewServeMux()
-	chain := RequireBearer(secret)(RequireHouseFromPath(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})))
-	mux.Handle("GET /api/v1/houses/{house_id}/things", chain)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/houses/h1/things", nil)
-	req.Header.Set("Authorization", "Bearer "+tok)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Errorf("status: got %d, want 200", rec.Code)
-	}
-}
-
-func TestRequireHouseFromPath_Mismatch(t *testing.T) {
-	secret := []byte("k")
-	tok := freshToken(t, secret, Claims{MemberID: "m1", HouseID: "h1"})
-
-	mux := http.NewServeMux()
-	chain := RequireBearer(secret)(RequireHouseFromPath(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		t.Fatal("inner handler should not run")
-	})))
-	mux.Handle("GET /api/v1/houses/{house_id}/things", chain)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/houses/h2/things", nil)
-	req.Header.Set("Authorization", "Bearer "+tok)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
+	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("status: got %d, want 403", rec.Code)
 	}

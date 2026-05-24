@@ -7,7 +7,9 @@ triggers:
   branches:
     - main
 paths:
-  include: ["api/**", "coredb/**"]
+  # csil/** triggers too — generated handler signatures + types come
+  # through the same compile path the test suite exercises.
+  include: ["api/**", "coredb/**", "csil/**"]
 job:
   image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
   command: "bash /job/src/.reactorcide/jobs/scripts/api-test-postgres.sh"

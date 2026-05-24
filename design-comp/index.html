@@ -1,0 +1,2362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Longhouse · design comp</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.fontshare.com">
+
+<!-- Fraunces: variable serif with SOFT axis for warmth + organic curves -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..700,0..100,0..1;1,9..144,300..600,0..100,0..1&display=swap" rel="stylesheet">
+<!-- General Sans: humanist, warm, distinctive without being trendy -->
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@200,300,400,500,600,700&display=swap" rel="stylesheet">
+
+<script>
+  // Set theme + scene BEFORE first paint so there's no flash
+  (function () {
+    var t = localStorage.getItem('longhouse.theme')
+         || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+
+<style>
+/* ─────────────────────────────────────────────────────────────
+   tokens — Ireland-cool palette (oat, slate, deep emerald, mist)
+   semantic vars chosen so [data-theme="dark"] can override cleanly
+   ───────────────────────────────────────────────────────────── */
+:root {
+  /* paper / ink */
+  --surface:    #e8ece1;  /* page bg — cool oat */
+  --surface-2:  #dde2d5;  /* deeper oat */
+  --paper:      #f1f3ea;  /* card bg */
+  --paper-2:    #e4e8db;  /* card bg deeper */
+
+  --ink:        #182520;  /* primary text */
+  --ink-soft:   #3a4a42;
+  --ink-mute:   #6a7c74;
+  --ink-faint:  #9eaba3;
+
+  /* sky — mistier, less azure */
+  --sky-1:      #d4dcde;
+  --sky-2:      #a3b8be;
+  --sky-3:      #6f8e98;
+  --sky-4:      #4d7280;
+
+  /* grass — deep, saturated, Irish */
+  --grass-1:    #c4d6ae;
+  --grass-2:    #8eb079;
+  --grass-3:    #4f8052;
+  --grass-4:    #2b5536;  /* primary accent / heading */
+  --grass-5:    #163322;  /* deepest */
+
+  /* ocean — slate-cool */
+  --ocean-1:    #4a7880;
+  --ocean-2:    #2e5860;
+  --ocean-3:    #1a3d44;
+
+  /* warm — pulled way back; small accents only */
+  --sun:        #cfc69e;  /* pale buttery, not amber */
+  --moss:       #8a8b56;  /* mossy bronze replaces terracotta */
+  --heather:    #9d8290;  /* dusty heather replaces peach */
+  --rust:       #9c6244;  /* used sparingly */
+  --berry:      #8e3a3a;
+
+  /* accent — used for buttons / brand mark / active nav. Stays dark-green
+     in both themes so contrast with --on-accent (light) remains correct. */
+  --accent:     #2b5536;
+  --accent-hi:  #4f8052;
+  --accent-lo:  #163322;
+  --on-accent:  #eef1e6;
+
+  /* surfaces */
+  --line:       rgba(40, 60, 50, 0.12);
+  --line-2:     rgba(40, 60, 50, 0.22);
+  --hl:         rgba(255, 255, 255, 0.6);  /* glass highlight */
+  --grain:      0.08;  /* paper noise opacity multiplier */
+
+  --shadow-cloud:
+    0 30px 80px -40px rgba(20, 40, 30, 0.28),
+    0 10px 24px -12px rgba(20, 40, 30, 0.16),
+    0 1px 0 var(--hl) inset;
+  --shadow-low:
+    0 2px 6px -2px rgba(20, 40, 30, 0.10),
+    0 1px 0 var(--hl) inset;
+
+  /* hero scene gradient — silver-blue sky → teal mid → deep field
+     mid stop is bluer than green to keep the ambient cool-Irish */
+  --scene-sky-1:  #dde5e7;
+  --scene-sky-2:  #bccdd3;
+  --scene-sky-3:  #9eb5be;
+  --scene-mid:    #6e9092;   /* teal — more sky than meadow */
+  --scene-field:  #4a7551;
+  --scene-deep:   #2b5536;
+
+  /* type */
+  --display: "Fraunces", ui-serif, "Iowan Old Style", Georgia, serif;
+  --sans:    "General Sans", ui-sans-serif, -apple-system, "Helvetica Neue", Arial, sans-serif;
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-pill: 999px;
+
+  color-scheme: light;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   dark mode — twilight in the glen
+   ───────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --surface:    #0f1814;
+  --surface-2:  #15201b;
+  --paper:      #1a2520;
+  --paper-2:    #1f2c26;
+
+  --ink:        #e2e8df;
+  --ink-soft:   #b3bfb7;
+  --ink-mute:   #788880;
+  --ink-faint:  #4f5b54;
+
+  --sky-1:      #2a3338;
+  --sky-2:      #3b4d54;
+  --sky-3:      #5d7884;
+  --sky-4:      #87a3ac;
+
+  --grass-1:    #2a3a2c;
+  --grass-2:    #4a704d;
+  --grass-3:    #6a9c6a;
+  --grass-4:    #a6c7a4;   /* heading — light sage */
+  --grass-5:    #c8dfc4;   /* lightest */
+
+  --ocean-1:    #5d8d97;
+  --ocean-2:    #82adb5;
+  --ocean-3:    #aacad0;   /* italic accents */
+
+  --sun:        #b8ab84;
+  --moss:       #a8a778;
+  --heather:    #b39aa6;
+  --rust:       #c08b6d;
+
+  --accent:     #3e7548;
+  --accent-hi:  #5a9460;
+  --accent-lo:  #2a5235;
+  --on-accent:  #eef1e6;
+
+  --line:       rgba(180, 200, 190, 0.10);
+  --line-2:     rgba(180, 200, 190, 0.20);
+  --hl:         rgba(255, 255, 255, 0.04);
+  --grain:      0.10;
+
+  --shadow-cloud:
+    0 30px 80px -40px rgba(0, 0, 0, 0.6),
+    0 10px 24px -12px rgba(0, 0, 0, 0.45),
+    0 1px 0 var(--hl) inset;
+  --shadow-low:
+    0 2px 6px -2px rgba(0, 0, 0, 0.4),
+    0 1px 0 var(--hl) inset;
+
+  --scene-sky-1:  #1a242c;
+  --scene-sky-2:  #243340;
+  --scene-sky-3:  #2f4856;   /* slightly bluer */
+  --scene-mid:    #2a4550;   /* teal-blue instead of green */
+  --scene-field:  #1d3a2a;
+  --scene-deep:   #0f2418;
+
+  color-scheme: dark;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   reset-ish
+   ───────────────────────────────────────────────────────────── */
+*,*::before,*::after { box-sizing: border-box; }
+html, body { margin:0; padding:0; }
+html { background: var(--surface); }
+body {
+  font-family: var(--sans);
+  font-feature-settings: "ss01", "cv11";
+  color: var(--ink);
+  /* ambient atmosphere — more sky/ocean than meadow now (Irish-coast cool) */
+  background:
+    radial-gradient(1300px 700px at 92% -10%, rgba(120, 162, 184, 0.35), transparent 62%),
+    radial-gradient(1100px 800px at -8% 35%, rgba(108, 144, 162, 0.22), transparent 58%),
+    var(--surface);
+  min-height: 100vh;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color .25s ease;
+}
+
+[data-theme="dark"] body {
+  background:
+    radial-gradient(1300px 700px at 92% -10%, rgba(70, 110, 140, 0.42), transparent 62%),
+    radial-gradient(1100px 800px at -8% 35%, rgba(55, 90, 120, 0.32), transparent 58%),
+    var(--surface);
+}
+
+/* paper grain — fine, low-opacity SVG noise */
+body::before {
+  content:"";
+  position: fixed; inset:0;
+  pointer-events:none;
+  z-index: 1;
+  opacity:.5;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.13  0 0 0 0 0.18  0 0 0 0 0.16  0 0 0 0.04 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+[data-theme="dark"] body::before {
+  mix-blend-mode: screen;
+  opacity: .35;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.6  0 0 0 0 0.7  0 0 0 0 0.65  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* ─────────────────────────────────────────────────────────────
+   layout shell
+   ───────────────────────────────────────────────────────────── */
+.shell {
+  position: relative;
+  z-index: 2;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 56px) 96px;
+  /* Fluid up to ultrawide; only cap so prose lines don't become uselessly long */
+  max-width: 1880px;
+}
+@media (max-width: 720px) {
+  .shell { padding: 0 16px 120px; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   header
+   ───────────────────────────────────────────────────────────── */
+.head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 28px 0 22px;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+}
+.head::after {
+  /* small wheat-stalk decorative tick */
+  content:""; position:absolute; left:50%; bottom:-7px; transform:translateX(-50%);
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--paper); border: 1px solid var(--line-2);
+  box-shadow: 0 0 0 4px var(--surface);
+}
+
+.brand {
+  display:flex; align-items:center; gap:12px;
+  font-family: var(--display);
+  font-variation-settings: "opsz" 60, "SOFT" 100, "wght" 500;
+  font-size: 24px; letter-spacing: -0.02em;
+  color: var(--grass-5);
+}
+.brand .mark {
+  width: 34px; height: 34px;
+  display:grid; place-items:center;
+  background: linear-gradient(160deg, var(--accent-hi), var(--accent-lo));
+  color: var(--on-accent);
+  border-radius: 9px;
+  box-shadow: var(--shadow-low), 0 0 0 1px rgba(0,0,0,0.1);
+}
+.brand .mark svg { width: 20px; height: 20px; }
+.brand sup {
+  font-family: var(--sans);
+  font-size: 10px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-left: 4px;
+  font-weight: 500;
+}
+
+.nav {
+  display:flex; align-items:center; gap: 4px;
+  font-size: 14.5px;
+}
+.nav a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  transition: color .15s ease, background .15s ease;
+  font-weight: 500;
+}
+.nav a:hover { color: var(--grass-4); background: color-mix(in oklab, var(--grass-3) 22%, transparent); }
+.nav a.active { color: var(--on-accent); background: var(--accent); }
+.nav a.active:hover { background: var(--accent-lo); color: var(--on-accent); }
+
+.head-end { display:flex; align-items:center; gap: 10px; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: var(--r-pill);
+  display:grid; place-items:center;
+  background: var(--paper); border: 1px solid var(--line);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.icon-btn:hover { background: var(--paper-2); border-color: var(--line-2); }
+.icon-btn:active { transform: translateY(1px); }
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn[aria-pressed="true"] {
+  color: var(--grass-4);
+  background: color-mix(in oklab, var(--grass-2) 22%, var(--paper));
+  border-color: color-mix(in oklab, var(--grass-3) 40%, var(--line));
+}
+.icon-btn .moon, [data-theme="dark"] .icon-btn .sun { display: none; }
+[data-theme="dark"] .icon-btn .moon { display: block; }
+
+.who {
+  display:flex; align-items:center; gap:10px;
+  padding: 5px 14px 5px 5px;
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  font-size: 14px; color: var(--ink-soft); font-weight: 500;
+}
+.who .avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(150deg, var(--sun), var(--heather));
+  display:grid; place-items:center;
+  font-family: var(--display);
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 600;
+  color: var(--ink);
+  font-size: 13px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+}
+
+/* hide desktop nav on phone; show mobile bar */
+@media (max-width: 820px) {
+  .nav { display: none; }
+  .head { padding: 18px 0 14px; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   hero — porch view
+   ───────────────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  margin-top: 28px;
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    var(--scene-sky-1) 0%,
+    var(--scene-sky-2) 28%,
+    var(--scene-sky-3) 46%,
+    var(--scene-mid)   58%,
+    var(--scene-field) 75%,
+    var(--scene-deep)  100%
+  );
+  box-shadow: var(--shadow-cloud);
+  border: 1px solid var(--line-2);
+}
+
+/* scene-off mode: flat paper hero, no landscape */
+.hero[data-scene="off"] {
+  background:
+    linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%);
+  border: 1px solid var(--line);
+}
+.hero[data-scene="off"] .hero-scene { display: none; }
+.hero[data-scene="off"] .kicker { background: var(--surface); border-color: var(--line-2); }
+.hero[data-scene="off"] .stat { background: var(--paper); }
+
+.hero-scene {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.hero-content {
+  position: relative;
+  padding: 56px clamp(22px, 4vw, 64px) 64px;
+  color: var(--ink);
+  max-width: 1100px;
+}
+@media (max-width: 720px) {
+  .hero { border-radius: var(--r-lg); }
+  .hero-content { padding: 32px 22px 40px; }
+}
+
+.kicker {
+  display:inline-flex; align-items:center; gap:8px;
+  font-size: 11.5px; letter-spacing: 0.22em; text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ocean-3);
+  background: rgba(241, 243, 234, 0.78);
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.4);
+}
+[data-theme="dark"] .kicker {
+  background: rgba(30, 42, 38, 0.65);
+  border-color: rgba(180, 200, 190, 0.18);
+  color: var(--ocean-3);
+}
+.kicker::before {
+  content:""; width:6px; height:6px; border-radius:50%;
+  background: var(--grass-3);
+  box-shadow: 0 0 0 3px rgba(80, 130, 90, 0.30);
+}
+
+h1.greet {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 144, "SOFT" 100, "wght" 380;
+  font-size: clamp(40px, 6vw, 76px);
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+  margin: 18px 0 12px;
+  color: var(--grass-5);
+  max-width: 14ch;
+}
+h1.greet em {
+  font-style: italic;
+  font-variation-settings: "opsz" 144, "SOFT" 100, "wght" 380;
+  color: var(--ocean-2);
+}
+.greet-sub {
+  font-size: 17.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 48ch;
+  margin: 0 0 26px;
+}
+.greet-sub b {
+  font-weight: 600;
+  color: var(--grass-4);
+  background: linear-gradient(180deg, transparent 62%, rgba(146, 178, 121, 0.42) 62%);
+  padding: 0 2px;
+}
+[data-theme="dark"] .greet-sub b {
+  color: var(--grass-5);
+  background: linear-gradient(180deg, transparent 62%, rgba(106, 156, 106, 0.32) 62%);
+}
+
+.hero-stats {
+  display:flex; flex-wrap: wrap; gap: 10px;
+  margin-top: 8px;
+}
+.stat {
+  display:flex; align-items:baseline; gap:8px;
+  padding: 12px 18px 12px 16px;
+  background: rgba(241, 243, 234, 0.82);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: var(--r-md);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 4px 14px -6px rgba(20,40,30,0.18);
+  color: var(--ink);
+}
+[data-theme="dark"] .stat {
+  background: rgba(30, 42, 38, 0.7);
+  border-color: rgba(180, 200, 190, 0.14);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 14px -6px rgba(0,0,0,0.5);
+}
+.stat .n {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 60, "SOFT" 100, "wght" 500;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--grass-4);
+  letter-spacing: -0.02em;
+}
+[data-theme="dark"] .stat .n { color: var(--grass-5); }
+.stat .lbl {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+/* the painted scene (sun, clouds, ocean strip, hills) */
+.sun {
+  position:absolute;
+  top: 44px; right: 9%;
+  width: 96px; height: 96px;
+  border-radius: 50%;
+  /* Irish sun is a rumor — pale, hazy, no amber */
+  background: radial-gradient(circle at 35% 35%, #f4f0d8, #d8d0a6 55%, #b8b591 100%);
+  box-shadow:
+    0 0 90px 16px rgba(216, 220, 200, 0.55),
+    0 0 0 1px rgba(140, 150, 130, 0.35);
+  opacity: 0.85;
+  animation: sunBob 18s ease-in-out infinite;
+}
+[data-theme="dark"] .sun {
+  background: radial-gradient(circle at 35% 35%, #b6b88c, #7d8068 60%, #4f5240 100%);
+  box-shadow:
+    0 0 100px 20px rgba(140, 160, 130, 0.30),
+    0 0 0 1px rgba(80, 100, 80, 0.5);
+  opacity: 0.75;
+}
+@keyframes sunBob {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-6px); }
+}
+
+.cloud {
+  position:absolute;
+  background: rgba(238, 242, 240, 0.92);
+  border-radius: 999px;
+  filter: blur(0.4px);
+  box-shadow:
+    0 16px 30px -16px rgba(60, 80, 70, 0.32),
+    inset 0 -10px 18px -10px rgba(150, 170, 175, 0.55);
+}
+[data-theme="dark"] .cloud {
+  background: rgba(140, 160, 160, 0.32);
+  box-shadow:
+    0 16px 30px -16px rgba(0, 0, 0, 0.55),
+    inset 0 -10px 18px -10px rgba(40, 60, 70, 0.7);
+}
+.cloud::before, .cloud::after {
+  content:""; position:absolute;
+  background: inherit;
+  border-radius: 999px;
+}
+.cloud.c1 {
+  top: 56px; left: -60px;
+  width: 220px; height: 50px;
+  animation: drift 90s linear infinite;
+}
+.cloud.c1::before { width: 110px; height: 90px; top: -40px; left: 30px; }
+.cloud.c1::after  { width: 80px; height: 70px;  top: -28px; left: 130px; }
+.cloud.c2 {
+  top: 110px; left: 30%;
+  width: 160px; height: 36px;
+  opacity: 0.75;
+  animation: drift 130s linear infinite;
+  animation-delay: -40s;
+}
+.cloud.c2::before { width: 80px; height: 60px;  top: -28px; left: 22px; }
+.cloud.c2::after  { width: 60px; height: 48px;  top: -20px; left: 86px; }
+.cloud.c3 {
+  top: 30px; left: 55%;
+  width: 140px; height: 30px;
+  opacity: 0.55;
+  animation: drift 160s linear infinite;
+  animation-delay: -80s;
+}
+.cloud.c3::before { width: 70px; height: 50px; top: -22px; left: 18px; }
+.cloud.c3::after  { width: 50px; height: 40px; top: -16px; left: 74px; }
+
+@keyframes drift {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(140vw); }
+}
+
+/* the ocean strip — thin teal band at the horizon */
+.ocean-band {
+  position:absolute;
+  left: 0; right: 0;
+  top: 52%;
+  height: 10px;
+  background: linear-gradient(180deg, var(--ocean-1), var(--ocean-2));
+  opacity: 0.85;
+  box-shadow: 0 0 16px rgba(48,93,102,0.4);
+}
+.ocean-shimmer {
+  position:absolute;
+  left: 0; right: 0;
+  top: calc(52% + 10px);
+  height: 6px;
+  background: linear-gradient(180deg, rgba(220, 228, 220, 0.45), transparent);
+}
+
+/* distant hills behind the field */
+.hill {
+  position:absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 64%;
+}
+.hill svg { width: 100%; height: 100%; display: block; }
+
+/* small grass tufts at the bottom edge */
+.tufts {
+  position:absolute; left:0; right:0; bottom:-1px;
+  height: 28px;
+  opacity: 0.55;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 28'><g fill='%231c3a26'><path d='M0 28 Q2 14 4 28 Q6 18 8 28 Q10 12 12 28 Z'/><path d='M20 28 Q22 16 24 28 Q26 20 28 28 Z'/><path d='M44 28 Q46 10 49 28 Q51 16 53 28 Q55 18 57 28 Z'/><path d='M72 28 Q74 17 76 28 Q78 12 81 28 Q83 19 85 28 Z'/><path d='M104 28 Q106 14 109 28 Q111 19 113 28 Z'/><path d='M132 28 Q134 18 136 28 Q138 12 141 28 Q143 17 145 28 Z'/><path d='M160 28 Q162 16 164 28 Q166 20 168 28 Q170 14 172 28 Z'/><path d='M184 28 Q186 17 188 28 Q190 12 193 28 Z'/></g></svg>");
+  background-repeat: repeat-x;
+  background-size: 200px 28px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   main grid
+   ───────────────────────────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  grid-template-areas: "tasks side";
+  gap: 28px;
+  margin-top: 28px;
+}
+.grid > .card[aria-label="Tasks"] { grid-area: tasks; }
+.grid > .side                     { grid-area: side; }
+
+/* mid-wide: keep 2-col but give tasks more room */
+@media (min-width: 1280px) {
+  .grid { grid-template-columns: 2fr 1fr; }
+}
+
+/* ultra-wide: 3 columns. tasks spans both rows on the left, folks spans both
+   rows on the right, gather+season stack in the middle column. align-items:start
+   prevents stretchy empty boxes when card heights differ. */
+@media (min-width: 1500px) {
+  .grid {
+    grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "tasks gather folks"
+      "tasks season folks";
+    gap: 24px;
+    align-items: start;
+  }
+  .grid > .card[aria-label="Tasks"] { grid-area: tasks; }
+  .side { display: contents; }
+  .side > .gather   { grid-area: gather; }
+  .side > .folks    { grid-area: folks; }
+  .side > .season   { grid-area: season; }
+}
+
+@media (max-width: 980px) {
+  .grid { grid-template-columns: 1fr; grid-template-areas: "tasks" "side"; gap: 18px; }
+}
+
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-low);
+  position: relative;
+}
+.card-hd {
+  display:flex; align-items:flex-end; justify-content:space-between;
+  padding: 22px 24px 14px;
+  border-bottom: 1px dashed var(--line-2);
+}
+.card-hd h2 {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 36, "SOFT" 100, "wght" 480;
+  font-size: 24px;
+  letter-spacing: -0.015em;
+  margin: 0;
+  color: var(--grass-5);
+  line-height: 1.1;
+}
+.card-hd .sub {
+  font-size: 13px;
+  color: var(--ink-mute);
+  margin-top: 4px;
+  font-weight: 500;
+}
+.card-hd-end {
+  display:flex; gap: 6px; align-items:center;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   segmented toggle
+   ───────────────────────────────────────────────────────────── */
+.seg {
+  display:inline-flex;
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  padding: 4px;
+  border: 1px solid var(--line);
+}
+.seg button {
+  appearance: none;
+  border: 0; background: transparent;
+  padding: 6px 14px;
+  font-family: var(--sans);
+  font-size: 13px; font-weight: 600;
+  color: var(--ink-soft);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+.seg button.on {
+  background: var(--paper);
+  color: var(--grass-5);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 1px 4px -1px rgba(28,50,38,0.18);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   tasks list
+   ───────────────────────────────────────────────────────────── */
+.tasks { padding: 8px 8px 14px; }
+.group-lbl {
+  display:flex; align-items:center; gap: 10px;
+  padding: 16px 16px 8px;
+  font-family: var(--display);
+  font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 400;
+  font-size: 14px;
+  color: var(--ink-mute);
+  letter-spacing: 0.01em;
+}
+.group-lbl::after {
+  content:""; flex:1; height:1px;
+  background: linear-gradient(90deg, var(--line-2), transparent);
+}
+
+.task {
+  display:grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items:center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .12s ease;
+}
+.task:hover { background: color-mix(in oklab, var(--grass-2) 14%, transparent); }
+.task + .task { border-top: 1px dotted rgba(45,65,53,0.10); }
+
+.check {
+  width: 22px; height: 22px;
+  border-radius: 7px;
+  border: 1.5px solid var(--ink-mute);
+  background: transparent;
+  display:grid; place-items:center;
+  transition: background .15s, border-color .15s, transform .1s;
+  position: relative;
+  flex-shrink: 0;
+}
+.check svg { width: 14px; height: 14px; color: var(--on-accent); opacity: 0; transition: opacity .15s; }
+.task.done .check {
+  background: var(--accent);
+  border-color: var(--accent-lo);
+}
+.task.done .check svg { opacity: 1; }
+.task.done .t-title { color: var(--ink-mute); text-decoration: line-through; text-decoration-color: rgba(115,134,123,0.6); }
+
+.t-title {
+  font-size: 15.5px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.t-meta {
+  display:flex; gap: 10px; margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--ink-mute);
+  align-items:center;
+}
+.t-meta .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--ink-faint); }
+.t-meta b { color: var(--ink-soft); font-weight: 600; }
+
+.tag {
+  display:inline-flex; align-items:center; gap:6px;
+  font-size: 11.5px; font-weight: 600;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+/* tag colors — all cool, low-saturation. each ties to a green, slate or heather hue, not Texas-warm. */
+.tag.field   { background: color-mix(in oklab, var(--grass-2) 24%, transparent); color: var(--grass-4); border-color: color-mix(in oklab, var(--grass-3) 38%, transparent); }
+.tag.house   { background: color-mix(in oklab, var(--moss) 22%, transparent);    color: color-mix(in oklab, var(--moss), black 30%); border-color: color-mix(in oklab, var(--moss) 40%, transparent); }
+.tag.calls   { background: color-mix(in oklab, var(--sky-3) 28%, transparent);   color: var(--ocean-3); border-color: color-mix(in oklab, var(--sky-3) 40%, transparent); }
+.tag.barn    { background: color-mix(in oklab, var(--heather) 24%, transparent); color: color-mix(in oklab, var(--heather), black 35%); border-color: color-mix(in oklab, var(--heather) 40%, transparent); }
+[data-theme="dark"] .tag.house { color: var(--moss); }
+[data-theme="dark"] .tag.barn  { color: var(--heather); }
+[data-theme="dark"] .tag.calls { color: var(--ocean-3); }
+
+.t-end {
+  display:flex; align-items:center; gap: 12px;
+  font-size: 12.5px; color: var(--ink-soft);
+}
+.who-mini {
+  display:flex; gap: -6px;
+}
+.who-mini .a {
+  width: 22px; height: 22px; border-radius: 50%;
+  display:grid; place-items:center;
+  font-family: var(--display);
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 600;
+  font-size: 11px;
+  color: var(--ink);
+  border: 1.5px solid var(--paper);
+  margin-left: -7px;
+  box-shadow: 0 1px 2px rgba(28,50,38,0.15);
+}
+.who-mini .a:first-child { margin-left: 0; }
+/* avatars — varied but all cool. a4 is the only warmish one (heather→rust),
+   intentionally tiny dose to break monotony without re-introducing yellow. */
+.a.a1 { background: linear-gradient(150deg, #cfc69e, #a8a778); color: #2d2f1d; }                 /* pale buttery + moss */
+.a.a2 { background: linear-gradient(150deg, #8eb079, #2b5536); color: var(--on-accent); }          /* field */
+.a.a3 { background: linear-gradient(150deg, #a3b8be, #4d7280); color: var(--on-accent); }          /* slate sky */
+.a.a4 { background: linear-gradient(150deg, #9d8290, #7a4f5a); color: var(--on-accent); }          /* heather */
+
+.task .add-line {
+  grid-column: 1 / -1;
+  display:flex; align-items:center; gap: 10px;
+  padding: 6px 0 0 42px;
+  font-size: 13px;
+  color: var(--ink-mute);
+  font-style: italic;
+  font-family: var(--display);
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 400;
+}
+
+.tasks-foot {
+  display:flex; justify-content:space-between; align-items:center;
+  padding: 12px 22px 6px;
+  border-top: 1px dashed var(--line-2);
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.btn-quiet {
+  appearance: none; border: 0; background: transparent;
+  color: var(--ocean-2);
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: var(--r-pill);
+  display:inline-flex; align-items:center; gap: 6px;
+  transition: background .12s ease;
+}
+.btn-quiet:hover { background: rgba(78,129,138,0.10); }
+
+/* ─────────────────────────────────────────────────────────────
+   right column — gathering & folks
+   ───────────────────────────────────────────────────────────── */
+.side { display:flex; flex-direction: column; gap: 18px; }
+
+.gather {
+  padding: 18px 22px 20px;
+}
+.gather .when {
+  font-family: var(--display);
+  font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 380;
+  color: var(--ocean-3);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.gather .what {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 48, "SOFT" 80, "wght" 460;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--grass-5);
+  margin: 6px 0 10px;
+}
+.gather .where {
+  font-size: 14px;
+  color: var(--ink-soft);
+  display:flex; align-items:center; gap: 8px;
+}
+.gather .where svg { width: 14px; height: 14px; color: var(--ink-mute); }
+.gather .going {
+  display:flex; gap: 12px; align-items:center;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line-2);
+}
+.gather .going .who-mini .a { width: 26px; height: 26px; font-size: 12px; }
+.gather .going .count {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.gather .going .count b { color: var(--grass-5); font-weight: 600; }
+.gather .actions {
+  display:flex; gap: 8px; margin-top: 14px;
+}
+.btn {
+  appearance: none; border: 0;
+  padding: 9px 16px;
+  border-radius: var(--r-pill);
+  font-family: var(--sans);
+  font-size: 13.5px; font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, transform .1s, box-shadow .15s;
+  display:inline-flex; align-items:center; gap: 7px;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--accent); color: var(--on-accent);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.18) inset, 0 4px 12px -4px rgba(20,40,30,0.4);
+}
+.btn-primary:hover { background: var(--accent-lo); }
+.btn-ghost {
+  background: transparent; color: var(--ink-soft);
+  border: 1px solid var(--line-2);
+}
+.btn-ghost:hover { background: var(--surface-2); }
+
+/* folks */
+.folks { padding: 18px 22px 20px; }
+.folk {
+  display:flex; align-items:center; gap: 12px;
+  padding: 10px 0;
+  border-top: 1px dotted rgba(45,65,53,0.10);
+}
+.folk:first-of-type { border-top: 0; }
+.folk .a { width: 36px; height: 36px; font-size: 14px;
+  border-radius: 50%; display:grid; place-items:center;
+  font-family: var(--display); font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 600;
+  color: var(--ink);
+  position: relative;
+}
+.folk .a.a2,.folk .a.a3,.folk .a.a4 { color: var(--on-accent); }
+.folk .a::after {
+  content:""; position:absolute; right:-2px; bottom:-2px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--grass-3);
+  border: 2px solid var(--paper);
+}
+.folk.away .a::after { background: var(--ink-faint); }
+.folk .who-name {
+  font-size: 14.5px; font-weight: 500;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.folk .doing {
+  font-family: var(--display);
+  font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 380;
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.folk .ago {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+
+/* small weather/season strip */
+.season {
+  padding: 14px 18px;
+  display:flex; align-items:center; justify-content: space-between;
+  background:
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--sky-2) 32%, transparent),
+      color-mix(in oklab, var(--ocean-1) 22%, transparent)),
+    var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-low);
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+.season .wx {
+  display:flex; align-items:center; gap:10px;
+}
+.season .wx svg { width: 24px; height: 24px; color: var(--sky-4); }
+.season .wx b { color: var(--grass-5); font-weight: 600; font-size: 14.5px; }
+.season .moon {
+  font-family: var(--display); font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 380;
+  color: var(--ink-mute);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   calendar — month view
+   ───────────────────────────────────────────────────────────── */
+.cal {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-low);
+  overflow: hidden;
+}
+.cal-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 18px; flex-wrap: wrap;
+  padding: 18px 22px 16px;
+  border-bottom: 1px dashed var(--line-2);
+}
+.cal-title {
+  display: flex; align-items: baseline; gap: 16px;
+}
+.cal-month {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 60, "SOFT" 100, "wght" 480;
+  font-size: 26px;
+  letter-spacing: -0.018em;
+  color: var(--grass-4);
+  margin: 0;
+}
+.cal-month em {
+  font-style: italic; color: var(--ocean-2); font-weight: 400;
+  font-variation-settings: "opsz" 60, "SOFT" 100, "wght" 380;
+}
+.cal-sub { font-size: 13px; color: var(--ink-mute); }
+.cal-controls {
+  display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap;
+}
+.cal-nav { display: flex; gap: 4px; }
+.cal-nav .icon-btn { width: 32px; height: 32px; }
+.cal-nav .today {
+  width: auto; padding: 0 12px;
+  font-size: 12.5px; font-weight: 600;
+  font-family: var(--sans);
+  border-radius: var(--r-pill);
+}
+
+/* honor-organizer-colors toggle */
+.honor {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 5px 12px 5px 8px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color .15s, background .15s;
+}
+.honor:hover { border-color: var(--line-2); background: var(--paper-2); }
+.honor input { position: absolute; opacity: 0; pointer-events: none; }
+.honor .switch {
+  position: relative; width: 30px; height: 17px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  transition: background .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.honor .switch::after {
+  content: ""; position: absolute;
+  top: 1px; left: 1px;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+  transition: left .18s ease, background .15s;
+}
+.honor input:checked ~ .switch {
+  background: var(--accent);
+  border-color: var(--accent-lo);
+}
+.honor input:checked ~ .switch::after {
+  left: 14px;
+  background: var(--on-accent);
+}
+.honor .hint {
+  font-family: var(--display);
+  font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 380;
+  color: var(--ink-mute);
+  font-size: 12px;
+  margin-left: 2px;
+}
+
+.cal-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--line);
+}
+.cal-week > div {
+  padding: 10px 14px;
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 600;
+}
+.cal-week > div.we { color: var(--ocean-2); }
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(118px, 1fr);
+  background: var(--line);
+  gap: 1px;
+}
+.cal-cell {
+  position: relative;
+  background: var(--paper);
+  padding: 8px 8px 8px;
+  min-height: 0;
+  min-width: 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.cal-cell.other { background: color-mix(in oklab, var(--paper-2) 60%, var(--paper)); }
+.cal-cell.other .day { color: var(--ink-faint); }
+.cal-cell .day {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 500;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  align-self: flex-end;
+  padding: 1px 6px;
+  border-radius: 50%;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.cal-cell.today {
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--ocean-1) 14%, var(--paper)), var(--paper));
+}
+.cal-cell.today .day {
+  background: var(--accent);
+  color: var(--on-accent);
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  font-weight: 600;
+}
+.cal-cell.we { background: color-mix(in oklab, var(--sky-1) 14%, var(--paper)); }
+.cal-cell.we.other { background: color-mix(in oklab, var(--sky-1) 14%, var(--paper-2)); }
+
+.cal-events {
+  display: flex; flex-direction: column; gap: 3px;
+  margin-top: 2px;
+  min-height: 0;
+}
+
+/* event chip — bg + accent stripe come from CSS vars set by tone or honor mode */
+.evt {
+  --evt-c:  var(--grass-3);
+  --evt-bg: color-mix(in oklab, var(--grass-3) 16%, var(--paper));
+  --evt-fg: var(--ink);
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 7px 3px 7px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--evt-fg);
+  background: var(--evt-bg);
+  border-left: 3px solid var(--evt-c);
+  cursor: pointer;
+  min-height: 20px;
+  transition: filter .12s ease, transform .1s ease;
+  overflow: hidden;
+}
+.evt:hover { filter: brightness(0.97) saturate(1.1); transform: translateX(1px); }
+[data-theme="dark"] .evt:hover { filter: brightness(1.15); }
+.evt time {
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-mute);
+  letter-spacing: 0.01em;
+  flex-shrink: 0;
+}
+.evt .title {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0; flex: 1;
+}
+/* the organizer-suggestion dot — only visible when colors are NOT honored */
+.evt .sugg-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--evt-c-org, transparent);
+  flex-shrink: 0;
+  outline: 1px solid color-mix(in oklab, var(--evt-c-org, transparent), white 40%);
+  outline-offset: -1px;
+  opacity: 0.85;
+}
+
+/* theme tones — used when [data-honor="false"]. selectors cover both single-cell
+   chips (.evt) and multi-day bars (.evt-span) so they share the same color rules. */
+.cal[data-honor="false"] :is(.evt, .evt-span)[data-tone="ocean"]   { --evt-c: var(--ocean-1);  --evt-bg: color-mix(in oklab, var(--ocean-1) 16%, var(--paper)); }
+.cal[data-honor="false"] :is(.evt, .evt-span)[data-tone="grass"]   { --evt-c: var(--grass-3);  --evt-bg: color-mix(in oklab, var(--grass-3) 16%, var(--paper)); }
+.cal[data-honor="false"] :is(.evt, .evt-span)[data-tone="sky"]     { --evt-c: var(--sky-3);    --evt-bg: color-mix(in oklab, var(--sky-3)   18%, var(--paper)); }
+.cal[data-honor="false"] :is(.evt, .evt-span)[data-tone="heather"] { --evt-c: var(--heather);  --evt-bg: color-mix(in oklab, var(--heather) 18%, var(--paper)); }
+.cal[data-honor="false"] :is(.evt, .evt-span)[data-tone="moss"]    { --evt-c: var(--moss);     --evt-bg: color-mix(in oklab, var(--moss)    18%, var(--paper)); }
+
+/* honor mode: each event's --evt-c-org inline style drives the chip color
+   and the suggestion-dot disappears (chip body already shows it) */
+.cal[data-honor="true"] :is(.evt, .evt-span) {
+  --evt-c:  var(--evt-c-org);
+  --evt-bg: color-mix(in oklab, var(--evt-c-org) 16%, var(--paper));
+}
+.cal[data-honor="true"] .sugg-dot { display: none; }
+
+/* multi-day span bar — direct child of .cal-grid, placed via inline grid-row/column.
+   align-self:start + margin-top:32px keeps it below each cell's day-number. */
+.evt-span {
+  align-self: start;
+  margin: 32px 5px 0 5px;
+  height: 22px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 9px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--evt-fg, var(--ink));
+  background: var(--evt-bg);
+  border-left: 3px solid var(--evt-c);
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 1;
+  transition: filter .12s ease;
+}
+.evt-span:hover { filter: brightness(0.97) saturate(1.1); }
+[data-theme="dark"] .evt-span:hover { filter: brightness(1.15); }
+.evt-span .title {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+
+.evt-more {
+  align-self: flex-start;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-mute);
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  margin-top: 1px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.evt-more:hover { color: var(--grass-4); background: color-mix(in oklab, var(--grass-2) 18%, transparent); }
+
+/* legend strip beneath the calendar */
+.cal-legend {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  padding: 12px 22px 16px;
+  border-top: 1px dashed var(--line-2);
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+.cal-legend .swatch-pair {
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.cal-legend .sw {
+  width: 14px; height: 14px;
+  border-radius: 3px;
+  border-left: 3px solid var(--c);
+  background: color-mix(in oklab, var(--c) 16%, var(--paper));
+}
+.cal-legend .sep {
+  width: 1px; height: 14px;
+  background: var(--line-2);
+}
+
+/* tighter density on narrow widths */
+@media (max-width: 720px) {
+  .cal-grid { grid-auto-rows: minmax(86px, 1fr); }
+  .cal-cell { padding: 6px; }
+  .cal-cell .day { font-size: 12.5px; }
+  .evt time { display: none; }   /* time hidden, only title shown */
+  .evt-span { font-size: 10.5px; }
+  .cal-week > div { padding: 8px 6px; font-size: 9.5px; letter-spacing: 0.12em; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   workrooms strip
+   ───────────────────────────────────────────────────────────── */
+.section-hd {
+  display:flex; align-items:baseline; justify-content:space-between;
+  margin: 44px 0 16px;
+}
+.section-hd h2 {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 72, "SOFT" 100, "wght" 430;
+  font-size: 36px;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--grass-5);
+}
+.section-hd h2 em {
+  font-style: italic;
+  color: var(--ocean-2);
+}
+.section-hd .lead {
+  font-size: 14.5px; color: var(--ink-mute);
+  max-width: 36ch;
+}
+
+.rooms {
+  display:grid;
+  /* auto-fit lets ultra-wide screens flow to 5+ columns naturally */
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.room {
+  position: relative;
+  padding: 22px 22px 18px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-low);
+  transition: transform .2s ease, box-shadow .2s ease;
+  cursor: pointer;
+  overflow: hidden;
+}
+.room:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-cloud);
+}
+.room .swatch {
+  width: 38px; height: 38px;
+  border-radius: 11px;
+  display:grid; place-items:center;
+  margin-bottom: 14px;
+  color: var(--on-accent);
+  font-family: var(--display);
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 600;
+  font-size: 18px;
+}
+.room.r1 .swatch { background: linear-gradient(150deg, var(--grass-2), var(--grass-4)); }
+.room.r2 .swatch { background: linear-gradient(150deg, var(--moss), color-mix(in oklab, var(--moss), black 30%)); }
+.room.r3 .swatch { background: linear-gradient(150deg, var(--sky-3), var(--ocean-2)); }
+.room.r4 .swatch { background: linear-gradient(150deg, var(--heather), color-mix(in oklab, var(--heather), black 35%)); }
+
+.room h3 {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 24, "SOFT" 100, "wght" 480;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  margin: 0 0 4px;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.room p {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  color: var(--ink-mute);
+  line-height: 1.45;
+  min-height: 38px;
+}
+.room .room-foot {
+  display:flex; justify-content: space-between; align-items:center;
+  font-size: 12px;
+  color: var(--ink-mute);
+  border-top: 1px dotted rgba(45,65,53,0.12);
+  padding-top: 12px;
+}
+.progress {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  margin: 0 12px;
+  overflow: hidden;
+  position: relative;
+}
+.progress > i {
+  display:block; height: 100%;
+  background: linear-gradient(90deg, var(--grass-3), var(--grass-4));
+  border-radius: 4px;
+}
+.room .corner {
+  position:absolute; top: 16px; right: 16px;
+  font-size: 11px; font-weight: 600;
+  color: var(--ink-mute);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   second surface — workroom detail (project)
+   ───────────────────────────────────────────────────────────── */
+.divider {
+  display:flex; align-items:center; gap: 16px;
+  margin: 80px 0 24px;
+}
+.divider .rule {
+  flex:1; height:1px;
+  background: linear-gradient(90deg, transparent, var(--line-2), transparent);
+}
+.divider .label {
+  font-family: var(--display); font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 380;
+  font-size: 13px;
+  color: var(--ink-mute);
+  letter-spacing: 0.03em;
+}
+
+.room-detail {
+  position: relative;
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-cloud);
+}
+.room-banner {
+  height: 180px;
+  position: relative;
+  background:
+    radial-gradient(circle at 72% 28%, rgba(216, 224, 200, 0.45), transparent 50%),
+    linear-gradient(160deg, var(--scene-mid) 0%, var(--scene-field) 55%, var(--scene-deep) 100%);
+  overflow: hidden;
+}
+.room-banner::after {
+  content:""; position:absolute; inset:0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='1'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.5'/></svg>");
+  mix-blend-mode: overlay;
+  opacity: .5;
+}
+.banner-tag {
+  position: absolute; top: 18px; left: 22px;
+  display:inline-flex; align-items:center; gap: 8px;
+  font-size: 11.5px; letter-spacing: 0.22em; text-transform: uppercase;
+  font-weight: 600; color: var(--on-accent);
+  background: rgba(20, 40, 30, 0.55);
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.room-meta {
+  padding: 24px 32px 28px;
+  display:grid;
+  grid-template-columns: 1.8fr 1fr;
+  gap: 28px;
+}
+@media (max-width: 820px) { .room-meta { grid-template-columns: 1fr; padding: 22px 22px 24px; } }
+
+.room-title h2 {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 96, "SOFT" 100, "wght" 420;
+  font-size: clamp(32px, 4.5vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -0.022em;
+  margin: 0;
+  color: var(--grass-5);
+}
+.room-title h2 em {
+  font-style: italic; color: var(--ocean-2);
+}
+.room-title p.lede {
+  margin: 14px 0 0;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 56ch;
+}
+.room-title .crumbs {
+  display:flex; gap: 10px; align-items:center;
+  font-size: 12.5px; color: var(--ink-mute);
+  margin-bottom: 10px;
+}
+.room-title .crumbs span { color: var(--grass-5); font-weight: 600; }
+.room-title .crumbs i { width: 4px; height: 4px; border-radius: 50%; background: var(--ink-faint); display:inline-block; }
+
+.facts {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 18px;
+}
+.facts dl {
+  margin: 0;
+  display:grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 16px;
+}
+.facts dt {
+  font-family: var(--display); font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 380;
+  color: var(--ink-mute);
+  font-size: 13px;
+}
+.facts dd {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink);
+  font-weight: 500;
+}
+.facts .crew {
+  display:flex; gap: 0;
+}
+
+/* timeline ribbon */
+.ribbon {
+  margin: 0 32px 28px;
+  padding: 16px 18px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  display:grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+@media (max-width: 820px) { .ribbon { margin: 0 22px 22px; grid-template-columns: repeat(2, 1fr); } }
+.rib {
+  display:flex; flex-direction: column;
+  padding: 6px 4px;
+  border-left: 2px solid var(--line-2);
+  padding-left: 12px;
+}
+.rib .when {
+  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-mute); font-weight: 600;
+}
+.rib .what {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 480;
+  font-size: 14.5px;
+  color: var(--ink);
+  margin-top: 4px;
+  line-height: 1.25;
+}
+.rib.done { border-left-color: var(--grass-3); }
+.rib.now  { border-left-color: var(--moss); }
+.rib.now .what { color: color-mix(in oklab, var(--moss), black 30%); }
+[data-theme="dark"] .rib.now .what { color: var(--moss); }
+
+/* ─────────────────────────────────────────────────────────────
+   mobile bottom nav
+   ───────────────────────────────────────────────────────────── */
+.tabbar {
+  display: none;
+  position: fixed;
+  left: 12px; right: 12px; bottom: 12px;
+  z-index: 50;
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-cloud);
+  padding: 6px;
+}
+.tabbar ul {
+  list-style: none; padding: 0; margin: 0;
+  display:grid; grid-template-columns: repeat(5, 1fr);
+}
+.tabbar a {
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding: 9px 0 6px;
+  text-decoration: none;
+  color: var(--ink-mute);
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+  border-radius: var(--r-pill);
+}
+.tabbar a svg { width: 20px; height: 20px; }
+.tabbar a.on { color: var(--grass-4); background: color-mix(in oklab, var(--grass-2) 22%, transparent); }
+.tabbar a.on svg { color: var(--grass-4); }
+@media (max-width: 820px) {
+  .tabbar { display: block; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   reveal animation
+   ───────────────────────────────────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: rise 0.7s cubic-bezier(.2,.7,.2,1) forwards;
+}
+.reveal.d1 { animation-delay: 60ms; }
+.reveal.d2 { animation-delay: 140ms; }
+.reveal.d3 { animation-delay: 230ms; }
+.reveal.d4 { animation-delay: 320ms; }
+.reveal.d5 { animation-delay: 420ms; }
+@keyframes rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal { animation: none; opacity: 1; transform: none; }
+  .cloud, .sun { animation: none !important; }
+}
+
+/* footer */
+.foot {
+  margin-top: 56px;
+  padding: 28px 0 24px;
+  border-top: 1px dashed var(--line-2);
+  display:flex; justify-content:space-between; align-items:center;
+  font-family: var(--display); font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 380;
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.foot .end {
+  display:flex; gap: 18px;
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ─────────────────────── header ─────────────────────── -->
+  <header class="head reveal">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <!-- a tiny gabled house with smoke -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 11 L12 4 L21 11" />
+          <path d="M5 11 V20 H19 V11" />
+          <path d="M10 20 V14 H14 V20" />
+          <path d="M16 4 Q17 6 16 7 Q15 8 16 9" />
+        </svg>
+      </span>
+      Longhouse
+    </div>
+
+    <nav class="nav" aria-label="Primary">
+      <a href="#" class="active">Dashboard</a>
+      <a href="#">Tasks</a>
+      <a href="#">Events</a>
+      <a href="#">Projects</a>
+      <a href="#">Members</a>
+      <a href="#">Shares</a>
+    </nav>
+
+    <div class="head-end">
+      <button class="icon-btn" id="scene-toggle" aria-label="Toggle hero scene" aria-pressed="true" title="Hero scene">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="5" width="18" height="14" rx="2"/>
+          <circle cx="8" cy="10" r="1.6"/>
+          <path d="m3 17 5-5 4 3 3-3 6 6"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="theme-toggle" aria-label="Toggle dark mode" title="Theme">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4.2"/>
+          <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>
+        </svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/>
+        </svg>
+      </button>
+      <button class="icon-btn" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+          <circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/>
+        </svg>
+      </button>
+      <button class="icon-btn" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"/><path d="M10 19a2 2 0 0 0 4 0"/>
+        </svg>
+      </button>
+      <div class="who">
+        <span class="avatar">TH</span>
+        Tod
+      </div>
+    </div>
+  </header>
+
+  <!-- ─────────────────────── hero ─────────────────────── -->
+  <section class="hero reveal d1">
+    <div class="hero-scene" aria-hidden="true">
+      <div class="sun"></div>
+      <div class="cloud c1"></div>
+      <div class="cloud c2"></div>
+      <div class="cloud c3"></div>
+      <div class="ocean-band"></div>
+      <div class="ocean-shimmer"></div>
+      <div class="hill">
+        <svg viewBox="0 0 1200 400" preserveAspectRatio="none">
+          <!-- soft distant hill -->
+          <path d="M0,200 C160,160 260,210 420,180 C560,154 720,200 900,170 C1060,144 1140,180 1200,180 L1200,400 L0,400 Z" style="fill:var(--scene-mid)" opacity="0.85"/>
+          <!-- mid hill -->
+          <path d="M0,250 C180,210 340,260 520,234 C680,210 860,260 1020,240 C1120,228 1180,250 1200,240 L1200,400 L0,400 Z" style="fill:var(--scene-field)" opacity="0.95"/>
+          <!-- foreground field -->
+          <path d="M0,300 C200,270 360,320 520,300 C700,278 880,320 1080,300 C1140,294 1180,308 1200,300 L1200,400 L0,400 Z" style="fill:var(--scene-deep)"/>
+          <!-- subtle grass strokes -->
+          <g style="stroke:var(--scene-deep)" stroke-width="1" opacity="0.45" fill="none">
+            <path d="M40 360 q2 -14 6 -22"/>
+            <path d="M120 350 q3 -16 8 -24"/>
+            <path d="M260 358 q-2 -12 -6 -22"/>
+            <path d="M400 345 q4 -18 9 -28"/>
+            <path d="M540 360 q-3 -14 -7 -24"/>
+            <path d="M700 348 q3 -16 9 -26"/>
+            <path d="M860 355 q-3 -14 -8 -22"/>
+            <path d="M1020 350 q4 -16 9 -26"/>
+            <path d="M1130 360 q-2 -12 -7 -22"/>
+          </g>
+        </svg>
+      </div>
+      <div class="tufts"></div>
+    </div>
+
+    <div class="hero-content">
+      <span class="kicker">Monday · 18 May · dashboard</span>
+      <h1 class="greet">Good morning,<br>Tod.</h1>
+      <p class="greet-sub">
+        You have <b>five tasks due today</b> and two events on the calendar. Three members
+        are active right now.
+      </p>
+
+      <div class="hero-stats">
+        <div class="stat"><span class="n">5</span><span class="lbl">tasks due</span></div>
+        <div class="stat"><span class="n">2</span><span class="lbl">events</span></div>
+        <div class="stat"><span class="n">3</span><span class="lbl">active members</span></div>
+        <div class="stat"><span class="n">11</span><span class="lbl">across projects</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── main grid ─────────────────────── -->
+  <div class="grid">
+
+    <!-- left: tasks -->
+    <section class="card reveal d2" aria-label="Tasks">
+      <div class="card-hd">
+        <div>
+          <h2>Tasks</h2>
+          <div class="sub">Assigned to you or watched by you.</div>
+        </div>
+        <div class="card-hd-end">
+          <div class="seg" role="tablist">
+            <button class="on">Today</button>
+            <button>This week</button>
+            <button>All</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tasks">
+        <div class="group-lbl">Today</div>
+
+        <div class="task done">
+          <div class="check"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3.5 3.5L13 5"/></svg></div>
+          <div>
+            <div class="t-title">Sweep the porch and shake the rugs</div>
+            <div class="t-meta"><span class="tag house">House</span><span class="dot"></span>15m<span class="dot"></span><b>Lorna</b> finished at 7:42</div>
+          </div>
+          <div class="t-end">
+            <div class="who-mini"><span class="a a1">L</span></div>
+          </div>
+        </div>
+
+        <div class="task">
+          <div class="check"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3.5 3.5L13 5"/></svg></div>
+          <div>
+            <div class="t-title">Re-hang the rear gate — second hinge is loose</div>
+            <div class="t-meta"><span class="tag barn">Barn</span><span class="dot"></span>by 11am<span class="dot"></span>tools in the side shed</div>
+          </div>
+          <div class="t-end">
+            <div class="who-mini"><span class="a a2">S</span><span class="a a4">M</span></div>
+          </div>
+        </div>
+
+        <div class="task">
+          <div class="check"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3.5 3.5L13 5"/></svg></div>
+          <div>
+            <div class="t-title">Sign for the lumber drop, stack it under the south overhang</div>
+            <div class="t-meta"><span class="tag field">Field</span><span class="dot"></span>1pm window<span class="dot"></span>Maple Yard, invoice #4118</div>
+          </div>
+          <div class="t-end">
+            <div class="who-mini"><span class="a a1">T</span></div>
+          </div>
+        </div>
+
+        <div class="task">
+          <div class="check"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3.5 3.5L13 5"/></svg></div>
+          <div>
+            <div class="t-title">Call Sue back about the well-pump quote</div>
+            <div class="t-meta"><span class="tag calls">Calls</span><span class="dot"></span>15m<span class="dot"></span>she's off after 4pm</div>
+          </div>
+          <div class="t-end">
+            <div class="who-mini"><span class="a a1">T</span></div>
+          </div>
+        </div>
+
+        <div class="task">
+          <div class="check"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3.5 3.5L13 5"/></svg></div>
+          <div>
+            <div class="t-title">Confirm potluck dishes — Sam said pie, no one's claimed bread</div>
+            <div class="t-meta"><span class="tag house">House</span><span class="dot"></span>before 5pm<span class="dot"></span>3 of 6 confirmed</div>
+          </div>
+          <div class="t-end">
+            <div class="who-mini"><span class="a a3">A</span></div>
+          </div>
+        </div>
+
+        <div class="group-lbl">This week</div>
+
+        <div class="task">
+          <div class="check"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3.5 3.5L13 5"/></svg></div>
+          <div>
+            <div class="t-title">Walk the back fence with Sam — flag what needs replacing before fall</div>
+            <div class="t-meta"><span class="tag field">Field</span><span class="dot"></span>Thu morning<span class="dot"></span>~1h</div>
+          </div>
+          <div class="t-end">
+            <div class="who-mini"><span class="a a2">S</span><span class="a a1">T</span></div>
+          </div>
+        </div>
+
+        <div class="task">
+          <div class="check"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3.5 3.5L13 5"/></svg></div>
+          <div>
+            <div class="t-title">Quarterly check-in with the retreat committee</div>
+            <div class="t-meta"><span class="tag calls">Calls</span><span class="dot"></span>Fri 2pm<span class="dot"></span>send agenda Wed</div>
+          </div>
+          <div class="t-end">
+            <div class="who-mini"><span class="a a3">A</span><span class="a a4">M</span><span class="a a1">T</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tasks-foot">
+        <span>1 done · 6 remaining — estimated <b style="color:var(--grass-4);font-weight:600">3 hours</b></span>
+        <button class="btn-quiet">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+          New task
+        </button>
+      </div>
+    </section>
+
+    <!-- right: gathering + folks + season -->
+    <aside class="side">
+
+      <section class="card gather reveal d3">
+        <div class="card-hd" style="padding:0 0 12px;border:0">
+          <div>
+            <h2>Next event</h2>
+            <div class="sub">Today &middot; main meeting room</div>
+          </div>
+          <span class="kicker" style="background: color-mix(in oklab, var(--moss) 28%, var(--paper)); color: color-mix(in oklab, var(--moss), black 30%); border-color: color-mix(in oklab, var(--moss) 40%, transparent)">6:30 pm</span>
+        </div>
+        <div class="when">Monday standing dinner</div>
+        <div class="what">Quarterly <em>retreat planning</em></div>
+        <div class="where">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-7-7.5-7-13a7 7 0 1 1 14 0c0 5.5-7 13-7 13Z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          Main meeting room &middot; long table
+        </div>
+        <div class="going">
+          <div class="who-mini">
+            <span class="a a1">T</span>
+            <span class="a a2">L</span>
+            <span class="a a3">S</span>
+            <span class="a a4">M</span>
+          </div>
+          <div class="count"><b>6 attending</b> &middot; 2 tentative</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary">Attending</button>
+          <button class="btn btn-ghost">Add note</button>
+        </div>
+      </section>
+
+      <section class="card folks reveal d4">
+        <div class="card-hd" style="padding:0 0 12px;border:0">
+          <div>
+            <h2>Active members</h2>
+            <div class="sub">Currently online or recently active</div>
+          </div>
+        </div>
+
+        <div class="folk">
+          <span class="a a2">L</span>
+          <div>
+            <div class="who-name">Lorna Hansmann</div>
+            <div class="doing">editing &ldquo;Garden bed rotation&rdquo;</div>
+          </div>
+          <span class="ago">12m</span>
+        </div>
+        <div class="folk">
+          <span class="a a4">M</span>
+          <div>
+            <div class="who-name">Marcus Wei</div>
+            <div class="doing">commented on &ldquo;Barn re-build&rdquo;</div>
+          </div>
+          <span class="ago">just now</span>
+        </div>
+        <div class="folk">
+          <span class="a a3">A</span>
+          <div>
+            <div class="who-name">Anya Berenson</div>
+            <div class="doing">updated retreat agenda</div>
+          </div>
+          <span class="ago">5m</span>
+        </div>
+        <div class="folk away">
+          <span class="a a1">S</span>
+          <div>
+            <div class="who-name">Sam Patel</div>
+            <div class="doing">last seen working on tasks</div>
+          </div>
+          <span class="ago">38m</span>
+        </div>
+      </section>
+
+      <div class="season reveal d5">
+        <div class="wx">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 17h10a3.5 3.5 0 0 0 0-7 5 5 0 0 0-9.6-1.3A3.5 3.5 0 0 0 7 17Z"/>
+            <circle cx="17" cy="6" r="2.4" fill="currentColor" opacity=".35" stroke="none"/>
+          </svg>
+          <div><b>16°C · light cloud</b><br><span style="font-size:12px;color:var(--ink-mute)">all systems healthy · last sync 2m ago</span></div>
+        </div>
+        <div class="moon">v 0.4.0</div>
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- ─────────────────────── calendar ─────────────────────── -->
+  <div class="section-hd reveal">
+    <h2>Calendar <em>&mdash; the month at a glance</em></h2>
+    <p class="lead">Organizers can suggest a color for each event; the calendar may honor it or fall back to the theme palette.</p>
+  </div>
+
+  <section class="cal reveal d1" data-honor="false">
+    <div class="cal-hd">
+      <div class="cal-title">
+        <h3 class="cal-month">May <em>2026</em></h3>
+        <span class="cal-sub">14 events &middot; 2 spanning</span>
+      </div>
+      <div class="cal-controls">
+        <div class="cal-nav">
+          <button class="icon-btn" aria-label="Previous month">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg>
+          </button>
+          <button class="icon-btn today" aria-label="Today">Today</button>
+          <button class="icon-btn" aria-label="Next month">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
+          </button>
+        </div>
+        <div class="seg" role="tablist" aria-label="View">
+          <button class="on">Month</button>
+          <button>Week</button>
+          <button>List</button>
+        </div>
+        <label class="honor">
+          <input type="checkbox" id="cal-honor" />
+          <span class="switch"></span>
+          Honor organizer colors
+          <span class="hint">suggestion, not a rule</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="cal-week" aria-hidden="true">
+      <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div>
+      <div class="we">Sat</div><div class="we">Sun</div>
+    </div>
+
+    <!--
+      May 2026 starts on Friday. Week-1 row has Apr 27–May 3 (Mon-Sun).
+      Today = Mon May 18 (matches the hero greeting).
+      Organizer colors (suggestions):
+        Tod    blue    #4f7ea0
+        Anya   tan     #b88a5a
+        Lorna  green   #6e9a58
+        Marcus rust    #a06448
+        Sam    slate   #6f7d88
+    -->
+    <div class="cal-grid">
+      <!-- Week 1: Apr 27 (Mon) – May 3 (Sun) -->
+      <div class="cal-cell other"><span class="day">27</span></div>
+      <div class="cal-cell other"><span class="day">28</span></div>
+      <div class="cal-cell other"><span class="day">29</span></div>
+      <div class="cal-cell other"><span class="day">30</span></div>
+      <div class="cal-cell"><span class="day">1</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="ocean" style="--evt-c-org:#4f7ea0">
+            <time>09:00</time><span class="title">All-hands kickoff</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-cell we"><span class="day">2</span></div>
+      <div class="cal-cell we"><span class="day">3</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="grass" style="--evt-c-org:#6e9a58">
+            <time>—</time><span class="title">Garden open day</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Week 2: May 4–10 -->
+      <div class="cal-cell"><span class="day">4</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="ocean" style="--evt-c-org:#4f7ea0">
+            <time>09:00</time><span class="title">Weekly standup</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-cell"><span class="day">5</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="heather" style="--evt-c-org:#b88a5a">
+            <time>15:00</time><span class="title">Retreat planning</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-cell"><span class="day">6</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="ocean" style="--evt-c-org:#4f7ea0">
+            <time>14:00</time><span class="title">Quarterly board review</span><span class="sugg-dot"></span>
+          </div>
+          <div class="evt" data-tone="moss" style="--evt-c-org:#6f7d88">
+            <time>17:00</time><span class="title">Vendor follow-up</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-cell"><span class="day">7</span></div>
+      <div class="cal-cell"><span class="day">8</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="grass" style="--evt-c-org:#6e9a58">
+            <time>12:00</time><span class="title">Lunch with neighbors</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <!-- May 9 & 10 cells; the multi-day open-house bar is placed as a
+           grid child after the cells (see ".evt-span" with grid-row/column). -->
+      <div class="cal-cell we"><span class="day">9</span></div>
+      <div class="cal-cell we"><span class="day">10</span></div>
+
+      <!-- Week 3: May 11–17 -->
+      <div class="cal-cell"><span class="day">11</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="ocean" style="--evt-c-org:#4f7ea0">
+            <time>09:00</time><span class="title">Weekly standup</span><span class="sugg-dot"></span>
+          </div>
+          <div class="evt" data-tone="moss" style="--evt-c-org:#6f7d88">
+            <time>11:00</time><span class="title">Vendor walk-through</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-cell"><span class="day">12</span></div>
+      <div class="cal-cell"><span class="day">13</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="heather" style="--evt-c-org:#b88a5a">
+            <time>13:00</time><span class="title">Retreat committee lunch</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-cell"><span class="day">14</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="grass" style="--evt-c-org:#a06448">
+            <time>08:00</time><span class="title">Maintenance window</span><span class="sugg-dot"></span>
+          </div>
+          <div class="evt" data-tone="ocean" style="--evt-c-org:#4f7ea0">
+            <time>15:30</time><span class="title">Membership review</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-cell"><span class="day">15</span></div>
+      <div class="cal-cell we"><span class="day">16</span></div>
+      <div class="cal-cell we"><span class="day">17</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="sky" style="--evt-c-org:#7a9aa8">
+            <time>19:00</time><span class="title">Book club</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Week 4: May 18–24 (TODAY = May 18) -->
+      <div class="cal-cell today"><span class="day">18</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="ocean" style="--evt-c-org:#4f7ea0">
+            <time>09:00</time><span class="title">Weekly standup</span><span class="sugg-dot"></span>
+          </div>
+          <div class="evt" data-tone="heather" style="--evt-c-org:#b88a5a">
+            <time>18:30</time><span class="title">Standing dinner</span><span class="sugg-dot"></span>
+          </div>
+          <div class="evt" data-tone="moss" style="--evt-c-org:#6f7d88">
+            <time>23:00</time><span class="title">Backup window</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-cell"><span class="day">19</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="heather" style="--evt-c-org:#b88a5a">
+            <time>16:00</time><span class="title">Retreat dry-run</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <!-- May 20–22: cells; the multi-day inventory bar is placed below. -->
+      <div class="cal-cell"><span class="day">20</span></div>
+      <div class="cal-cell"><span class="day">21</span></div>
+      <div class="cal-cell"><span class="day">22</span></div>
+      <div class="cal-cell we"><span class="day">23</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="grass" style="--evt-c-org:#6e9a58">
+            <time>10:00</time><span class="title">Trail maintenance</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-cell we"><span class="day">24</span></div>
+
+      <!-- Week 5: May 25–31 -->
+      <div class="cal-cell"><span class="day">25</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="ocean" style="--evt-c-org:#4f7ea0">
+            <time>09:00</time><span class="title">Weekly standup</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-cell"><span class="day">26</span></div>
+      <div class="cal-cell"><span class="day">27</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="ocean" style="--evt-c-org:#4f7ea0">
+            <time>10:00</time><span class="title">Quarterly review</span><span class="sugg-dot"></span>
+          </div>
+          <div class="evt" data-tone="moss" style="--evt-c-org:#a06448">
+            <time>14:00</time><span class="title">Barn punch-list</span><span class="sugg-dot"></span>
+          </div>
+          <div class="evt-more">+1 more</div>
+        </div>
+      </div>
+      <div class="cal-cell"><span class="day">28</span>
+        <div class="cal-events">
+          <div class="evt" data-tone="ocean" style="--evt-c-org:#4f7ea0">
+            <time>15:00</time><span class="title">Board sync</span><span class="sugg-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-cell"><span class="day">29</span></div>
+      <div class="cal-cell we"><span class="day">30</span></div>
+      <div class="cal-cell we"><span class="day">31</span></div>
+
+      <!-- Multi-day bars: placed by grid-row/column so they overlay cells.
+           row N = week N (1-indexed). col uses Mon=1..Sun=7. -->
+      <div class="evt-span" data-tone="heather"
+           style="grid-row:2; grid-column:6 / span 2; --evt-c-org:#b88a5a">
+        <span class="title">Spring open house</span>
+      </div>
+      <div class="evt-span" data-tone="moss"
+           style="grid-row:4; grid-column:3 / span 3; --evt-c-org:#6f7d88">
+        <span class="title">Maple yard inventory</span>
+      </div>
+    </div>
+
+    <div class="cal-legend">
+      <span style="font-weight:600;color:var(--ink-soft)">Theme palette</span>
+      <span class="swatch-pair"><span class="sw" style="--c:var(--ocean-1)"></span> admin</span>
+      <span class="swatch-pair"><span class="sw" style="--c:var(--grass-3)"></span> outdoor</span>
+      <span class="swatch-pair"><span class="sw" style="--c:var(--sky-3)"></span> social</span>
+      <span class="swatch-pair"><span class="sw" style="--c:var(--heather)"></span> retreat</span>
+      <span class="swatch-pair"><span class="sw" style="--c:var(--moss)"></span> operations</span>
+      <span class="sep"></span>
+      <span style="font-family: var(--display); font-style: italic; font-variation-settings: 'opsz' 14, 'SOFT' 100, 'wght' 380;">
+        toggle <b style="color:var(--ink-soft);font-weight:600;font-style:normal;font-family:var(--sans)">Honor organizer colors</b> to see each event use its organizer's suggested hue instead.
+      </span>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── workrooms ─────────────────────── -->
+  <div class="section-hd reveal" style="margin-top: 80px;">
+    <h2>Projects <em>in flight</em></h2>
+    <p class="lead">Longer pieces of work with their own members, tasks, and discussion.</p>
+  </div>
+
+  <div class="rooms">
+    <article class="room r1 reveal d1">
+      <span class="corner">Operations</span>
+      <div class="swatch">P</div>
+      <h3>Spring planting</h3>
+      <p>Beds prepped, seeds in by Friday if weather holds.</p>
+      <div class="room-foot">
+        <span>4 members</span>
+        <div class="progress"><i style="width:62%"></i></div>
+        <span>62%</span>
+      </div>
+    </article>
+
+    <article class="room r2 reveal d2">
+      <span class="corner">Events</span>
+      <div class="swatch">R</div>
+      <h3>Retreat weekend</h3>
+      <p>Eight guests in June. Menu, rooms, transport.</p>
+      <div class="room-foot">
+        <span>6 members</span>
+        <div class="progress"><i style="width:34%"></i></div>
+        <span>34%</span>
+      </div>
+    </article>
+
+    <article class="room r3 reveal d3">
+      <span class="corner">Facilities</span>
+      <div class="swatch">B</div>
+      <h3>Barn rebuild</h3>
+      <p>Frame is up. Cladding ordered, arrives next week.</p>
+      <div class="room-foot">
+        <span>3 members</span>
+        <div class="progress"><i style="width:78%"></i></div>
+        <span>78%</span>
+      </div>
+    </article>
+
+    <article class="room r4 reveal d4">
+      <span class="corner">Finance</span>
+      <div class="swatch">Q</div>
+      <h3>Q2 numbers</h3>
+      <p>Quiet quarter, mostly. Two invoices still out.</p>
+      <div class="room-foot">
+        <span>2 members</span>
+        <div class="progress"><i style="width:46%"></i></div>
+        <span>46%</span>
+      </div>
+    </article>
+  </div>
+
+  <!-- ─────────────────────── workroom detail ─────────────────────── -->
+  <div class="divider">
+    <span class="rule"></span>
+    <span class="label">project detail</span>
+    <span class="rule"></span>
+  </div>
+
+  <article class="room-detail reveal">
+    <div class="room-banner">
+      <span class="banner-tag">Facilities · long-running</span>
+    </div>
+
+    <div class="room-meta">
+      <div class="room-title">
+        <div class="crumbs">
+          <span>Projects</span> <i></i> Facilities <i></i> Barn rebuild
+        </div>
+        <h2>Barn rebuild, <em>second wing</em></h2>
+        <p class="lede">
+          Frame is up, cladding ordered, doors hung. Two weekends of finish work
+          remain, weather permitting. The committee has approved a two-week
+          extension to the original open-house date.
+        </p>
+      </div>
+
+      <aside class="facts">
+        <dl>
+          <dt>Owners</dt>
+          <dd>Marcus Wei, Sam Patel</dd>
+          <dt>Members</dt>
+          <dd>
+            <div class="who-mini">
+              <span class="a a4">M</span>
+              <span class="a a2">S</span>
+              <span class="a a1">T</span>
+              <span class="a a3">A</span>
+            </div>
+          </dd>
+          <dt>Started</dt>
+          <dd>March 4</dd>
+          <dt>Due</dt>
+          <dd>June 21</dd>
+          <dt>Shared with</dt>
+          <dd>Retreat committee (read)</dd>
+        </dl>
+      </aside>
+    </div>
+
+    <div class="ribbon">
+      <div class="rib done"><span class="when">Mar</span><span class="what">Old frame removed, footings poured</span></div>
+      <div class="rib done"><span class="when">Apr</span><span class="what">Skeleton up, roof on</span></div>
+      <div class="rib now"><span class="when">May · current</span><span class="what">Cladding and doors</span></div>
+      <div class="rib"><span class="when">Jun</span><span class="what">Interior and lighting</span></div>
+      <div class="rib"><span class="when">Jun 21</span><span class="what">Open house</span></div>
+    </div>
+  </article>
+
+  <!-- ─────────────────────── footer ─────────────────────── -->
+  <footer class="foot">
+    <span>Longhouse &middot; v0.4.0</span>
+    <span class="end">
+      <a href="#" style="color:inherit">docs</a>
+      <a href="#" style="color:inherit">trust &amp; keys</a>
+      <a href="#" style="color:inherit">privacy</a>
+    </span>
+  </footer>
+</div>
+
+<!-- mobile bottom nav -->
+<nav class="tabbar" aria-label="Mobile">
+  <ul>
+    <li><a href="#" class="on">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7"/><path d="M5 11v9h14v-9"/></svg>
+      Home</a></li>
+    <li><a href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      Tasks</a></li>
+    <li><a href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>
+      Events</a></li>
+    <li><a href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3.5"/><circle cx="17" cy="11" r="2.5"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M14 19c0-2 1.5-3.5 3.5-3.5S21 17 21 19"/></svg>
+      Members</a></li>
+    <li><a href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+      More</a></li>
+  </ul>
+</nav>
+
+<script>
+  // ── theme: dark/light with system default + localStorage persistence ──
+  const THEME_KEY = 'longhouse.theme';
+  const SCENE_KEY = 'longhouse.scene';
+  const root  = document.documentElement;
+  const mql   = window.matchMedia('(prefers-color-scheme: dark)');
+
+  const stored = localStorage.getItem(THEME_KEY);
+  const initialTheme = stored || (mql.matches ? 'dark' : 'light');
+  root.setAttribute('data-theme', initialTheme);
+
+  const themeBtn = document.getElementById('theme-toggle');
+  themeBtn.addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem(THEME_KEY, next);
+  });
+  // follow system if the user hasn't explicitly picked
+  mql.addEventListener('change', e => {
+    if (!localStorage.getItem(THEME_KEY)) {
+      root.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+    }
+  });
+
+  // ── hero scene toggle (will eventually live in user settings) ──
+  const hero     = document.querySelector('.hero');
+  const sceneBtn = document.getElementById('scene-toggle');
+  const sceneStored = localStorage.getItem(SCENE_KEY);
+  const sceneOn = sceneStored === null ? true : sceneStored === 'on';
+  applyScene(sceneOn);
+
+  sceneBtn.addEventListener('click', () => {
+    const next = hero.getAttribute('data-scene') !== 'off';  // toggle off->on, on->off
+    applyScene(!next);
+    localStorage.setItem(SCENE_KEY, !next ? 'on' : 'off');
+  });
+
+  function applyScene(on) {
+    if (on) hero.removeAttribute('data-scene');
+    else    hero.setAttribute('data-scene', 'off');
+    sceneBtn.setAttribute('aria-pressed', String(on));
+  }
+
+  // ── task check-off ──
+  document.querySelectorAll('.task').forEach(t => {
+    t.addEventListener('click', e => {
+      if (e.target.closest('.who-mini, .tag')) return;
+      t.classList.toggle('done');
+      const total = document.querySelectorAll('.tasks .task').length;
+      const done  = document.querySelectorAll('.tasks .task.done').length;
+      const left  = total - done;
+      const foot  = document.querySelector('.tasks-foot span');
+      if (foot) {
+        foot.innerHTML = `${done} done · ${left} remaining — estimated <b style="color:var(--grass-4);font-weight:600">${Math.max(0,(left*0.5)).toFixed(1)} hours</b>`;
+      }
+    });
+  });
+
+  // ── segmented toggle (Today / This week / All) ──
+  document.querySelectorAll('.seg').forEach(seg => {
+    seg.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      seg.querySelectorAll('button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+
+  // ── calendar: honor-organizer-colors toggle ──
+  const cal      = document.querySelector('.cal');
+  const honorCb  = document.getElementById('cal-honor');
+  if (cal && honorCb) {
+    const setHonor = (on) => cal.setAttribute('data-honor', on ? 'true' : 'false');
+    // sync DOM with checkbox initial state (unchecked = theme palette)
+    setHonor(honorCb.checked);
+    honorCb.addEventListener('change', () => setHonor(honorCb.checked));
+  }
+
+  // ── mobile tabbar ──
+  document.querySelectorAll('.tabbar a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('.tabbar a').forEach(x => x.classList.remove('on'));
+      a.classList.add('on');
+    });
+  });
+</script>
+
+</body>
+</html>

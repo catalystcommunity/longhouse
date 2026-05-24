@@ -1,18 +1,25 @@
-FROM golang:1.23-alpine AS builder
+# Build + serve the Longhouse SPA. Two-stage: a Node build produces the
+# Vite output, then Caddy serves it. The image carries no app secrets —
+# `/api/*` is expected to be routed to the api Service by the Gateway
+# upstream of this container, so the SPA's relative `/api/...` fetches
+# reach the api in production.
 
-RUN apk add --no-cache git ca-certificates
+FROM node:22-alpine AS builder
+WORKDIR /build
+COPY client/package.json client/package-lock.json* ./client/
+RUN cd client && npm ci
+COPY client/ ./client/
+RUN cd client && npm run build
 
-WORKDIR /build/webapp
-COPY webapp/go.mod webapp/go.sum ./
-RUN go mod download
+FROM caddy:2-alpine
+COPY --from=builder /build/client/dist /usr/share/caddy
+COPY client/Caddyfile /etc/caddy/Caddyfile
 
-COPY webapp/ ./
-RUN CGO_ENABLED=0 GOOS=linux go build -a -o longhouse-web .
-
-FROM scratch
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /build/webapp/longhouse-web /longhouse-web
+# Run as a non-root user. Caddy binds 4080 (non-privileged), there's no
+# automatic_https, and we never write to /data or /config at runtime —
+# but Caddy touches them on startup, so chown them to the user we'll run
+# as. Matches typical PSA-restricted k8s clusters out of the box.
+RUN chown -R 1000:1000 /data /config /usr/share/caddy
 
 EXPOSE 4080
 USER 1000:1000
-ENTRYPOINT ["/longhouse-web"]

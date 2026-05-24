@@ -4,6 +4,7 @@ go 1.23.4
 
 require (
 	github.com/catalystcommunity/longhouse/coredb v0.0.0-00010101000000-000000000000
+	github.com/fxamacker/cbor/v2 v2.9.2
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/pressly/goose/v3 v3.24.1
 	github.com/rs/cors v1.11.1
@@ -28,6 +29,7 @@ require (
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
