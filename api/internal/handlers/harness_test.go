@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +15,7 @@ import (
 
 // testHarness wires a router with the in-memory store + a test JWT secret
 // so per-entity tests can stamp out authenticated requests against the
-// real middleware stack (RequireBearer + RequireHouseFromPath + RequireAdmin).
+// real middleware stack (RequireBearer → RequireHouseMember → RequireAdmin).
 type testHarness struct {
 	t      *testing.T
 	store  *memStore
@@ -40,15 +41,27 @@ func newHarness(t *testing.T) *testHarness {
 	return &testHarness{t: t, store: st, router: router, secret: secret}
 }
 
-// token mints a bearer for the given member, scoped to the given house +
-// roles. Tests use this to make calls AS a specific member.
+// token mints an identity bearer carrying a single house entry
+// {houseID, memberID, roles}. Authorization reads roles straight from the
+// token now, so the roles passed here are what RequireHouseMember/Admin see —
+// tests don't need the store's role assignments to match. A memberID with no
+// seeded row still gets a valid identity (its linkkeys identity defaults to
+// memberID@todandlorna.com), and a request to a different house simply finds
+// no entry in the token → 403, which is what cross-house tests want.
 func (h *testHarness) token(memberID, houseID string, roles ...string) string {
 	h.t.Helper()
-	tok, err := auth.Mint(h.secret, auth.Claims{
-		MemberID: memberID,
-		HouseID:  houseID,
-		Roles:    roles,
-	}, time.Hour)
+	domain, userID := "todandlorna.com", memberID
+	display := ""
+	if m, err := h.store.GetMemberByID(context.Background(), memberID); err == nil && m != nil {
+		domain, userID, display = m.LinkkeysDomain, m.LinkkeysUserID, m.DisplayName
+	}
+	id := auth.Identity{
+		Domain:      domain,
+		UserID:      userID,
+		DisplayName: display,
+		Houses:      []auth.HouseRoles{{House: houseID, Member: memberID, Roles: roles}},
+	}
+	tok, err := auth.Mint(h.secret, id, time.Hour)
 	if err != nil {
 		h.t.Fatalf("Mint: %v", err)
 	}

@@ -242,33 +242,49 @@ type HouseSummary struct {
 	Name    string  `json:"name" yaml:"name"`
 }
 
+// HouseRoles represents a structured data type
+type HouseRoles struct {
+	House  HouseID  `json:"house" yaml:"house"`
+	Member MemberID `json:"member" yaml:"member"`
+	Roles  []string `json:"roles" yaml:"roles"`
+}
+
+// Identity represents a structured data type
+type Identity struct {
+	Domain      string       `json:"domain" yaml:"domain"`
+	UserId      string       `json:"user_id" yaml:"user_id"`
+	DisplayName *string      `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	Houses      []HouseRoles `json:"houses" yaml:"houses"`
+	Iat         int64        `json:"iat" yaml:"iat"`
+	Exp         int64        `json:"exp" yaml:"exp"`
+}
+
 // LoginRequest represents a structured data type
 type LoginRequest struct {
-	SignedAssertion string   `json:"signed_assertion" yaml:"signed_assertion"`
-	HouseId         *HouseID `json:"house_id,omitempty" yaml:"house_id,omitempty"`
+	SignedAssertion string `json:"signed_assertion" yaml:"signed_assertion"`
+}
+
+// CompleteRequest represents a structured data type
+type CompleteRequest struct {
+	EncryptedToken string `json:"encrypted_token" yaml:"encrypted_token"`
 }
 
 // LoginResponse represents a structured data type
 type LoginResponse struct {
-	Token     string    `json:"token" yaml:"token"`
-	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
-	HouseId   HouseID   `json:"house_id" yaml:"house_id"`
-	Roles     []string  `json:"roles" yaml:"roles"`
-	ExpiresAt Timestamp `json:"expires_at" yaml:"expires_at"`
-}
-
-// LoginMultiHouseResponse represents a structured data type
-type LoginMultiHouseResponse struct {
-	Error  string         `json:"error" yaml:"error"`
-	Houses []HouseSummary `json:"houses" yaml:"houses"`
+	Token       string    `json:"token" yaml:"token"`
+	Domain      string    `json:"domain" yaml:"domain"`
+	UserId      string    `json:"user_id" yaml:"user_id"`
+	DisplayName *string   `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	ExpiresAt   Timestamp `json:"expires_at" yaml:"expires_at"`
 }
 
 // MeResponse represents a structured data type
 type MeResponse struct {
-	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
-	HouseId   HouseID   `json:"house_id" yaml:"house_id"`
-	Roles     []string  `json:"roles" yaml:"roles"`
-	ExpiresAt Timestamp `json:"expires_at" yaml:"expires_at"`
+	Domain      string         `json:"domain" yaml:"domain"`
+	UserId      string         `json:"user_id" yaml:"user_id"`
+	DisplayName *string        `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	ExpiresAt   Timestamp      `json:"expires_at" yaml:"expires_at"`
+	Houses      []HouseSummary `json:"houses" yaml:"houses"`
 }
 
 // EmptyRequest represents a structured data type

@@ -28,6 +28,17 @@ var (
 	// federated multi-IDP can come later.
 	LinkkeysIDPDomain = getEnvOrDefault("LONGHOUSE_LINKKEYS_IDP_DOMAIN", "")
 
+	// LinkkeysIDPURL is the base URL of the IDP's authorize page (the host,
+	// not the identity domain) — e.g. https://linkkeys.todandlorna.com. The
+	// browser flow redirects to <IDPURL>/auth/authorize?signed_request=...
+	LinkkeysIDPURL = getEnvOrDefault("LONGHOUSE_LINKKEYS_IDP_URL", "")
+
+	// AppCallbackURL is the SPA route the IDP returns the encrypted token to —
+	// e.g. https://app.example/auth/callback (prod) or
+	// http://localhost:5173/auth/callback (dev). It's both the callback we
+	// advertise via sign-request and the audience we expect on the assertion.
+	AppCallbackURL = getEnvOrDefault("LONGHOUSE_APP_CALLBACK_URL", "")
+
 	// JWT signing secret. HMAC-SHA256 over a base64url'd JSON payload.
 	// Required for the api to issue tokens at /auth/login.
 	JWTSecret = getEnvOrDefault("LONGHOUSE_JWT_SECRET", "")
@@ -39,7 +50,29 @@ var (
 	// negligible.
 	RecurrenceDisabled        = getEnvOrDefault("LONGHOUSE_RECURRENCE_DISABLED", "") == "true"
 	RecurrenceTickIntervalSec = getEnvAsIntOrDefault("LONGHOUSE_RECURRENCE_TICK_SECONDS", 60)
+
+	// Env classifies the deployment. Missing reads as "prod" — the safe
+	// interpretation. Other accepted values: "nonprod" (shared non-prod
+	// envs) and "dev" (local). Used only to gate dev-mode features today;
+	// callers should always treat anything other than "dev" / "nonprod"
+	// as production.
+	Env = getEnvOrDefault("LONGHOUSE_ENV", "prod")
+
+	// DevAuthEnabled, combined with Env != prod, registers a parallel
+	// login endpoint at /api/v1/dev/login that mints real JWTs without
+	// the linkkeys assertion exchange. The endpoint 404s (is not
+	// registered) when this is false OR Env is prod. Every dev login is
+	// logged at WARN so the trail is impossible to miss in shared envs.
+	DevAuthEnabled = getEnvOrDefault("LONGHOUSE_DEV_AUTH_ENABLED", "") == "true"
 )
+
+// DevAuthAllowed reports whether the dev-auth endpoints should be wired
+// into the router at startup. Both gates must pass; the env-must-not-be-prod
+// rule means a stray DEV_AUTH_ENABLED=true in prod is a no-op (and is
+// logged at WARN by Serve()).
+func DevAuthAllowed() bool {
+	return DevAuthEnabled && (Env == "dev" || Env == "nonprod")
+}
 
 func getEnvOrDefault(key, defaultVal string) string {
 	if val := os.Getenv(key); val != "" {
@@ -89,6 +122,12 @@ func ApplyFlags(flags map[string]string) {
 	}
 	if v, ok := flags["linkkeys-idp-domain"]; ok {
 		LinkkeysIDPDomain = v
+	}
+	if v, ok := flags["linkkeys-idp-url"]; ok {
+		LinkkeysIDPURL = v
+	}
+	if v, ok := flags["app-callback-url"]; ok {
+		AppCallbackURL = v
 	}
 	if v, ok := flags["jwt-secret"]; ok {
 		JWTSecret = v

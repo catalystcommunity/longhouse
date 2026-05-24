@@ -44,10 +44,17 @@ server:
     userId: ""
   initialHouseName: ""
 
-  # Webapp-facing auth config. Required for login to work.
-  rpCallbackUrl: ""       # full https://.../auth/callback URL — where the IDP redirects users back to
-  linkkeysIdpUrl: ""      # IDP base URL (for the /auth/authorize redirect)
-  linkkeysIdpDomain: ""   # IDP identity domain (also the audience check on returned assertions)
+  # Auth config — required for the browser login flow.
+  appCallbackUrl: ""      # full https://.../auth/callback URL the IDP redirects users back to (the SPA's route)
+  linkkeysIdpUrl: ""      # IDP base URL — the /auth/start endpoint 302s to <this>/auth/authorize
+  linkkeysIdpDomain: ""   # IDP identity domain — checked against the assertion's `domain` and `audience`
+
+  # Optional. Default behavior is "prod" — dev-auth endpoints stay 404.
+  # Set env to "dev" or "nonprod" AND devAuthEnabled to true to register
+  # POST /api/v1/dev/login (mints a real JWT for any seeded member, no
+  # linkkeys exchange). Refuses to register in any other env.
+  env: ""                 # one of "", "prod", "nonprod", "dev"
+  devAuthEnabled: false
 
 # Linkkeys RP PKI sidecar (same linkkeys image, RP-mode config). Holds this
 # instance's Ed25519 keypair so the webapp never touches private keys.

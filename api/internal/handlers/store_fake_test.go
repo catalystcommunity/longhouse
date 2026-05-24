@@ -114,6 +114,22 @@ func (m *memStore) GetMemberByID(_ context.Context, memberID string) (*models.Me
 	return nil, gorm.ErrRecordNotFound
 }
 
+// GetMemberByIdentity backs RequireHouseMember's per-request authorization.
+// Returns the not-found sentinel (like the postgres store) when the identity
+// isn't a member of the house, which the middleware maps to 403.
+func (m *memStore) GetMemberByIdentity(_ context.Context, houseID, domain, userID string) (*models.Member, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.members {
+		if m.members[i].HouseID == houseID &&
+			m.members[i].LinkkeysDomain == domain &&
+			m.members[i].LinkkeysUserID == userID {
+			return &m.members[i], nil
+		}
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
 func (m *memStore) UpdateMember(_ context.Context, in *models.Member) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

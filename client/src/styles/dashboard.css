@@ -1,0 +1,192 @@
+/* ─── dashboard main grid + side cards ────────────────────── */
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  grid-template-areas: "tasks side";
+  gap: 28px;
+  margin-top: 28px;
+}
+.grid > .card[data-area="tasks"] { grid-area: tasks; }
+.grid > .side                     { grid-area: side; }
+
+@media (min-width: 1280px) {
+  .grid { grid-template-columns: 2fr 1fr; }
+}
+@media (min-width: 1500px) {
+  .grid {
+    grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "tasks gather folks"
+      "tasks season folks";
+    gap: 24px;
+    align-items: start;
+  }
+  .side { display: contents; }
+  .side > .gather { grid-area: gather; }
+  .side > .folks  { grid-area: folks; }
+  .side > .season { grid-area: season; }
+}
+@media (max-width: 980px) {
+  .grid { grid-template-columns: 1fr; grid-template-areas: "tasks" "side"; gap: 18px; }
+}
+
+.side { display: flex; flex-direction: column; gap: 18px; }
+
+/* ─── tasks card ──────────────────────────────────────────── */
+.tasks { padding: 8px 8px 14px; }
+.group-lbl {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 16px 8px;
+  font-family: var(--display);
+  font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 400;
+  font-size: 14px;
+  color: var(--ink-mute);
+  letter-spacing: 0.01em;
+}
+.group-lbl::after {
+  content: ""; flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--line-2), transparent);
+}
+
+.task {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .12s ease;
+}
+.task:hover { background: color-mix(in oklab, var(--grass-2) 14%, transparent); }
+.task + .task { border-top: 1px dotted rgba(45,65,53,0.10); }
+[data-theme="dark"] .task + .task { border-top-color: rgba(180,200,190,0.10); }
+
+.check {
+  width: 22px; height: 22px;
+  border-radius: 7px;
+  border: 1.5px solid var(--ink-mute);
+  background: transparent;
+  display: grid; place-items: center;
+  transition: background .15s, border-color .15s, transform .1s;
+  position: relative;
+  flex-shrink: 0;
+}
+.check svg { width: 14px; height: 14px; color: var(--on-accent); opacity: 0; transition: opacity .15s; }
+.task.done .check { background: var(--accent); border-color: var(--accent-lo); }
+.task.done .check svg { opacity: 1; }
+.task.done .t-title { color: var(--ink-mute); text-decoration: line-through; text-decoration-color: rgba(115,134,123,0.6); }
+
+.t-title { font-size: 15.5px; font-weight: 500; color: var(--ink); line-height: 1.35; }
+.t-meta {
+  display: flex; gap: 10px; margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--ink-mute);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.t-meta .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--ink-faint); }
+.t-meta b { color: var(--ink-soft); font-weight: 600; }
+
+.t-end { display: flex; align-items: center; gap: 12px; font-size: 12.5px; color: var(--ink-soft); }
+
+.tasks-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 22px 6px;
+  border-top: 1px dashed var(--line-2);
+  font-size: 13px;
+  color: var(--ink-mute);
+  gap: 12px; flex-wrap: wrap;
+}
+
+/* ─── gather (next event) card ────────────────────────────── */
+.gather { padding: 18px 22px 20px; }
+.gather .when {
+  font-family: var(--display);
+  font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 380;
+  color: var(--ocean-3);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.gather .what {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 48, "SOFT" 80, "wght" 460;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--grass-4);
+  margin: 6px 0 10px;
+}
+.gather .what em { font-style: italic; color: var(--ocean-2); }
+.gather .where {
+  font-size: 14px;
+  color: var(--ink-soft);
+  display: flex; align-items: center; gap: 8px;
+}
+.gather .where svg { width: 14px; height: 14px; color: var(--ink-mute); }
+.gather .going {
+  display: flex; gap: 12px; align-items: center;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line-2);
+}
+.gather .going .who-mini .a { width: 26px; height: 26px; font-size: 12px; }
+.gather .going .count { font-size: 13px; color: var(--ink-soft); }
+.gather .going .count b { color: var(--grass-4); font-weight: 600; }
+.gather .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
+/* ─── folks (active members) card ─────────────────────────── */
+.folks { padding: 18px 22px 20px; }
+.folk {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0;
+  border-top: 1px dotted rgba(45,65,53,0.10);
+}
+[data-theme="dark"] .folk { border-top-color: rgba(180,200,190,0.10); }
+.folk:first-of-type { border-top: 0; }
+.folk .a { position: relative; }
+.folk .a::after {
+  content: ""; position: absolute; right: -2px; bottom: -2px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--grass-3);
+  border: 2px solid var(--paper);
+}
+.folk.away .a::after { background: var(--ink-faint); }
+.folk .who-name { font-size: 14.5px; font-weight: 500; color: var(--ink); line-height: 1.2; }
+.folk .doing {
+  font-family: var(--display);
+  font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 380;
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.folk .ago { margin-left: auto; font-size: 12px; color: var(--ink-mute); }
+
+/* ─── season strip ────────────────────────────────────────── */
+.season {
+  padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  background:
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--sky-2) 32%, transparent),
+      color-mix(in oklab, var(--ocean-1) 22%, transparent)),
+    var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-low);
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  gap: 16px;
+}
+.season .wx { display: flex; align-items: center; gap: 10px; }
+.season .wx svg { width: 24px; height: 24px; color: var(--sky-4); }
+.season .wx b { color: var(--grass-4); font-weight: 600; font-size: 14.5px; }
+.season .moon {
+  font-family: var(--display); font-style: italic;
+  font-variation-settings: "opsz" 14, "SOFT" 100, "wght" 380;
+  color: var(--ink-mute);
+}

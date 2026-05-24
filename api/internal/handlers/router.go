@@ -11,14 +11,19 @@ import (
 // RouterDeps bundles the runtime services router-level handlers need.
 type RouterDeps struct {
 	Auth *AuthDeps
+	// DevAuth, if non-nil, registers the dev-only /api/v1/dev/* endpoints.
+	// Must be left nil in production. Wiring lives in cmd/serve.go and is
+	// gated by config.DevAuthAllowed().
+	DevAuth *DevAuthDeps
 }
 
 // NewRouter creates the HTTP handler with all routes and CORS.
 //
 // Most resource routes live under /api/v1/houses/{house_id}/... and chain:
-//   RequireBearer  → confirms the JWT
-//   RequireHouseFromPath → confirms the URL's house matches the JWT
-//   (RequireAdmin)  → admin-only mutations
+//
+//	RequireBearer  → confirms the JWT
+//	RequireHouseFromPath → confirms the URL's house matches the JWT
+//	(RequireAdmin)  → admin-only mutations
 //
 // Listing/reading is open to any house member; mutations follow the rules
 // in the migration plan: admin for roles/skills/groups, owner-or-admin for
@@ -33,16 +38,33 @@ func NewRouter(deps *RouterDeps) http.Handler {
 	}
 
 	requireBearer := auth.RequireBearer(deps.Auth.JWTSecret)
-	requireAdmin := func(h http.Handler) http.Handler {
-		return requireBearer(auth.RequireHouseFromPath(auth.RequireAdmin(h)))
-	}
+	// Member routes: valid token + membership (read from the token) in the
+	// path's house.
 	requireMember := func(h http.Handler) http.Handler {
-		return requireBearer(auth.RequireHouseFromPath(h))
+		return requireBearer(auth.RequireHouseMember(h))
+	}
+	// Admin routes: the above + the admin role in that house.
+	requireAdmin := func(h http.Handler) http.Handler {
+		return requireBearer(auth.RequireHouseMember(auth.RequireAdmin(h)))
 	}
 
-	// Auth (no house in URL — login picks the house, /me echoes the JWT)
+	// Auth (no house in URL — token carries per-house roles; /me lists houses)
+	//   start    — 302 to the IDP (browser begins the assertion flow)
+	//   complete — SPA posts the sealed token; we mint the session token
+	//   login    — programmatic: caller already holds a verified assertion
+	//   refresh  — re-mint with a fresh roles snapshot (needs a valid token)
+	mux.HandleFunc("GET /api/v1/auth/start", deps.Auth.startHandler)
+	mux.HandleFunc("POST /api/v1/auth/complete", deps.Auth.completeHandler)
 	mux.HandleFunc("POST /api/v1/auth/login", deps.Auth.loginHandler)
-	mux.Handle("GET /api/v1/me", requireBearer(http.HandlerFunc(meHandler)))
+	mux.Handle("POST /api/v1/auth/refresh", requireBearer(http.HandlerFunc(deps.Auth.refreshHandler)))
+	mux.Handle("GET /api/v1/me", requireBearer(http.HandlerFunc(deps.Auth.meHandler)))
+
+	// Dev-auth endpoints — only present when explicitly enabled in a
+	// non-prod environment. See devauth.go for the contract.
+	if deps.DevAuth != nil {
+		mux.HandleFunc("GET /api/v1/dev/users", deps.DevAuth.usersHandler)
+		mux.HandleFunc("POST /api/v1/dev/login", deps.DevAuth.loginHandler)
+	}
 
 	// External share access (no auth — caller proves identity with a
 	// linkkeys assertion). Stubbed; returns 501 until the verifier wires up.

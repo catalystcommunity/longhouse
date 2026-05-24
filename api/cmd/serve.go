@@ -61,10 +61,40 @@ func Serve(flags map[string]string) error {
 	}()
 
 	// Start HTTP server
-	deps := &handlers.RouterDeps{Auth: buildAuthDeps()}
+	deps := &handlers.RouterDeps{
+		Auth:    buildAuthDeps(),
+		DevAuth: buildDevAuthDeps(),
+	}
 	handler := handlers.NewRouter(deps)
 	log.Infof("Starting HTTP server on :%d", config.APIPort)
 	return http.ListenAndServe(fmt.Sprintf(":%d", config.APIPort), handler)
+}
+
+// buildDevAuthDeps wires the DevAuth endpoints when the env gate is open.
+// Both LONGHOUSE_DEV_AUTH_ENABLED=true and LONGHOUSE_ENV ∈ {dev, nonprod}
+// must be set. A misconfigured combination (DEV_AUTH_ENABLED=true with
+// Env=prod or unset) logs at WARN and returns nil — endpoints stay absent.
+func buildDevAuthDeps() *handlers.DevAuthDeps {
+	if !config.DevAuthEnabled {
+		return nil
+	}
+	if !config.DevAuthAllowed() {
+		log.WithFields(log.Fields{
+			"env":           config.Env,
+			"dev_auth_flag": config.DevAuthEnabled,
+		}).Warn("LONGHOUSE_DEV_AUTH_ENABLED=true ignored: LONGHOUSE_ENV is not dev/nonprod")
+		return nil
+	}
+	if config.JWTSecret == "" {
+		log.Warn("dev-auth requested but LONGHOUSE_JWT_SECRET is empty; endpoints disabled")
+		return nil
+	}
+	log.WithField("env", config.Env).Warn("DEV-AUTH ENABLED: /api/v1/dev/login is reachable without assertion verification")
+	return &handlers.DevAuthDeps{
+		Store:     store.AppStore,
+		JWTSecret: []byte(config.JWTSecret),
+		Env:       config.Env,
+	}
 }
 
 // runRecurrenceWorker drives recurrence.Tick on a clock. Errors from a
@@ -137,8 +167,10 @@ func buildAuthDeps() *handlers.AuthDeps {
 			config.LinkkeysPKIAPIKey,
 			config.LinkkeysPKIAllowInvalid,
 		),
-		Store:     store.AppStore,
-		IDPDomain: config.LinkkeysIDPDomain,
-		JWTSecret: []byte(config.JWTSecret),
+		Store:       store.AppStore,
+		IDPDomain:   config.LinkkeysIDPDomain,
+		JWTSecret:   []byte(config.JWTSecret),
+		IDPURL:      config.LinkkeysIDPURL,
+		CallbackURL: config.AppCallbackURL,
 	}
 }

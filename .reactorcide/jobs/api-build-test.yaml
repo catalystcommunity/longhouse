@@ -7,7 +7,9 @@ triggers:
   branches:
     - main
 paths:
-  include: ["api/**", "coredb/**", "Dockerfile.api"]
+  # csil/** triggers too: a contract change without a regen would compile
+  # against stale generated types, and this build surfaces it on the PR.
+  include: ["api/**", "coredb/**", "csil/**", "Dockerfile.api"]
 job:
   image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
   command: "bash /job/src/.reactorcide/jobs/scripts/api-build-test.sh"

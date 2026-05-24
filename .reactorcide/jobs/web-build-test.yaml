@@ -7,7 +7,11 @@ triggers:
   branches:
     - main
 paths:
-  include: ["webapp/**", "Dockerfile.web"]
+  # Dockerfile.web now builds the SPA from client/ (Node + Vite → nginx),
+  # not the Go webapp/. webapp/** stays until that directory is deleted
+  # in a follow-up — its still-buildable Go code keeps the legacy
+  # webapp-test job honest in the meantime.
+  include: ["client/**", "webapp/**", "Dockerfile.web"]
 job:
   image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
   command: "bash /job/src/.reactorcide/jobs/scripts/web-build-test.sh"

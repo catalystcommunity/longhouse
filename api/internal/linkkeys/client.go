@@ -45,6 +45,35 @@ func New(baseURL, apiKey string, allowInvalidCerts bool) *Client {
 	}
 }
 
+// SignRequest asks the RP to sign an AuthRequest bound to callbackURL +
+// nonce. The returned signed_request is base64url and gets appended to the
+// IDP authorize redirect.
+func (c *Client) SignRequest(callbackURL, nonce string) (string, error) {
+	var out struct {
+		SignedRequest string `json:"signed_request"`
+	}
+	if err := c.post("/v1alpha/sign-request.json",
+		map[string]string{"callback_url": callbackURL, "nonce": nonce},
+		&out); err != nil {
+		return "", err
+	}
+	return out.SignedRequest, nil
+}
+
+// DecryptToken decrypts the encrypted_token the IDP returns to the callback.
+// The result is still only signed — callers must then VerifyAssertion it.
+func (c *Client) DecryptToken(encryptedToken string) (string, error) {
+	var out struct {
+		SignedAssertion string `json:"signed_assertion"`
+	}
+	if err := c.post("/v1alpha/decrypt-token.json",
+		map[string]string{"encrypted_token": encryptedToken},
+		&out); err != nil {
+		return "", err
+	}
+	return out.SignedAssertion, nil
+}
+
 // VerifyAssertion verifies a signed assertion against expectedDomain's
 // published linkkeys keys (fetched via DNS by the sidecar). Returns the
 // inner assertion fields when the signature checks out.

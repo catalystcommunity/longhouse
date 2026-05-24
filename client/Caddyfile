@@ -1,0 +1,25 @@
+# Static SPA server. Caddy listens on :4080 (the chart's webPort) and
+# serves the Vite build under /usr/share/caddy. No TLS here — the
+# Gateway upstream terminates HTTPS — and no /api proxy either; the
+# Gateway routes /api/* straight to the api Service. This file is the
+# whole web-tier config: no auto-https, no storage writes at runtime.
+
+:4080 {
+	root * /usr/share/caddy
+	encode gzip zstd
+
+	# k8s liveness/readiness probe. Preempts the SPA fallback below.
+	@healthz path /healthz
+	respond @healthz "ok" 200
+
+	# Vite emits hashed filenames under /assets/. Lock those down for a
+	# year; index.html stays uncached so the SPA can update on the next
+	# page load without a forced refresh.
+	@assets path /assets/*
+	header @assets Cache-Control "public, immutable, max-age=31536000"
+
+	# SPA fallback: any unknown path → index.html so @solidjs/router can
+	# take over (covers /auth/callback, /dev-login, /projects/:slug, etc.)
+	try_files {path} /index.html
+	file_server
+}
