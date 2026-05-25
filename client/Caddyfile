@@ -8,18 +8,28 @@
 	root * /usr/share/caddy
 	encode gzip zstd
 
-	# k8s liveness/readiness probe. Preempts the SPA fallback below.
-	@healthz path /healthz
-	respond @healthz "ok" 200
+	# `handle` blocks are mutually exclusive — exactly one runs per
+	# request — which is what we want here so the probe path doesn't
+	# get rewritten to /index.html by the SPA fallback below.
 
-	# Vite emits hashed filenames under /assets/. Lock those down for a
-	# year; index.html stays uncached so the SPA can update on the next
-	# page load without a forced refresh.
-	@assets path /assets/*
-	header @assets Cache-Control "public, immutable, max-age=31536000"
+	# k8s liveness/readiness probe.
+	handle /healthz {
+		respond "ok" 200
+	}
 
-	# SPA fallback: any unknown path → index.html so @solidjs/router can
-	# take over (covers /auth/callback, /dev-login, /projects/:slug, etc.)
-	try_files {path} /index.html
-	file_server
+	# Vite emits hashed filenames under /assets/. Lock those down for
+	# a year; index.html stays uncached so the SPA can update on the
+	# next page load without a forced refresh.
+	handle /assets/* {
+		header Cache-Control "public, immutable, max-age=31536000"
+		file_server
+	}
+
+	# Everything else: serve the static file if it exists, otherwise
+	# fall through to /index.html so @solidjs/router can take over
+	# (covers /auth/callback, /dev-login, /projects/:slug, etc.)
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
 }
