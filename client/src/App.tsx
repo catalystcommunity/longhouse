@@ -7,6 +7,9 @@ import { ProjectsPage } from "~/pages/Projects";
 import { ProjectDetail } from "~/pages/ProjectDetail";
 import { TasksPage } from "~/pages/Tasks";
 import { MembersPage } from "~/pages/Members";
+import { GroupsPage } from "~/pages/Groups";
+import { SkillsPage } from "~/pages/Skills";
+import { SettingsPage } from "~/pages/Settings";
 import { AuthCallback } from "~/pages/AuthCallback";
 import { Stub } from "~/pages/Stub";
 
@@ -26,6 +29,9 @@ export const App = () => (
     <Route path="/projects" component={ProjectsPage} />
     <Route path="/projects/:slug" component={ProjectDetail} />
     <Route path="/members" component={MembersPage} />
+    <Route path="/groups" component={GroupsPage} />
+    <Route path="/skills" component={SkillsPage} />
+    <Route path="/settings" component={SettingsPage} />
     <Route path="/auth/callback" component={AuthCallback} />
     <Route path="/shares" component={Stub} />
     <Route path="/more" component={Stub} />

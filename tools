@@ -14,12 +14,29 @@ Commands:
   test            Run all tests
   test-api        Run API tests
   test-web        Run webapp tests
-  run-api         Run the API server locally
+  run-api         Run the API server locally (sources .env.dev if present)
   run-web         Run the web UI locally
+  run-client      Run the SPA dev server (vite on :5173)
+  dev             Boot postgres + api + vite together in one terminal
+                  (postgres in docker, api+vite as logged background jobs)
+  dev-down        Stop the dev stack (postgres container + background jobs)
   docker-build    Build Docker images
   clean           Remove build artifacts
   check-deps      Verify required tools are installed
 EOF
+}
+
+# load_dev_env sources .env.dev into the current shell so api commands
+# inherit LONGHOUSE_* without a docker-compose round-trip. Quiet no-op if
+# the file is missing (lets `run-api` keep working from a clean checkout).
+load_dev_env() {
+    local env_file="$SCRIPT_DIR/.env.dev"
+    if [ -f "$env_file" ]; then
+        set -a
+        # shellcheck disable=SC1090
+        source "$env_file"
+        set +a
+    fi
 }
 
 check_deps() {
@@ -71,6 +88,7 @@ run_tests() {
 }
 
 run_api() {
+    load_dev_env
     cd "$SCRIPT_DIR/api"
     go run . serve "$@"
 }
@@ -78,6 +96,95 @@ run_api() {
 run_web() {
     cd "$SCRIPT_DIR/webapp"
     go run . serve "$@"
+}
+
+run_client() {
+    cd "$SCRIPT_DIR/client"
+    npm run dev -- "$@"
+}
+
+# dev brings the whole local stack up in the foreground. Postgres runs
+# detached in docker; api + vite stream their logs into ./logs/ and
+# their PIDs land in ./logs/*.pid so dev-down can clean up. Ctrl-C
+# leaves postgres up (cheap, persistent) — explicit dev-down kills it.
+dev() {
+    load_dev_env
+    mkdir -p "$SCRIPT_DIR/logs"
+
+    # We don't require the docker-compose plugin — a single `docker run` for
+    # postgres is the entire infra for local dev. docker-compose.yml is kept
+    # as a reference but isn't on the critical path.
+    if docker ps --filter name=^longhouse-postgres-dev$ --format '{{.Names}}' | grep -q .; then
+        echo "▶ postgres (docker) — already running"
+    elif docker ps -a --filter name=^longhouse-postgres-dev$ --format '{{.Names}}' | grep -q .; then
+        echo "▶ postgres (docker) — restarting existing container"
+        docker start longhouse-postgres-dev >/dev/null
+    else
+        echo "▶ postgres (docker) — creating container"
+        docker run -d \
+            --name longhouse-postgres-dev \
+            -e POSTGRES_USER=longhouse \
+            -e POSTGRES_PASSWORD=devpass123 \
+            -e POSTGRES_DB=longhouse_db \
+            -p 5433:5432 \
+            -v longhouse_postgres_data:/var/lib/postgresql/data \
+            postgres:17 >/dev/null
+    fi
+
+    echo "▶ waiting for postgres to accept connections..."
+    local tries=0
+    until docker exec longhouse-postgres-dev pg_isready -U longhouse >/dev/null 2>&1; do
+        tries=$((tries + 1))
+        if [ "$tries" -ge 30 ]; then
+            echo "postgres never became ready; check 'docker logs longhouse-postgres-dev'"
+            exit 1
+        fi
+        sleep 1
+    done
+
+    echo "▶ api  → http://localhost:${LONGHOUSE_API_PORT:-6080}  (logs: logs/api.log)"
+    (cd "$SCRIPT_DIR/api" && go run . serve) >"$SCRIPT_DIR/logs/api.log" 2>&1 &
+    echo $! > "$SCRIPT_DIR/logs/api.pid"
+
+    echo "▶ vite → http://localhost:5173               (logs: logs/vite.log)"
+    (cd "$SCRIPT_DIR/client" && npm run dev) >"$SCRIPT_DIR/logs/vite.log" 2>&1 &
+    echo $! > "$SCRIPT_DIR/logs/vite.pid"
+
+    cat <<EOF
+
+Dev stack up.
+  SPA       http://localhost:5173
+  API       http://localhost:${LONGHOUSE_API_PORT:-6080}
+  /dev-login http://localhost:5173/dev-login   ← pick a user to sign in
+  Logs      tail -f logs/api.log logs/vite.log
+  Tear down ./tools dev-down
+
+Ctrl-C in this terminal leaves everything running in the background.
+EOF
+    # Park here so the user can Ctrl-C to silence this tail; processes
+    # keep running because they were spawned in their own subshells.
+    tail -f "$SCRIPT_DIR/logs/api.log" "$SCRIPT_DIR/logs/vite.log"
+}
+
+dev_down() {
+    for name in api vite; do
+        local pid_file="$SCRIPT_DIR/logs/${name}.pid"
+        if [ -f "$pid_file" ]; then
+            local pid
+            pid="$(cat "$pid_file")"
+            if kill -0 "$pid" 2>/dev/null; then
+                echo "▶ stopping $name (pid $pid)"
+                # Kill the process group so child go/node processes go too.
+                kill -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
+            fi
+            rm -f "$pid_file"
+        fi
+    done
+    if docker ps --filter name=^longhouse-postgres-dev$ --format '{{.Names}}' | grep -q .; then
+        echo "▶ stopping postgres"
+        docker stop longhouse-postgres-dev >/dev/null
+    fi
+    echo "Dev stack down. (Container + volume preserved; 'docker rm longhouse-postgres-dev' to wipe.)"
 }
 
 docker_build() {
@@ -104,6 +211,9 @@ case "${1:-}" in
     test-web)     test_web ;;
     run-api)      shift; run_api "$@" ;;
     run-web)      shift; run_web "$@" ;;
+    run-client)   shift; run_client "$@" ;;
+    dev)          dev ;;
+    dev-down)     dev_down ;;
     docker-build) docker_build ;;
     clean)        clean ;;
     check-deps)   check_deps ;;

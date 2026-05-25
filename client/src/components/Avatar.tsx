@@ -1,32 +1,32 @@
 import type { Component } from "solid-js";
-import type { Member } from "~/data/types";
+import type { AvatarBits } from "~/lib/derive";
 
 type Size = "sm" | "md" | "lg";
 
 interface Props {
-  member: Pick<Member, "initials" | "swatch">;
+  bits: AvatarBits;
   size?: Size;
   class?: string;
 }
 
 export const Avatar: Component<Props> = (props) => (
-  <span class={`a ${props.member.swatch} ${props.size ?? "md"} ${props.class ?? ""}`}>
-    {props.member.initials}
+  <span class={`a ${props.bits.swatch} ${props.size ?? "md"} ${props.class ?? ""}`}>
+    {props.bits.initials}
   </span>
 );
 
 interface StackProps {
-  members: Pick<Member, "initials" | "swatch">[];
+  bits: AvatarBits[];
   size?: Size;
   max?: number;
 }
 
 export const AvatarStack: Component<StackProps> = (props) => {
-  const max = () => props.max ?? props.members.length;
+  const max = () => props.max ?? props.bits.length;
   return (
     <div class="who-mini">
-      {props.members.slice(0, max()).map((m) => (
-        <Avatar member={m} size={props.size ?? "sm"} />
+      {props.bits.slice(0, max()).map((b) => (
+        <Avatar bits={b} size={props.size ?? "sm"} />
       ))}
     </div>
   );

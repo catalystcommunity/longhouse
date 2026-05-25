@@ -43,7 +43,7 @@ describe("auth store", () => {
 
   it("signs out and clears persistence", () => {
     signIn(aSession());
-    setHouses([{ id: "h-1", name: "Longhouse" }]);
+    setHouses([{ id: "h-1", name: "Longhouse", memberId: "m-1", roles: [] }]);
     signOut();
     expect(isAuthenticated()).toBe(false);
     expect(currentToken()).toBeNull();
@@ -55,8 +55,8 @@ describe("auth store", () => {
   it("setHouses defaults the selection to the first house", () => {
     signIn(aSession());
     setHouses([
-      { id: "h-1", name: "Longhouse" },
-      { id: "h-2", name: "Acme HQ" },
+      { id: "h-1", name: "Longhouse", memberId: "m-1", roles: [] },
+      { id: "h-2", name: "Acme HQ", memberId: "m-2", roles: [] },
     ]);
     expect(useCurrentHouseId()()).toBe("h-1");
   });
@@ -64,14 +64,14 @@ describe("auth store", () => {
   it("keeps the current selection if still present after a refresh", () => {
     signIn(aSession());
     setHouses([
-      { id: "h-1", name: "Longhouse" },
-      { id: "h-2", name: "Acme HQ" },
+      { id: "h-1", name: "Longhouse", memberId: "m-1", roles: [] },
+      { id: "h-2", name: "Acme HQ", memberId: "m-2", roles: [] },
     ]);
     selectHouse("h-2");
     // /me refresh returns the same houses → selection sticks
     setHouses([
-      { id: "h-1", name: "Longhouse" },
-      { id: "h-2", name: "Acme HQ (renamed)" },
+      { id: "h-1", name: "Longhouse", memberId: "m-1", roles: [] },
+      { id: "h-2", name: "Acme HQ (renamed)", memberId: "m-2", roles: [] },
     ]);
     expect(useCurrentHouseId()()).toBe("h-2");
   });

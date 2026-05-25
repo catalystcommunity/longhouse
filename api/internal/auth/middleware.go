@@ -24,6 +24,14 @@ func IdentityFromContext(ctx context.Context) *Identity {
 	return id
 }
 
+// WithIdentity attaches an Identity to ctx under the same key
+// IdentityFromContext reads. Exported so packages that do their own
+// bearer verification (e.g. the CSIL-RPC dispatcher) can stash identity
+// without re-using the http.Handler middleware.
+func WithIdentity(ctx context.Context, id *Identity) context.Context {
+	return context.WithValue(ctx, identityKey, id)
+}
+
 // FromContext returns the per-request MemberContext attached by
 // RequireHouseMember. Handlers behind that middleware can rely on this
 // returning non-nil. (Named FromContext for source compatibility with the

@@ -1,4 +1,4 @@
-import { createSignal, createEffect } from "solid-js";
+import { createSignal, createEffect, createRoot } from "solid-js";
 
 /**
  * Theme + hero-scene preferences.
@@ -23,11 +23,17 @@ const readScene = (): boolean =>
 const [theme, setThemeSig] = createSignal<Theme>(readTheme());
 const [sceneOn, setSceneSig] = createSignal<boolean>(readScene());
 
-createEffect(() => {
-  document.documentElement.setAttribute("data-theme", theme());
-});
-createEffect(() => {
-  document.documentElement.setAttribute("data-scene", sceneOn() ? "on" : "off");
+// App-lifetime effects: write the current theme + scene preference to the
+// <html> attributes the CSS reads. Wrapped in createRoot so Solid has an
+// explicit owner for them; we never call the dispose handle because the
+// store outlives every page.
+createRoot(() => {
+  createEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme());
+  });
+  createEffect(() => {
+    document.documentElement.setAttribute("data-scene", sceneOn() ? "on" : "off");
+  });
 });
 
 export const useTheme = () => theme;
@@ -45,7 +51,9 @@ export const toggleScene = () => {
   localStorage.setItem(SCENE_KEY, next ? "on" : "off");
 };
 
-// follow system preference when the user has not explicitly chosen.
+// Follow system preference when the user has not explicitly chosen.
+// App-lifetime listener (no removeEventListener); the SPA has no
+// "tear down" path that would need it.
 const mql = window.matchMedia("(prefers-color-scheme: dark)");
 mql.addEventListener("change", (e) => {
   if (!localStorage.getItem(THEME_KEY)) {

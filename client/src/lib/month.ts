@@ -2,9 +2,13 @@
  * Pure month-grid math for the calendar. No DOM, no Solid — just dates and
  * events in, grid structures out. Extracted from Calendar.tsx so it can be
  * unit-tested directly.
+ *
+ * Events arrive in the CSIL shape (starts_at / ends_at as ISO timestamps).
+ * We slice them to local-day YYYY-MM-DD strings up front so the rest of
+ * the math is timezone-independent.
  */
 
-import type { Event } from "~/data/types";
+import type { Event as ApiEvent } from "~/api/types.gen";
 
 export interface Cell {
   date: Date;
@@ -15,7 +19,7 @@ export interface Cell {
 }
 
 export interface SpanPlacement {
-  evt: Event;
+  evt: ApiEvent;
   /** 1-indexed grid row */
   row: number;
   /** 1-indexed start column (Mon=1..Sun=7) */
@@ -65,14 +69,36 @@ export const buildCells = (year: number, month: number, todayYMD: string): Cell[
   return out;
 };
 
+// startYMD/endYMD pull a local YYYY-MM-DD from the ISO timestamps without
+// dragging the whole derive module in (this module is unit-tested in
+// isolation). All-day events with no times are treated as the same day.
+const startYMD = (e: ApiEvent): string => {
+  if (e.startsAt) return ymdOfIso(e.startsAt);
+  if (e.endsAt) return ymdOfIso(e.endsAt);
+  return "";
+};
+
+const endYMD = (e: ApiEvent): string => {
+  if (e.endsAt) return ymdOfIso(e.endsAt);
+  return startYMD(e);
+};
+
+const ymdOfIso = (iso: string): string => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return ymd(d);
+};
+
 /** Group single-day events by their date string. Multi-day events skipped. */
-export const groupSingleByDate = (events: Event[]): Map<string, Event[]> => {
-  const m = new Map<string, Event[]>();
+export const groupSingleByDate = (events: ApiEvent[]): Map<string, ApiEvent[]> => {
+  const m = new Map<string, ApiEvent[]>();
   for (const evt of events) {
-    if (evt.startDate !== evt.endDate) continue;
-    const arr = m.get(evt.startDate) ?? [];
+    const s = startYMD(evt);
+    const e = endYMD(evt);
+    if (!s || s !== e) continue;
+    const arr = m.get(s) ?? [];
     arr.push(evt);
-    m.set(evt.startDate, arr);
+    m.set(s, arr);
   }
   return m;
 };
@@ -83,14 +109,16 @@ export const groupSingleByDate = (events: Event[]): Map<string, Event[]> => {
  * clipped to the end of their starting week — multi-week bars need splitting,
  * which we defer until real data needs it.
  */
-export const placeSpans = (events: Event[], cells: Cell[]): SpanPlacement[] => {
+export const placeSpans = (events: ApiEvent[], cells: Cell[]): SpanPlacement[] => {
   const placements: SpanPlacement[] = [];
   for (const evt of events) {
-    if (evt.startDate === evt.endDate) continue;
-    const startIdx = cells.findIndex((c) => c.ymd === evt.startDate);
+    const s = startYMD(evt);
+    const e = endYMD(evt);
+    if (!s || s === e) continue;
+    const startIdx = cells.findIndex((c) => c.ymd === s);
     if (startIdx < 0) continue;
-    const start = parseYMD(evt.startDate);
-    const end = parseYMD(evt.endDate);
+    const start = parseYMD(s);
+    const end = parseYMD(e);
     const days = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
     const row = Math.floor(startIdx / 7) + 1;
     const col = (startIdx % 7) + 1;

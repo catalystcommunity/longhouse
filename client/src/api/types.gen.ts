@@ -26,6 +26,8 @@ export type TrustedDomainID = string;
 
 export type MemberAuditID = string;
 
+export type MilestoneID = string;
+
 export type Timestamp = string;
 
 export type TaskStatus = unknown | unknown | unknown | unknown;
@@ -39,6 +41,8 @@ export type ResourceType = unknown | unknown | unknown;
 export type ProjectStatus = unknown | unknown;
 
 export type RecurrenceFreq = unknown | unknown | unknown | unknown | unknown | unknown;
+
+export type MilestoneState = unknown | unknown | unknown;
 
 export interface House {
   houseId: HouseID;
@@ -109,6 +113,12 @@ export interface MemberSkill {
   createdAt: Timestamp;
 }
 
+export interface GroupSkill {
+  groupId: GroupID;
+  skillId: SkillID;
+  createdAt: Timestamp;
+}
+
 export interface Group {
   groupId: GroupID;
   houseId: HouseID;
@@ -129,6 +139,7 @@ export interface Project {
   houseId: HouseID;
   name: string;
   description?: string;
+  category?: string;
   status?: ProjectStatus;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -139,6 +150,29 @@ export interface ProjectTask {
   taskId: TaskID;
   position: number;
   createdAt: Timestamp;
+}
+
+export interface ProjectMember {
+  projectId: ProjectID;
+  memberId: MemberID;
+  createdAt: Timestamp;
+}
+
+export interface ProjectOwner {
+  projectId: ProjectID;
+  memberId: MemberID;
+  createdAt: Timestamp;
+}
+
+export interface Milestone {
+  milestoneId: MilestoneID;
+  projectId: ProjectID;
+  label: string;
+  whenLabel: string;
+  state: MilestoneState;
+  position: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface Event {
@@ -159,13 +193,15 @@ export interface Task {
   taskId: TaskID;
   houseId: HouseID;
   ownerMemberId: MemberID;
-  assignedToMemberId?: MemberID;
+  assignees?: MemberID[];
   assignedToSkillId?: SkillID;
   parentTaskId?: TaskID;
   title: string;
   description?: string;
   status?: TaskStatus;
   dueAt?: Timestamp;
+  tag?: string;
+  estimateMinutes?: number;
   recurrenceFreq?: RecurrenceFreq;
   recurrenceInterval?: number;
   recurrenceByWeekday?: number[];
@@ -203,6 +239,8 @@ export interface Share {
 export interface HouseSummary {
   houseId: HouseID;
   name: string;
+  memberId: MemberID;
+  roles: string[];
 }
 
 export interface HouseRoles {
@@ -234,6 +272,24 @@ export interface LoginResponse {
   userId: string;
   displayName?: string;
   expiresAt: Timestamp;
+}
+
+export interface DevUserEntry {
+  memberId: MemberID;
+  houseId: HouseID;
+  houseName: string;
+  displayName?: string;
+  linkkeysDomain?: string;
+  linkkeysUserId?: string;
+  roles: string[];
+}
+
+export interface DevUsersResponse {
+  users: DevUserEntry[];
+}
+
+export interface DevLoginRequest {
+  memberId: MemberID;
 }
 
 export interface MeResponse {
@@ -308,6 +364,11 @@ export interface MemberSkillRef {
   skillId: SkillID;
 }
 
+export interface GroupSkillRef {
+  groupId: GroupID;
+  skillId: SkillID;
+}
+
 export interface GroupMemberRef {
   groupId: GroupID;
   memberId: MemberID;
@@ -322,6 +383,16 @@ export interface ProjectTaskOrderRequest {
   projectId: ProjectID;
   taskId: TaskID;
   position: number;
+}
+
+export interface ProjectMemberRef {
+  projectId: ProjectID;
+  memberId: MemberID;
+}
+
+export interface ProjectOwnerRef {
+  projectId: ProjectID;
+  memberId: MemberID;
 }
 
 export interface ServiceError {

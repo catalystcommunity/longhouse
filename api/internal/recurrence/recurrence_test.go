@@ -248,19 +248,11 @@ func TestPlan_NoNextRecurrence_Errors(t *testing.T) {
 	}
 }
 
-func TestPlan_PropagatesAssignment(t *testing.T) {
-	root := dailyRoot(t, "2026-05-01T09:00:00Z")
-	memberID := "m-assignee"
-	root.AssignedToMemberID = &memberID
-
-	dec, err := Plan(time.Now(), root, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if dec.SpawnChild.AssignedToMemberID == nil || *dec.SpawnChild.AssignedToMemberID != memberID {
-		t.Errorf("child should inherit assigned_to_member_id; got %v", dec.SpawnChild.AssignedToMemberID)
-	}
-}
+// TestPlan_PropagatesAssignment is intentionally removed: with the single
+// assigned_to_member_id column gone, assignment propagation now happens at
+// the store level (copy task_assignees rows from root → spawned child)
+// rather than as a field copy on the Task struct. A replacement test will
+// live next to the new CSIL-RPC TaskService that owns the join-table writes.
 
 func TestPlan_ChildIsNotItselfRecurring(t *testing.T) {
 	root := dailyRoot(t, "2026-05-01T09:00:00Z")

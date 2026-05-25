@@ -31,10 +31,14 @@ Thumbs.db
 # Environment
 .env
 .env.local
+.env.dev
 
 # Build artifacts
 /api/longhouse
 /webapp/longhouse-web
+
+# Local dev runtime
+/logs/
 
 # Helm
 helm_chart/charts/

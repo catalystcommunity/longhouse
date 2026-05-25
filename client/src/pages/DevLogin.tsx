@@ -1,7 +1,7 @@
 /**
  * Dev-only login page. Lists every (member, house) the local API exposes
- * via GET /api/v1/dev/users, click one to POST /api/v1/dev/login and stash
- * the resulting JWT in the auth store.
+ * via DevAuthService.ListDevUsers, click one to call DevAuthService.DevLogin
+ * and stash the resulting JWT in the auth store.
  *
  * The whole module is dynamically imported (see App.tsx) so prod builds
  * tree-shake it out — the dead-code branch on `import.meta.env.DEV`
@@ -10,36 +10,24 @@
 
 import { For, Show, createResource, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { jsonFetch } from "~/transport/http";
-import { finishLogin, type LoginResponse } from "~/lib/session";
-
-interface DevUser {
-  member_id: string;
-  house_id: string;
-  house_name: string;
-  display_name?: string;
-  linkkeys_domain?: string;
-  linkkeys_user_id?: string;
-  roles: string[];
-}
+import { devAuthClient } from "~/data/clients";
+import { finishLogin } from "~/lib/session";
+import type { DevUserEntry } from "~/api/types.gen";
 
 export const DevLogin = () => {
   const navigate = useNavigate();
   const [users] = createResource(async () => {
-    const res = await jsonFetch<{ users: DevUser[] }>("/api/v1/dev/users");
-    return res.users;
+    const res = await devAuthClient.listDevUsers({});
+    return res.users ?? [];
   });
   const [busy, setBusy] = createSignal<string | null>(null);
   const [err, setErr] = createSignal<string | null>(null);
 
-  const choose = async (u: DevUser) => {
+  const choose = async (u: DevUserEntry) => {
     setErr(null);
-    setBusy(u.member_id);
+    setBusy(u.memberId);
     try {
-      const resp = await jsonFetch<LoginResponse>("/api/v1/dev/login", {
-        method: "POST",
-        body: JSON.stringify({ member_id: u.member_id }),
-      });
+      const resp = await devAuthClient.devLogin({ memberId: u.memberId });
       await finishLogin(resp);
       navigate("/", { replace: true });
     } catch (e) {
@@ -57,7 +45,7 @@ export const DevLogin = () => {
         <h1>Choose a user to sign in as</h1>
         <p class="lede">
           This page only exists in development. The list comes from the local API's
-          <code> /api/v1/dev/users</code> endpoint, which itself is only registered
+          <code> devauth.ListDevUsers</code> method, which itself is only registered
           when <code>LONGHOUSE_DEV_AUTH_ENABLED=true</code> and
           <code>LONGHOUSE_ENV</code> is <code>dev</code> or <code>nonprod</code>.
         </p>
@@ -95,16 +83,16 @@ export const DevLogin = () => {
                   <button
                     disabled={busy() !== null}
                     onClick={() => choose(u)}
-                    class={busy() === u.member_id ? "busy" : ""}
+                    class={busy() === u.memberId ? "busy" : ""}
                   >
                     <span class="who-name">
-                      {u.display_name ?? u.linkkeys_user_id ?? u.member_id}
+                      {u.displayName ?? u.linkkeysUserId ?? u.memberId}
                     </span>
                     <span class="meta">
-                      <span class="house">{u.house_name}</span>
-                      <Show when={u.linkkeys_domain && u.linkkeys_user_id}>
+                      <span class="house">{u.houseName}</span>
+                      <Show when={u.linkkeysDomain && u.linkkeysUserId}>
                         <span class="dot" />
-                        <span class="ident">{u.linkkeys_user_id}@{u.linkkeys_domain}</span>
+                        <span class="ident">{u.linkkeysUserId}@{u.linkkeysDomain}</span>
                       </Show>
                       <Show when={u.roles.length > 0}>
                         <span class="dot" />

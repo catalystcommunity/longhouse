@@ -255,6 +255,33 @@ func (s *PostgresStore) ListSkillsForMember(ctx context.Context, memberID string
 	return skills, nil
 }
 
+// Group-skill: a skill the group as a whole holds. Independent from
+// per-member skills.
+
+func (s *PostgresStore) AssignGroupSkill(ctx context.Context, groupID, skillID string) error {
+	gs := &models.GroupSkill{GroupID: groupID, SkillID: skillID}
+	return db.WithContext(ctx).Create(gs).Error
+}
+
+func (s *PostgresStore) UnassignGroupSkill(ctx context.Context, groupID, skillID string) error {
+	return db.WithContext(ctx).
+		Where("group_id = ? AND skill_id = ?", groupID, skillID).
+		Delete(&models.GroupSkill{}).Error
+}
+
+func (s *PostgresStore) ListSkillsForGroup(ctx context.Context, groupID string) ([]models.Skill, error) {
+	var skills []models.Skill
+	err := db.WithContext(ctx).
+		Joins("JOIN group_skills gs ON gs.skill_id = skills.skill_id").
+		Where("gs.group_id = ?", groupID).
+		Order("skills.name ASC").
+		Find(&skills).Error
+	if err != nil {
+		return nil, err
+	}
+	return skills, nil
+}
+
 // Group operations
 
 func (s *PostgresStore) CreateGroup(ctx context.Context, group *models.Group) error {
@@ -388,6 +415,119 @@ func (s *PostgresStore) ListProjectTasks(ctx context.Context, projectID string, 
 		return nil, err
 	}
 	return tasks, nil
+}
+
+// ---- Project members / owners -----------------------------------------
+
+func (s *PostgresStore) AddProjectMember(ctx context.Context, projectID, memberID string) error {
+	pm := &models.ProjectMember{ProjectID: projectID, MemberID: memberID}
+	return db.WithContext(ctx).Create(pm).Error
+}
+
+func (s *PostgresStore) RemoveProjectMember(ctx context.Context, projectID, memberID string) error {
+	return db.WithContext(ctx).
+		Where("project_id = ? AND member_id = ?", projectID, memberID).
+		Delete(&models.ProjectMember{}).Error
+}
+
+func (s *PostgresStore) ListProjectMembers(ctx context.Context, projectID string) ([]models.Member, error) {
+	var members []models.Member
+	err := db.WithContext(ctx).
+		Joins("JOIN project_members pm ON pm.member_id = members.member_id").
+		Where("pm.project_id = ?", projectID).
+		Order("members.display_name ASC").
+		Find(&members).Error
+	if err != nil {
+		return nil, err
+	}
+	return members, nil
+}
+
+func (s *PostgresStore) AddProjectOwner(ctx context.Context, projectID, memberID string) error {
+	po := &models.ProjectOwner{ProjectID: projectID, MemberID: memberID}
+	return db.WithContext(ctx).Create(po).Error
+}
+
+func (s *PostgresStore) RemoveProjectOwner(ctx context.Context, projectID, memberID string) error {
+	return db.WithContext(ctx).
+		Where("project_id = ? AND member_id = ?", projectID, memberID).
+		Delete(&models.ProjectOwner{}).Error
+}
+
+func (s *PostgresStore) ListProjectOwners(ctx context.Context, projectID string) ([]models.Member, error) {
+	var members []models.Member
+	err := db.WithContext(ctx).
+		Joins("JOIN project_owners po ON po.member_id = members.member_id").
+		Where("po.project_id = ?", projectID).
+		Order("members.display_name ASC").
+		Find(&members).Error
+	if err != nil {
+		return nil, err
+	}
+	return members, nil
+}
+
+// ---- Milestones --------------------------------------------------------
+
+func (s *PostgresStore) CreateMilestone(ctx context.Context, m *models.Milestone) error {
+	return db.WithContext(ctx).Create(m).Error
+}
+
+func (s *PostgresStore) UpdateMilestone(ctx context.Context, m *models.Milestone) error {
+	return db.WithContext(ctx).Save(m).Error
+}
+
+func (s *PostgresStore) DeleteMilestone(ctx context.Context, milestoneID string) error {
+	return db.WithContext(ctx).
+		Where("milestone_id = ?", milestoneID).
+		Delete(&models.Milestone{}).Error
+}
+
+func (s *PostgresStore) GetMilestoneByID(ctx context.Context, milestoneID string) (*models.Milestone, error) {
+	var m models.Milestone
+	err := db.WithContext(ctx).Where("milestone_id = ?", milestoneID).First(&m).Error
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+func (s *PostgresStore) ListMilestonesByProject(ctx context.Context, projectID string) ([]models.Milestone, error) {
+	var out []models.Milestone
+	err := db.WithContext(ctx).
+		Where("project_id = ?", projectID).
+		Order("position ASC").
+		Find(&out).Error
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ---- Task assignees ----------------------------------------------------
+
+func (s *PostgresStore) AddTaskAssignee(ctx context.Context, taskID, memberID string) error {
+	ta := &models.TaskAssignee{TaskID: taskID, MemberID: memberID}
+	return db.WithContext(ctx).Create(ta).Error
+}
+
+func (s *PostgresStore) RemoveTaskAssignee(ctx context.Context, taskID, memberID string) error {
+	return db.WithContext(ctx).
+		Where("task_id = ? AND member_id = ?", taskID, memberID).
+		Delete(&models.TaskAssignee{}).Error
+}
+
+func (s *PostgresStore) ListTaskAssignees(ctx context.Context, taskID string) ([]models.Member, error) {
+	var members []models.Member
+	err := db.WithContext(ctx).
+		Joins("JOIN task_assignees ta ON ta.member_id = members.member_id").
+		Where("ta.task_id = ?", taskID).
+		Order("members.display_name ASC").
+		Find(&members).Error
+	if err != nil {
+		return nil, err
+	}
+	return members, nil
 }
 
 // Member audit log

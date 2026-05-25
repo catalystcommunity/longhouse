@@ -20,3 +20,13 @@ type MemberSkill struct {
 }
 
 func (MemberSkill) TableName() string { return "member_skills" }
+
+// GroupSkill is the join row in group_skills. Independent of MemberSkill —
+// the store doesn't transitively merge group skills into a member's list.
+type GroupSkill struct {
+	GroupID   string    `gorm:"column:group_id;primaryKey" json:"group_id"`
+	SkillID   string    `gorm:"column:skill_id;primaryKey" json:"skill_id"`
+	CreatedAt time.Time `gorm:"column:created_at;not null" json:"created_at"`
+}
+
+func (GroupSkill) TableName() string { return "group_skills" }

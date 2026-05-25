@@ -5,7 +5,7 @@ import { Avatar, AvatarStack } from "./Avatar";
 describe("Avatar", () => {
   it("renders initials and the swatch + size classes", () => {
     const { container } = render(() => (
-      <Avatar member={{ initials: "T", swatch: "a1" }} size="lg" />
+      <Avatar bits={{ initials: "T", swatch: "a1" }} size="lg" />
     ));
     const el = container.querySelector(".a")!;
     expect(el.textContent).toBe("T");
@@ -15,26 +15,26 @@ describe("Avatar", () => {
 
   it("defaults to medium size", () => {
     const { container } = render(() => (
-      <Avatar member={{ initials: "L", swatch: "a2" }} />
+      <Avatar bits={{ initials: "L", swatch: "a2" }} />
     ));
     expect(container.querySelector(".a")!.classList.contains("md")).toBe(true);
   });
 });
 
 describe("AvatarStack", () => {
-  const members = [
+  const bits = [
     { initials: "T", swatch: "a1" as const },
     { initials: "L", swatch: "a2" as const },
     { initials: "S", swatch: "a3" as const },
   ];
 
   it("renders one avatar per member", () => {
-    const { container } = render(() => <AvatarStack members={members} />);
+    const { container } = render(() => <AvatarStack bits={bits} />);
     expect(container.querySelectorAll(".who-mini .a")).toHaveLength(3);
   });
 
   it("caps at max", () => {
-    const { container } = render(() => <AvatarStack members={members} max={2} />);
+    const { container } = render(() => <AvatarStack bits={bits} max={2} />);
     expect(container.querySelectorAll(".who-mini .a")).toHaveLength(2);
   });
 });

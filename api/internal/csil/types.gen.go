@@ -39,6 +39,9 @@ type TrustedDomainID string
 // MemberAuditID is a type alias
 type MemberAuditID string
 
+// MilestoneID is a type alias
+type MilestoneID string
+
 // Timestamp is a type alias
 type Timestamp string
 
@@ -59,6 +62,9 @@ type ProjectStatus interface{}
 
 // RecurrenceFreq is a type alias
 type RecurrenceFreq interface{}
+
+// MilestoneState is a type alias
+type MilestoneState interface{}
 
 // House represents a structured data type
 type House struct {
@@ -137,6 +143,13 @@ type MemberSkill struct {
 	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
 }
 
+// GroupSkill represents a structured data type
+type GroupSkill struct {
+	GroupId   GroupID   `json:"group_id" yaml:"group_id"`
+	SkillId   SkillID   `json:"skill_id" yaml:"skill_id"`
+	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
+}
+
 // Group represents a structured data type
 type Group struct {
 	GroupId     GroupID   `json:"group_id" yaml:"group_id"`
@@ -160,6 +173,7 @@ type Project struct {
 	HouseId     HouseID        `json:"house_id" yaml:"house_id"`
 	Name        string         `json:"name" yaml:"name"`
 	Description *string        `json:"description,omitempty" yaml:"description,omitempty"`
+	Category    *string        `json:"category,omitempty" yaml:"category,omitempty"`
 	Status      *ProjectStatus `json:"status,omitempty" yaml:"status,omitempty"`
 	CreatedAt   Timestamp      `json:"created_at" yaml:"created_at"`
 	UpdatedAt   Timestamp      `json:"updated_at" yaml:"updated_at"`
@@ -171,6 +185,32 @@ type ProjectTask struct {
 	TaskId    TaskID    `json:"task_id" yaml:"task_id"`
 	Position  int64     `json:"position" yaml:"position"`
 	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
+}
+
+// ProjectMember represents a structured data type
+type ProjectMember struct {
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
+}
+
+// ProjectOwner represents a structured data type
+type ProjectOwner struct {
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
+}
+
+// Milestone represents a structured data type
+type Milestone struct {
+	MilestoneId MilestoneID    `json:"milestone_id" yaml:"milestone_id"`
+	ProjectId   ProjectID      `json:"project_id" yaml:"project_id"`
+	Label       string         `json:"label" yaml:"label"`
+	WhenLabel   string         `json:"when_label" yaml:"when_label"`
+	State       MilestoneState `json:"state" yaml:"state"`
+	Position    int64          `json:"position" yaml:"position"`
+	CreatedAt   Timestamp      `json:"created_at" yaml:"created_at"`
+	UpdatedAt   Timestamp      `json:"updated_at" yaml:"updated_at"`
 }
 
 // Event represents a structured data type
@@ -193,13 +233,15 @@ type Task struct {
 	TaskId               TaskID          `json:"task_id" yaml:"task_id"`
 	HouseId              HouseID         `json:"house_id" yaml:"house_id"`
 	OwnerMemberId        MemberID        `json:"owner_member_id" yaml:"owner_member_id"`
-	AssignedToMemberId   *MemberID       `json:"assigned_to_member_id,omitempty" yaml:"assigned_to_member_id,omitempty"`
+	Assignees            []MemberID      `json:"assignees,omitempty" yaml:"assignees,omitempty"`
 	AssignedToSkillId    *SkillID        `json:"assigned_to_skill_id,omitempty" yaml:"assigned_to_skill_id,omitempty"`
 	ParentTaskId         *TaskID         `json:"parent_task_id,omitempty" yaml:"parent_task_id,omitempty"`
 	Title                string          `json:"title" yaml:"title"`
 	Description          *string         `json:"description,omitempty" yaml:"description,omitempty"`
 	Status               *TaskStatus     `json:"status,omitempty" yaml:"status,omitempty"`
 	DueAt                *Timestamp      `json:"due_at,omitempty" yaml:"due_at,omitempty"`
+	Tag                  *string         `json:"tag,omitempty" yaml:"tag,omitempty"`
+	EstimateMinutes      *uint64         `json:"estimate_minutes,omitempty" yaml:"estimate_minutes,omitempty"`
 	RecurrenceFreq       *RecurrenceFreq `json:"recurrence_freq,omitempty" yaml:"recurrence_freq,omitempty"`
 	RecurrenceInterval   *int64          `json:"recurrence_interval,omitempty" yaml:"recurrence_interval,omitempty"`
 	RecurrenceByWeekday  []int64         `json:"recurrence_by_weekday,omitempty" yaml:"recurrence_by_weekday,omitempty"`
@@ -238,8 +280,10 @@ type Share struct {
 
 // HouseSummary represents a structured data type
 type HouseSummary struct {
-	HouseId HouseID `json:"house_id" yaml:"house_id"`
-	Name    string  `json:"name" yaml:"name"`
+	HouseId  HouseID  `json:"house_id" yaml:"house_id"`
+	Name     string   `json:"name" yaml:"name"`
+	MemberId MemberID `json:"member_id" yaml:"member_id"`
+	Roles    []string `json:"roles" yaml:"roles"`
 }
 
 // HouseRoles represents a structured data type
@@ -276,6 +320,27 @@ type LoginResponse struct {
 	UserId      string    `json:"user_id" yaml:"user_id"`
 	DisplayName *string   `json:"display_name,omitempty" yaml:"display_name,omitempty"`
 	ExpiresAt   Timestamp `json:"expires_at" yaml:"expires_at"`
+}
+
+// DevUserEntry represents a structured data type
+type DevUserEntry struct {
+	MemberId       MemberID `json:"member_id" yaml:"member_id"`
+	HouseId        HouseID  `json:"house_id" yaml:"house_id"`
+	HouseName      string   `json:"house_name" yaml:"house_name"`
+	DisplayName    *string  `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	LinkkeysDomain *string  `json:"linkkeys_domain,omitempty" yaml:"linkkeys_domain,omitempty"`
+	LinkkeysUserId *string  `json:"linkkeys_user_id,omitempty" yaml:"linkkeys_user_id,omitempty"`
+	Roles          []string `json:"roles" yaml:"roles"`
+}
+
+// DevUsersResponse represents a structured data type
+type DevUsersResponse struct {
+	Users []DevUserEntry `json:"users" yaml:"users"`
+}
+
+// DevLoginRequest represents a structured data type
+type DevLoginRequest struct {
+	MemberId MemberID `json:"member_id" yaml:"member_id"`
 }
 
 // MeResponse represents a structured data type
@@ -363,6 +428,12 @@ type MemberSkillRef struct {
 	SkillId  SkillID  `json:"skill_id" yaml:"skill_id"`
 }
 
+// GroupSkillRef represents a structured data type
+type GroupSkillRef struct {
+	GroupId GroupID `json:"group_id" yaml:"group_id"`
+	SkillId SkillID `json:"skill_id" yaml:"skill_id"`
+}
+
 // GroupMemberRef represents a structured data type
 type GroupMemberRef struct {
 	GroupId  GroupID  `json:"group_id" yaml:"group_id"`
@@ -380,6 +451,18 @@ type ProjectTaskOrderRequest struct {
 	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
 	TaskId    TaskID    `json:"task_id" yaml:"task_id"`
 	Position  int64     `json:"position" yaml:"position"`
+}
+
+// ProjectMemberRef represents a structured data type
+type ProjectMemberRef struct {
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+}
+
+// ProjectOwnerRef represents a structured data type
+type ProjectOwnerRef struct {
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
 }
 
 // ServiceError represents a structured data type
