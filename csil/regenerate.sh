@@ -14,8 +14,17 @@ SPEC="$REPO/csil/longhouse.csil"
 GO_OUT="$REPO/api/internal/csil"
 TS_OUT="$REPO/client/src/api"
 
+# csilgen is installed via `cargo install` and lives at ~/.cargo/bin/csilgen.
+# That directory isn't always on the non-interactive PATH (e.g. shells spawned
+# by editors/tools that don't source the user rc), so add it here rather than
+# forcing every caller to fix their environment.
+if [ -d "$HOME/.cargo/bin" ]; then
+    export PATH="$HOME/.cargo/bin:$PATH"
+fi
+
 if ! command -v csilgen >/dev/null; then
-    echo "ERROR: csilgen not on PATH" >&2
+    echo "ERROR: csilgen not on PATH (looked in \$PATH and ~/.cargo/bin)" >&2
+    echo "       install with: cargo install --git https://github.com/catalystcommunity/csilgen" >&2
     exit 1
 fi
 
@@ -31,12 +40,15 @@ if command -v gofmt >/dev/null; then
     gofmt -w "$GO_OUT"
 fi
 
-# ---- TypeScript types (client) ----
-# We only need the type declarations here; the SPA's LiveRepo is hand-written
-# against the existing REST endpoints today (the full RPC client comes later,
-# after the api grows CSIL-RPC endpoints).
+# ---- TypeScript client (SPA) ----
+# Emits both types.gen.ts (interfaces for every CSIL type) and client.gen.ts
+# (one class per service with typed methods that call into a pluggable
+# ServiceTransport). The SPA implements the transport once and gets typed
+# RPC stubs for every endpoint. The transport currently shims to the
+# existing REST routes; when the api grows CSIL-RPC endpoints, only the
+# transport implementation has to swap.
 mkdir -p "$TS_OUT"
-csilgen generate --input "$SPEC" --target typescript-typesonly --output "$TS_OUT"
+csilgen generate --input "$SPEC" --target typescript-client --output "$TS_OUT"
 
 echo "Regenerated:"
 echo "  Go: $(ls "$GO_OUT"/*.gen.go | wc -l) file(s) in $GO_OUT"

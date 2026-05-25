@@ -1,6 +1,6 @@
-import { jsonFetch } from "~/transport/http";
+import { authClient } from "~/data/clients";
 import { useSession } from "~/stores/auth";
-import { finishLogin, type LoginResponse } from "./session";
+import { finishLogin } from "./session";
 
 /**
  * Token-refresh loop. The bearer token is a mint-time snapshot of the
@@ -26,7 +26,7 @@ const tick = async () => {
   const expiresMs = Date.parse(s.expiresAt) - Date.now();
   if (Number.isNaN(expiresMs) || expiresMs > REFRESH_AHEAD_MS || expiresMs < 0) return;
   try {
-    const resp = await jsonFetch<LoginResponse>("/api/v1/auth/refresh", { method: "POST" });
+    const resp = await authClient.refresh({});
     await finishLogin(resp);
   } catch (e) {
     // eslint-disable-next-line no-console
@@ -36,5 +36,8 @@ const tick = async () => {
 
 export function startTokenRefresh() {
   void tick();
+  // App-lifetime timer: deliberately not retained or cleared. The SPA has
+  // no "shut down" path that would need cleanup, and the per-tick work is
+  // a no-op when there's no session.
   setInterval(() => void tick(), CHECK_INTERVAL_MS);
 }

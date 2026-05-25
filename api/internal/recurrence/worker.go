@@ -17,6 +17,12 @@ type WorkerStore interface {
 	CreateTask(ctx context.Context, task *models.Task) error
 	UpdateTask(ctx context.Context, task *models.Task) error
 	CreateComment(ctx context.Context, comment *models.Comment) error
+
+	// Used to copy the root task's assignees onto the freshly-spawned child.
+	// The recurrence flow is read-then-write, so this happens after the
+	// child has its task_id from CreateTask.
+	ListTaskAssignees(ctx context.Context, taskID string) ([]models.Member, error)
+	AddTaskAssignee(ctx context.Context, taskID, memberID string) error
 }
 
 // TickResult summarizes one Tick — useful for tests + observability.
@@ -74,6 +80,20 @@ func Tick(ctx context.Context, store WorkerStore, now time.Time) (*TickResult, e
 				continue
 			}
 			res.Spawned++
+
+			// Carry the root's assignees onto the child. A failure here is
+			// noted but doesn't abort the tick — an unassigned occurrence is
+			// still strictly better than no occurrence, and the next tick is
+			// not load-bearing on this one having succeeded.
+			if assignees, err := store.ListTaskAssignees(ctx, root.TaskID); err == nil {
+				for _, m := range assignees {
+					if err := store.AddTaskAssignee(ctx, dec.SpawnChild.TaskID, m.MemberID); err != nil {
+						res.Errors = append(res.Errors, err)
+					}
+				}
+			} else {
+				res.Errors = append(res.Errors, err)
+			}
 		}
 
 		// Bump the root forward.

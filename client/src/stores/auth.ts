@@ -1,4 +1,4 @@
-import { createSignal, createEffect } from "solid-js";
+import { createSignal, createEffect, createRoot } from "solid-js";
 
 /**
  * Auth store — the signed-in identity, the houses it can act in, and which
@@ -28,6 +28,12 @@ export interface Session {
 export interface House {
   id: string;
   name: string;
+  /** The caller's member_id in this house. Used by mutations and to filter
+   *  the caller out of self-aware lists (Active members, mentions, etc.). */
+  memberId: string;
+  /** Role names the caller holds in this house (e.g. ["admin", "member"]).
+   *  Server always re-checks; this is for UI gating of admin-only buttons. */
+  roles: string[];
 }
 
 const readSession = (): Session | null => {
@@ -55,22 +61,52 @@ const [currentHouseId, setCurrentHouseSig] = createSignal<string | null>(
   localStorage.getItem(HOUSE_KEY),
 );
 
-createEffect(() => {
-  const s = session();
-  if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-  else localStorage.removeItem(SESSION_KEY);
-});
-createEffect(() => localStorage.setItem(HOUSES_KEY, JSON.stringify(houses())));
-createEffect(() => {
-  const id = currentHouseId();
-  if (id) localStorage.setItem(HOUSE_KEY, id);
-  else localStorage.removeItem(HOUSE_KEY);
+// Owner-wrap these effects so Solid stops warning about
+// computations-without-an-owner. They are intentionally app-lifetime: the
+// auth store outlives every page in the SPA, so the createRoot dispose
+// handle is never called.
+createRoot(() => {
+  createEffect(() => {
+    const s = session();
+    if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    else localStorage.removeItem(SESSION_KEY);
+  });
+  createEffect(() => localStorage.setItem(HOUSES_KEY, JSON.stringify(houses())));
+  createEffect(() => {
+    const id = currentHouseId();
+    if (id) localStorage.setItem(HOUSE_KEY, id);
+    else localStorage.removeItem(HOUSE_KEY);
+  });
 });
 
 export const useSession = () => session;
 export const useHouses = () => houses;
 export const useCurrentHouseId = () => currentHouseId;
 export const isAuthenticated = () => session() !== null;
+
+/** Resolve the currently-selected House (full record, not just id). Returns
+ *  null when there's no session or no selection — components can use this
+ *  to read memberId/roles without juggling lookups themselves. */
+export const useCurrentHouse = () => () => {
+  const id = currentHouseId();
+  if (!id) return null;
+  return houses().find((h) => h.id === id) ?? null;
+};
+
+/** The caller's member_id in the currently-selected house, or null. */
+export const currentMemberId = (): string | null => useCurrentHouse()()?.memberId ?? null;
+
+/** Does the caller hold any of these role names in the current house? */
+export const hasRole = (...anyOf: string[]): boolean => {
+  const h = useCurrentHouse()();
+  if (!h) return false;
+  if (anyOf.length === 0) return true;
+  // h.roles is `string[]` on the type, but a session persisted before this
+  // field existed will deserialize without it. Tolerate either shape; a
+  // background /me refresh on startup heals the localStorage shape.
+  const roles = h.roles ?? [];
+  return anyOf.some((want) => roles.includes(want));
+};
 
 /** Synchronous token read for the transport on every request. */
 export const currentToken = (): string | null => session()?.token ?? null;

@@ -17,8 +17,11 @@ type fakeWorkerStore struct {
 	created    []models.Task
 	updated    []models.Task
 	comments   []models.Comment
-	failCreate bool
-	failUpdate bool
+	// task_id → assignees living on that task. Tests pre-seed assignees on
+	// the root; the worker copies them onto each spawned child.
+	assignees     map[string][]models.Member
+	failCreate    bool
+	failUpdate    bool
 }
 
 func (f *fakeWorkerStore) ListDueRecurringTasks(_ context.Context, _ time.Time, _ int) ([]models.Task, error) {
@@ -48,6 +51,21 @@ func (f *fakeWorkerStore) UpdateTask(_ context.Context, t *models.Task) error {
 func (f *fakeWorkerStore) CreateComment(_ context.Context, c *models.Comment) error {
 	c.CommentID = "comment-new"
 	f.comments = append(f.comments, *c)
+	return nil
+}
+
+func (f *fakeWorkerStore) ListTaskAssignees(_ context.Context, taskID string) ([]models.Member, error) {
+	if f.assignees == nil {
+		return nil, nil
+	}
+	return f.assignees[taskID], nil
+}
+
+func (f *fakeWorkerStore) AddTaskAssignee(_ context.Context, taskID, memberID string) error {
+	if f.assignees == nil {
+		f.assignees = map[string][]models.Member{}
+	}
+	f.assignees[taskID] = append(f.assignees[taskID], models.Member{MemberID: memberID})
 	return nil
 }
 
@@ -181,5 +199,39 @@ func TestTick_CreateChildErrorRecorded(t *testing.T) {
 func TestTick_NilStoreRejected(t *testing.T) {
 	if _, err := Tick(context.Background(), nil, time.Now()); err == nil {
 		t.Error("expected error for nil store")
+	}
+}
+
+// TestTick_AssigneesCopiedToChild — the old single assigned_to_member_id
+// column moved to a task_assignees join, and the recurrence worker now
+// owns the cross-row copy. Verify every assignee on the root lands on
+// the spawned child, in the right house.
+func TestTick_AssigneesCopiedToChild(t *testing.T) {
+	root := dueDailyRoot(t, "root-1", "2026-05-01T09:00:00Z")
+	store := &fakeWorkerStore{
+		due: []models.Task{root},
+		assignees: map[string][]models.Member{
+			root.TaskID: {{MemberID: "m-alice"}, {MemberID: "m-bob"}},
+		},
+	}
+	res, err := Tick(context.Background(), store, mustParse(t, "2026-05-01T09:01:00Z"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Spawned != 1 {
+		t.Fatalf("Spawned: got %d, want 1", res.Spawned)
+	}
+	if len(res.Errors) != 0 {
+		t.Fatalf("unexpected errors: %v", res.Errors)
+	}
+	got := store.assignees["child-new"]
+	if len(got) != 2 {
+		t.Fatalf("child assignees: got %d (%+v), want 2", len(got), got)
+	}
+	want := map[string]bool{"m-alice": true, "m-bob": true}
+	for _, m := range got {
+		if !want[m.MemberID] {
+			t.Errorf("unexpected assignee on child: %q", m.MemberID)
+		}
 	}
 }

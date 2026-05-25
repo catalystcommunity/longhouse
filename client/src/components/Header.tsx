@@ -10,7 +10,9 @@ const NAV = [
   { href: "/calendar", label: "Events" },
   { href: "/projects", label: "Projects" },
   { href: "/members",  label: "Members" },
-  { href: "/shares",   label: "Shares" },
+  { href: "/groups",   label: "Groups" },
+  { href: "/skills",   label: "Skills" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export const Header = () => {
@@ -30,8 +32,11 @@ export const Header = () => {
   };
 
   // Dev uses the dev-login picker (linkkeys usually isn't running locally);
-  // prod kicks off the real assertion flow at the api.
+  // prod kicks off the real assertion flow at the api. The prod path needs
+  // rel="external" on the anchor so @solidjs/router lets the browser hit
+  // the api instead of routing client-side and landing on the * Stub.
   const signInHref = import.meta.env.DEV ? "/dev-login" : "/api/v1/auth/start";
+  const signInRel = import.meta.env.DEV ? undefined : "external";
 
   // Display name first, falling back to memberId so we always show
   // *something* when authenticated. Initial = first letter of display name.
@@ -71,7 +76,7 @@ export const Header = () => {
         <Show
           when={session()}
           fallback={
-            <a href={signInHref} class="btn btn-ghost" style="padding: 6px 14px;">
+            <a href={signInHref} rel={signInRel} class="btn btn-ghost" style="padding: 6px 14px;">
               Sign in
             </a>
           }

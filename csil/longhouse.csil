@@ -19,6 +19,7 @@ CommentID     = text
 ShareID       = text
 TrustedDomainID = text
 MemberAuditID = text
+MilestoneID   = text
 Timestamp     = text  ;; RFC3339, always UTC
 
 TaskStatus       = "open" / "in_progress" / "done" / "cancelled"
@@ -27,6 +28,7 @@ AccessLevel      = "read"
 ResourceType     = "event" / "task" / "house"
 ProjectStatus    = "active" / "archived"
 RecurrenceFreq   = "hourly" / "daily" / "weekly" / "monthly" / "quarterly" / "yearly"
+MilestoneState   = "done" / "current" / "future"
 
 ;; ============================================================
 ;; House + Membership
@@ -149,6 +151,18 @@ MemberSkill = {
     created_at: Timestamp
 }
 
+;; A skill the group as a whole holds. Per-member skills (MemberSkill) and
+;; per-group skills (GroupSkill) are independent — the API doesn't auto-
+;; merge them. A UI that wants "what skills can this person reach?" should
+;; union them itself.
+GroupSkill = {
+    group_id: GroupID,
+    skill_id: SkillID,
+
+    @receive-only
+    created_at: Timestamp
+}
+
 ;; ============================================================
 ;; Groups
 ;; ============================================================
@@ -187,6 +201,7 @@ Project = {
     house_id: HouseID,
     name: text .size (1..256),
     ? description: text,
+    ? category: text,
     ? status: ProjectStatus .default "active",
 
     @receive-only
@@ -203,6 +218,47 @@ ProjectTask = {
 
     @receive-only
     created_at: Timestamp
+}
+
+;; ProjectMember + ProjectOwner are separate join tables so a project can
+;; surface both lists independently (the UI shows owners as a comma list
+;; and members as an avatar stack — different cardinality, different role
+;; weighting). Owners is a strict subset semantically, not enforced.
+ProjectMember = {
+    project_id: ProjectID,
+    member_id: MemberID,
+
+    @receive-only
+    created_at: Timestamp
+}
+
+ProjectOwner = {
+    project_id: ProjectID,
+    member_id: MemberID,
+
+    @receive-only
+    created_at: Timestamp
+}
+
+;; Project timeline markers. `position` orders them in the ribbon; `state`
+;; says where each one sits relative to today (driven by humans, not derived
+;; from `when_label` — the label is freeform display copy like "May" or
+;; "Jun 21").
+Milestone = {
+    @receive-only
+    milestone_id: MilestoneID,
+
+    project_id: ProjectID,
+    label: text .size (1..256),
+    when_label: text,
+    state: MilestoneState,
+    position: int,
+
+    @receive-only
+    created_at: Timestamp,
+
+    @receive-only
+    updated_at: Timestamp
 }
 
 ;; ============================================================
@@ -237,7 +293,12 @@ Task = {
     house_id: HouseID,
     owner_member_id: MemberID,
 
-    ? assigned_to_member_id: MemberID,
+    ;; assignees is a set of members responsible for the work. UI surfaces
+    ;; it as an avatar stack; first-listed is conventionally the lead but
+    ;; the data carries no ordering semantics. The old single
+    ;; `assigned_to_member_id` field was dropped in favor of this list.
+    ? assignees: [* MemberID],
+
     ? assigned_to_skill_id: SkillID,
     ? parent_task_id: TaskID,
 
@@ -245,6 +306,14 @@ Task = {
     ? description: text,
     ? status: TaskStatus .default "open",
     ? due_at: Timestamp,
+
+    ;; `tag` is a free-form bucket (e.g. "house", "barn", "calls"). Per-house
+    ;; tag tables can come later; for now any string is allowed. Used by the
+    ;; UI for the colored chip.
+    ? tag: text,
+
+    ;; Self-reported estimate in minutes. Rolled up by the dashboard.
+    ? estimate_minutes: uint,
 
     ? recurrence_freq: RecurrenceFreq,
     ? recurrence_interval: int .default 1,
@@ -306,9 +375,16 @@ Share = {
 ;; ============================================================
 
 ;; Lightweight house descriptor used in /me and (future) join flows.
+;; member_id is the caller's row in this house and roles is their snapshot
+;; for it — both come from the bearer's identity claim, no extra DB lookup
+;; required. UI uses these to render the current user, filter self-out
+;; from lists, and gate role-only affordances client-side (the server
+;; always re-checks).
 HouseSummary = {
     house_id: HouseID,
-    name: text
+    name: text,
+    member_id: MemberID,
+    roles: [* text]
 }
 
 ;; ---- Token payload ----------------------------------------------------
@@ -356,6 +432,31 @@ LoginResponse = {
     user_id: text,
     ? display_name: text,
     expires_at: Timestamp
+}
+
+;; ---- Dev-auth (local sign-in shortcut) -------------------------------
+;;
+;; DevAuthService is only registered when LONGHOUSE_DEV_AUTH_ENABLED=true
+;; AND LONGHOUSE_ENV ∈ {dev, nonprod}. Production routers refuse to mount
+;; it. The picker (ListDevUsers) enumerates every member across every
+;; house so the SPA can offer a one-click sign-in.
+
+DevUserEntry = {
+    member_id: MemberID,
+    house_id: HouseID,
+    house_name: text,
+    ? display_name: text,
+    ? linkkeys_domain: text,
+    ? linkkeys_user_id: text,
+    roles: [* text]
+}
+
+DevUsersResponse = {
+    users: [* DevUserEntry]
+}
+
+DevLoginRequest = {
+    member_id: MemberID
 }
 
 ;; /me — identity + houses for the in-app switcher. Houses come from the
@@ -435,6 +536,11 @@ MemberSkillRef = {
     skill_id: SkillID
 }
 
+GroupSkillRef = {
+    group_id: GroupID,
+    skill_id: SkillID
+}
+
 GroupMemberRef = {
     group_id: GroupID,
     member_id: MemberID
@@ -449,6 +555,16 @@ ProjectTaskOrderRequest = {
     project_id: ProjectID,
     task_id: TaskID,
     position: int
+}
+
+ProjectMemberRef = {
+    project_id: ProjectID,
+    member_id: MemberID
+}
+
+ProjectOwnerRef = {
+    project_id: ProjectID,
+    member_id: MemberID
 }
 
 ;; ============================================================
@@ -474,6 +590,13 @@ service AuthService {
     complete: CompleteRequest -> LoginResponse / ServiceError,
     refresh:  EmptyRequest    -> LoginResponse / ServiceError,
     me:       EmptyRequest    -> MeResponse    / ServiceError
+}
+
+;; Dev-only shortcut: bypasses the linkkeys assertion exchange to mint a
+;; real identity token. Service is absent from the dispatcher in prod.
+service DevAuthService {
+    list-dev-users: EmptyRequest    -> DevUsersResponse / ServiceError,
+    dev-login:      DevLoginRequest -> LoginResponse    / ServiceError
 }
 
 service HouseService {
@@ -517,7 +640,10 @@ service SkillService {
     list-skills: HouseScopedListRequest -> [* Skill] / ServiceError,
     add-member-skill: MemberSkillRef -> EmptyResponse / ServiceError,
     remove-member-skill: MemberSkillRef -> EmptyResponse / ServiceError,
-    list-member-skills: MemberScopedListRequest -> [* Skill] / ServiceError
+    list-member-skills: MemberScopedListRequest -> [* Skill] / ServiceError,
+    add-group-skill: GroupSkillRef -> EmptyResponse / ServiceError,
+    remove-group-skill: GroupSkillRef -> EmptyResponse / ServiceError,
+    list-group-skills: GroupID -> [* Skill] / ServiceError
 }
 
 service GroupService {
@@ -532,13 +658,27 @@ service GroupService {
 
 service ProjectService {
     create-project: Project -> Project / ServiceError,
+    get-project: ProjectID -> Project / ServiceError,
     update-project: Project -> Project / ServiceError,
     delete-project: ProjectID -> EmptyResponse / ServiceError,
     list-projects: HouseScopedListRequest -> [* Project] / ServiceError,
     list-project-tasks: ProjectScopedListRequest -> [* Task] / ServiceError,
     add-project-task: ProjectTaskOrderRequest -> EmptyResponse / ServiceError,
     remove-project-task: ProjectTaskRef -> EmptyResponse / ServiceError,
-    set-project-task-position: ProjectTaskOrderRequest -> EmptyResponse / ServiceError
+    set-project-task-position: ProjectTaskOrderRequest -> EmptyResponse / ServiceError,
+
+    list-project-members: ProjectID -> [* Member] / ServiceError,
+    add-project-member: ProjectMemberRef -> EmptyResponse / ServiceError,
+    remove-project-member: ProjectMemberRef -> EmptyResponse / ServiceError,
+
+    list-project-owners: ProjectID -> [* Member] / ServiceError,
+    add-project-owner: ProjectOwnerRef -> EmptyResponse / ServiceError,
+    remove-project-owner: ProjectOwnerRef -> EmptyResponse / ServiceError,
+
+    list-milestones: ProjectID -> [* Milestone] / ServiceError,
+    create-milestone: Milestone -> Milestone / ServiceError,
+    update-milestone: Milestone -> Milestone / ServiceError,
+    delete-milestone: MilestoneID -> EmptyResponse / ServiceError
 }
 
 service EventService {

@@ -15,6 +15,12 @@ type AuthService interface {
 	Me(ctx context.Context, req EmptyRequest) (interface{}, error)
 }
 
+// DevAuthService defines the service interface
+type DevAuthService interface {
+	ListDevUsers(ctx context.Context, req EmptyRequest) (interface{}, error)
+	DevLogin(ctx context.Context, req DevLoginRequest) (interface{}, error)
+}
+
 // HouseService defines the service interface
 type HouseService interface {
 	CreateHouse(ctx context.Context, req House) (interface{}, error)
@@ -62,6 +68,9 @@ type SkillService interface {
 	AddMemberSkill(ctx context.Context, req MemberSkillRef) (interface{}, error)
 	RemoveMemberSkill(ctx context.Context, req MemberSkillRef) (interface{}, error)
 	ListMemberSkills(ctx context.Context, req MemberScopedListRequest) (interface{}, error)
+	AddGroupSkill(ctx context.Context, req GroupSkillRef) (interface{}, error)
+	RemoveGroupSkill(ctx context.Context, req GroupSkillRef) (interface{}, error)
+	ListGroupSkills(ctx context.Context, req GroupID) (interface{}, error)
 }
 
 // GroupService defines the service interface
@@ -78,6 +87,7 @@ type GroupService interface {
 // ProjectService defines the service interface
 type ProjectService interface {
 	CreateProject(ctx context.Context, req Project) (interface{}, error)
+	GetProject(ctx context.Context, req ProjectID) (interface{}, error)
 	UpdateProject(ctx context.Context, req Project) (interface{}, error)
 	DeleteProject(ctx context.Context, req ProjectID) (interface{}, error)
 	ListProjects(ctx context.Context, req HouseScopedListRequest) (interface{}, error)
@@ -85,6 +95,16 @@ type ProjectService interface {
 	AddProjectTask(ctx context.Context, req ProjectTaskOrderRequest) (interface{}, error)
 	RemoveProjectTask(ctx context.Context, req ProjectTaskRef) (interface{}, error)
 	SetProjectTaskPosition(ctx context.Context, req ProjectTaskOrderRequest) (interface{}, error)
+	ListProjectMembers(ctx context.Context, req ProjectID) (interface{}, error)
+	AddProjectMember(ctx context.Context, req ProjectMemberRef) (interface{}, error)
+	RemoveProjectMember(ctx context.Context, req ProjectMemberRef) (interface{}, error)
+	ListProjectOwners(ctx context.Context, req ProjectID) (interface{}, error)
+	AddProjectOwner(ctx context.Context, req ProjectOwnerRef) (interface{}, error)
+	RemoveProjectOwner(ctx context.Context, req ProjectOwnerRef) (interface{}, error)
+	ListMilestones(ctx context.Context, req ProjectID) (interface{}, error)
+	CreateMilestone(ctx context.Context, req Milestone) (interface{}, error)
+	UpdateMilestone(ctx context.Context, req Milestone) (interface{}, error)
+	DeleteMilestone(ctx context.Context, req MilestoneID) (interface{}, error)
 }
 
 // EventService defines the service interface

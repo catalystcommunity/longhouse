@@ -52,6 +52,10 @@ type Store interface {
 	AssignSkill(ctx context.Context, memberID, skillID string) error
 	UnassignSkill(ctx context.Context, memberID, skillID string) error
 	ListSkillsForMember(ctx context.Context, memberID string) ([]models.Skill, error)
+	// Group-skill: relates a skill to a group (parallel to MemberSkill).
+	AssignGroupSkill(ctx context.Context, groupID, skillID string) error
+	UnassignGroupSkill(ctx context.Context, groupID, skillID string) error
+	ListSkillsForGroup(ctx context.Context, groupID string) ([]models.Skill, error)
 
 	// Group operations
 	CreateGroup(ctx context.Context, group *models.Group) error
@@ -76,6 +80,22 @@ type Store interface {
 	AddProjectTask(ctx context.Context, projectID, taskID string, position int) error
 	RemoveProjectTask(ctx context.Context, projectID, taskID string) error
 	ListProjectTasks(ctx context.Context, projectID string, limit, offset int) ([]models.Task, error)
+
+	// Project membership and ownership (separate join tables; owners is the
+	// smaller set the UI surfaces independently of members).
+	AddProjectMember(ctx context.Context, projectID, memberID string) error
+	RemoveProjectMember(ctx context.Context, projectID, memberID string) error
+	ListProjectMembers(ctx context.Context, projectID string) ([]models.Member, error)
+	AddProjectOwner(ctx context.Context, projectID, memberID string) error
+	RemoveProjectOwner(ctx context.Context, projectID, memberID string) error
+	ListProjectOwners(ctx context.Context, projectID string) ([]models.Member, error)
+
+	// Milestones — timeline markers per project, ordered by position.
+	CreateMilestone(ctx context.Context, m *models.Milestone) error
+	UpdateMilestone(ctx context.Context, m *models.Milestone) error
+	DeleteMilestone(ctx context.Context, milestoneID string) error
+	GetMilestoneByID(ctx context.Context, milestoneID string) (*models.Milestone, error)
+	ListMilestonesByProject(ctx context.Context, projectID string) ([]models.Milestone, error)
 
 	// Member audit log
 	RecordMemberAudit(ctx context.Context, audit *models.MemberAudit) error
@@ -105,6 +125,11 @@ type Store interface {
 	UpdateTask(ctx context.Context, task *models.Task) error
 	DeleteTask(ctx context.Context, taskID string) error
 	ListTasksByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Task, error)
+
+	// Task assignees (set semantics — order is not preserved).
+	AddTaskAssignee(ctx context.Context, taskID, memberID string) error
+	RemoveTaskAssignee(ctx context.Context, taskID, memberID string) error
+	ListTaskAssignees(ctx context.Context, taskID string) ([]models.Member, error)
 
 	// Comment operations
 	CreateComment(ctx context.Context, comment *models.Comment) error
