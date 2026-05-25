@@ -15,11 +15,20 @@ FROM caddy:2-alpine
 COPY --from=builder /build/client/dist /usr/share/caddy
 COPY client/Caddyfile /etc/caddy/Caddyfile
 
-# Run as a non-root user. Caddy binds 4080 (non-privileged), there's no
-# automatic_https, and we never write to /data or /config at runtime —
-# but Caddy touches them on startup, so chown them to the user we'll run
-# as. Matches typical PSA-restricted k8s clusters out of the box.
-RUN chown -R 1000:1000 /data /config /usr/share/caddy
+# The upstream caddy image runs `setcap cap_net_bind_service=+ep` on
+# /usr/bin/caddy so it can bind 80/443 without root. That file
+# capability is incompatible with PSA-restricted's
+# allowPrivilegeEscalation: false — the kernel refuses to exec the
+# binary (EPERM: "operation not permitted"). We bind :4080, which is
+# non-privileged, so the capability is unnecessary. Strip it.
+RUN setcap -r /usr/bin/caddy || true
+
+# Caddy creates its XDG storage dirs at startup even when no feature
+# uses them. With readOnlyRootFilesystem: true on the pod, /data and
+# /config are unwritable at runtime — redirect to /tmp (the only path
+# k8s reliably gives us as a writable tmpfs).
+ENV XDG_CONFIG_HOME=/tmp/caddy-config
+ENV XDG_DATA_HOME=/tmp/caddy-data
 
 EXPOSE 4080
 USER 1000:1000
