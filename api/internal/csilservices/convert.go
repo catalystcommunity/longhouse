@@ -196,19 +196,33 @@ func milestonesToCSIL(rs []models.Milestone) []csil.Milestone {
 // ---- Event ------------------------------------------------------------
 
 func eventToCSIL(e *models.Event) csil.Event {
-	return csil.Event{
-		EventId:       csil.EventID(e.EventID),
-		HouseId:       csil.HouseID(e.HouseID),
-		OwnerMemberId: csil.MemberID(e.OwnerMemberID),
-		Title:         e.Title,
-		Description:   strPtrCopy(e.Description),
-		Location:      strPtrCopy(e.Location),
-		StartsAt:      tsPtr(e.StartsAt),
-		EndsAt:        tsPtr(e.EndsAt),
-		AllDay:        boolPtr(e.AllDay),
-		CreatedAt:     ts(e.CreatedAt),
-		UpdatedAt:     ts(e.UpdatedAt),
+	out := csil.Event{
+		EventId:          csil.EventID(e.EventID),
+		HouseId:          csil.HouseID(e.HouseID),
+		OwnerMemberId:    csil.MemberID(e.OwnerMemberID),
+		Title:            e.Title,
+		Description:      strPtrCopy(e.Description),
+		Location:         strPtrCopy(e.Location),
+		StartsAt:         tsPtr(e.StartsAt),
+		EndsAt:           tsPtr(e.EndsAt),
+		AllDay:           boolPtr(e.AllDay),
+		NextRecurrenceAt: tsPtr(e.NextRecurrenceAt),
+		CreatedAt:        ts(e.CreatedAt),
+		UpdatedAt:        ts(e.UpdatedAt),
 	}
+	if e.RecurrenceFreq != nil {
+		var v csil.RecurrenceFreq = *e.RecurrenceFreq
+		out.RecurrenceFreq = &v
+	}
+	if e.RecurrenceInterval > 0 {
+		ri := int64(e.RecurrenceInterval)
+		out.RecurrenceInterval = &ri
+	}
+	if e.RecurrenceRootEventID != nil {
+		v := csil.EventID(*e.RecurrenceRootEventID)
+		out.RecurrenceRootEventId = &v
+	}
+	return out
 }
 
 func eventsToCSIL(rs []models.Event) []csil.Event {

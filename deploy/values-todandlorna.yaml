@@ -54,8 +54,15 @@ gateway:
       parentGateway: contour
       parentNamespace: projectcontour
       parentSection: http
+      # The api also rides on the web hostname under /api/* so the SPA's
+      # relative fetches reach it without CORS. Gateway API breaks ties
+      # by path-match specificity, so /api here wins over the web
+      # route's un-prefixed match on the same hostname.
       hostnames:
         - longhouse-api.todandlorna.com
+        - longhouse.todandlorna.com
+      pathPrefixes:
+        - /api
     web:
       enabled: true
       parentGateway: contour

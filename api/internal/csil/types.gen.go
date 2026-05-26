@@ -215,17 +215,21 @@ type Milestone struct {
 
 // Event represents a structured data type
 type Event struct {
-	EventId       EventID    `json:"event_id" yaml:"event_id"`
-	HouseId       HouseID    `json:"house_id" yaml:"house_id"`
-	OwnerMemberId MemberID   `json:"owner_member_id" yaml:"owner_member_id"`
-	Title         string     `json:"title" yaml:"title"`
-	Description   *string    `json:"description,omitempty" yaml:"description,omitempty"`
-	Location      *string    `json:"location,omitempty" yaml:"location,omitempty"`
-	StartsAt      *Timestamp `json:"starts_at,omitempty" yaml:"starts_at,omitempty"`
-	EndsAt        *Timestamp `json:"ends_at,omitempty" yaml:"ends_at,omitempty"`
-	AllDay        *bool      `json:"all_day,omitempty" yaml:"all_day,omitempty"`
-	CreatedAt     Timestamp  `json:"created_at" yaml:"created_at"`
-	UpdatedAt     Timestamp  `json:"updated_at" yaml:"updated_at"`
+	EventId               EventID         `json:"event_id" yaml:"event_id"`
+	HouseId               HouseID         `json:"house_id" yaml:"house_id"`
+	OwnerMemberId         MemberID        `json:"owner_member_id" yaml:"owner_member_id"`
+	Title                 string          `json:"title" yaml:"title"`
+	Description           *string         `json:"description,omitempty" yaml:"description,omitempty"`
+	Location              *string         `json:"location,omitempty" yaml:"location,omitempty"`
+	StartsAt              *Timestamp      `json:"starts_at,omitempty" yaml:"starts_at,omitempty"`
+	EndsAt                *Timestamp      `json:"ends_at,omitempty" yaml:"ends_at,omitempty"`
+	AllDay                *bool           `json:"all_day,omitempty" yaml:"all_day,omitempty"`
+	RecurrenceFreq        *RecurrenceFreq `json:"recurrence_freq,omitempty" yaml:"recurrence_freq,omitempty"`
+	RecurrenceInterval    *int64          `json:"recurrence_interval,omitempty" yaml:"recurrence_interval,omitempty"`
+	NextRecurrenceAt      *Timestamp      `json:"next_recurrence_at,omitempty" yaml:"next_recurrence_at,omitempty"`
+	RecurrenceRootEventId *EventID        `json:"recurrence_root_event_id,omitempty" yaml:"recurrence_root_event_id,omitempty"`
+	CreatedAt             Timestamp       `json:"created_at" yaml:"created_at"`
+	UpdatedAt             Timestamp       `json:"updated_at" yaml:"updated_at"`
 }
 
 // Task represents a structured data type
