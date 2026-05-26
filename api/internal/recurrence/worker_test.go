@@ -69,6 +69,17 @@ func (f *fakeWorkerStore) AddTaskAssignee(_ context.Context, taskID, memberID st
 	return nil
 }
 
+// Event-recurrence surface — the existing task-recurrence tests don't
+// exercise events, so these stubs just return empty.
+func (f *fakeWorkerStore) ListDueRecurringEvents(_ context.Context, _ time.Time, _ int) ([]models.Event, error) {
+	return nil, nil
+}
+func (f *fakeWorkerStore) LatestRecurrenceChildOfEvent(_ context.Context, _ string) (*models.Event, error) {
+	return nil, nil
+}
+func (f *fakeWorkerStore) CreateEvent(_ context.Context, _ *models.Event) error { return nil }
+func (f *fakeWorkerStore) UpdateEvent(_ context.Context, _ *models.Event) error { return nil }
+
 type errBoom string
 
 func (e errBoom) Error() string { return string(e) }

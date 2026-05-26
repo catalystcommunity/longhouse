@@ -119,6 +119,14 @@ type Store interface {
 	DeleteEvent(ctx context.Context, eventID string) error
 	ListEventsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Event, error)
 
+	// Recurrence-spawn helpers — the worker reads ListDueRecurringEvents
+	// to find roots that need a fresh child, LatestRecurrenceChildOfEvent
+	// to know where it left off, and DeleteEventsAfter to honor the
+	// "delete this and future" flow.
+	ListDueRecurringEvents(ctx context.Context, before time.Time, limit int) ([]models.Event, error)
+	LatestRecurrenceChildOfEvent(ctx context.Context, rootEventID string) (*models.Event, error)
+	DeleteEventsAfter(ctx context.Context, rootEventID string, fromInclusive time.Time) error
+
 	// Task operations
 	CreateTask(ctx context.Context, task *models.Task) error
 	GetTaskByID(ctx context.Context, taskID string) (*models.Task, error)

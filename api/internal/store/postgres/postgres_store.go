@@ -617,6 +617,51 @@ func (s *PostgresStore) ListEventsByHouse(ctx context.Context, houseID string, l
 	return events, nil
 }
 
+// Event-recurrence spawning. Roots: rows that have recurrence_freq set AND
+// a next_recurrence_at <= now. Children: rows with recurrence_root_event_id
+// set. The worker fetches roots, asks for the latest child to know where
+// it left off, then inserts the next occurrence and bumps the root's
+// next_recurrence_at forward.
+
+func (s *PostgresStore) ListDueRecurringEvents(ctx context.Context, before time.Time, limit int) ([]models.Event, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	var events []models.Event
+	err := db.WithContext(ctx).
+		Where("recurrence_freq IS NOT NULL AND next_recurrence_at IS NOT NULL AND next_recurrence_at <= ?", before).
+		Order("next_recurrence_at ASC").
+		Limit(limit).
+		Find(&events).Error
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
+}
+
+func (s *PostgresStore) LatestRecurrenceChildOfEvent(ctx context.Context, rootEventID string) (*models.Event, error) {
+	var event models.Event
+	err := db.WithContext(ctx).
+		Where("recurrence_root_event_id = ?", rootEventID).
+		Order("starts_at DESC NULLS LAST").
+		First(&event).Error
+	if err != nil {
+		return nil, err
+	}
+	return &event, nil
+}
+
+// DeleteEventsAfter hard-deletes any child of `rootEventID` whose
+// `starts_at` is >= `fromInclusive`. Used by the "delete this and future"
+// flow; the root itself is not touched here — callers typically clear
+// the root's recurrence_freq + next_recurrence_at separately so the
+// spawner stops respawning.
+func (s *PostgresStore) DeleteEventsAfter(ctx context.Context, rootEventID string, fromInclusive time.Time) error {
+	return db.WithContext(ctx).
+		Where("recurrence_root_event_id = ? AND starts_at >= ?", rootEventID, fromInclusive).
+		Delete(&models.Event{}).Error
+}
+
 // Task operations
 
 func (s *PostgresStore) CreateTask(ctx context.Context, task *models.Task) error {

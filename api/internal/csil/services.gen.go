@@ -113,6 +113,7 @@ type EventService interface {
 	GetEvent(ctx context.Context, req EventID) (interface{}, error)
 	UpdateEvent(ctx context.Context, req Event) (interface{}, error)
 	DeleteEvent(ctx context.Context, req EventID) (interface{}, error)
+	DeleteEventAndFuture(ctx context.Context, req EventID) (interface{}, error)
 	ListEvents(ctx context.Context, req HouseScopedListRequest) (interface{}, error)
 }
 

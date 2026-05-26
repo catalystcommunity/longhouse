@@ -259,3 +259,15 @@ func (recurrenceStore) ListTaskAssignees(ctx context.Context, taskID string) ([]
 func (recurrenceStore) AddTaskAssignee(ctx context.Context, taskID, memberID string) error {
 	return store.AppStore.AddTaskAssignee(ctx, taskID, memberID)
 }
+func (recurrenceStore) ListDueRecurringEvents(ctx context.Context, before time.Time, limit int) ([]models.Event, error) {
+	return store.AppStore.ListDueRecurringEvents(ctx, before, limit)
+}
+func (recurrenceStore) LatestRecurrenceChildOfEvent(ctx context.Context, rootEventID string) (*models.Event, error) {
+	return store.AppStore.LatestRecurrenceChildOfEvent(ctx, rootEventID)
+}
+func (recurrenceStore) CreateEvent(ctx context.Context, event *models.Event) error {
+	return store.AppStore.CreateEvent(ctx, event)
+}
+func (recurrenceStore) UpdateEvent(ctx context.Context, event *models.Event) error {
+	return store.AppStore.UpdateEvent(ctx, event)
+}

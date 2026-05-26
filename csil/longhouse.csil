@@ -279,6 +279,19 @@ Event = {
     ? ends_at: Timestamp,
     ? all_day: bool .default false,
 
+    ;; Recurrence. When `recurrence_freq` is set, the row is the root of a
+    ;; series; the server's recurrence worker spawns real Event rows for
+    ;; each occurrence up to a configurable horizon (default 2 years). The
+    ;; spawned children carry `recurrence_root_event_id` pointing at the
+    ;; root and have their own `starts_at`/`ends_at` at the right offset.
+    ;; Editing the root edits the series; deleting an instance removes
+    ;; just that row, and a "delete this and future" flow clears the
+    ;; root's recurrence so the spawner stops respawning.
+    ? recurrence_freq: RecurrenceFreq,
+    ? recurrence_interval: int .default 1,
+    ? next_recurrence_at: Timestamp,
+    ? recurrence_root_event_id: EventID,
+
     @receive-only
     created_at: Timestamp,
 
@@ -686,6 +699,14 @@ service EventService {
     get-event: EventID -> Event / ServiceError,
     update-event: Event -> Event / ServiceError,
     delete-event: EventID -> EmptyResponse / ServiceError,
+    ;; Drops the given event and any future occurrences of its series:
+    ;;   * If the event is a recurring root, deletes the root (CASCADE
+    ;;     wipes every child).
+    ;;   * If the event is an instance (recurrence_root_event_id set),
+    ;;     deletes that instance, every later instance, and clears the
+    ;;     root's recurrence_freq + next_recurrence_at so the spawner
+    ;;     stops respawning into the now-empty future.
+    delete-event-and-future: EventID -> EmptyResponse / ServiceError,
     list-events: HouseScopedListRequest -> [* Event] / ServiceError
 }
 

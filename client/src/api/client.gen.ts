@@ -152,6 +152,14 @@ export class EventClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) defined by the transport
    */
+  deleteEventAndFuture(req: EventID, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
+    return this.t.call<EventID, EmptyResponse>("event", "DeleteEventAndFuture", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
   listEvents(req: HouseScopedListRequest, opts?: { signal?: AbortSignal }): Promise<Event[]> {
     return this.t.call<HouseScopedListRequest, Event[]>("event", "ListEvents", req, opts);
   }

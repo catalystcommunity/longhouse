@@ -185,6 +185,10 @@ export interface Event {
   startsAt?: Timestamp;
   endsAt?: Timestamp;
   allDay?: boolean;
+  recurrenceFreq?: RecurrenceFreq;
+  recurrenceInterval?: number;
+  nextRecurrenceAt?: Timestamp;
+  recurrenceRootEventId?: EventID;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

@@ -1,8 +1,9 @@
-import { For, Show, createMemo, createResource } from "solid-js";
+import { For, Show, createMemo, createResource, createSignal } from "solid-js";
 import { HeroScene } from "~/components/HeroScene";
 import { Check, Pin, Plus } from "~/components/Icons";
 import { AuthGate } from "~/components/AuthGate";
 import { AvatarStack } from "~/components/Avatar";
+import { TaskDetailEditor } from "~/components/TaskDetailEditor";
 import { eventClient, memberClient, projectClient, taskClient } from "~/data/clients";
 import {
   dashboardKicker,
@@ -25,7 +26,7 @@ export const Dashboard = () => {
   const houseId = useCurrentHouseId();
   const session = useSession();
 
-  const [tasks] = createResource(
+  const [tasks, { refetch: refetchTasks }] = createResource(
     () => houseId(),
     async (h) => taskClient.listTasks({ houseId: h }),
   );
@@ -49,8 +50,22 @@ export const Dashboard = () => {
   });
 
   const tasksOpen = createMemo(() => (tasks() ?? []).filter((t) => !t.deletedAt && !isTaskClosed(t)));
-  const tasksToday = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "today"));
-  const tasksWeek  = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "week"));
+  // Dashboard task buckets, in display order. Overdue and today come first
+  // (action items), then anything due this week, then undated work the
+  // member should still see ("things I just need to get done"), then later
+  // work last so the dashboard doesn't hide it but also doesn't shout it.
+  const tasksOverdue = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "overdue"));
+  const tasksToday   = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "today"));
+  const tasksWeek    = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "week"));
+  const tasksNoDate  = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "noDate"));
+  const tasksLater   = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "later"));
+  // Recently completed — newest 5 by updated_at, so the dashboard always
+  // shows what was just finished. status === "done" only (cancelled gets
+  // its own bucket if we ever surface one).
+  const tasksRecent  = createMemo(() => (tasks() ?? [])
+    .filter((t) => !t.deletedAt && t.status === "done")
+    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+    .slice(0, 5));
 
   const activeMembers = createMemo(
     () => (members() ?? []).filter((m) => memberStatus(m) === "active").length,
@@ -117,18 +132,34 @@ export const Dashboard = () => {
           </div>
 
           <Show when={!tasks.loading} fallback={<p style="padding:18px;color:var(--ink-mute)">Loading…</p>}>
-            <Show when={tasksToday().length + tasksWeek().length > 0} fallback={<EmptyTasks />}>
+            <Show when={tasksOpen().length > 0} fallback={<EmptyTasks />}>
               <div class="tasks">
+                <Show when={tasksOverdue().length > 0}>
+                  <div class="group-lbl">Overdue</div>
+                  <For each={tasksOverdue()}>{(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}</For>
+                </Show>
                 <Show when={tasksToday().length > 0}>
                   <div class="group-lbl">Today</div>
-                  <For each={tasksToday()}>
-                    {(t) => <TaskRow task={t} byId={memberById()} />}
-                  </For>
+                  <For each={tasksToday()}>{(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}</For>
                 </Show>
                 <Show when={tasksWeek().length > 0}>
                   <div class="group-lbl">This week</div>
-                  <For each={tasksWeek()}>
-                    {(t) => <TaskRow task={t} byId={memberById()} />}
+                  <For each={tasksWeek()}>{(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}</For>
+                </Show>
+                <Show when={tasksNoDate().length > 0}>
+                  <div class="group-lbl">No due date</div>
+                  <For each={tasksNoDate()}>{(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}</For>
+                </Show>
+                <Show when={tasksLater().length > 0}>
+                  <div class="group-lbl">Later</div>
+                  <For each={tasksLater()}>{(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}</For>
+                </Show>
+                <Show when={tasksRecent().length > 0}>
+                  <div class="group-lbl" style="margin-top:18px;color:var(--ink-mute)">
+                    Recently completed
+                  </div>
+                  <For each={tasksRecent()}>
+                    {(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}
                   </For>
                 </Show>
               </div>
@@ -220,7 +251,7 @@ const ownMemberId = (): string | undefined => currentMemberId() ?? undefined;
 
 const EmptyTasks = () => (
   <div style="padding:24px;color:var(--ink-mute);text-align:center">
-    <p style="margin:0"><b>No tasks due today or this week.</b></p>
+    <p style="margin:0"><b>No open tasks.</b></p>
   </div>
 );
 
@@ -231,31 +262,78 @@ const Stat = (props: { n: number; label: string }) => (
   </div>
 );
 
-const TaskRow = (props: { task: Task; byId: Map<string, Member> }) => {
+const TaskRow = (props: {
+  task: Task;
+  byId: Map<string, Member>;
+  members: Member[];
+  onMutate: () => Promise<unknown>;
+}) => {
+  const [busy, setBusy] = createSignal(false);
+  const [showDetail, setShowDetail] = createSignal(false);
+  const closed = () => isTaskClosed(props.task);
+
+  const toggleDone = async () => {
+    if (busy()) return;
+    setBusy(true);
+    try {
+      await taskClient.updateTask({
+        ...props.task,
+        status: closed() ? "open" : "done",
+      } as any);
+      await props.onMutate();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const assignees = () =>
     (props.task.assignees ?? [])
       .map((mid) => props.byId.get(mid))
       .filter((m): m is Member => Boolean(m))
       .map(toAvatar);
+
   return (
-    <div class="task">
-      <div class="check"><Check /></div>
-      <div>
-        <div class="t-title">{props.task.title}</div>
-        <div class="t-meta">
-          <Show when={props.task.tag}>
-            {(tag) => <span class={`tag ${(tag() ?? "").toLowerCase()}`}>{cap(tag()!)}</span>}
-          </Show>
-          <Show when={dueLabel(props.task)}>
-            {(label) => <><span class="dot" />{label()}</>}
+    <div>
+      <div class={`task ${closed() ? "done" : ""}`} style={busy() ? "opacity:0.5;pointer-events:none" : ""}>
+        <button
+          class="check"
+          title={closed() ? "Mark as open" : "Mark as done"}
+          onClick={(ev) => { ev.stopPropagation(); toggleDone(); }}
+          style="cursor:pointer"
+        >
+          <Check />
+        </button>
+        <div
+          onClick={() => setShowDetail((v) => !v)}
+          title="Click to view / edit"
+          style="cursor:pointer;min-width:0"
+        >
+          <div class="t-title">{props.task.title}</div>
+          <div class="t-meta">
+            <Show when={props.task.tag}>
+              {(tag) => <span class={`tag ${(tag() ?? "").toLowerCase()}`}>{cap(tag()!)}</span>}
+            </Show>
+            <Show when={dueLabel(props.task)}>
+              {(label) => <><span class="dot" />{label()}</>}
+            </Show>
+          </div>
+        </div>
+        <div class="t-end">
+          <Show when={assignees().length > 0}>
+            <AvatarStack bits={assignees()} />
           </Show>
         </div>
       </div>
-      <div class="t-end">
-        <Show when={assignees().length > 0}>
-          <AvatarStack bits={assignees()} />
-        </Show>
-      </div>
+
+      <Show when={showDetail()}>
+        <TaskDetailEditor
+          task={props.task}
+          members={props.members}
+          onClose={() => setShowDetail(false)}
+          onSaved={async () => { await props.onMutate(); }}
+          onDelete={async () => { await taskClient.deleteTask(props.task.taskId); await props.onMutate(); }}
+        />
+      </Show>
     </div>
   );
 };
