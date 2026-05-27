@@ -97,6 +97,9 @@ func buildHTTPHandler() (http.Handler, error) {
 	(&csilservices.TaskService{Store: store.AppStore}).Register(d)
 	(&csilservices.EventService{Store: store.AppStore}).Register(d)
 	(&csilservices.ProjectService{Store: store.AppStore}).Register(d)
+	(&csilservices.SettingsService{Store: store.AppStore}).Register(d)
+	(&csilservices.BugService{Store: store.AppStore}).Register(d)
+	(&csilservices.TrustedDomainService{Store: store.AppStore}).Register(d)
 
 	if devSvc := buildDevAuthService(authSvc); devSvc != nil {
 		devSvc.Register(d)

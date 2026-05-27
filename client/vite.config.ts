@@ -1,8 +1,20 @@
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
 import { fileURLToPath, URL } from "node:url";
+import { readFileSync } from "node:fs";
+
+// The release version is owned by version/VERSION.txt at the repo root
+// (CI bumps it on push-to-main). Inject it as a compile-time constant so
+// the SPA footer doesn't have to be hand-edited and drift out of sync.
+const appVersion = readFileSync(
+  fileURLToPath(new URL("../version/VERSION.txt", import.meta.url)),
+  "utf8",
+).trim();
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [solid()],
   resolve: {
     alias: {

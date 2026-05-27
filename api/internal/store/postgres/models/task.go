@@ -69,6 +69,7 @@ type Task struct {
 	RecurrenceFreq       *string    `gorm:"column:recurrence_freq;type:recurrence_freq" json:"recurrence_freq,omitempty"`
 	RecurrenceInterval   int        `gorm:"column:recurrence_interval;not null;default:1" json:"recurrence_interval"`
 	RecurrenceByWeekday  IntList    `gorm:"column:recurrence_by_weekday;type:integer[]" json:"recurrence_by_weekday,omitempty"`
+	RecurrenceBySetpos   *int       `gorm:"column:recurrence_by_setpos" json:"recurrence_by_setpos,omitempty"`
 	NextRecurrenceAt     *time.Time `gorm:"column:next_recurrence_at" json:"next_recurrence_at,omitempty"`
 	RecurrenceRootTaskID *string    `gorm:"column:recurrence_root_task_id" json:"recurrence_root_task_id,omitempty"`
 	DeletedAt            *time.Time `gorm:"column:deleted_at" json:"deleted_at,omitempty"`

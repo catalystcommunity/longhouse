@@ -13,6 +13,7 @@ import (
 	logrus "github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 )
 
@@ -769,4 +770,45 @@ func (s *PostgresStore) GetShareAccess(ctx context.Context, domain, userID, reso
 		return nil, err
 	}
 	return &share, nil
+}
+
+// ---- Settings ---------------------------------------------------------
+
+func (s *PostgresStore) GetHouseSettings(ctx context.Context, houseID string) ([]models.HouseSetting, error) {
+	var rows []models.HouseSetting
+	if err := db.WithContext(ctx).Where("house_id = ?", houseID).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// UpsertHouseSetting writes (or replaces) one (house_id, key) row.
+// `value` is raw JSON; the service layer is responsible for shaping it.
+// `updated_at` is bumped automatically; `updated_by` is whatever the caller
+// supplies (nil for system writes).
+func (s *PostgresStore) UpsertHouseSetting(ctx context.Context, setting *models.HouseSetting) error {
+	setting.UpdatedAt = time.Now().UTC()
+	return db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "house_id"}, {Name: "key"}},
+			DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at", "updated_by"}),
+		}).
+		Create(setting).Error
+}
+
+// ListMembersWithRoleName returns every member of houseID who holds the
+// named role, ordered by created_at so callers that want "first admin"
+// get a deterministic pick.
+func (s *PostgresStore) ListMembersWithRoleName(ctx context.Context, houseID, roleName string) ([]models.Member, error) {
+	var members []models.Member
+	err := db.WithContext(ctx).
+		Joins("JOIN member_roles mr ON mr.member_id = members.member_id").
+		Joins("JOIN roles r ON r.role_id = mr.role_id").
+		Where("members.house_id = ? AND r.house_id = ? AND r.name = ?", houseID, houseID, roleName).
+		Order("members.created_at ASC").
+		Find(&members).Error
+	if err != nil {
+		return nil, err
+	}
+	return members, nil
 }

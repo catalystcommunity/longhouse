@@ -94,6 +94,17 @@ func (s *EventService) createEvent(ctx context.Context, body []byte) (any, error
 	if in.RecurrenceInterval != nil && *in.RecurrenceInterval > 0 {
 		e.RecurrenceInterval = int(*in.RecurrenceInterval)
 	}
+	if len(in.RecurrenceByWeekday) > 0 {
+		w := make(models.IntList, len(in.RecurrenceByWeekday))
+		for i, d := range in.RecurrenceByWeekday {
+			w[i] = int(d)
+		}
+		e.RecurrenceByWeekday = w
+	}
+	if in.RecurrenceBySetpos != nil && *in.RecurrenceBySetpos != 0 {
+		v := int(*in.RecurrenceBySetpos)
+		e.RecurrenceBySetpos = &v
+	}
 	// Seed next_recurrence_at so the worker spawns occurrences from the
 	// root's starts_at. The root row itself stays at its own time; the
 	// worker creates children at the next interval and bumps this forward.
@@ -152,6 +163,8 @@ func (s *EventService) updateEvent(ctx context.Context, body []byte) (any, error
 			if f == "" {
 				existing.RecurrenceFreq = nil
 				existing.NextRecurrenceAt = nil
+				existing.RecurrenceByWeekday = nil
+				existing.RecurrenceBySetpos = nil
 			} else {
 				existing.RecurrenceFreq = &f
 				if !wasRecurring && existing.StartsAt != nil {
@@ -163,6 +176,27 @@ func (s *EventService) updateEvent(ctx context.Context, body []byte) (any, error
 	}
 	if in.RecurrenceInterval != nil && *in.RecurrenceInterval > 0 {
 		existing.RecurrenceInterval = int(*in.RecurrenceInterval)
+	}
+	// nil means "leave alone"; empty slice means "clear". Same convention
+	// as task assignees so the UI can repaint without losing state.
+	if in.RecurrenceByWeekday != nil {
+		if len(in.RecurrenceByWeekday) == 0 {
+			existing.RecurrenceByWeekday = nil
+		} else {
+			w := make(models.IntList, len(in.RecurrenceByWeekday))
+			for i, d := range in.RecurrenceByWeekday {
+				w[i] = int(d)
+			}
+			existing.RecurrenceByWeekday = w
+		}
+	}
+	if in.RecurrenceBySetpos != nil {
+		if *in.RecurrenceBySetpos == 0 {
+			existing.RecurrenceBySetpos = nil
+		} else {
+			v := int(*in.RecurrenceBySetpos)
+			existing.RecurrenceBySetpos = &v
+		}
 	}
 	if err := s.Store.UpdateEvent(ctx, existing); err != nil {
 		return nil, csilrpc.Internal("internal error")

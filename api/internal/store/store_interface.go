@@ -146,6 +146,17 @@ type Store interface {
 	DeleteComment(ctx context.Context, commentID string) error
 	ListCommentsByTarget(ctx context.Context, targetType, targetID string, limit, offset int) ([]models.Comment, error)
 
+	// Settings (house-scoped key/value pairs). Each key holds a raw JSON
+	// blob; the service layer decodes it according to the CSIL spec for
+	// that key.
+	GetHouseSettings(ctx context.Context, houseID string) ([]models.HouseSetting, error)
+	UpsertHouseSetting(ctx context.Context, setting *models.HouseSetting) error
+
+	// ListMembersWithRoleName returns members of houseID who hold the named
+	// role. Used by BugService to pick an admin to own a freshly-created
+	// bug-reports project.
+	ListMembersWithRoleName(ctx context.Context, houseID, roleName string) ([]models.Member, error)
+
 	// Share operations
 	CreateShare(ctx context.Context, share *models.Share) error
 	GetShareByID(ctx context.Context, shareID string) (*models.Share, error)

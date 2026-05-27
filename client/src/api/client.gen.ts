@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { BoolResponse, Comment, CommentID, CommentListRequest, CompleteRequest, DevLoginRequest, DevUsersResponse, EmptyRequest, EmptyResponse, Event, EventID, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Project, ProjectID, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, ResourceRef, Role, RoleID, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskID, TrustedDomain, TrustedDomainID } from "./types.gen";
+import type { BoolResponse, BugReportRequest, Comment, CommentID, CommentListRequest, CompleteRequest, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Project, ProjectID, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, ResourceRef, Role, RoleID, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskID, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
 
 export interface ServiceTransport {
   call<TReq, TRes>(
@@ -46,6 +46,18 @@ export class AuthClient {
    */
   me(req: EmptyRequest, opts?: { signal?: AbortSignal }): Promise<MeResponse> {
     return this.t.call<EmptyRequest, MeResponse>("auth", "Me", req, opts);
+  }
+}
+
+export class BugClient {
+  constructor(private readonly t: ServiceTransport) {}
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  reportBug(req: BugReportRequest, opts?: { signal?: AbortSignal }): Promise<Task> {
+    return this.t.call<BugReportRequest, Task>("bug", "ReportBug", req, opts);
   }
 }
 
@@ -549,6 +561,26 @@ export class RoleClient {
   }
 }
 
+export class SettingsClient {
+  constructor(private readonly t: ServiceTransport) {}
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  getSettings(req: HouseID, opts?: { signal?: AbortSignal }): Promise<EffectiveSettings> {
+    return this.t.call<HouseID, EffectiveSettings>("settings", "GetSettings", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  updateSettings(req: UpdateSettingsRequest, opts?: { signal?: AbortSignal }): Promise<EffectiveSettings> {
+    return this.t.call<UpdateSettingsRequest, EffectiveSettings>("settings", "UpdateSettings", req, opts);
+  }
+}
+
 export class ShareClient {
   constructor(private readonly t: ServiceTransport) {}
 
@@ -751,6 +783,7 @@ export class TrustedDomainClient {
 
 export class ApiClient {
   readonly auth: AuthClient;
+  readonly bug: BugClient;
   readonly comment: CommentClient;
   readonly devAuth: DevAuthClient;
   readonly event: EventClient;
@@ -760,12 +793,14 @@ export class ApiClient {
   readonly member: MemberClient;
   readonly project: ProjectClient;
   readonly role: RoleClient;
+  readonly settings: SettingsClient;
   readonly share: ShareClient;
   readonly skill: SkillClient;
   readonly task: TaskClient;
   readonly trustedDomain: TrustedDomainClient;
   constructor(t: ServiceTransport) {
     this.auth = new AuthClient(t);
+    this.bug = new BugClient(t);
     this.comment = new CommentClient(t);
     this.devAuth = new DevAuthClient(t);
     this.event = new EventClient(t);
@@ -775,6 +810,7 @@ export class ApiClient {
     this.member = new MemberClient(t);
     this.project = new ProjectClient(t);
     this.role = new RoleClient(t);
+    this.settings = new SettingsClient(t);
     this.share = new ShareClient(t);
     this.skill = new SkillClient(t);
     this.task = new TaskClient(t);

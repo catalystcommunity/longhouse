@@ -1,9 +1,16 @@
+import { Show, createSignal, onCleanup, onMount } from "solid-js";
+import { ClockTimePicker } from "./ClockTimePicker";
+
 /**
  * Side-by-side date + optional time inputs that emit a single ISO string
  * via `onChange`. Designed to replace `<input type="datetime-local">`
  * everywhere a value is optional or "just the date" is fine — that
  * native control requires both halves AND has the spinbutton UX on some
  * browsers, which is the issue we're routing around.
+ *
+ * The time half opens a Material-style clock-face picker (tap + drag)
+ * in a popover. Falls back to typed input via the same "HH:mm" string
+ * value so the rest of the form stays controlled.
  *
  * Behavior:
  *   * Empty date  → empty ISO emitted. Time input is disabled.
@@ -51,6 +58,8 @@ const inputBase =
 
 export const DateTimePicker = (props: Props) => {
   const parts = () => decompose(props.value);
+  const [open, setOpen] = createSignal(false);
+  let wrapRef: HTMLSpanElement | undefined;
 
   const onDate = (date: string) => {
     if (!date) {
@@ -68,8 +77,43 @@ export const DateTimePicker = (props: Props) => {
     props.onChange(compose(date, time));
   };
 
+  // Close the clock popover on outside click / Escape so it behaves
+  // like a normal dropdown.
+  const onDocClick = (e: MouseEvent) => {
+    if (!open()) return;
+    if (wrapRef && !wrapRef.contains(e.target as Node)) setOpen(false);
+  };
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === "Escape") setOpen(false);
+  };
+  onMount(() => {
+    document.addEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKey);
+  });
+  onCleanup(() => {
+    document.removeEventListener("click", onDocClick);
+    document.removeEventListener("keydown", onKey);
+  });
+
+  const timeButtonStyle = () =>
+    inputBase +
+    ";min-width:96px;cursor:pointer;text-align:left;font-variant-numeric:tabular-nums" +
+    (parts().date ? "" : ";opacity:0.55;cursor:not-allowed");
+
+  // Human-friendly display: "9:00 AM" instead of "09:00". Keeps the
+  // controlled value canonical 24h while showing the same convention the
+  // clock picker uses.
+  const displayTime = () => {
+    const t = parts().time;
+    if (!t) return "—:—";
+    const [h, m] = t.split(":").map(Number);
+    const period = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${pad(m)} ${period}`;
+  };
+
   return (
-    <span style="display:inline-flex;gap:6px;align-items:center">
+    <span ref={wrapRef!} style="display:inline-flex;gap:6px;align-items:center;position:relative">
       <input
         type="date"
         value={parts().date}
@@ -78,14 +122,30 @@ export const DateTimePicker = (props: Props) => {
         onInput={(e) => onDate(e.currentTarget.value)}
         style={inputBase}
       />
-      <input
-        type="time"
-        value={parts().time}
+      <button
+        type="button"
         disabled={!parts().date}
-        title={parts().date ? "Time (optional)" : "Pick a date first"}
-        onInput={(e) => onTime(e.currentTarget.value)}
-        style={inputBase + ";width:108px"}
-      />
+        title={parts().date ? "Pick a time" : "Pick a date first"}
+        aria-haspopup="dialog"
+        aria-expanded={open() ? "true" : "false"}
+        onClick={() => parts().date && setOpen((v) => !v)}
+        style={timeButtonStyle()}
+      >
+        {displayTime()}
+      </button>
+      <Show when={open()}>
+        <div
+          role="dialog"
+          aria-label="Pick a time"
+          style="position:absolute;top:calc(100% + 6px);right:0;z-index:60"
+        >
+          <ClockTimePicker
+            value={parts().time || props.defaultTime || "12:00"}
+            onChange={onTime}
+            disabled={!parts().date}
+          />
+        </div>
+      </Show>
     </span>
   );
 };

@@ -222,6 +222,17 @@ func eventToCSIL(e *models.Event) csil.Event {
 		v := csil.EventID(*e.RecurrenceRootEventID)
 		out.RecurrenceRootEventId = &v
 	}
+	if len(e.RecurrenceByWeekday) > 0 {
+		w := make([]int64, len(e.RecurrenceByWeekday))
+		for i, d := range e.RecurrenceByWeekday {
+			w[i] = int64(d)
+		}
+		out.RecurrenceByWeekday = w
+	}
+	if e.RecurrenceBySetpos != nil {
+		v := int64(*e.RecurrenceBySetpos)
+		out.RecurrenceBySetpos = &v
+	}
 	return out
 }
 
@@ -281,6 +292,10 @@ func taskToCSIL(t *models.Task, assignees []models.Member) csil.Task {
 			w[i] = int64(d)
 		}
 		out.RecurrenceByWeekday = w
+	}
+	if t.RecurrenceBySetpos != nil {
+		v := int64(*t.RecurrenceBySetpos)
+		out.RecurrenceBySetpos = &v
 	}
 	out.NextRecurrenceAt = tsPtr(t.NextRecurrenceAt)
 	if t.Status != "" {

@@ -8,6 +8,7 @@
 
 import {
   AuthClient,
+  BugClient,
   CommentClient,
   DevAuthClient,
   EventClient,
@@ -17,6 +18,7 @@ import {
   MemberClient,
   ProjectClient,
   RoleClient,
+  SettingsClient,
   ShareClient,
   SkillClient,
   TaskClient,
@@ -38,3 +40,5 @@ export const commentClient = new CommentClient(cborTransport);
 export const shareClient = new ShareClient(cborTransport);
 export const trustedDomainClient = new TrustedDomainClient(cborTransport);
 export const memberAuditClient = new MemberAuditClient(cborTransport);
+export const settingsClient = new SettingsClient(cborTransport);
+export const bugClient = new BugClient(cborTransport);

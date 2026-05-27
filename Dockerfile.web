@@ -9,6 +9,11 @@ WORKDIR /build
 COPY client/package.json client/package-lock.json* ./client/
 RUN cd client && npm ci
 COPY client/ ./client/
+# vite.config.ts reads ../version/VERSION.txt at build time so the footer
+# tracks the repo's source of truth. The build context is the repo root
+# (see Dockerfile path in longhouse-redeploy.sh), so the directory is
+# available — just needs to be copied in alongside client/.
+COPY version/ ./version/
 RUN cd client && npm run build
 
 FROM caddy:2-alpine

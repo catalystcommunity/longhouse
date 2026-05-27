@@ -35,18 +35,26 @@ const (
 var ErrUnknownFrequency = errors.New("recurrence: unknown frequency")
 
 // Next returns the next occurrence at-or-after `from` for the given
-// frequency, interval, and weekday filter. byWeekday only applies to
-// `weekly` recurrence: when set, the next occurrence is bumped forward
-// to the next configured weekday after applying the interval.
+// frequency, interval, byWeekday, and bySetpos.
+//
+// Semantics:
+//   - hourly/daily: simple from + interval units.
+//   - weekly: from + 7*interval days, then advanced to the next matching
+//     weekday in byWeekday (if non-empty).
+//   - monthly/quarterly/yearly: when byWeekday is non-empty, jumps to the
+//     bySetpos-th matching weekday inside the *next period* (next month /
+//     next quarter / next year). bySetpos can be 1..5 (first..fifth) or
+//     -1 ("last"). nil bySetpos with non-empty byWeekday defaults to 1.
+//     With empty byWeekday, falls back to `from + interval` of the unit.
 //
 // Calendar arithmetic notes:
-//   - Monthly/Quarterly/Yearly use Go's time.AddDate, which carries
-//     overflow forward (e.g. Jan 31 + 1 month = Mar 3 in non-leap years).
-//     For the operations we support that's acceptable; it matches what
-//     most calendaring apps do.
+//   - Monthly/Quarterly/Yearly without byWeekday use Go's time.AddDate,
+//     which carries overflow forward (e.g. Jan 31 + 1 month = Mar 3 in
+//     non-leap years). With byWeekday + bySetpos that's moot — we land on
+//     a specific weekday inside the target period.
 //   - The from value should be the previous occurrence's start (not
 //     "now"). The worker passes prev.NextRecurrenceAt.
-func Next(from time.Time, freq Frequency, interval int, byWeekday []int) (time.Time, error) {
+func Next(from time.Time, freq Frequency, interval int, byWeekday []int, bySetpos *int) (time.Time, error) {
 	if interval < 1 {
 		interval = 1
 	}
@@ -57,13 +65,29 @@ func Next(from time.Time, freq Frequency, interval int, byWeekday []int) (time.T
 	case Daily:
 		return from.AddDate(0, 0, interval), nil
 	case Weekly:
-		base := from.AddDate(0, 0, 7*interval)
 		if len(byWeekday) == 0 {
-			return base, nil
+			return from.AddDate(0, 0, 7*interval), nil
 		}
-		// Scan up to 7 days from base to find the first allowed weekday.
-		// We sort + dedupe so callers can pass [5,5,1] without surprises.
+		// With a weekday filter the spawning cadence becomes "every
+		// matching weekday inside an active week". For interval == 1
+		// every week is active, so we scan forward day-by-day from
+		// `from+1` and return the first allowed weekday — that fires
+		// once per matching weekday (e.g. Mon, Wed, Fri rather than
+		// "the same weekday every week").
+		// For interval > 1 we keep the older "jump to the active week
+		// first, then find the first matching weekday in it" logic so
+		// patterns like "every other Tuesday" still work.
 		allowed := dedupeSortedWeekdays(byWeekday)
+		if interval <= 1 {
+			for offset := 1; offset <= 7; offset++ {
+				candidate := from.AddDate(0, 0, offset)
+				if containsWeekday(allowed, int(candidate.Weekday())) {
+					return candidate, nil
+				}
+			}
+			return from.AddDate(0, 0, 7), nil // unreachable
+		}
+		base := from.AddDate(0, 0, 7*interval)
 		for offset := 0; offset < 7; offset++ {
 			candidate := base.AddDate(0, 0, offset)
 			if containsWeekday(allowed, int(candidate.Weekday())) {
@@ -71,15 +95,109 @@ func Next(from time.Time, freq Frequency, interval int, byWeekday []int) (time.T
 			}
 		}
 		return base, nil // unreachable in practice; keeps Go happy
-	case Monthly:
-		return from.AddDate(0, interval, 0), nil
-	case Quarterly:
-		return from.AddDate(0, 3*interval, 0), nil
-	case Yearly:
-		return from.AddDate(interval, 0, 0), nil
+	case Monthly, Quarterly, Yearly:
+		// Nth-weekday-in-period: when both filters are set, land on the
+		// bySetpos-th matching weekday in the next period. Time-of-day
+		// is preserved from `from`.
+		if len(byWeekday) > 0 {
+			setpos := 1
+			if bySetpos != nil && *bySetpos != 0 {
+				setpos = *bySetpos
+			}
+			ps, pe := nextPeriodBounds(from, freq, interval)
+			found := findSetposWeekday(ps, pe, byWeekday, setpos)
+			return time.Date(
+				found.Year(), found.Month(), found.Day(),
+				from.Hour(), from.Minute(), from.Second(), from.Nanosecond(),
+				from.Location(),
+			), nil
+		}
+		// Plain interval bump when no weekday filter is in play.
+		switch freq {
+		case Monthly:
+			return from.AddDate(0, interval, 0), nil
+		case Quarterly:
+			return from.AddDate(0, 3*interval, 0), nil
+		case Yearly:
+			return from.AddDate(interval, 0, 0), nil
+		}
+		return from, nil // unreachable
 	default:
 		return time.Time{}, ErrUnknownFrequency
 	}
+}
+
+// nextPeriodBounds returns the [start, end] (inclusive, by day) of the
+// monthly/quarterly/yearly period `interval` units after the period
+// containing `from`. Boundaries are midnight at the start day in from's
+// location.
+func nextPeriodBounds(from time.Time, freq Frequency, interval int) (start, end time.Time) {
+	loc := from.Location()
+	switch freq {
+	case Monthly:
+		// First day of (current month + interval months); last day = day-0
+		// of the month after that.
+		first := time.Date(from.Year(), from.Month(), 1, 0, 0, 0, 0, loc).
+			AddDate(0, interval, 0)
+		last := first.AddDate(0, 1, -1)
+		return first, last
+	case Quarterly:
+		// Quarter index of from (0..3), advance by interval, normalize.
+		curQ := int(from.Month()-1) / 3
+		nextQ := curQ + interval
+		years := from.Year() + nextQ/4
+		nextQ %= 4
+		if nextQ < 0 {
+			nextQ += 4
+			years--
+		}
+		startMonth := time.Month(nextQ*3 + 1)
+		first := time.Date(years, startMonth, 1, 0, 0, 0, 0, loc)
+		last := first.AddDate(0, 3, -1)
+		return first, last
+	case Yearly:
+		first := time.Date(from.Year()+interval, 1, 1, 0, 0, 0, 0, loc)
+		last := time.Date(from.Year()+interval, 12, 31, 0, 0, 0, 0, loc)
+		return first, last
+	}
+	return from, from
+}
+
+// findSetposWeekday returns the date in [start, end] matching the
+// setpos-th occurrence of any weekday in byWeekday. setpos == -1 means
+// "last matching weekday in the period". Falls back to the latest
+// matching weekday if setpos overshoots the period (e.g. asking for the
+// 5th Monday of a 4-Monday month).
+func findSetposWeekday(start, end time.Time, byWeekday []int, setpos int) time.Time {
+	allowed := dedupeSortedWeekdays(byWeekday)
+	if len(allowed) == 0 {
+		return start
+	}
+	if setpos == -1 {
+		for day := end; !day.Before(start); day = day.AddDate(0, 0, -1) {
+			if containsWeekday(allowed, int(day.Weekday())) {
+				return day
+			}
+		}
+		return end
+	}
+	count := 0
+	var last time.Time
+	matched := false
+	for day := start; !day.After(end); day = day.AddDate(0, 0, 1) {
+		if containsWeekday(allowed, int(day.Weekday())) {
+			count++
+			last = day
+			matched = true
+			if count == setpos {
+				return day
+			}
+		}
+	}
+	if matched {
+		return last
+	}
+	return start
 }
 
 func dedupeSortedWeekdays(in []int) []int {
@@ -144,7 +262,7 @@ func Plan(now time.Time, root *models.Task, priorChild *models.Task) (*SpawnDeci
 		interval = 1
 	}
 
-	next, err := Next(*root.NextRecurrenceAt, freq, interval, []int(root.RecurrenceByWeekday))
+	next, err := Next(*root.NextRecurrenceAt, freq, interval, []int(root.RecurrenceByWeekday), root.RecurrenceBySetpos)
 	if err != nil {
 		return nil, err
 	}

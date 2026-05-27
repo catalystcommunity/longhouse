@@ -504,6 +504,8 @@ const ProjectTaskComposer = (props: {
   const [recFreq, setRecFreq] = createSignal<RecurrenceFreq>("");
   const [recInterval, setRecInterval] = createSignal(1);
   const [recNextAt, setRecNextAt] = createSignal("");
+  const [recByWeekday, setRecByWeekday] = createSignal<number[]>([]);
+  const [recBySetpos, setRecBySetpos] = createSignal(1);
   const [busy, setBusy] = createSignal(false);
   const [err, setErr] = createSignal<string | null>(null);
 
@@ -525,7 +527,7 @@ const ProjectTaskComposer = (props: {
         dueAt: dueIso,
         estimateMinutes: estimate() ? Number(estimate()) : undefined,
         assignees: [],
-        ...toRecurrence(recFreq(), recInterval(), recNextAt(), dueIso),
+        ...toRecurrence(recFreq(), recInterval(), recNextAt(), recByWeekday(), recBySetpos(), dueIso),
       } as any);
       // Then attach it to the project at the end of the list.
       await projectClient.addProjectTask({
@@ -536,6 +538,7 @@ const ProjectTaskComposer = (props: {
       batch(() => {
         setTitle(""); setTag(""); setDue(""); setEstimate("");
         setRecFreq(""); setRecInterval(1); setRecNextAt("");
+        setRecByWeekday([]); setRecBySetpos(1);
       });
       await props.onCreated();
     } catch (e2) {
@@ -589,6 +592,10 @@ const ProjectTaskComposer = (props: {
           setInterval={setRecInterval}
           nextAt={recNextAt}
           setNextAt={setRecNextAt}
+          byWeekday={recByWeekday}
+          setByWeekday={setRecByWeekday}
+          bySetpos={recBySetpos}
+          setBySetpos={setRecBySetpos}
           compact
         />
       </div>

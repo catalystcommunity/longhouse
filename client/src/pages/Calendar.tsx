@@ -1,4 +1,5 @@
-import { For, Show, createMemo, createResource, createSignal } from "solid-js";
+import { For, Show, createEffect, createMemo, createResource, createSignal } from "solid-js";
+import { useSearchParams } from "@solidjs/router";
 import { ChevronLeft, ChevronRight, Plus } from "~/components/Icons";
 import { AuthGate } from "~/components/AuthGate";
 import { DateTimePicker } from "~/components/DateTimePicker";
@@ -46,6 +47,36 @@ export const CalendarPage = () => {
   // month is shown. Week view: anchor's week (Mon-first). Day view: just
   // the anchor. Prev/Next nav adjusts by one view-unit at a time.
   const [anchor, setAnchor] = createSignal(new Date());
+
+  // Deep-link via query params: /calendar?view=day&date=YYYY-MM-DD&event=ID.
+  // Lets the dashboard's Next-event card jump straight to the day view and
+  // optionally pop the event editor. The params are consumed (set to
+  // undefined) once applied so a later in-app nav back to /calendar
+  // doesn't keep re-opening the editor.
+  const [searchParams, setSearchParams] = useSearchParams<{
+    view?: string;
+    date?: string;
+    event?: string;
+  }>();
+  createEffect(() => {
+    const v = searchParams.view;
+    const d = searchParams.date;
+    const evId = searchParams.event;
+    if (v && (v === "month" || v === "week" || v === "3day" || v === "day")) {
+      setView(v);
+    }
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      const [y, m, day] = d.split("-").map(Number);
+      setAnchor(new Date(y, m - 1, day));
+    }
+    if (evId) {
+      const match = (allEvents() ?? []).find((e) => e.eventId === evId);
+      if (match) {
+        setComposer({ mode: "edit", event: match });
+        setSearchParams({ view: undefined, date: undefined, event: undefined }, { replace: true });
+      }
+    }
+  });
 
   const goPrev = () => setAnchor((a) => shiftAnchor(a, view(), -1));
   const goNext = () => setAnchor((a) => shiftAnchor(a, view(), 1));
@@ -539,6 +570,12 @@ const EventComposer = (props: {
   // starts_at — toRecurrence only sets nextRecurrenceAt, which the server
   // ignores for events (events have no next_recurrence_at column).
   const [recNextAt, setRecNextAt] = createSignal("");
+  const initialByWeekday = (): number[] => {
+    const v = initial()?.recurrenceByWeekday;
+    return Array.isArray(v) ? v.map((n) => Number(n)) : [];
+  };
+  const [recByWeekday, setRecByWeekday] = createSignal<number[]>(initialByWeekday());
+  const [recBySetpos, setRecBySetpos] = createSignal(initial()?.recurrenceBySetpos ?? 1);
   const [busy, setBusy]   = createSignal(false);
   const [err, setErr]     = createSignal<string | null>(null);
 
@@ -558,10 +595,22 @@ const EventComposer = (props: {
         endsAt:   endsAt()   || undefined,
         allDay: allDay(),
       };
-      // Recurrence: send the freq + interval. Empty freq = clear an
-      // existing recurrence on update.
+      // Recurrence: send the freq + interval + by_weekday/by_setpos.
+      // Empty freq = clear an existing recurrence on update.
       body.recurrenceFreq = recFreq() || "";
-      if (recFreq()) body.recurrenceInterval = recInterval();
+      if (recFreq()) {
+        body.recurrenceInterval = recInterval();
+        if (recByWeekday().length > 0) {
+          body.recurrenceByWeekday = recByWeekday();
+        } else {
+          body.recurrenceByWeekday = [];
+        }
+        if (recFreq() === "monthly" || recFreq() === "quarterly" || recFreq() === "yearly") {
+          body.recurrenceBySetpos = recBySetpos();
+        } else {
+          body.recurrenceBySetpos = 0;
+        }
+      }
       // Suppress unused-var lint without coupling to setRecNextAt usage.
       void recNextAt;
       if (editing()) {
@@ -663,6 +712,10 @@ const EventComposer = (props: {
             setInterval={setRecInterval}
             nextAt={recNextAt}
             setNextAt={setRecNextAt}
+            byWeekday={recByWeekday}
+            setByWeekday={setRecByWeekday}
+            bySetpos={recBySetpos}
+            setBySetpos={setRecBySetpos}
           />
         </div>
       </div>

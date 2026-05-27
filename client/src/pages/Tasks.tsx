@@ -159,6 +159,8 @@ const TaskComposer = (props: {
   const [recFreq, setRecFreq] = createSignal<RecurrenceFreq>("");
   const [recInterval, setRecInterval] = createSignal(1);
   const [recNextAt, setRecNextAt] = createSignal("");
+  const [recByWeekday, setRecByWeekday] = createSignal<number[]>([]);
+  const [recBySetpos, setRecBySetpos] = createSignal(1);
   const [busy, setBusy] = createSignal(false);
   const [err, setErr] = createSignal<string | null>(null);
 
@@ -207,7 +209,7 @@ const TaskComposer = (props: {
         tag: tag().trim() || undefined,
         dueAt: dueIso,
         estimateMinutes: estimate() ? Number(estimate()) : undefined,
-        ...toRecurrence(recFreq(), recInterval(), recNextAt(), dueIso),
+        ...toRecurrence(recFreq(), recInterval(), recNextAt(), recByWeekday(), recBySetpos(), dueIso),
       };
       if (parentId()) body.parentTaskId = parentId();
       if (assignees() !== null) body.assignees = assignees();
@@ -221,6 +223,8 @@ const TaskComposer = (props: {
         setRecFreq("");
         setRecInterval(1);
         setRecNextAt("");
+        setRecByWeekday([]);
+        setRecBySetpos(1);
         setAssignees(null);
       });
       await props.onCreated();
@@ -315,6 +319,10 @@ const TaskComposer = (props: {
         setInterval={setRecInterval}
         nextAt={recNextAt}
         setNextAt={setRecNextAt}
+        byWeekday={recByWeekday}
+        setByWeekday={setRecByWeekday}
+        bySetpos={recBySetpos}
+        setBySetpos={setRecBySetpos}
       />
 
       <Show when={err()}>

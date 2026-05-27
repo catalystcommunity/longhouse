@@ -147,3 +147,14 @@ type ShareService interface {
 type MemberAuditService interface {
 	ListAuditsForMember(ctx context.Context, req MemberScopedListRequest) (interface{}, error)
 }
+
+// SettingsService defines the service interface
+type SettingsService interface {
+	GetSettings(ctx context.Context, req HouseID) (interface{}, error)
+	UpdateSettings(ctx context.Context, req UpdateSettingsRequest) (interface{}, error)
+}
+
+// BugService defines the service interface
+type BugService interface {
+	ReportBug(ctx context.Context, req BugReportRequest) (interface{}, error)
+}

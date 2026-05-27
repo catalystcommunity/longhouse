@@ -289,6 +289,17 @@ Event = {
     ;; root's recurrence so the spawner stops respawning.
     ? recurrence_freq: RecurrenceFreq,
     ? recurrence_interval: int .default 1,
+    ;; ISO weekday filter (0 = Sunday … 6 = Saturday). For `weekly`, the
+    ;; worker spawns a child on the next matching weekday within each
+    ;; `interval`-week window. For `monthly`/`quarterly`/`yearly`, this is
+    ;; combined with `recurrence_by_setpos` to pick the Nth (or last)
+    ;; matching weekday inside the period.
+    ? recurrence_by_weekday: [* int],
+    ;; Ordinal position inside the period for monthly/quarterly/yearly
+    ;; recurrences. 1..4 = first..fourth matching weekday; -1 = last
+    ;; matching weekday. Ignored when `recurrence_by_weekday` is empty,
+    ;; or when freq is daily/hourly/weekly.
+    ? recurrence_by_setpos: int,
     ? next_recurrence_at: Timestamp,
     ? recurrence_root_event_id: EventID,
 
@@ -331,6 +342,9 @@ Task = {
     ? recurrence_freq: RecurrenceFreq,
     ? recurrence_interval: int .default 1,
     ? recurrence_by_weekday: [* int],
+    ;; Ordinal position inside the period for monthly/quarterly/yearly
+    ;; recurrences (same semantics as Event.recurrence_by_setpos).
+    ? recurrence_by_setpos: int,
     ? next_recurrence_at: Timestamp,
     ? recurrence_root_task_id: TaskID,
     ? deleted_at: Timestamp,
@@ -581,6 +595,52 @@ ProjectOwnerRef = {
 }
 
 ;; ============================================================
+;; Settings
+;; ============================================================
+
+;; EffectiveSettings is what the SPA renders against. Every key is single-
+;; layer: house-layer (admin-writable, per-house) or user-layer (self-
+;; writable, spans all houses the user belongs to). No key is both —
+;; if a setting would be both, it becomes house-only.
+;;
+;; The server returns this with defaults filled in. Adding a setting =
+;; add an optional field here (with .default if scalar) and teach the
+;; SettingsService handler which layer it lives in.
+EffectiveSettings = {
+    ;; Show the in-app "Report a bug" button. House-layer; admin-writable.
+    ? bug_reports_enabled: bool .default false,
+    ;; Target project for bug reports. House-layer; admin-writable. The
+    ;; server lazily creates the project on first report and writes the
+    ;; id back here; if an admin re-points this at a missing/deleted
+    ;; project, the next report recreates it and updates the value.
+    ? bug_reports_project_id: ProjectID
+}
+
+;; Partial-update request: only fields the caller wants to change need to
+;; be present in `settings`. Every writable key has its own per-key
+;; authorization check (house-layer keys require the admin role on
+;; `house_id`; user-layer keys would require only self — none yet).
+UpdateSettingsRequest = {
+    house_id: HouseID,
+    settings: EffectiveSettings
+}
+
+;; ============================================================
+;; Bug reports
+;; ============================================================
+
+;; BugReportRequest is the SPA payload for the in-app bug button. The
+;; server enforces `bug_reports_enabled`, locates (or recreates) the
+;; target project, picks a task owner from the project's owners, and
+;; creates a Task in the house with the reporter attribution appended
+;; to the description (not shown to the reporter).
+BugReportRequest = {
+    house_id: HouseID,
+    title: text .size (1..512),
+    ? description: text
+}
+
+;; ============================================================
 ;; Error type
 ;; ============================================================
 
@@ -735,4 +795,21 @@ service ShareService {
 
 service MemberAuditService {
     list-audits-for-member: MemberScopedListRequest -> [* MemberAudit] / ServiceError
+}
+
+;; SettingsService: get-settings returns the merged effective settings
+;; (defaults filled) for a given house. update-settings applies a partial
+;; — only fields present in the inbound EffectiveSettings are written.
+;; House-layer keys (every key today) require the admin role; the handler
+;; enforces this per key.
+service SettingsService {
+    get-settings:    HouseID               -> EffectiveSettings / ServiceError,
+    update-settings: UpdateSettingsRequest -> EffectiveSettings / ServiceError
+}
+
+;; BugService: a thin op so the SPA doesn't reimplement "check enabled,
+;; find or recreate the bug project, attribute the reporter, create the
+;; task, attach to project." Returns the created Task.
+service BugService {
+    report-bug: BugReportRequest -> Task / ServiceError
 }

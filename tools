@@ -107,7 +107,23 @@ run_client() {
 # detached in docker; api + vite stream their logs into ./logs/ and
 # their PIDs land in ./logs/*.pid so dev-down can clean up. Ctrl-C
 # leaves postgres up (cheap, persistent) — explicit dev-down kills it.
+#
+# When stdout isn't a tty (CI, background invocation, an agent backgrounding
+# the script), the trailing `tail -f` of the log files is skipped so the
+# script exits cleanly once the backgrounded api+vite are launched. Pass
+# `--no-tail` to force that off even from a terminal.
 dev() {
+    local follow_logs=1
+    if [ "${1:-}" = "--no-tail" ]; then
+        follow_logs=0
+        shift
+    elif [ ! -t 1 ]; then
+        # Non-interactive: nobody's reading the tail anyway, and parking
+        # here keeps a `tail -f` (plus its wrapper) alive forever after
+        # the caller detaches.
+        follow_logs=0
+    fi
+
     load_dev_env
     mkdir -p "$SCRIPT_DIR/logs"
 
@@ -142,13 +158,27 @@ dev() {
         sleep 1
     done
 
+    # Enable job control so each backgrounded job below gets its own
+    # process group. Without `set -m`, this script (run non-interactively)
+    # leaves the subshell in our PGID, and `kill -- "-$pid"` in dev-down
+    # can't reach the grandchild `api`/`npm` binaries. They get reparented
+    # to init and survive tear-down — every `./tools dev` cycle was
+    # leaking one stale listener on :6080 because of that.
+    #
+    # The `exec` inside each subshell also helps: it replaces the subshell
+    # with the long-running process so `$!` IS that process's PID (instead
+    # of a wrapper shell that's a fragile signal hop away from it).
+    set -m
+
     echo "▶ api  → http://localhost:${LONGHOUSE_API_PORT:-6080}  (logs: logs/api.log)"
-    (cd "$SCRIPT_DIR/api" && go run . serve) >"$SCRIPT_DIR/logs/api.log" 2>&1 &
+    ( cd "$SCRIPT_DIR/api" && exec go run . serve ) >"$SCRIPT_DIR/logs/api.log" 2>&1 &
     echo $! > "$SCRIPT_DIR/logs/api.pid"
 
     echo "▶ vite → http://localhost:5173               (logs: logs/vite.log)"
-    (cd "$SCRIPT_DIR/client" && npm run dev) >"$SCRIPT_DIR/logs/vite.log" 2>&1 &
+    ( cd "$SCRIPT_DIR/client" && exec npm run dev ) >"$SCRIPT_DIR/logs/vite.log" 2>&1 &
     echo $! > "$SCRIPT_DIR/logs/vite.pid"
+
+    set +m
 
     cat <<EOF
 
@@ -161,9 +191,11 @@ Dev stack up.
 
 Ctrl-C in this terminal leaves everything running in the background.
 EOF
-    # Park here so the user can Ctrl-C to silence this tail; processes
-    # keep running because they were spawned in their own subshells.
-    tail -f "$SCRIPT_DIR/logs/api.log" "$SCRIPT_DIR/logs/vite.log"
+    if [ "$follow_logs" = 1 ]; then
+        # Park here so the user can Ctrl-C to silence this tail; processes
+        # keep running because they were spawned in their own subshells.
+        tail -f "$SCRIPT_DIR/logs/api.log" "$SCRIPT_DIR/logs/vite.log"
+    fi
 }
 
 dev_down() {
@@ -175,11 +207,25 @@ dev_down() {
             if kill -0 "$pid" 2>/dev/null; then
                 echo "▶ stopping $name (pid $pid)"
                 # Kill the process group so child go/node processes go too.
+                # Needs `set -m` in dev() so the job actually has its own
+                # group; without that the negative-pid form is a no-op.
                 kill -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
             fi
             rm -f "$pid_file"
         fi
     done
+
+    # Belt-and-suspenders: kill anything still bound to the dev API/TCP
+    # ports. Earlier versions of this script lost track of grandchildren
+    # spawned by `go run`, so a fresh `./tools dev` would silently fail
+    # to bind and hand traffic to the stale instance. `fuser -k` is a
+    # no-op when nothing is listening, so it's safe on a clean down.
+    local api_port="${LONGHOUSE_API_PORT:-6080}"
+    if command -v fuser >/dev/null 2>&1; then
+        fuser -k -TERM "${api_port}/tcp" 2>/dev/null || true
+        fuser -k -TERM "6081/tcp"        2>/dev/null || true
+    fi
+
     if docker ps --filter name=^longhouse-postgres-dev$ --format '{{.Names}}' | grep -q .; then
         echo "▶ stopping postgres"
         docker stop longhouse-postgres-dev >/dev/null

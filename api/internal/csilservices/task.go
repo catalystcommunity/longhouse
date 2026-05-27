@@ -107,6 +107,35 @@ func (s *TaskService) createTask(ctx context.Context, body []byte) (any, error) 
 		v := string(*in.ParentTaskId)
 		t.ParentTaskID = &v
 	}
+	// Recurrence: freq=nil means not recurring. Empty string also disables.
+	// The worker reads next_recurrence_at as the spawn anchor; seed it from
+	// due_at when set, otherwise leave nil and the root is dormant until
+	// edited.
+	if in.RecurrenceFreq != nil {
+		if f, ok := (*in.RecurrenceFreq).(string); ok && f != "" {
+			t.RecurrenceFreq = &f
+		}
+	}
+	if in.RecurrenceInterval != nil && *in.RecurrenceInterval > 0 {
+		t.RecurrenceInterval = int(*in.RecurrenceInterval)
+	}
+	if len(in.RecurrenceByWeekday) > 0 {
+		w := make(models.IntList, len(in.RecurrenceByWeekday))
+		for i, d := range in.RecurrenceByWeekday {
+			w[i] = int(d)
+		}
+		t.RecurrenceByWeekday = w
+	}
+	if in.RecurrenceBySetpos != nil && *in.RecurrenceBySetpos != 0 {
+		v := int(*in.RecurrenceBySetpos)
+		t.RecurrenceBySetpos = &v
+	}
+	if in.NextRecurrenceAt != nil {
+		t.NextRecurrenceAt = tsToTimePtr(in.NextRecurrenceAt)
+	} else if t.RecurrenceFreq != nil && t.DueAt != nil {
+		anchor := *t.DueAt
+		t.NextRecurrenceAt = &anchor
+	}
 	if err := s.Store.CreateTask(ctx, t); err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
@@ -178,6 +207,52 @@ func (s *TaskService) updateTask(ctx context.Context, body []byte) (any, error) 
 		existing.EstimateMinutes = &v
 	}
 	existing.DueAt = tsToTimePtr(in.DueAt)
+	// Recurrence edits mirror Event semantics: empty-string freq clears the
+	// schedule and wipes next/by_weekday/by_setpos; a non-empty freq toggles
+	// recurrence on (seeding next_recurrence_at from due_at when nothing
+	// else specifies it).
+	wasRecurring := existing.RecurrenceFreq != nil
+	if in.RecurrenceFreq != nil {
+		if f, ok := (*in.RecurrenceFreq).(string); ok {
+			if f == "" {
+				existing.RecurrenceFreq = nil
+				existing.NextRecurrenceAt = nil
+				existing.RecurrenceByWeekday = nil
+				existing.RecurrenceBySetpos = nil
+			} else {
+				existing.RecurrenceFreq = &f
+				if !wasRecurring && existing.NextRecurrenceAt == nil && existing.DueAt != nil {
+					anchor := *existing.DueAt
+					existing.NextRecurrenceAt = &anchor
+				}
+			}
+		}
+	}
+	if in.RecurrenceInterval != nil && *in.RecurrenceInterval > 0 {
+		existing.RecurrenceInterval = int(*in.RecurrenceInterval)
+	}
+	if in.RecurrenceByWeekday != nil {
+		if len(in.RecurrenceByWeekday) == 0 {
+			existing.RecurrenceByWeekday = nil
+		} else {
+			w := make(models.IntList, len(in.RecurrenceByWeekday))
+			for i, d := range in.RecurrenceByWeekday {
+				w[i] = int(d)
+			}
+			existing.RecurrenceByWeekday = w
+		}
+	}
+	if in.RecurrenceBySetpos != nil {
+		if *in.RecurrenceBySetpos == 0 {
+			existing.RecurrenceBySetpos = nil
+		} else {
+			v := int(*in.RecurrenceBySetpos)
+			existing.RecurrenceBySetpos = &v
+		}
+	}
+	if in.NextRecurrenceAt != nil {
+		existing.NextRecurrenceAt = tsToTimePtr(in.NextRecurrenceAt)
+	}
 	if err := s.Store.UpdateTask(ctx, existing); err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}

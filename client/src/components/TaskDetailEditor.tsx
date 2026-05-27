@@ -1,5 +1,6 @@
 import { For, Show, createSignal } from "solid-js";
 import { DateTimePicker } from "./DateTimePicker";
+import { MarkdownEditor } from "./MarkdownEditor";
 import { RecurrenceFields, type RecurrenceFreq } from "./RecurrenceFields";
 import { taskClient } from "~/data/clients";
 import { displayName, initial, memberSwatch } from "~/lib/derive";
@@ -48,6 +49,12 @@ export const TaskDetailEditor = (props: Props) => {
   const [recFreq, setRecFreq] = createSignal<RecurrenceFreq>(initRecFreq());
   const [recInterval, setRecInterval] = createSignal(props.task.recurrenceInterval ?? 1);
   const [recNextAt, setRecNextAt] = createSignal(props.task.nextRecurrenceAt ?? "");
+  const [recByWeekday, setRecByWeekday] = createSignal<number[]>(
+    Array.isArray(props.task.recurrenceByWeekday)
+      ? props.task.recurrenceByWeekday.map((n) => Number(n))
+      : [],
+  );
+  const [recBySetpos, setRecBySetpos] = createSignal(props.task.recurrenceBySetpos ?? 1);
   const [busy, setBusy] = createSignal(false);
   const [err, setErr] = createSignal<string | null>(null);
 
@@ -72,6 +79,11 @@ export const TaskDetailEditor = (props: Props) => {
         recurrenceFreq: recFreq() || "",
         recurrenceInterval: recFreq() ? recInterval() : undefined,
         nextRecurrenceAt: recNextAt() || undefined,
+        recurrenceByWeekday: recFreq() ? recByWeekday() : [],
+        recurrenceBySetpos:
+          recFreq() === "monthly" || recFreq() === "quarterly" || recFreq() === "yearly"
+            ? recBySetpos()
+            : 0,
       };
       await taskClient.updateTask(body);
       await props.onSaved();
@@ -113,11 +125,12 @@ export const TaskDetailEditor = (props: Props) => {
           />
         </label>
         <label style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1">
-          <span style="font-size:11px;color:var(--ink-mute)">Description</span>
-          <textarea
-            rows="2"
-            value={description()} onInput={(e) => setDesc(e.currentTarget.value)}
-            style="padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);font-size:13px;resize:vertical"
+          <span style="font-size:11px;color:var(--ink-mute)">Description (markdown — click to edit)</span>
+          <MarkdownEditor
+            value={description()}
+            onChange={setDesc}
+            placeholder="Click to add a description (markdown supported)…"
+            rows={3}
           />
         </label>
         <label style="display:flex;flex-direction:column;gap:4px">
@@ -176,6 +189,10 @@ export const TaskDetailEditor = (props: Props) => {
         setInterval={setRecInterval}
         nextAt={recNextAt}
         setNextAt={setRecNextAt}
+        byWeekday={recByWeekday}
+        setByWeekday={setRecByWeekday}
+        bySetpos={recBySetpos}
+        setBySetpos={setRecBySetpos}
       />
 
       <Show when={err()}>{(m) => <span style="color:var(--rust);font-size:12px">{m()}</span>}</Show>
