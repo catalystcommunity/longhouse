@@ -226,6 +226,8 @@ type Event struct {
 	AllDay                *bool           `json:"all_day,omitempty" yaml:"all_day,omitempty"`
 	RecurrenceFreq        *RecurrenceFreq `json:"recurrence_freq,omitempty" yaml:"recurrence_freq,omitempty"`
 	RecurrenceInterval    *int64          `json:"recurrence_interval,omitempty" yaml:"recurrence_interval,omitempty"`
+	RecurrenceByWeekday   []int64         `json:"recurrence_by_weekday,omitempty" yaml:"recurrence_by_weekday,omitempty"`
+	RecurrenceBySetpos    *int64          `json:"recurrence_by_setpos,omitempty" yaml:"recurrence_by_setpos,omitempty"`
 	NextRecurrenceAt      *Timestamp      `json:"next_recurrence_at,omitempty" yaml:"next_recurrence_at,omitempty"`
 	RecurrenceRootEventId *EventID        `json:"recurrence_root_event_id,omitempty" yaml:"recurrence_root_event_id,omitempty"`
 	CreatedAt             Timestamp       `json:"created_at" yaml:"created_at"`
@@ -249,6 +251,7 @@ type Task struct {
 	RecurrenceFreq       *RecurrenceFreq `json:"recurrence_freq,omitempty" yaml:"recurrence_freq,omitempty"`
 	RecurrenceInterval   *int64          `json:"recurrence_interval,omitempty" yaml:"recurrence_interval,omitempty"`
 	RecurrenceByWeekday  []int64         `json:"recurrence_by_weekday,omitempty" yaml:"recurrence_by_weekday,omitempty"`
+	RecurrenceBySetpos   *int64          `json:"recurrence_by_setpos,omitempty" yaml:"recurrence_by_setpos,omitempty"`
 	NextRecurrenceAt     *Timestamp      `json:"next_recurrence_at,omitempty" yaml:"next_recurrence_at,omitempty"`
 	RecurrenceRootTaskId *TaskID         `json:"recurrence_root_task_id,omitempty" yaml:"recurrence_root_task_id,omitempty"`
 	DeletedAt            *Timestamp      `json:"deleted_at,omitempty" yaml:"deleted_at,omitempty"`
@@ -467,6 +470,25 @@ type ProjectMemberRef struct {
 type ProjectOwnerRef struct {
 	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
 	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+}
+
+// EffectiveSettings represents a structured data type
+type EffectiveSettings struct {
+	BugReportsEnabled   *bool      `json:"bug_reports_enabled,omitempty" yaml:"bug_reports_enabled,omitempty"`
+	BugReportsProjectId *ProjectID `json:"bug_reports_project_id,omitempty" yaml:"bug_reports_project_id,omitempty"`
+}
+
+// UpdateSettingsRequest represents a structured data type
+type UpdateSettingsRequest struct {
+	HouseId  HouseID           `json:"house_id" yaml:"house_id"`
+	Settings EffectiveSettings `json:"settings" yaml:"settings"`
+}
+
+// BugReportRequest represents a structured data type
+type BugReportRequest struct {
+	HouseId     HouseID `json:"house_id" yaml:"house_id"`
+	Title       string  `json:"title" yaml:"title"`
+	Description *string `json:"description,omitempty" yaml:"description,omitempty"`
 }
 
 // ServiceError represents a structured data type

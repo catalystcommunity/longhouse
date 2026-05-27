@@ -19,7 +19,7 @@ func mustParse(t *testing.T, s string) time.Time {
 
 func TestNext_Hourly(t *testing.T) {
 	from := mustParse(t, "2026-05-01T08:00:00Z")
-	got, err := Next(from, Hourly, 1, nil)
+	got, err := Next(from, Hourly, 1, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func TestNext_Hourly(t *testing.T) {
 		t.Errorf("hourly+1: got %s, want %s", got, want)
 	}
 
-	got, _ = Next(from, Hourly, 4, nil)
+	got, _ = Next(from, Hourly, 4, nil, nil)
 	want = mustParse(t, "2026-05-01T12:00:00Z")
 	if !got.Equal(want) {
 		t.Errorf("hourly+4: got %s, want %s", got, want)
@@ -37,7 +37,7 @@ func TestNext_Hourly(t *testing.T) {
 
 func TestNext_Daily(t *testing.T) {
 	from := mustParse(t, "2026-05-01T09:00:00Z")
-	got, _ := Next(from, Daily, 1, nil)
+	got, _ := Next(from, Daily, 1, nil, nil)
 	if !got.Equal(mustParse(t, "2026-05-02T09:00:00Z")) {
 		t.Errorf("daily+1: got %s", got)
 	}
@@ -45,7 +45,7 @@ func TestNext_Daily(t *testing.T) {
 
 func TestNext_Weekly_NoByWeekday(t *testing.T) {
 	from := mustParse(t, "2026-05-01T09:00:00Z") // Friday
-	got, _ := Next(from, Weekly, 1, nil)
+	got, _ := Next(from, Weekly, 1, nil, nil)
 	if !got.Equal(mustParse(t, "2026-05-08T09:00:00Z")) {
 		t.Errorf("weekly+1: got %s", got)
 	}
@@ -55,7 +55,7 @@ func TestNext_Weekly_Weekdays(t *testing.T) {
 	// Friday → next weekday-ish occurrence with interval=1 lands seven days
 	// later (also a Friday); byWeekday=[1..5] (Mon..Fri) accepts it.
 	from := mustParse(t, "2026-05-01T09:00:00Z")
-	got, _ := Next(from, Weekly, 1, []int{1, 2, 3, 4, 5})
+	got, _ := Next(from, Weekly, 1, []int{1, 2, 3, 4, 5}, nil)
 	if w := got.Weekday(); w < time.Monday || w > time.Friday {
 		t.Errorf("weekday filter accepted non-weekday: %v", w)
 	}
@@ -66,16 +66,55 @@ func TestNext_Weekly_Weekends(t *testing.T) {
 	// week after (since interval=1 first jumps 7 days, then we forward-
 	// scan to the next allowed weekday).
 	from := mustParse(t, "2026-05-01T09:00:00Z") // Friday
-	got, _ := Next(from, Weekly, 1, []int{0, 6})
+	got, _ := Next(from, Weekly, 1, []int{0, 6}, nil)
 	w := got.Weekday()
 	if w != time.Saturday && w != time.Sunday {
 		t.Errorf("weekend filter: got %v", w)
 	}
 }
 
+func TestNext_Weekly_WeekdaysPreset(t *testing.T) {
+	// "Every weekday" pattern: weekly + interval=1 + byWeekday=Mon..Fri.
+	// Each call should advance one weekday at a time, not jump a full
+	// week between matches.
+	from := mustParse(t, "2026-05-04T09:00:00Z") // Monday
+	allowed := []int{1, 2, 3, 4, 5}
+	want := []string{
+		"2026-05-05T09:00:00Z", // Tue
+		"2026-05-06T09:00:00Z", // Wed
+		"2026-05-07T09:00:00Z", // Thu
+		"2026-05-08T09:00:00Z", // Fri
+		"2026-05-11T09:00:00Z", // skip Sat+Sun → next Mon
+		"2026-05-12T09:00:00Z", // Tue
+	}
+	cur := from
+	for i, w := range want {
+		next, err := Next(cur, Weekly, 1, allowed, nil)
+		if err != nil {
+			t.Fatalf("step %d: %v", i, err)
+		}
+		if !next.Equal(mustParse(t, w)) {
+			t.Errorf("step %d: got %s, want %s", i, next, w)
+		}
+		cur = next
+	}
+}
+
+func TestNext_Weekly_EveryOtherTuesday(t *testing.T) {
+	// "Every other Tuesday": interval=2 + byWeekday=[2]. Should still use
+	// the "jump to active week, then forward-scan" path so we land 14
+	// days out from each anchor.
+	from := mustParse(t, "2026-05-05T09:00:00Z") // Tue
+	got, _ := Next(from, Weekly, 2, []int{int(time.Tuesday)}, nil)
+	want := mustParse(t, "2026-05-19T09:00:00Z") // 14 days later, Tue
+	if !got.Equal(want) {
+		t.Errorf("every-other-Tue: got %s, want %s", got, want)
+	}
+}
+
 func TestNext_EveryFewWeeks(t *testing.T) {
 	from := mustParse(t, "2026-05-01T09:00:00Z")
-	got, _ := Next(from, Weekly, 3, nil)
+	got, _ := Next(from, Weekly, 3, nil, nil)
 	if !got.Equal(mustParse(t, "2026-05-22T09:00:00Z")) {
 		t.Errorf("weekly+3: got %s", got)
 	}
@@ -83,11 +122,11 @@ func TestNext_EveryFewWeeks(t *testing.T) {
 
 func TestNext_Monthly(t *testing.T) {
 	from := mustParse(t, "2026-05-01T09:00:00Z")
-	got, _ := Next(from, Monthly, 1, nil)
+	got, _ := Next(from, Monthly, 1, nil, nil)
 	if !got.Equal(mustParse(t, "2026-06-01T09:00:00Z")) {
 		t.Errorf("monthly+1: got %s", got)
 	}
-	got, _ = Next(from, Monthly, 2, nil)
+	got, _ = Next(from, Monthly, 2, nil, nil)
 	if !got.Equal(mustParse(t, "2026-07-01T09:00:00Z")) {
 		t.Errorf("every-other-month: got %s", got)
 	}
@@ -95,7 +134,7 @@ func TestNext_Monthly(t *testing.T) {
 
 func TestNext_Quarterly(t *testing.T) {
 	from := mustParse(t, "2026-01-15T09:00:00Z")
-	got, _ := Next(from, Quarterly, 1, nil)
+	got, _ := Next(from, Quarterly, 1, nil, nil)
 	if !got.Equal(mustParse(t, "2026-04-15T09:00:00Z")) {
 		t.Errorf("quarterly: got %s", got)
 	}
@@ -103,31 +142,108 @@ func TestNext_Quarterly(t *testing.T) {
 
 func TestNext_Yearly(t *testing.T) {
 	from := mustParse(t, "2026-01-15T09:00:00Z")
-	got, _ := Next(from, Yearly, 1, nil)
+	got, _ := Next(from, Yearly, 1, nil, nil)
 	if !got.Equal(mustParse(t, "2027-01-15T09:00:00Z")) {
 		t.Errorf("yearly+1: got %s", got)
 	}
-	got, _ = Next(from, Yearly, 5, nil)
+	got, _ = Next(from, Yearly, 5, nil, nil)
 	if !got.Equal(mustParse(t, "2031-01-15T09:00:00Z")) {
 		t.Errorf("every-N-years: got %s", got)
 	}
 }
 
 func TestNext_UnknownFrequency(t *testing.T) {
-	if _, err := Next(time.Now(), "decadal", 1, nil); !errors.Is(err, ErrUnknownFrequency) {
+	if _, err := Next(time.Now(), "decadal", 1, nil, nil); !errors.Is(err, ErrUnknownFrequency) {
 		t.Errorf("expected ErrUnknownFrequency, got %v", err)
 	}
 }
 
 func TestNext_IntervalDefaultsToOne(t *testing.T) {
 	from := mustParse(t, "2026-05-01T09:00:00Z")
-	got, _ := Next(from, Daily, 0, nil)
+	got, _ := Next(from, Daily, 0, nil, nil)
 	if !got.Equal(mustParse(t, "2026-05-02T09:00:00Z")) {
 		t.Errorf("interval 0 should default to 1: got %s", got)
 	}
-	got, _ = Next(from, Daily, -3, nil)
+	got, _ = Next(from, Daily, -3, nil, nil)
 	if !got.Equal(mustParse(t, "2026-05-02T09:00:00Z")) {
 		t.Errorf("negative interval should default to 1: got %s", got)
+	}
+}
+
+// ----- Setpos + ByWeekday -----
+
+// intPtr is a tiny helper so the test calls stay readable.
+func intPtr(v int) *int { return &v }
+
+func TestNext_Monthly_SecondThursday(t *testing.T) {
+	// May 2026: Thursdays fall on 7, 14, 21, 28. From May 7 with monthly+1
+	// + by_weekday=[Thu] + setpos=2 we want the second Thursday of *June*
+	// (the next period), which is Jun 11. (June 2026 Thursdays: 4, 11, 18, 25.)
+	from := mustParse(t, "2026-05-07T09:00:00Z")
+	got, err := Next(from, Monthly, 1, []int{int(time.Thursday)}, intPtr(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := mustParse(t, "2026-06-11T09:00:00Z")
+	if !got.Equal(want) {
+		t.Errorf("second Thursday of next month: got %s, want %s", got, want)
+	}
+}
+
+func TestNext_Monthly_LastFriday(t *testing.T) {
+	// From May 1 with by_weekday=[Fri] + setpos=-1 → last Friday of June 2026.
+	// June 2026 Fridays: 5, 12, 19, 26. Last = Jun 26.
+	from := mustParse(t, "2026-05-01T09:00:00Z")
+	got, _ := Next(from, Monthly, 1, []int{int(time.Friday)}, intPtr(-1))
+	want := mustParse(t, "2026-06-26T09:00:00Z")
+	if !got.Equal(want) {
+		t.Errorf("last Friday of next month: got %s, want %s", got, want)
+	}
+}
+
+func TestNext_Quarterly_ThirdTuesday(t *testing.T) {
+	// From May 5 (Q2 = Apr-Jun) with quarterly+1 → next quarter is Q3 (Jul-Sep).
+	// Tuesdays in Jul-Sep 2026: Jul 7,14,21,28; Aug 4,11,18,25; Sep 1,8,15,22,29.
+	// Third Tuesday of the quarter = Jul 21.
+	from := mustParse(t, "2026-05-05T10:30:00Z")
+	got, _ := Next(from, Quarterly, 1, []int{int(time.Tuesday)}, intPtr(3))
+	want := mustParse(t, "2026-07-21T10:30:00Z")
+	if !got.Equal(want) {
+		t.Errorf("third Tuesday of next quarter: got %s, want %s", got, want)
+	}
+}
+
+func TestNext_Yearly_FirstMonday(t *testing.T) {
+	// From Jul 4 2026 with yearly+1 → first Monday of 2027.
+	// Jan 2027: Jan 1 = Fri, Jan 4 = Mon. → Jan 4.
+	from := mustParse(t, "2026-07-04T08:00:00Z")
+	got, _ := Next(from, Yearly, 1, []int{int(time.Monday)}, intPtr(1))
+	want := mustParse(t, "2027-01-04T08:00:00Z")
+	if !got.Equal(want) {
+		t.Errorf("first Monday of next year: got %s, want %s", got, want)
+	}
+}
+
+func TestNext_Monthly_SetposOvershoot(t *testing.T) {
+	// Asking for the 5th Sunday of June 2026 (which has only 4 Sundays:
+	// 7, 14, 21, 28). The fallback is the latest matching weekday — Jun 28.
+	from := mustParse(t, "2026-05-01T09:00:00Z")
+	got, _ := Next(from, Monthly, 1, []int{int(time.Sunday)}, intPtr(5))
+	want := mustParse(t, "2026-06-28T09:00:00Z")
+	if !got.Equal(want) {
+		t.Errorf("setpos overshoot fallback: got %s, want %s", got, want)
+	}
+}
+
+func TestNext_Monthly_NoSetpos_DefaultsToFirst(t *testing.T) {
+	// With byWeekday but no setpos, behavior defaults to "first matching
+	// weekday in the next period."
+	from := mustParse(t, "2026-05-01T09:00:00Z")
+	got, _ := Next(from, Monthly, 1, []int{int(time.Wednesday)}, nil)
+	// June 2026 Wednesdays: 3, 10, 17, 24. First = Jun 3.
+	want := mustParse(t, "2026-06-03T09:00:00Z")
+	if !got.Equal(want) {
+		t.Errorf("default first weekday: got %s, want %s", got, want)
 	}
 }
 

@@ -148,6 +148,15 @@ func (s *AuthService) me(ctx context.Context, _ []byte) (any, error) {
 // Shared by Login / Complete / Refresh / DevAuthService.DevLogin so every
 // path produces an identical token shape.
 func (s *AuthService) issueToken(ctx context.Context, domain, userID, displayName string) (csil.LoginResponse, error) {
+	// Auto-provision: if this verified identity's domain is in any house's
+	// trusted_domains table and they aren't already a member there, insert
+	// a member row + grant the canonical "member" role before we snapshot
+	// houses for the token. Failures here are logged but don't block the
+	// login — worst case the user gets the same empty-houses token they
+	// would have had before.
+	if err := autoProvisionFromTrustedDomains(ctx, s.Store, domain, userID, displayName); err != nil {
+		log.WithError(err).Warn("auth: auto-provision from trusted domains failed (continuing)")
+	}
 	houses, err := buildHouseRoles(ctx, s.Store, domain, userID)
 	if err != nil {
 		log.WithError(err).Error("auth: enrich houses failed")
@@ -194,6 +203,71 @@ func buildHouseRoles(ctx context.Context, st store.Store, domain, userID string)
 		out = append(out, auth.HouseRoles{House: m.HouseID, Member: m.MemberID, Roles: names})
 	}
 	return out, nil
+}
+
+// autoProvisionFromTrustedDomains creates a members row + member-role
+// grant for the verified identity in every house whose trusted_domains
+// table contains their domain — provided they aren't already a member
+// there. Existing memberships are left alone. Errors on individual
+// houses are logged and skipped so one misconfigured row can't lock a
+// user out of every house they should land in.
+func autoProvisionFromTrustedDomains(ctx context.Context, st store.Store, domain, userID, displayName string) error {
+	if st == nil || domain == "" || userID == "" {
+		return nil
+	}
+	trusting, err := st.HousesTrustingDomain(ctx, domain)
+	if err != nil {
+		return err
+	}
+	if len(trusting) == 0 {
+		return nil
+	}
+	existing, err := st.FindMembersByLinkkeysIdentity(ctx, domain, userID)
+	if err != nil {
+		return err
+	}
+	already := make(map[string]bool, len(existing))
+	for _, m := range existing {
+		already[m.HouseID] = true
+	}
+	for _, h := range trusting {
+		if already[h.HouseID] {
+			continue
+		}
+		m := &models.Member{
+			HouseID:        h.HouseID,
+			LinkkeysDomain: domain,
+			LinkkeysUserID: userID,
+			DisplayName:    displayName,
+		}
+		if err := st.CreateMember(ctx, m); err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"house_id": h.HouseID,
+				"domain":   domain,
+				"user_id":  userID,
+			}).Warn("auto-provision: create member failed; skipping house")
+			continue
+		}
+		// Grant the canonical "member" role so the freshly-minted bearer
+		// can list resources in this house immediately. Absent member role
+		// (e.g. a malformed house) just means no role assignment — the
+		// member row still exists so admins can fix it from the SPA.
+		if role, rerr := st.GetRoleByName(ctx, h.HouseID, models.RoleMember); rerr == nil && role != nil {
+			_ = st.AssignRole(ctx, m.MemberID, role.RoleID)
+		}
+		// Append-only audit so house admins can see auto-joins in the
+		// member log without a separate event stream.
+		_ = st.RecordMemberAudit(ctx, &models.MemberAudit{
+			HouseID:         h.HouseID,
+			SubjectMemberID: m.MemberID,
+			Action:          models.AuditActionMemberAutoCreated,
+			Detail: models.JSONMap{
+				"via":             "trusted_domain",
+				"linkkeys_domain": domain,
+			},
+		})
+	}
+	return nil
 }
 
 // loadMemberDisplayName is used by DevAuthService to enrich the picker

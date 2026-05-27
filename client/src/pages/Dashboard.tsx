@@ -1,8 +1,10 @@
 import { For, Show, createMemo, createResource, createSignal } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 import { HeroScene } from "~/components/HeroScene";
 import { Check, Pin, Plus } from "~/components/Icons";
 import { AuthGate } from "~/components/AuthGate";
 import { AvatarStack } from "~/components/Avatar";
+import { DayStrip } from "~/components/DayStrip";
 import { TaskDetailEditor } from "~/components/TaskDetailEditor";
 import { eventClient, memberClient, projectClient, taskClient } from "~/data/clients";
 import {
@@ -25,6 +27,19 @@ import type { Member, Task } from "~/api/types.gen";
 export const Dashboard = () => {
   const houseId = useCurrentHouseId();
   const session = useSession();
+  const navigate = useNavigate();
+
+  // Open the calendar's day view at a given date, optionally jumping the
+  // user straight into the event editor. The Calendar page reads these
+  // query params on mount.
+  const openInCalendar = (dateLocal: Date, eventId?: string) => {
+    const y = dateLocal.getFullYear();
+    const m = String(dateLocal.getMonth() + 1).padStart(2, "0");
+    const d = String(dateLocal.getDate()).padStart(2, "0");
+    const qs = new URLSearchParams({ view: "day", date: `${y}-${m}-${d}` });
+    if (eventId) qs.set("event", eventId);
+    navigate(`/calendar?${qs.toString()}`);
+  };
 
   const [tasks, { refetch: refetchTasks }] = createResource(
     () => houseId(),
@@ -203,13 +218,34 @@ export const Dashboard = () => {
               </Show>
             </div>
             <Show when={nextEvent()} fallback={<p style="color:var(--ink-mute)">No upcoming events.</p>}>
-              {(e) => (
-                <>
-                  <div class="when">{e().title}</div>
-                  <Show when={e().description}>{(d) => <div class="what">{d()}</div>}</Show>
-                  <Show when={e().location}>{(loc) => <div class="where"><Pin />{loc()}</div>}</Show>
-                </>
-              )}
+              {(e) => {
+                const day = () => new Date(e().startsAt!);
+                return (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openInCalendar(day(), e().eventId)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === "Enter" || ev.key === " ") {
+                        ev.preventDefault();
+                        openInCalendar(day(), e().eventId);
+                      }
+                    }}
+                    style="cursor:pointer"
+                    aria-label={`Open ${e().title} in the calendar`}
+                  >
+                    <DayStrip
+                      date={day()}
+                      events={events() ?? []}
+                      onPick={(ev) => openInCalendar(new Date(ev.startsAt!), ev.eventId)}
+                    />
+                    <div style="margin-top:8px;font-size:13px;color:var(--ink-mute)">
+                      <b style="color:var(--ink)">{e().title}</b>
+                      <Show when={e().location}>{(loc) => <> · <span style="display:inline-flex;align-items:center;gap:2px"><Pin /> {loc()}</span></>}</Show>
+                    </div>
+                  </div>
+                );
+              }}
             </Show>
           </section>
 

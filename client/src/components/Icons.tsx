@@ -125,3 +125,11 @@ export const Cloud = (p: IconProps) => (
     <circle cx="17" cy="6" r="2.4" fill="currentColor" opacity=".35" stroke="none" />
   </svg>
 );
+
+export const Bug = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <ellipse cx="12" cy="13" rx="5" ry="6" />
+    <path d="M12 7V5a3 3 0 0 0-3-3M12 7V5a3 3 0 0 1 3-3" />
+    <path d="M7 11H4M20 11h-3M7 16H3M21 16h-4M9 19l-2 3M15 19l2 3" />
+  </svg>
+);

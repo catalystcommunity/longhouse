@@ -14,12 +14,13 @@ const testAdminUUID = "01956bfa-1234-7abc-89de-0123456789ab"
 
 type fakeStore struct {
 	store.Store
-	houses       []models.House
-	members      []models.Member
-	roles        []models.Role
-	memberRoles  []models.MemberRole
-	memberAudits []models.MemberAudit
-	idSeq        int
+	houses         []models.House
+	members        []models.Member
+	roles          []models.Role
+	memberRoles    []models.MemberRole
+	memberAudits   []models.MemberAudit
+	trustedDomains []models.TrustedDomain
+	idSeq          int
 }
 
 func (f *fakeStore) nextID(prefix string) string {
@@ -74,6 +75,12 @@ func (f *fakeStore) AssignRole(_ context.Context, memberID, roleID string) error
 func (f *fakeStore) RecordMemberAudit(_ context.Context, a *models.MemberAudit) error {
 	a.AuditID = f.nextID("audit-")
 	f.memberAudits = append(f.memberAudits, *a)
+	return nil
+}
+
+func (f *fakeStore) CreateTrustedDomain(_ context.Context, td *models.TrustedDomain) error {
+	td.TrustedDomainID = f.nextID("td-")
+	f.trustedDomains = append(f.trustedDomains, *td)
 	return nil
 }
 
@@ -149,8 +156,14 @@ func TestSeedInitialAdmin_CreatesHouseAndAdmin(t *testing.T) {
 		t.Errorf("want admin and member assigned to the bootstrap member; got %+v", assignedNames)
 	}
 
-	if len(fs.memberAudits) != 2 {
-		t.Errorf("want 2 audit entries (one per role grant), got %d", len(fs.memberAudits))
+	// 2 role-grant audits + 1 trusted-domain-added audit (the bootstrap
+	// seeds the admin's own linkkeys domain into trusted_domains so any
+	// additional identities from that domain auto-join on first sign-in).
+	if len(fs.memberAudits) != 3 {
+		t.Errorf("want 3 audit entries (2 role grants + 1 trusted domain seed), got %d", len(fs.memberAudits))
+	}
+	if len(fs.trustedDomains) != 1 || fs.trustedDomains[0].Domain != "todandlorna.com" {
+		t.Errorf("want a trusted_domain row for todandlorna.com; got %+v", fs.trustedDomains)
 	}
 }
 

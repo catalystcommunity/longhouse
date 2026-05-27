@@ -87,6 +87,27 @@ func SeedInitialAdmin() error {
 		}
 	}
 
+	// Seed the admin's linkkeys domain as a trusted domain on the founding
+	// house so additional identities from the same domain auto-join on
+	// their first sign-in. After bootstrap, admins manage the list via
+	// the SPA (TrustedDomainService) — this is the only env-var path.
+	td := &models.TrustedDomain{HouseID: house.HouseID, Domain: domain}
+	if err := store.AppStore.CreateTrustedDomain(ctx, td); err != nil {
+		// Non-fatal: the bootstrap admin still works without it; just no
+		// auto-provision until an admin adds the row by hand.
+		log.WithError(err).WithField("domain", domain).Warn("seed: could not insert initial trusted_domain row")
+	} else {
+		_ = store.AppStore.RecordMemberAudit(ctx, &models.MemberAudit{
+			HouseID:         house.HouseID,
+			SubjectMemberID: member.MemberID,
+			ActorMemberID:   &member.MemberID,
+			Action:          models.AuditActionTrustedDomainAdded,
+			TargetType:      strPtr("trusted_domain"),
+			TargetID:        &td.TrustedDomainID,
+			Detail:          models.JSONMap{"domain": domain, "via": "initial_admin_bootstrap"},
+		})
+	}
+
 	log.WithFields(log.Fields{
 		"house_id":         house.HouseID,
 		"house_name":       house.Name,

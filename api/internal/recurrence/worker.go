@@ -126,7 +126,8 @@ func Tick(ctx context.Context, store WorkerStore, now time.Time) (*TickResult, e
 			if latest != nil && latest.StartsAt != nil {
 				anchorStart = *latest.StartsAt
 			}
-			next, advErr := advanceEvent(anchorStart, *root.RecurrenceFreq, root.RecurrenceInterval)
+			next, advErr := Next(anchorStart, *root.RecurrenceFreq, root.RecurrenceInterval,
+				[]int(root.RecurrenceByWeekday), root.RecurrenceBySetpos)
 			if advErr != nil {
 				res.Errors = append(res.Errors, advErr)
 				continue
@@ -148,7 +149,8 @@ func Tick(ctx context.Context, store WorkerStore, now time.Time) (*TickResult, e
 				res.Spawned++
 				spawnedAny = true
 				anchorStart = next
-				next, advErr = advanceEvent(anchorStart, *root.RecurrenceFreq, root.RecurrenceInterval)
+				next, advErr = Next(anchorStart, *root.RecurrenceFreq, root.RecurrenceInterval,
+					[]int(root.RecurrenceByWeekday), root.RecurrenceBySetpos)
 				if advErr != nil {
 					res.Errors = append(res.Errors, advErr)
 					break
@@ -206,28 +208,9 @@ func spawnEventChild(root *models.Event, occStart time.Time) *models.Event {
 	}
 }
 
-// advanceEvent walks a starts_at forward by interval × freq. Mirrors
-// Next() for tasks but in a simpler form — events don't have a weekday
-// list to honor.
+// advanceEvent is preserved for older tests / callers that don't pass
+// the weekday/setpos filters. Internally delegates to Next() with empty
+// filters so the two paths share their date math.
 func advanceEvent(start time.Time, freq string, interval int) (time.Time, error) {
-	n := interval
-	if n < 1 {
-		n = 1
-	}
-	switch freq {
-	case "hourly":
-		return start.Add(time.Duration(n) * time.Hour), nil
-	case "daily":
-		return start.AddDate(0, 0, n), nil
-	case "weekly":
-		return start.AddDate(0, 0, 7*n), nil
-	case "monthly":
-		return start.AddDate(0, n, 0), nil
-	case "quarterly":
-		return start.AddDate(0, 3*n, 0), nil
-	case "yearly":
-		return start.AddDate(n, 0, 0), nil
-	default:
-		return time.Time{}, errors.New("recurrence: unknown event freq " + freq)
-	}
+	return Next(start, freq, interval, nil, nil)
 }

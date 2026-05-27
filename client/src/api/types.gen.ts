@@ -187,6 +187,8 @@ export interface Event {
   allDay?: boolean;
   recurrenceFreq?: RecurrenceFreq;
   recurrenceInterval?: number;
+  recurrenceByWeekday?: number[];
+  recurrenceBySetpos?: number;
   nextRecurrenceAt?: Timestamp;
   recurrenceRootEventId?: EventID;
   createdAt: Timestamp;
@@ -209,6 +211,7 @@ export interface Task {
   recurrenceFreq?: RecurrenceFreq;
   recurrenceInterval?: number;
   recurrenceByWeekday?: number[];
+  recurrenceBySetpos?: number;
   nextRecurrenceAt?: Timestamp;
   recurrenceRootTaskId?: TaskID;
   deletedAt?: Timestamp;
@@ -397,6 +400,22 @@ export interface ProjectMemberRef {
 export interface ProjectOwnerRef {
   projectId: ProjectID;
   memberId: MemberID;
+}
+
+export interface EffectiveSettings {
+  bugReportsEnabled?: boolean;
+  bugReportsProjectId?: ProjectID;
+}
+
+export interface UpdateSettingsRequest {
+  houseId: HouseID;
+  settings: EffectiveSettings;
+}
+
+export interface BugReportRequest {
+  houseId: HouseID;
+  title: string;
+  description?: string;
 }
 
 export interface ServiceError {

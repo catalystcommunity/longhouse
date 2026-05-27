@@ -10,6 +10,13 @@
 .grid > .card[data-area="tasks"] { grid-area: tasks; }
 .grid > .side                     { grid-area: side; }
 
+/* Default: .side is a flex column wrapping the right-rail cards. Must be
+   declared BEFORE the @media (min-width: 1500px) override that flips it
+   to `display: contents` — otherwise the later default-cascade rule wins
+   and the right column auto-places into an implicit grid track, leaving
+   the area between Tasks and the right cards visibly empty. */
+.side { display: flex; flex-direction: column; gap: 18px; }
+
 @media (min-width: 1280px) {
   .grid { grid-template-columns: 2fr 1fr; }
 }
@@ -31,8 +38,6 @@
 @media (max-width: 980px) {
   .grid { grid-template-columns: 1fr; grid-template-areas: "tasks" "side"; gap: 18px; }
 }
-
-.side { display: flex; flex-direction: column; gap: 18px; }
 
 /* ─── tasks card ──────────────────────────────────────────── */
 .tasks { padding: 8px 8px 14px; }
