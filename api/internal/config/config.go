@@ -51,6 +51,14 @@ var (
 	RecurrenceDisabled        = getEnvOrDefault("LONGHOUSE_RECURRENCE_DISABLED", "") == "true"
 	RecurrenceTickIntervalSec = getEnvAsIntOrDefault("LONGHOUSE_RECURRENCE_TICK_SECONDS", 60)
 
+	// Notification cull worker. The feed prunes itself: notification events
+	// (and their per-recipient rows, via cascade) older than the retention
+	// window are deleted. Defaults: keep ~6 months, sweep hourly. Disable in
+	// observed-only or test environments.
+	NotificationCullDisabled    = getEnvOrDefault("LONGHOUSE_NOTIFICATION_CULL_DISABLED", "") == "true"
+	NotificationCullTickSeconds = getEnvAsIntOrDefault("LONGHOUSE_NOTIFICATION_CULL_TICK_SECONDS", 3600)
+	NotificationRetentionDays   = getEnvAsIntOrDefault("LONGHOUSE_NOTIFICATION_RETENTION_DAYS", 180)
+
 	// Env classifies the deployment. Missing reads as "prod" — the safe
 	// interpretation. Other accepted values: "nonprod" (shared non-prod
 	// envs) and "dev" (local). Used only to gate dev-mode features today;

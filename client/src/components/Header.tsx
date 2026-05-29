@@ -4,6 +4,7 @@ import { toggleScene, toggleTheme, useSceneOn } from "~/stores/theme";
 import { selectHouse, signOut, useCurrentHouseId, useHouses, useSession } from "~/stores/auth";
 import { Bell, Landscape, LonghouseMark, Moon, Search, Sun } from "./Icons";
 import { BugReportButton } from "./BugReportButton";
+import { NotificationBell } from "./NotificationBell";
 
 const NAV = [
   { href: "/",         label: "Dashboard" },
@@ -107,7 +108,9 @@ export const Header = () => {
           <Moon class="moon" />
         </button>
         <button class="icon-btn" aria-label="Search"><Search /></button>
-        <button class="icon-btn" aria-label="Notifications"><Bell /></button>
+        <Show when={session()} fallback={<button class="icon-btn" aria-label="Notifications"><Bell /></button>}>
+          <NotificationBell />
+        </Show>
 
         <Show
           when={session()}

@@ -28,11 +28,15 @@ export type MemberAuditID = string;
 
 export type MilestoneID = string;
 
+export type NotificationID = string;
+
+export type NotificationEventID = string;
+
 export type Timestamp = string;
 
 export type TaskStatus = unknown | unknown | unknown | unknown;
 
-export type TargetType = unknown | unknown;
+export type TargetType = unknown | unknown | unknown;
 
 export type AccessLevel = unknown;
 
@@ -347,6 +351,33 @@ export interface CommentListRequest {
   targetId: string;
   limit?: number;
   offset?: number;
+}
+
+export interface Notification {
+  notificationId: NotificationID;
+  houseId: HouseID;
+  memberId: MemberID;
+  kind: string;
+  actorMemberId?: MemberID;
+  actorName: string;
+  targetType?: string;
+  targetId?: string;
+  targetTitle: string;
+  body: string;
+  read: boolean;
+  readAt?: Timestamp;
+  createdAt: Timestamp;
+}
+
+export interface NotificationListRequest {
+  houseId: HouseID;
+  unreadOnly?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface NotificationUnreadCount {
+  count: number;
 }
 
 export interface ShareAccessRequest {

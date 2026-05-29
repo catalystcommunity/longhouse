@@ -20,10 +20,12 @@ ShareID       = text
 TrustedDomainID = text
 MemberAuditID = text
 MilestoneID   = text
+NotificationID      = text
+NotificationEventID = text
 Timestamp     = text  ;; RFC3339, always UTC
 
 TaskStatus       = "open" / "in_progress" / "done" / "cancelled"
-TargetType       = "event" / "task"
+TargetType       = "event" / "task" / "project"
 AccessLevel      = "read"
 ResourceType     = "event" / "task" / "house"
 ProjectStatus    = "active" / "archived"
@@ -540,6 +542,45 @@ CommentListRequest = {
     ? offset: uint .default 0
 }
 
+;; ------------------------------------------------------------
+;; Notifications
+;;
+;; A Notification is one recipient's copy of a feed item. It is a
+;; self-contained snapshot: it carries denormalized display data
+;; (actor_name, target_title, body) and only *opaque* references back to
+;; whatever produced it (target_type/target_id are metadata for optional
+;; deep-linking, NOT relational foreign keys). Deleting the underlying
+;; task/project never erases the notification. `kind` is an open string
+;; ("comment_created" today) so new event kinds can be added without
+;; reshaping the feed.
+;; ------------------------------------------------------------
+Notification = {
+    notification_id: NotificationID,
+    house_id: HouseID,
+    member_id: MemberID,
+    kind: text,
+    ? actor_member_id: MemberID,
+    actor_name: text,
+    ? target_type: text,
+    ? target_id: text,
+    target_title: text,
+    body: text,
+    read: bool,
+    ? read_at: Timestamp,
+    created_at: Timestamp
+}
+
+NotificationListRequest = {
+    house_id: HouseID,
+    ? unread_only: bool .default false,
+    ? limit: uint .default 50,
+    ? offset: uint .default 0
+}
+
+NotificationUnreadCount = {
+    count: uint
+}
+
 ShareAccessRequest = {
     linkkeys_domain: text,
     linkkeys_user_id: text,
@@ -784,6 +825,13 @@ service CommentService {
     update-comment: Comment -> Comment / ServiceError,
     delete-comment: CommentID -> EmptyResponse / ServiceError,
     list-comments: CommentListRequest -> [* Comment] / ServiceError
+}
+
+service NotificationService {
+    list-notifications: NotificationListRequest -> [* Notification] / ServiceError,
+    unread-count: HouseID -> NotificationUnreadCount / ServiceError,
+    mark-read: NotificationID -> Notification / ServiceError,
+    mark-all-read: HouseID -> EmptyResponse / ServiceError
 }
 
 service ShareService {

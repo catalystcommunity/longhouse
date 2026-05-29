@@ -42,6 +42,12 @@ type MemberAuditID string
 // MilestoneID is a type alias
 type MilestoneID string
 
+// NotificationID is a type alias
+type NotificationID string
+
+// NotificationEventID is a type alias
+type NotificationEventID string
+
 // Timestamp is a type alias
 type Timestamp string
 
@@ -407,6 +413,36 @@ type CommentListRequest struct {
 	TargetId   string     `json:"target_id" yaml:"target_id"`
 	Limit      *uint64    `json:"limit,omitempty" yaml:"limit,omitempty"`
 	Offset     *uint64    `json:"offset,omitempty" yaml:"offset,omitempty"`
+}
+
+// Notification represents a structured data type
+type Notification struct {
+	NotificationId NotificationID `json:"notification_id" yaml:"notification_id"`
+	HouseId        HouseID        `json:"house_id" yaml:"house_id"`
+	MemberId       MemberID       `json:"member_id" yaml:"member_id"`
+	Kind           string         `json:"kind" yaml:"kind"`
+	ActorMemberId  *MemberID      `json:"actor_member_id,omitempty" yaml:"actor_member_id,omitempty"`
+	ActorName      string         `json:"actor_name" yaml:"actor_name"`
+	TargetType     *string        `json:"target_type,omitempty" yaml:"target_type,omitempty"`
+	TargetId       *string        `json:"target_id,omitempty" yaml:"target_id,omitempty"`
+	TargetTitle    string         `json:"target_title" yaml:"target_title"`
+	Body           string         `json:"body" yaml:"body"`
+	Read           bool           `json:"read" yaml:"read"`
+	ReadAt         *Timestamp     `json:"read_at,omitempty" yaml:"read_at,omitempty"`
+	CreatedAt      Timestamp      `json:"created_at" yaml:"created_at"`
+}
+
+// NotificationListRequest represents a structured data type
+type NotificationListRequest struct {
+	HouseId    HouseID `json:"house_id" yaml:"house_id"`
+	UnreadOnly *bool   `json:"unread_only,omitempty" yaml:"unread_only,omitempty"`
+	Limit      *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Offset     *uint64 `json:"offset,omitempty" yaml:"offset,omitempty"`
+}
+
+// NotificationUnreadCount represents a structured data type
+type NotificationUnreadCount struct {
+	Count uint64 `json:"count" yaml:"count"`
 }
 
 // ShareAccessRequest represents a structured data type
