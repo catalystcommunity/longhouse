@@ -54,6 +54,17 @@ func Serve(flags map[string]string) error {
 		log.Info("Recurrence worker disabled")
 	}
 
+	// Notification cull worker — prunes feed items past the retention window.
+	if !config.NotificationCullDisabled {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go runNotificationCullWorker(ctx,
+			time.Duration(config.NotificationCullTickSeconds)*time.Second,
+			time.Duration(config.NotificationRetentionDays)*24*time.Hour)
+	} else {
+		log.Info("Notification cull worker disabled")
+	}
+
 	// TCP server (legacy CSIL-on-raw-TCP listener, kept until callers migrate).
 	go func() {
 		log.Infof("Starting TCP server on :%d", config.TCPPort)
@@ -100,6 +111,8 @@ func buildHTTPHandler() (http.Handler, error) {
 	(&csilservices.SettingsService{Store: store.AppStore}).Register(d)
 	(&csilservices.BugService{Store: store.AppStore}).Register(d)
 	(&csilservices.TrustedDomainService{Store: store.AppStore}).Register(d)
+	(&csilservices.CommentService{Store: store.AppStore}).Register(d)
+	(&csilservices.NotificationService{Store: store.AppStore}).Register(d)
 
 	if devSvc := buildDevAuthService(authSvc); devSvc != nil {
 		devSvc.Register(d)
@@ -231,6 +244,37 @@ func runRecurrenceWorker(ctx context.Context, interval time.Duration) {
 					"missed_comments": res.MissedComments,
 					"errors":          len(res.Errors),
 				}).Info("recurrence tick")
+			}
+		}
+	}
+}
+
+// runNotificationCullWorker periodically deletes notification events (and
+// their cascaded per-recipient rows) older than the retention window, so the
+// feed prunes itself. Errors from a single sweep are logged, not fatal.
+func runNotificationCullWorker(ctx context.Context, interval, retention time.Duration) {
+	if interval <= 0 {
+		interval = time.Hour
+	}
+	if retention <= 0 {
+		retention = 180 * 24 * time.Hour
+	}
+	tick := time.NewTicker(interval)
+	defer tick.Stop()
+	log.Infof("Notification cull worker tick = %s, retention = %s", interval, retention)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-tick.C:
+			cutoff := now.UTC().Add(-retention)
+			n, err := store.AppStore.CullNotificationEventsBefore(ctx, cutoff)
+			if err != nil {
+				log.WithError(err).Error("notification cull failed")
+				continue
+			}
+			if n > 0 {
+				log.WithFields(log.Fields{"culled_events": n, "cutoff": cutoff}).Info("notification cull")
 			}
 		}
 	}

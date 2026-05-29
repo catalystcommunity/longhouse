@@ -135,6 +135,14 @@ type CommentService interface {
 	ListComments(ctx context.Context, req CommentListRequest) (interface{}, error)
 }
 
+// NotificationService defines the service interface
+type NotificationService interface {
+	ListNotifications(ctx context.Context, req NotificationListRequest) (interface{}, error)
+	UnreadCount(ctx context.Context, req HouseID) (interface{}, error)
+	MarkRead(ctx context.Context, req NotificationID) (interface{}, error)
+	MarkAllRead(ctx context.Context, req HouseID) (interface{}, error)
+}
+
 // ShareService defines the service interface
 type ShareService interface {
 	CreateShare(ctx context.Context, req Share) (interface{}, error)

@@ -2,6 +2,7 @@ import { For, Show, createSignal } from "solid-js";
 import { DateTimePicker } from "./DateTimePicker";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { RecurrenceFields, type RecurrenceFreq } from "./RecurrenceFields";
+import { CommentsSection } from "./CommentsSection";
 import { taskClient } from "~/data/clients";
 import { displayName, initial, memberSwatch } from "~/lib/derive";
 import type { Member, Task } from "~/api/types.gen";
@@ -111,10 +112,8 @@ export const TaskDetailEditor = (props: Props) => {
   };
 
   return (
-    <form
-      onSubmit={save}
-      style="margin:6px 0 12px 38px;padding:14px 16px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--shadow-low);display:flex;flex-direction:column;gap:10px"
-    >
+    <div style="margin:6px 0 12px 38px;padding:14px 16px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--shadow-low);display:flex;flex-direction:column;gap:10px">
+    <form onSubmit={save} style="display:flex;flex-direction:column;gap:10px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <label style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1">
           <span style="font-size:11px;color:var(--ink-mute)">Title</span>
@@ -209,5 +208,13 @@ export const TaskDetailEditor = (props: Props) => {
         </button>
       </div>
     </form>
+
+      <CommentsSection
+        targetType="task"
+        targetId={props.task.taskId}
+        houseId={props.task.houseId}
+        members={props.members}
+      />
+    </div>
   );
 };

@@ -335,6 +335,36 @@ func commentsToCSIL(rs []models.Comment) []csil.Comment {
 	return out
 }
 
+func notificationToCSIL(n *models.NotificationFeedItem) csil.Notification {
+	out := csil.Notification{
+		NotificationId: csil.NotificationID(n.NotificationID),
+		HouseId:        csil.HouseID(n.HouseID),
+		MemberId:       csil.MemberID(n.MemberID),
+		Kind:           n.Kind,
+		ActorName:      n.ActorName,
+		TargetTitle:    n.TargetTitle,
+		Body:           n.Body,
+		Read:           n.ReadAt != nil,
+		ReadAt:         tsPtr(n.ReadAt),
+		CreatedAt:      ts(n.CreatedAt),
+	}
+	if n.ActorMemberID != nil {
+		v := csil.MemberID(*n.ActorMemberID)
+		out.ActorMemberId = &v
+	}
+	out.TargetType = n.TargetType
+	out.TargetId = n.TargetID
+	return out
+}
+
+func notificationsToCSIL(rs []models.NotificationFeedItem) []csil.Notification {
+	out := make([]csil.Notification, 0, len(rs))
+	for i := range rs {
+		out = append(out, notificationToCSIL(&rs[i]))
+	}
+	return out
+}
+
 func shareToCSIL(s *models.Share) csil.Share {
 	out := csil.Share{
 		ShareId:        csil.ShareID(s.ShareID),

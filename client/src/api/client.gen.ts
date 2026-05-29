@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { BoolResponse, BugReportRequest, Comment, CommentID, CommentListRequest, CompleteRequest, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Project, ProjectID, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, ResourceRef, Role, RoleID, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskID, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import type { BoolResponse, BugReportRequest, Comment, CommentID, CommentListRequest, CompleteRequest, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectID, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, ResourceRef, Role, RoleID, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskID, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
 
 export interface ServiceTransport {
   call<TReq, TRes>(
@@ -342,6 +342,42 @@ export class MemberClient {
    */
   listMembers(req: HouseScopedListRequest, opts?: { signal?: AbortSignal }): Promise<Member[]> {
     return this.t.call<HouseScopedListRequest, Member[]>("member", "ListMembers", req, opts);
+  }
+}
+
+export class NotificationClient {
+  constructor(private readonly t: ServiceTransport) {}
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  listNotifications(req: NotificationListRequest, opts?: { signal?: AbortSignal }): Promise<Notification[]> {
+    return this.t.call<NotificationListRequest, Notification[]>("notification", "ListNotifications", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  unreadCount(req: HouseID, opts?: { signal?: AbortSignal }): Promise<NotificationUnreadCount> {
+    return this.t.call<HouseID, NotificationUnreadCount>("notification", "UnreadCount", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  markRead(req: NotificationID, opts?: { signal?: AbortSignal }): Promise<Notification> {
+    return this.t.call<NotificationID, Notification>("notification", "MarkRead", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  markAllRead(req: HouseID, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
+    return this.t.call<HouseID, EmptyResponse>("notification", "MarkAllRead", req, opts);
   }
 }
 
@@ -791,6 +827,7 @@ export class ApiClient {
   readonly house: HouseClient;
   readonly memberAudit: MemberAuditClient;
   readonly member: MemberClient;
+  readonly notification: NotificationClient;
   readonly project: ProjectClient;
   readonly role: RoleClient;
   readonly settings: SettingsClient;
@@ -808,6 +845,7 @@ export class ApiClient {
     this.house = new HouseClient(t);
     this.memberAudit = new MemberAuditClient(t);
     this.member = new MemberClient(t);
+    this.notification = new NotificationClient(t);
     this.project = new ProjectClient(t);
     this.role = new RoleClient(t);
     this.settings = new SettingsClient(t);

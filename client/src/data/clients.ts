@@ -16,6 +16,7 @@ import {
   HouseClient,
   MemberAuditClient,
   MemberClient,
+  NotificationClient,
   ProjectClient,
   RoleClient,
   SettingsClient,
@@ -42,3 +43,4 @@ export const trustedDomainClient = new TrustedDomainClient(cborTransport);
 export const memberAuditClient = new MemberAuditClient(cborTransport);
 export const settingsClient = new SettingsClient(cborTransport);
 export const bugClient = new BugClient(cborTransport);
+export const notificationClient = new NotificationClient(cborTransport);

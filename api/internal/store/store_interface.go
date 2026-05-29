@@ -145,6 +145,22 @@ type Store interface {
 	UpdateComment(ctx context.Context, comment *models.Comment) error
 	DeleteComment(ctx context.Context, commentID string) error
 	ListCommentsByTarget(ctx context.Context, targetType, targetID string, limit, offset int) ([]models.Comment, error)
+	// CreateCommentWithNotifications persists the comment and, in the SAME
+	// transaction, the notification event snapshot plus one notification row
+	// per recipient member. A nil event (or empty recipients) writes just the
+	// comment. This is how feed writes stay atomic with the cause.
+	CreateCommentWithNotifications(ctx context.Context, comment *models.Comment, event *models.NotificationEvent, recipientMemberIDs []string) error
+
+	// Notification feed operations
+	ListNotificationsByMember(ctx context.Context, houseID, memberID string, unreadOnly bool, limit, offset int) ([]models.NotificationFeedItem, error)
+	GetNotificationFeedItem(ctx context.Context, notificationID string) (*models.NotificationFeedItem, error)
+	CountUnreadNotifications(ctx context.Context, houseID, memberID string) (int64, error)
+	MarkNotificationRead(ctx context.Context, notificationID string, readAt time.Time) error
+	MarkAllNotificationsRead(ctx context.Context, houseID, memberID string, readAt time.Time) error
+	// CullNotificationEventsBefore deletes event snapshots created before the
+	// cutoff; the per-recipient rows cascade. Returns the number of events
+	// removed.
+	CullNotificationEventsBefore(ctx context.Context, cutoff time.Time) (int64, error)
 
 	// Settings (house-scoped key/value pairs). Each key holds a raw JSON
 	// blob; the service layer decodes it according to the CSIL spec for

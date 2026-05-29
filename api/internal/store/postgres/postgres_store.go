@@ -727,6 +727,94 @@ func (s *PostgresStore) ListCommentsByTarget(ctx context.Context, targetType, ta
 	return comments, nil
 }
 
+func (s *PostgresStore) CreateCommentWithNotifications(ctx context.Context, comment *models.Comment, event *models.NotificationEvent, recipientMemberIDs []string) error {
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(comment).Error; err != nil {
+			return err
+		}
+		if event == nil || len(recipientMemberIDs) == 0 {
+			return nil
+		}
+		if err := tx.Create(event).Error; err != nil {
+			return err
+		}
+		rows := make([]models.Notification, 0, len(recipientMemberIDs))
+		for _, mid := range recipientMemberIDs {
+			rows = append(rows, models.Notification{
+				NotificationEventID: event.NotificationEventID,
+				HouseID:             event.HouseID,
+				MemberID:            mid,
+			})
+		}
+		return tx.Create(&rows).Error
+	})
+}
+
+// Notification feed operations
+
+const notificationFeedSelect = `n.notification_id, n.notification_event_id, n.house_id, n.member_id, n.read_at, n.created_at,
+	e.kind, e.actor_member_id, e.actor_name, e.target_type, e.target_id, e.target_title, e.body`
+
+func (s *PostgresStore) ListNotificationsByMember(ctx context.Context, houseID, memberID string, unreadOnly bool, limit, offset int) ([]models.NotificationFeedItem, error) {
+	var items []models.NotificationFeedItem
+	q := db.WithContext(ctx).
+		Table("notifications n").
+		Select(notificationFeedSelect).
+		Joins("JOIN notification_events e ON e.notification_event_id = n.notification_event_id").
+		Where("n.house_id = ? AND n.member_id = ?", houseID, memberID)
+	if unreadOnly {
+		q = q.Where("n.read_at IS NULL")
+	}
+	if err := q.Order("n.created_at DESC").Limit(limit).Offset(offset).Scan(&items).Error; err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func (s *PostgresStore) GetNotificationFeedItem(ctx context.Context, notificationID string) (*models.NotificationFeedItem, error) {
+	var item models.NotificationFeedItem
+	err := db.WithContext(ctx).
+		Table("notifications n").
+		Select(notificationFeedSelect).
+		Joins("JOIN notification_events e ON e.notification_event_id = n.notification_event_id").
+		Where("n.notification_id = ?", notificationID).
+		First(&item).Error
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (s *PostgresStore) CountUnreadNotifications(ctx context.Context, houseID, memberID string) (int64, error) {
+	var count int64
+	err := db.WithContext(ctx).
+		Model(&models.Notification{}).
+		Where("house_id = ? AND member_id = ? AND read_at IS NULL", houseID, memberID).
+		Count(&count).Error
+	return count, err
+}
+
+func (s *PostgresStore) MarkNotificationRead(ctx context.Context, notificationID string, readAt time.Time) error {
+	return db.WithContext(ctx).
+		Model(&models.Notification{}).
+		Where("notification_id = ? AND read_at IS NULL", notificationID).
+		Update("read_at", readAt).Error
+}
+
+func (s *PostgresStore) MarkAllNotificationsRead(ctx context.Context, houseID, memberID string, readAt time.Time) error {
+	return db.WithContext(ctx).
+		Model(&models.Notification{}).
+		Where("house_id = ? AND member_id = ? AND read_at IS NULL", houseID, memberID).
+		Update("read_at", readAt).Error
+}
+
+func (s *PostgresStore) CullNotificationEventsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	res := db.WithContext(ctx).
+		Where("created_at < ?", cutoff).
+		Delete(&models.NotificationEvent{})
+	return res.RowsAffected, res.Error
+}
+
 // Share operations
 
 func (s *PostgresStore) CreateShare(ctx context.Context, share *models.Share) error {
