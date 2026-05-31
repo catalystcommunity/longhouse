@@ -33,7 +33,7 @@ func strPtrCopy(s string) *string {
 		return nil
 	}
 	v := s
-		return &v
+	return &v
 }
 
 func boolPtr(b bool) *bool { v := b; return &v }
@@ -160,6 +160,12 @@ func projectToCSIL(p *models.Project) csil.Project {
 	if p.Status != "" {
 		var s csil.ProjectStatus = p.Status
 		out.Status = &s
+	}
+	var vis csil.AccessLevel = visibilityOf(p.Visibility)
+	out.Visibility = &vis
+	if p.CreatedByMemberID != nil && *p.CreatedByMemberID != "" {
+		v := csil.MemberID(*p.CreatedByMemberID)
+		out.CreatedByMemberId = &v
 	}
 	return out
 }
@@ -302,12 +308,48 @@ func taskToCSIL(t *models.Task, assignees []models.Member) csil.Task {
 		var s csil.TaskStatus = t.Status
 		out.Status = &s
 	}
+	var vis csil.AccessLevel = visibilityOf(t.Visibility)
+	out.Visibility = &vis
 	if len(assignees) > 0 {
 		ids := make([]csil.MemberID, len(assignees))
 		for i, m := range assignees {
 			ids[i] = csil.MemberID(m.MemberID)
 		}
 		out.Assignees = ids
+	}
+	return out
+}
+
+// ---- Grants -----------------------------------------------------------
+
+func taskGrantToCSIL(g *models.TaskGrant) csil.Grant {
+	return csil.Grant{
+		GranteeType: csil.GranteeType(g.GranteeType),
+		GranteeId:   g.GranteeID,
+		AccessLevel: csil.AccessLevel(g.AccessLevel),
+	}
+}
+
+func taskGrantsToCSIL(rs []models.TaskGrant) []csil.Grant {
+	out := make([]csil.Grant, 0, len(rs))
+	for i := range rs {
+		out = append(out, taskGrantToCSIL(&rs[i]))
+	}
+	return out
+}
+
+func projectGrantToCSIL(g *models.ProjectGrant) csil.Grant {
+	return csil.Grant{
+		GranteeType: csil.GranteeType(g.GranteeType),
+		GranteeId:   g.GranteeID,
+		AccessLevel: csil.AccessLevel(g.AccessLevel),
+	}
+}
+
+func projectGrantsToCSIL(rs []models.ProjectGrant) []csil.Grant {
+	out := make([]csil.Grant, 0, len(rs))
+	for i := range rs {
+		out = append(out, projectGrantToCSIL(&rs[i]))
 	}
 	return out
 }

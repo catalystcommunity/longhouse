@@ -38,7 +38,9 @@ export type TaskStatus = unknown | unknown | unknown | unknown;
 
 export type TargetType = unknown | unknown | unknown;
 
-export type AccessLevel = unknown;
+export type AccessLevel = unknown | unknown | unknown | unknown;
+
+export type GranteeType = unknown | unknown;
 
 export type ResourceType = unknown | unknown | unknown;
 
@@ -145,6 +147,8 @@ export interface Project {
   description?: string;
   category?: string;
   status?: ProjectStatus;
+  visibility?: AccessLevel;
+  createdByMemberId?: MemberID;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -206,6 +210,7 @@ export interface Task {
   assignees?: MemberID[];
   assignedToSkillId?: SkillID;
   parentTaskId?: TaskID;
+  visibility?: AccessLevel;
   title: string;
   description?: string;
   status?: TaskStatus;
@@ -332,6 +337,16 @@ export interface HouseScopedListRequest {
   offset?: number;
 }
 
+export interface TaskList {
+  tasks: Task[];
+  hiddenCount: number;
+}
+
+export interface ProjectList {
+  projects: Project[];
+  hiddenCount: number;
+}
+
 export interface MemberScopedListRequest {
   houseId: HouseID;
   memberId: MemberID;
@@ -433,9 +448,52 @@ export interface ProjectOwnerRef {
   memberId: MemberID;
 }
 
+export interface Grant {
+  granteeType: GranteeType;
+  granteeId: string;
+  accessLevel: AccessLevel;
+}
+
+export interface TaskGrantRef {
+  taskId: TaskID;
+  granteeType: GranteeType;
+  granteeId: string;
+}
+
+export interface PutTaskGrantRequest {
+  taskId: TaskID;
+  granteeType: GranteeType;
+  granteeId: string;
+  accessLevel: AccessLevel;
+}
+
+export interface SetTaskVisibilityRequest {
+  taskId: TaskID;
+  visibility: AccessLevel;
+}
+
+export interface ProjectGrantRef {
+  projectId: ProjectID;
+  granteeType: GranteeType;
+  granteeId: string;
+}
+
+export interface PutProjectGrantRequest {
+  projectId: ProjectID;
+  granteeType: GranteeType;
+  granteeId: string;
+  accessLevel: AccessLevel;
+}
+
+export interface SetProjectVisibilityRequest {
+  projectId: ProjectID;
+  visibility: AccessLevel;
+}
+
 export interface EffectiveSettings {
   bugReportsEnabled?: boolean;
   bugReportsProjectId?: ProjectID;
+  defaultProjectVisibility?: AccessLevel;
 }
 
 export interface UpdateSettingsRequest {

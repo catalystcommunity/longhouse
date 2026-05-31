@@ -124,6 +124,10 @@ type TaskService interface {
 	UpdateTask(ctx context.Context, req Task) (interface{}, error)
 	DeleteTask(ctx context.Context, req TaskID) (interface{}, error)
 	ListTasks(ctx context.Context, req HouseScopedListRequest) (interface{}, error)
+	SetTaskVisibility(ctx context.Context, req SetTaskVisibilityRequest) (interface{}, error)
+	ListTaskGrants(ctx context.Context, req TaskID) (interface{}, error)
+	PutTaskGrant(ctx context.Context, req PutTaskGrantRequest) (interface{}, error)
+	DeleteTaskGrant(ctx context.Context, req TaskGrantRef) (interface{}, error)
 }
 
 // CommentService defines the service interface

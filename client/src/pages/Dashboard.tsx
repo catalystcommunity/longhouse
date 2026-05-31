@@ -43,7 +43,7 @@ export const Dashboard = () => {
 
   const [tasks, { refetch: refetchTasks }] = createResource(
     () => houseId(),
-    async (h) => taskClient.listTasks({ houseId: h }),
+    async (h) => (await taskClient.listTasks({ houseId: h })).tasks,
   );
   const [members] = createResource(
     () => houseId(),
@@ -55,7 +55,7 @@ export const Dashboard = () => {
   );
   const [projects] = createResource(
     () => houseId(),
-    async (h) => projectClient.listProjects({ houseId: h }),
+    async (h) => (await projectClient.listProjects({ houseId: h })).projects,
   );
 
   const memberById = createMemo(() => {

@@ -26,7 +26,13 @@ Timestamp     = text  ;; RFC3339, always UTC
 
 TaskStatus       = "open" / "in_progress" / "done" / "cancelled"
 TargetType       = "event" / "task" / "project"
-AccessLevel      = "read"
+;; Resource access levels, ordered none < read < edit < full. `read` implies
+;; the ability to comment. `edit` is content mutation; `full` adds governance
+;; (owner, project membership, visibility, grants) + delete. See docs/rbac.md.
+;; Shares (external) only ever use read/edit, a subset of this vocabulary.
+AccessLevel      = "none" / "read" / "edit" / "full"
+;; Who a grant targets. External (linkkeys) sharing stays in the Share type.
+GranteeType      = "member" / "group"
 ResourceType     = "event" / "task" / "house"
 ProjectStatus    = "active" / "archived"
 RecurrenceFreq   = "hourly" / "daily" / "weekly" / "monthly" / "quarterly" / "yearly"
@@ -206,6 +212,16 @@ Project = {
     ? category: text,
     ? status: ProjectStatus .default "active",
 
+    ;; Privacy: the house-at-large access level for this project. New projects
+    ;; are stamped from the house setting `default_project_visibility`
+    ;; (defaults to read). See docs/rbac.md.
+    ? visibility: AccessLevel .default "read",
+
+    ;; The creating member. Owner falls back to this when the project has no
+    ;; explicit owner grants. Receive-only — set by the server at create.
+    @receive-only
+    ? created_by_member_id: MemberID,
+
     @receive-only
     created_at: Timestamp,
 
@@ -327,6 +343,13 @@ Task = {
 
     ? assigned_to_skill_id: SkillID,
     ? parent_task_id: TaskID,
+
+    ;; Privacy: the house-at-large access level for this task. Resolved
+    ;; effective access is the MAX over this surface, the task's projects
+    ;; (and ancestor tasks' projects), explicit grants, and owner/admin.
+    ;; Write is bounded by the umbrella guardrail (can't exceed the MIN of
+    ;; its containers). Defaults to read. See docs/rbac.md.
+    ? visibility: AccessLevel .default "read",
 
     title: text .size (1..512),
     ? description: text,
@@ -520,6 +543,19 @@ HouseScopedListRequest = {
     ? offset: uint .default 0
 }
 
+;; List wrappers that carry a count of rows the caller may NOT see (private
+;; tasks/projects) alongside the rows they may. "You can hide a task, you
+;; can't hide that you hid one." See docs/rbac.md.
+TaskList = {
+    tasks: [* Task],
+    hidden_count: uint
+}
+
+ProjectList = {
+    projects: [* Project],
+    hidden_count: uint
+}
+
 ;; List requests scoped to a single member (used for skills, roles, audits).
 MemberScopedListRequest = {
     house_id: HouseID,
@@ -635,6 +671,53 @@ ProjectOwnerRef = {
     member_id: MemberID
 }
 
+;; ---- Resource grants (RBAC) -------------------------------------------
+;; A grant is one (grantee, level) row against a task or project. grantee_id
+;; is a MemberID or GroupID depending on grantee_type. Effective access is
+;; the MAX over all matching grants (incl. the caller's groups). See
+;; docs/rbac.md.
+Grant = {
+    grantee_type: GranteeType,
+    grantee_id: text,
+    access_level: AccessLevel
+}
+
+TaskGrantRef = {
+    task_id: TaskID,
+    grantee_type: GranteeType,
+    grantee_id: text
+}
+
+PutTaskGrantRequest = {
+    task_id: TaskID,
+    grantee_type: GranteeType,
+    grantee_id: text,
+    access_level: AccessLevel
+}
+
+SetTaskVisibilityRequest = {
+    task_id: TaskID,
+    visibility: AccessLevel
+}
+
+ProjectGrantRef = {
+    project_id: ProjectID,
+    grantee_type: GranteeType,
+    grantee_id: text
+}
+
+PutProjectGrantRequest = {
+    project_id: ProjectID,
+    grantee_type: GranteeType,
+    grantee_id: text,
+    access_level: AccessLevel
+}
+
+SetProjectVisibilityRequest = {
+    project_id: ProjectID,
+    visibility: AccessLevel
+}
+
 ;; ============================================================
 ;; Settings
 ;; ============================================================
@@ -654,7 +737,11 @@ EffectiveSettings = {
     ;; server lazily creates the project on first report and writes the
     ;; id back here; if an admin re-points this at a missing/deleted
     ;; project, the next report recreates it and updates the value.
-    ? bug_reports_project_id: ProjectID
+    ? bug_reports_project_id: ProjectID,
+    ;; Default house-at-large visibility stamped onto newly-created projects.
+    ;; House-layer; admin-writable. read = public house-wide (current
+    ;; behaviour); none = private-by-default. See docs/rbac.md.
+    ? default_project_visibility: AccessLevel .default "read"
 }
 
 ;; Partial-update request: only fields the caller wants to change need to
@@ -775,8 +862,8 @@ service ProjectService {
     get-project: ProjectID -> Project / ServiceError,
     update-project: Project -> Project / ServiceError,
     delete-project: ProjectID -> EmptyResponse / ServiceError,
-    list-projects: HouseScopedListRequest -> [* Project] / ServiceError,
-    list-project-tasks: ProjectScopedListRequest -> [* Task] / ServiceError,
+    list-projects: HouseScopedListRequest -> ProjectList / ServiceError,
+    list-project-tasks: ProjectScopedListRequest -> TaskList / ServiceError,
     add-project-task: ProjectTaskOrderRequest -> EmptyResponse / ServiceError,
     remove-project-task: ProjectTaskRef -> EmptyResponse / ServiceError,
     set-project-task-position: ProjectTaskOrderRequest -> EmptyResponse / ServiceError,
@@ -816,7 +903,14 @@ service TaskService {
     get-task: TaskID -> Task / ServiceError,
     update-task: Task -> Task / ServiceError,
     delete-task: TaskID -> EmptyResponse / ServiceError,
-    list-tasks: HouseScopedListRequest -> [* Task] / ServiceError
+    list-tasks: HouseScopedListRequest -> TaskList / ServiceError,
+
+    ;; RBAC: set the task's house-at-large visibility (full required;
+    ;; bounded by the umbrella guardrail) and manage its explicit grants.
+    set-task-visibility: SetTaskVisibilityRequest -> Task / ServiceError,
+    list-task-grants: TaskID -> [* Grant] / ServiceError,
+    put-task-grant: PutTaskGrantRequest -> EmptyResponse / ServiceError,
+    delete-task-grant: TaskGrantRef -> EmptyResponse / ServiceError
 }
 
 service CommentService {
