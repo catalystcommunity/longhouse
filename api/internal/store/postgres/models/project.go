@@ -3,14 +3,19 @@ package models
 import "time"
 
 type Project struct {
-	ProjectID   string    `gorm:"column:project_id;primaryKey;default:generate_ulid()" json:"project_id"`
-	HouseID     string    `gorm:"column:house_id;not null" json:"house_id"`
-	Name        string    `gorm:"column:name;not null" json:"name"`
-	Description string    `gorm:"column:description;not null;default:''" json:"description"`
-	Category    *string   `gorm:"column:category" json:"category,omitempty"`
-	Status      string    `gorm:"column:status;not null;default:'active'" json:"status"`
-	CreatedAt   time.Time `gorm:"column:created_at;not null" json:"created_at"`
-	UpdatedAt   time.Time `gorm:"column:updated_at;not null" json:"updated_at"`
+	ProjectID   string  `gorm:"column:project_id;primaryKey;default:generate_ulid()" json:"project_id"`
+	HouseID     string  `gorm:"column:house_id;not null" json:"house_id"`
+	Name        string  `gorm:"column:name;not null" json:"name"`
+	Description string  `gorm:"column:description;not null;default:''" json:"description"`
+	Category    *string `gorm:"column:category" json:"category,omitempty"`
+	Status      string  `gorm:"column:status;not null;default:'active'" json:"status"`
+	Visibility  string  `gorm:"column:visibility;type:access_level;not null;default:'read'" json:"visibility"`
+	// CreatedByMemberID is the creating member; owner falls back to this
+	// when the project has no explicit owner (full) grants. Nullable: the
+	// member row may have been deleted (ON DELETE SET NULL).
+	CreatedByMemberID *string   `gorm:"column:created_by_member_id" json:"created_by_member_id,omitempty"`
+	CreatedAt         time.Time `gorm:"column:created_at;not null" json:"created_at"`
+	UpdatedAt         time.Time `gorm:"column:updated_at;not null" json:"updated_at"`
 }
 
 func (Project) TableName() string { return "projects" }

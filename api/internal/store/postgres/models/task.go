@@ -60,6 +60,7 @@ type Task struct {
 	OwnerMemberID        string     `gorm:"column:owner_member_id;not null" json:"owner_member_id"`
 	AssignedToSkillID    *string    `gorm:"column:assigned_to_skill_id" json:"assigned_to_skill_id,omitempty"`
 	ParentTaskID         *string    `gorm:"column:parent_task_id" json:"parent_task_id,omitempty"`
+	Visibility           string     `gorm:"column:visibility;type:access_level;not null;default:'read'" json:"visibility"`
 	Title                string     `gorm:"column:title;not null" json:"title"`
 	Description          string     `gorm:"column:description;not null;default:''" json:"description"`
 	Status               string     `gorm:"column:status;type:task_status;not null;default:'open'" json:"status"`

@@ -16,7 +16,7 @@ export const ProjectsPage = () => {
   const houseId = useCurrentHouseId();
   const [projects, { refetch }] = createResource(
     () => houseId(),
-    async (h) => projectClient.listProjects({ houseId: h }),
+    async (h) => (await projectClient.listProjects({ houseId: h })).projects,
   );
 
   const [composerOpen, setComposerOpen] = createSignal(false);

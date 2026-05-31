@@ -60,6 +60,9 @@ type TargetType interface{}
 // AccessLevel is a type alias
 type AccessLevel interface{}
 
+// GranteeType is a type alias
+type GranteeType interface{}
+
 // ResourceType is a type alias
 type ResourceType interface{}
 
@@ -175,14 +178,16 @@ type GroupMember struct {
 
 // Project represents a structured data type
 type Project struct {
-	ProjectId   ProjectID      `json:"project_id" yaml:"project_id"`
-	HouseId     HouseID        `json:"house_id" yaml:"house_id"`
-	Name        string         `json:"name" yaml:"name"`
-	Description *string        `json:"description,omitempty" yaml:"description,omitempty"`
-	Category    *string        `json:"category,omitempty" yaml:"category,omitempty"`
-	Status      *ProjectStatus `json:"status,omitempty" yaml:"status,omitempty"`
-	CreatedAt   Timestamp      `json:"created_at" yaml:"created_at"`
-	UpdatedAt   Timestamp      `json:"updated_at" yaml:"updated_at"`
+	ProjectId         ProjectID      `json:"project_id" yaml:"project_id"`
+	HouseId           HouseID        `json:"house_id" yaml:"house_id"`
+	Name              string         `json:"name" yaml:"name"`
+	Description       *string        `json:"description,omitempty" yaml:"description,omitempty"`
+	Category          *string        `json:"category,omitempty" yaml:"category,omitempty"`
+	Status            *ProjectStatus `json:"status,omitempty" yaml:"status,omitempty"`
+	Visibility        *AccessLevel   `json:"visibility,omitempty" yaml:"visibility,omitempty"`
+	CreatedByMemberId *MemberID      `json:"created_by_member_id,omitempty" yaml:"created_by_member_id,omitempty"`
+	CreatedAt         Timestamp      `json:"created_at" yaml:"created_at"`
+	UpdatedAt         Timestamp      `json:"updated_at" yaml:"updated_at"`
 }
 
 // ProjectTask represents a structured data type
@@ -248,6 +253,7 @@ type Task struct {
 	Assignees            []MemberID      `json:"assignees,omitempty" yaml:"assignees,omitempty"`
 	AssignedToSkillId    *SkillID        `json:"assigned_to_skill_id,omitempty" yaml:"assigned_to_skill_id,omitempty"`
 	ParentTaskId         *TaskID         `json:"parent_task_id,omitempty" yaml:"parent_task_id,omitempty"`
+	Visibility           *AccessLevel    `json:"visibility,omitempty" yaml:"visibility,omitempty"`
 	Title                string          `json:"title" yaml:"title"`
 	Description          *string         `json:"description,omitempty" yaml:"description,omitempty"`
 	Status               *TaskStatus     `json:"status,omitempty" yaml:"status,omitempty"`
@@ -391,6 +397,18 @@ type HouseScopedListRequest struct {
 	Offset  *uint64 `json:"offset,omitempty" yaml:"offset,omitempty"`
 }
 
+// TaskList represents a structured data type
+type TaskList struct {
+	Tasks       []Task `json:"tasks" yaml:"tasks"`
+	HiddenCount uint64 `json:"hidden_count" yaml:"hidden_count"`
+}
+
+// ProjectList represents a structured data type
+type ProjectList struct {
+	Projects    []Project `json:"projects" yaml:"projects"`
+	HiddenCount uint64    `json:"hidden_count" yaml:"hidden_count"`
+}
+
 // MemberScopedListRequest represents a structured data type
 type MemberScopedListRequest struct {
 	HouseId  HouseID  `json:"house_id" yaml:"house_id"`
@@ -508,10 +526,60 @@ type ProjectOwnerRef struct {
 	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
 }
 
+// Grant represents a structured data type
+type Grant struct {
+	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type"`
+	GranteeId   string      `json:"grantee_id" yaml:"grantee_id"`
+	AccessLevel AccessLevel `json:"access_level" yaml:"access_level"`
+}
+
+// TaskGrantRef represents a structured data type
+type TaskGrantRef struct {
+	TaskId      TaskID      `json:"task_id" yaml:"task_id"`
+	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type"`
+	GranteeId   string      `json:"grantee_id" yaml:"grantee_id"`
+}
+
+// PutTaskGrantRequest represents a structured data type
+type PutTaskGrantRequest struct {
+	TaskId      TaskID      `json:"task_id" yaml:"task_id"`
+	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type"`
+	GranteeId   string      `json:"grantee_id" yaml:"grantee_id"`
+	AccessLevel AccessLevel `json:"access_level" yaml:"access_level"`
+}
+
+// SetTaskVisibilityRequest represents a structured data type
+type SetTaskVisibilityRequest struct {
+	TaskId     TaskID      `json:"task_id" yaml:"task_id"`
+	Visibility AccessLevel `json:"visibility" yaml:"visibility"`
+}
+
+// ProjectGrantRef represents a structured data type
+type ProjectGrantRef struct {
+	ProjectId   ProjectID   `json:"project_id" yaml:"project_id"`
+	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type"`
+	GranteeId   string      `json:"grantee_id" yaml:"grantee_id"`
+}
+
+// PutProjectGrantRequest represents a structured data type
+type PutProjectGrantRequest struct {
+	ProjectId   ProjectID   `json:"project_id" yaml:"project_id"`
+	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type"`
+	GranteeId   string      `json:"grantee_id" yaml:"grantee_id"`
+	AccessLevel AccessLevel `json:"access_level" yaml:"access_level"`
+}
+
+// SetProjectVisibilityRequest represents a structured data type
+type SetProjectVisibilityRequest struct {
+	ProjectId  ProjectID   `json:"project_id" yaml:"project_id"`
+	Visibility AccessLevel `json:"visibility" yaml:"visibility"`
+}
+
 // EffectiveSettings represents a structured data type
 type EffectiveSettings struct {
-	BugReportsEnabled   *bool      `json:"bug_reports_enabled,omitempty" yaml:"bug_reports_enabled,omitempty"`
-	BugReportsProjectId *ProjectID `json:"bug_reports_project_id,omitempty" yaml:"bug_reports_project_id,omitempty"`
+	BugReportsEnabled        *bool        `json:"bug_reports_enabled,omitempty" yaml:"bug_reports_enabled,omitempty"`
+	BugReportsProjectId      *ProjectID   `json:"bug_reports_project_id,omitempty" yaml:"bug_reports_project_id,omitempty"`
+	DefaultProjectVisibility *AccessLevel `json:"default_project_visibility,omitempty" yaml:"default_project_visibility,omitempty"`
 }
 
 // UpdateSettingsRequest represents a structured data type

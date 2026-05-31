@@ -2,8 +2,10 @@ package csilservices
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
+	"github.com/catalystcommunity/longhouse/api/internal/auth"
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
 	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
 	"github.com/catalystcommunity/longhouse/api/internal/store"
@@ -36,6 +38,10 @@ func (s *ProjectService) Register(d *csilrpc.Dispatcher) {
 	d.Register("project", "CreateMilestone", s.createMilestone)
 	d.Register("project", "UpdateMilestone", s.updateMilestone)
 	d.Register("project", "DeleteMilestone", s.deleteMilestone)
+	d.Register("project", "SetProjectVisibility", s.setProjectVisibility)
+	d.Register("project", "ListProjectGrants", s.listProjectGrants)
+	d.Register("project", "PutProjectGrant", s.putProjectGrant)
+	d.Register("project", "DeleteProjectGrant", s.deleteProjectGrant)
 }
 
 // ---- project ----------------------------------------------------------
@@ -45,7 +51,8 @@ func (s *ProjectService) listProjects(ctx context.Context, body []byte) (any, er
 	if err := csilrpc.Decode(body, &req); err != nil {
 		return nil, err
 	}
-	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
+	ident, memberID, err := requireMemberForHouse(ctx, string(req.HouseId))
+	if err != nil {
 		return nil, err
 	}
 	limit, offset := normalizePaging(req.Limit, req.Offset)
@@ -53,7 +60,20 @@ func (s *ProjectService) listProjects(ctx context.Context, body []byte) (any, er
 	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
-	return projectsToCSIL(rows), nil
+	// Filter to projects the caller may read; report the withheld count so a
+	// private project's existence isn't itself concealed. See docs/rbac.md.
+	pol := newPolicy(s.Store)
+	g := pol.granteeFor(ctx, ident, string(req.HouseId), memberID)
+	out := make([]csil.Project, 0, len(rows))
+	hidden := uint64(0)
+	for i := range rows {
+		if canRead(pol.projectAccess(ctx, &rows[i], g)) {
+			out = append(out, projectToCSIL(&rows[i]))
+		} else {
+			hidden++
+		}
+	}
+	return csil.ProjectList{Projects: out, HiddenCount: hidden}, nil
 }
 
 func (s *ProjectService) getProject(ctx context.Context, body []byte) (any, error) {
@@ -68,8 +88,14 @@ func (s *ProjectService) getProject(ctx context.Context, body []byte) (any, erro
 		}
 		return nil, csilrpc.Internal("internal error")
 	}
-	if _, _, err := requireMemberForHouse(ctx, p.HouseID); err != nil {
+	ident, memberID, err := requireMemberForHouse(ctx, p.HouseID)
+	if err != nil {
 		return nil, err
+	}
+	pol := newPolicy(s.Store)
+	g := pol.granteeFor(ctx, ident, p.HouseID, memberID)
+	if !canRead(pol.projectAccess(ctx, p, g)) {
+		return nil, csilrpc.NotFound("project not found")
 	}
 	return projectToCSIL(p), nil
 }
@@ -82,20 +108,46 @@ func (s *ProjectService) createProject(ctx context.Context, body []byte) (any, e
 	if in.HouseId == "" || in.Name == "" {
 		return nil, csilrpc.BadRequest("house_id and name are required")
 	}
-	if _, _, err := requireMemberForHouse(ctx, string(in.HouseId)); err != nil {
+	_, callerMemberID, err := requireMemberForHouse(ctx, string(in.HouseId))
+	if err != nil {
 		return nil, err
 	}
+	// Visibility: honor an explicit request, else stamp the house default
+	// (default_project_visibility, falling back to read). See docs/rbac.md.
+	vis := accessLevelPtr(in.Visibility, "")
+	if !validAccessLevel(vis) {
+		vis = s.defaultProjectVisibility(ctx, string(in.HouseId))
+	}
+	creator := callerMemberID
 	p := &models.Project{
-		HouseID:     string(in.HouseId),
-		Name:        in.Name,
-		Description: derefStr(in.Description),
-		Category:    in.Category,
-		Status:      derefProjectStatus(in.Status, "active"),
+		HouseID:           string(in.HouseId),
+		Name:              in.Name,
+		Description:       derefStr(in.Description),
+		Category:          in.Category,
+		Status:            derefProjectStatus(in.Status, "active"),
+		Visibility:        vis,
+		CreatedByMemberID: &creator,
 	}
 	if err := s.Store.CreateProject(ctx, p); err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
+	// Seed the creator as an owner (full) grant so they retain governance even
+	// if they later drop the creator fallback (e.g. reassigned).
+	_ = s.Store.AddProjectOwner(ctx, p.ProjectID, callerMemberID)
 	return projectToCSIL(p), nil
+}
+
+// defaultProjectVisibility reads the house setting, falling back to read.
+func (s *ProjectService) defaultProjectVisibility(ctx context.Context, houseID string) string {
+	raw, ok, err := readHouseSetting(ctx, s.Store, houseID, settingDefaultProjectVisibility)
+	if err != nil || !ok {
+		return models.AccessRead
+	}
+	var v string
+	if err := json.Unmarshal(raw, &v); err != nil || !validAccessLevel(v) {
+		return models.AccessRead
+	}
+	return v
 }
 
 func (s *ProjectService) updateProject(ctx context.Context, body []byte) (any, error) {
@@ -110,7 +162,10 @@ func (s *ProjectService) updateProject(ctx context.Context, body []byte) (any, e
 	if err != nil {
 		return nil, csilrpc.NotFound("project not found")
 	}
-	if _, _, err := requireRoleForHouse(ctx, existing.HouseID, "admin"); err != nil {
+	// Content edits require `edit`. Visibility/grants/created_by are
+	// governance — managed via the dedicated ops (full). An inbound
+	// Visibility / CreatedByMemberId here is ignored. See docs/rbac.md §7.
+	if _, _, err := s.requireProjectAccess(ctx, existing, models.AccessEdit); err != nil {
 		return nil, err
 	}
 	if in.Name != "" {
@@ -138,7 +193,8 @@ func (s *ProjectService) deleteProject(ctx context.Context, body []byte) (any, e
 	if err != nil {
 		return nil, csilrpc.NotFound("project not found")
 	}
-	if _, _, err := requireRoleForHouse(ctx, p.HouseID, "admin"); err != nil {
+	// Delete is governance — requires full.
+	if _, _, err := s.requireProjectAccess(ctx, p, models.AccessFull); err != nil {
 		return nil, err
 	}
 	if err := s.Store.DeleteProject(ctx, p.ProjectID); err != nil {
@@ -154,7 +210,8 @@ func (s *ProjectService) listProjectTasks(ctx context.Context, body []byte) (any
 	if err := csilrpc.Decode(body, &req); err != nil {
 		return nil, err
 	}
-	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
+	ident, memberID, err := requireMemberForHouse(ctx, string(req.HouseId))
+	if err != nil {
 		return nil, err
 	}
 	limit, offset := normalizePaging(req.Limit, req.Offset)
@@ -162,12 +219,21 @@ func (s *ProjectService) listProjectTasks(ctx context.Context, body []byte) (any
 	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
-	out := make([]csil.Task, len(tasks))
-	for i, t := range tasks {
-		assignees, _ := s.Store.ListTaskAssignees(ctx, t.TaskID)
-		out[i] = taskToCSIL(&t, assignees)
+	// Even within a project, a task may carry tighter visibility — resolve
+	// each and filter, reporting the withheld count. See docs/rbac.md.
+	pol := newPolicy(s.Store)
+	g := pol.granteeFor(ctx, ident, string(req.HouseId), memberID)
+	out := make([]csil.Task, 0, len(tasks))
+	hidden := uint64(0)
+	for i := range tasks {
+		if canRead(pol.taskAccess(ctx, &tasks[i], g)) {
+			assignees, _ := s.Store.ListTaskAssignees(ctx, tasks[i].TaskID)
+			out = append(out, taskToCSIL(&tasks[i], assignees))
+		} else {
+			hidden++
+		}
 	}
-	return out, nil
+	return csil.TaskList{Tasks: out, HiddenCount: hidden}, nil
 }
 
 func (s *ProjectService) addProjectTask(ctx context.Context, body []byte) (any, error) {
@@ -175,7 +241,7 @@ func (s *ProjectService) addProjectTask(ctx context.Context, body []byte) (any, 
 	if err := csilrpc.Decode(body, &req); err != nil {
 		return nil, err
 	}
-	if err := s.authzProject(ctx, string(req.ProjectId)); err != nil {
+	if err := s.authzProject(ctx, string(req.ProjectId), models.AccessEdit); err != nil {
 		return nil, err
 	}
 	if err := s.Store.AddProjectTask(ctx, string(req.ProjectId), string(req.TaskId), int(req.Position)); err != nil {
@@ -189,7 +255,7 @@ func (s *ProjectService) removeProjectTask(ctx context.Context, body []byte) (an
 	if err := csilrpc.Decode(body, &req); err != nil {
 		return nil, err
 	}
-	if err := s.authzProject(ctx, string(req.ProjectId)); err != nil {
+	if err := s.authzProject(ctx, string(req.ProjectId), models.AccessEdit); err != nil {
 		return nil, err
 	}
 	if err := s.Store.RemoveProjectTask(ctx, string(req.ProjectId), string(req.TaskId)); err != nil {
@@ -206,7 +272,7 @@ func (s *ProjectService) setProjectTaskPosition(ctx context.Context, body []byte
 	if err := csilrpc.Decode(body, &req); err != nil {
 		return nil, err
 	}
-	if err := s.authzProject(ctx, string(req.ProjectId)); err != nil {
+	if err := s.authzProject(ctx, string(req.ProjectId), models.AccessEdit); err != nil {
 		return nil, err
 	}
 	if err := s.Store.RemoveProjectTask(ctx, string(req.ProjectId), string(req.TaskId)); err != nil {
@@ -249,7 +315,7 @@ func (s *ProjectService) addProjectMember(ctx context.Context, body []byte) (any
 	if err := csilrpc.Decode(body, &ref); err != nil {
 		return nil, err
 	}
-	if err := s.authzProject(ctx, string(ref.ProjectId)); err != nil {
+	if err := s.authzProject(ctx, string(ref.ProjectId), models.AccessEdit); err != nil {
 		return nil, err
 	}
 	if err := s.Store.AddProjectMember(ctx, string(ref.ProjectId), string(ref.MemberId)); err != nil {
@@ -263,7 +329,7 @@ func (s *ProjectService) removeProjectMember(ctx context.Context, body []byte) (
 	if err := csilrpc.Decode(body, &ref); err != nil {
 		return nil, err
 	}
-	if err := s.authzProject(ctx, string(ref.ProjectId)); err != nil {
+	if err := s.authzProject(ctx, string(ref.ProjectId), models.AccessEdit); err != nil {
 		return nil, err
 	}
 	if err := s.Store.RemoveProjectMember(ctx, string(ref.ProjectId), string(ref.MemberId)); err != nil {
@@ -277,7 +343,7 @@ func (s *ProjectService) addProjectOwner(ctx context.Context, body []byte) (any,
 	if err := csilrpc.Decode(body, &ref); err != nil {
 		return nil, err
 	}
-	if err := s.authzProject(ctx, string(ref.ProjectId)); err != nil {
+	if err := s.authzProject(ctx, string(ref.ProjectId), models.AccessEdit); err != nil {
 		return nil, err
 	}
 	if err := s.Store.AddProjectOwner(ctx, string(ref.ProjectId), string(ref.MemberId)); err != nil {
@@ -291,7 +357,7 @@ func (s *ProjectService) removeProjectOwner(ctx context.Context, body []byte) (a
 	if err := csilrpc.Decode(body, &ref); err != nil {
 		return nil, err
 	}
-	if err := s.authzProject(ctx, string(ref.ProjectId)); err != nil {
+	if err := s.authzProject(ctx, string(ref.ProjectId), models.AccessEdit); err != nil {
 		return nil, err
 	}
 	if err := s.Store.RemoveProjectOwner(ctx, string(ref.ProjectId), string(ref.MemberId)); err != nil {
@@ -322,7 +388,7 @@ func (s *ProjectService) createMilestone(ctx context.Context, body []byte) (any,
 	if in.ProjectId == "" || in.Label == "" {
 		return nil, csilrpc.BadRequest("project_id and label are required")
 	}
-	if err := s.authzProject(ctx, string(in.ProjectId)); err != nil {
+	if err := s.authzProject(ctx, string(in.ProjectId), models.AccessEdit); err != nil {
 		return nil, err
 	}
 	m := &models.Milestone{
@@ -350,7 +416,7 @@ func (s *ProjectService) updateMilestone(ctx context.Context, body []byte) (any,
 	if err != nil {
 		return nil, csilrpc.NotFound("milestone not found")
 	}
-	if err := s.authzProject(ctx, existing.ProjectID); err != nil {
+	if err := s.authzProject(ctx, existing.ProjectID, models.AccessEdit); err != nil {
 		return nil, err
 	}
 	if in.Label != "" {
@@ -380,7 +446,7 @@ func (s *ProjectService) deleteMilestone(ctx context.Context, body []byte) (any,
 	if err != nil {
 		return nil, csilrpc.NotFound("milestone not found")
 	}
-	if err := s.authzProject(ctx, existing.ProjectID); err != nil {
+	if err := s.authzProject(ctx, existing.ProjectID, models.AccessEdit); err != nil {
 		return nil, err
 	}
 	if err := s.Store.DeleteMilestone(ctx, existing.MilestoneID); err != nil {
@@ -410,19 +476,140 @@ func (s *ProjectService) requireProjectViewer(ctx context.Context, body []byte) 
 	return p.ProjectID, nil
 }
 
-// authzProject is the admin-or-self gate for mutations. Loads the project
-// to find its house, then requires the caller to hold the admin role in
-// that house. (Self-as-owner is harder to express for projects today since
-// there's no single-owner column; admin is the safe baseline.)
-func (s *ProjectService) authzProject(ctx context.Context, projectID string) error {
+// requireProjectAccess loads (if needed) and gates a project mutation by the
+// caller's resolved access level. Returns the identity grantee for reuse.
+// `need` is the minimum level (edit for content, full for governance).
+func (s *ProjectService) requireProjectAccess(ctx context.Context, p *models.Project, need string) (*auth.Identity, grantee, error) {
+	ident, memberID, err := requireMemberForHouse(ctx, p.HouseID)
+	if err != nil {
+		return nil, grantee{}, err
+	}
+	pol := newPolicy(s.Store)
+	g := pol.granteeFor(ctx, ident, p.HouseID, memberID)
+	level := pol.projectAccess(ctx, p, g)
+	if models.AccessRank(level) < models.AccessRank(need) {
+		return nil, grantee{}, csilrpc.Forbidden("you need " + need + " access to this project")
+	}
+	return ident, g, nil
+}
+
+// authzProject is the grant-based gate for project mutations that take a
+// project id. `need` is the minimum access level. Replaces the old admin-only
+// check now that projects carry grants. See docs/rbac.md §7.
+func (s *ProjectService) authzProject(ctx context.Context, projectID, need string) error {
 	p, err := s.Store.GetProjectByID(ctx, projectID)
 	if err != nil {
 		return csilrpc.NotFound("project not found")
 	}
-	if _, _, err := requireRoleForHouse(ctx, p.HouseID, "admin"); err != nil {
+	if _, _, err := s.requireProjectAccess(ctx, p, need); err != nil {
 		return err
 	}
 	return nil
+}
+
+// ---- visibility + grants ----------------------------------------------
+
+// setProjectVisibility changes the project's house-at-large visibility.
+// Requires full. Projects have no container, so there is no umbrella ceiling.
+func (s *ProjectService) setProjectVisibility(ctx context.Context, body []byte) (any, error) {
+	var in csil.SetProjectVisibilityRequest
+	if err := csilrpc.Decode(body, &in); err != nil {
+		return nil, err
+	}
+	if in.ProjectId == "" {
+		return nil, csilrpc.BadRequest("project_id is required")
+	}
+	want := accessLevelVal(in.Visibility, "")
+	if !validAccessLevel(want) {
+		return nil, csilrpc.BadRequest("invalid visibility")
+	}
+	p, err := s.Store.GetProjectByID(ctx, string(in.ProjectId))
+	if err != nil {
+		return nil, csilrpc.NotFound("project not found")
+	}
+	if _, _, err := s.requireProjectAccess(ctx, p, models.AccessFull); err != nil {
+		return nil, err
+	}
+	p.Visibility = want
+	if err := s.Store.UpdateProject(ctx, p); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	return projectToCSIL(p), nil
+}
+
+// listProjectGrants returns the project's explicit grants (governance — full).
+func (s *ProjectService) listProjectGrants(ctx context.Context, body []byte) (any, error) {
+	var id csil.ProjectID
+	if err := csilrpc.Decode(body, &id); err != nil {
+		return nil, err
+	}
+	p, err := s.Store.GetProjectByID(ctx, string(id))
+	if err != nil {
+		return nil, csilrpc.NotFound("project not found")
+	}
+	if _, _, err := s.requireProjectAccess(ctx, p, models.AccessFull); err != nil {
+		return nil, err
+	}
+	grants, err := s.Store.ListProjectGrants(ctx, p.ProjectID)
+	if err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	return projectGrantsToCSIL(grants), nil
+}
+
+func (s *ProjectService) putProjectGrant(ctx context.Context, body []byte) (any, error) {
+	var in csil.PutProjectGrantRequest
+	if err := csilrpc.Decode(body, &in); err != nil {
+		return nil, err
+	}
+	gt := granteeTypeVal(in.GranteeType)
+	if gt != models.GranteeMember && gt != models.GranteeGroup {
+		return nil, csilrpc.BadRequest("invalid grantee_type")
+	}
+	if in.GranteeId == "" {
+		return nil, csilrpc.BadRequest("grantee_id is required")
+	}
+	level := accessLevelVal(in.AccessLevel, "")
+	if !validAccessLevel(level) {
+		return nil, csilrpc.BadRequest("invalid access_level")
+	}
+	p, err := s.Store.GetProjectByID(ctx, string(in.ProjectId))
+	if err != nil {
+		return nil, csilrpc.NotFound("project not found")
+	}
+	if _, _, err := s.requireProjectAccess(ctx, p, models.AccessFull); err != nil {
+		return nil, err
+	}
+	grant := &models.ProjectGrant{
+		ProjectID: p.ProjectID, HouseID: p.HouseID,
+		GranteeType: gt, GranteeID: in.GranteeId, AccessLevel: level,
+	}
+	if err := s.Store.PutProjectGrant(ctx, grant); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	return csil.EmptyResponse{}, nil
+}
+
+func (s *ProjectService) deleteProjectGrant(ctx context.Context, body []byte) (any, error) {
+	var in csil.ProjectGrantRef
+	if err := csilrpc.Decode(body, &in); err != nil {
+		return nil, err
+	}
+	gt := granteeTypeVal(in.GranteeType)
+	if gt == "" || in.GranteeId == "" {
+		return nil, csilrpc.BadRequest("grantee_type and grantee_id are required")
+	}
+	p, err := s.Store.GetProjectByID(ctx, string(in.ProjectId))
+	if err != nil {
+		return nil, csilrpc.NotFound("project not found")
+	}
+	if _, _, err := s.requireProjectAccess(ctx, p, models.AccessFull); err != nil {
+		return nil, err
+	}
+	if err := s.Store.DeleteProjectGrant(ctx, p.ProjectID, gt, in.GranteeId); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	return csil.EmptyResponse{}, nil
 }
 
 // requireRoleForHouse is the role-gated counterpart of requireMemberForHouse.

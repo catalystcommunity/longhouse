@@ -81,14 +81,33 @@ type Store interface {
 	RemoveProjectTask(ctx context.Context, projectID, taskID string) error
 	ListProjectTasks(ctx context.Context, projectID string, limit, offset int) ([]models.Task, error)
 
-	// Project membership and ownership (separate join tables; owners is the
-	// smaller set the UI surfaces independently of members).
+	// Project membership and ownership. Since migration 000012 these are a
+	// compatibility facade over project_grants: owners are member-grantees
+	// at access_level 'full', members are member-grantees at 'edit' (or
+	// 'full', since owners ⊆ members). Add/Remove translate accordingly.
 	AddProjectMember(ctx context.Context, projectID, memberID string) error
 	RemoveProjectMember(ctx context.Context, projectID, memberID string) error
 	ListProjectMembers(ctx context.Context, projectID string) ([]models.Member, error)
 	AddProjectOwner(ctx context.Context, projectID, memberID string) error
 	RemoveProjectOwner(ctx context.Context, projectID, memberID string) error
 	ListProjectOwners(ctx context.Context, projectID string) ([]models.Member, error)
+
+	// Resource grants (RBAC). Per-resource grant tables carrying additive
+	// (grantee, level) rows for members and groups. See docs/rbac.md.
+	ListTaskGrants(ctx context.Context, taskID string) ([]models.TaskGrant, error)
+	PutTaskGrant(ctx context.Context, grant *models.TaskGrant) error
+	DeleteTaskGrant(ctx context.Context, taskID, granteeType, granteeID string) error
+	ListProjectGrants(ctx context.Context, projectID string) ([]models.ProjectGrant, error)
+	PutProjectGrant(ctx context.Context, grant *models.ProjectGrant) error
+	DeleteProjectGrant(ctx context.Context, projectID, granteeType, granteeID string) error
+
+	// Resolver helpers. ListProjectsForTask returns the projects directly
+	// containing the task; GetTaskAncestors walks parent_task_id upward
+	// (nearest parent first, excluding the task itself); ListGroupIDsForMember
+	// returns the group ids the member belongs to (for group-grant matching).
+	ListProjectsForTask(ctx context.Context, taskID string) ([]models.Project, error)
+	GetTaskAncestors(ctx context.Context, taskID string) ([]models.Task, error)
+	ListGroupIDsForMember(ctx context.Context, memberID string) ([]string, error)
 
 	// Milestones — timeline markers per project, ordered by position.
 	CreateMilestone(ctx context.Context, m *models.Milestone) error

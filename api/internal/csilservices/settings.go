@@ -17,8 +17,9 @@ import (
 type SettingsService struct{ Store store.Store }
 
 const (
-	settingBugReportsEnabled   = "bug_reports_enabled"
-	settingBugReportsProjectID = "bug_reports_project_id"
+	settingBugReportsEnabled        = "bug_reports_enabled"
+	settingBugReportsProjectID      = "bug_reports_project_id"
+	settingDefaultProjectVisibility = "default_project_visibility"
 )
 
 func (s *SettingsService) Register(d *csilrpc.Dispatcher) {

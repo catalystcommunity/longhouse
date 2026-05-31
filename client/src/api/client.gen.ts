@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { BoolResponse, BugReportRequest, Comment, CommentID, CommentListRequest, CompleteRequest, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectID, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, ResourceRef, Role, RoleID, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskID, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import type { BoolResponse, BugReportRequest, Comment, CommentID, CommentListRequest, CompleteRequest, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Grant, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectID, ProjectList, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, PutTaskGrantRequest, ResourceRef, Role, RoleID, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskGrantRef, TaskID, TaskList, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
 
 export interface ServiceTransport {
   call<TReq, TRes>(
@@ -420,16 +420,16 @@ export class ProjectClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) defined by the transport
    */
-  listProjects(req: HouseScopedListRequest, opts?: { signal?: AbortSignal }): Promise<Project[]> {
-    return this.t.call<HouseScopedListRequest, Project[]>("project", "ListProjects", req, opts);
+  listProjects(req: HouseScopedListRequest, opts?: { signal?: AbortSignal }): Promise<ProjectList> {
+    return this.t.call<HouseScopedListRequest, ProjectList>("project", "ListProjects", req, opts);
   }
 
   /**
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) defined by the transport
    */
-  listProjectTasks(req: ProjectScopedListRequest, opts?: { signal?: AbortSignal }): Promise<Task[]> {
-    return this.t.call<ProjectScopedListRequest, Task[]>("project", "ListProjectTasks", req, opts);
+  listProjectTasks(req: ProjectScopedListRequest, opts?: { signal?: AbortSignal }): Promise<TaskList> {
+    return this.t.call<ProjectScopedListRequest, TaskList>("project", "ListProjectTasks", req, opts);
   }
 
   /**
@@ -776,8 +776,40 @@ export class TaskClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) defined by the transport
    */
-  listTasks(req: HouseScopedListRequest, opts?: { signal?: AbortSignal }): Promise<Task[]> {
-    return this.t.call<HouseScopedListRequest, Task[]>("task", "ListTasks", req, opts);
+  listTasks(req: HouseScopedListRequest, opts?: { signal?: AbortSignal }): Promise<TaskList> {
+    return this.t.call<HouseScopedListRequest, TaskList>("task", "ListTasks", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  setTaskVisibility(req: SetTaskVisibilityRequest, opts?: { signal?: AbortSignal }): Promise<Task> {
+    return this.t.call<SetTaskVisibilityRequest, Task>("task", "SetTaskVisibility", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  listTaskGrants(req: TaskID, opts?: { signal?: AbortSignal }): Promise<Grant[]> {
+    return this.t.call<TaskID, Grant[]>("task", "ListTaskGrants", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  putTaskGrant(req: PutTaskGrantRequest, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
+    return this.t.call<PutTaskGrantRequest, EmptyResponse>("task", "PutTaskGrant", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  deleteTaskGrant(req: TaskGrantRef, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
+    return this.t.call<TaskGrantRef, EmptyResponse>("task", "DeleteTaskGrant", req, opts);
   }
 }
 

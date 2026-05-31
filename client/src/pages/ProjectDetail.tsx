@@ -32,7 +32,7 @@ export const ProjectDetail = () => {
   const [bundle, { refetch }] = createResource(projectId, async (id): Promise<DetailBundle | null> => {
     try {
       const project = await projectClient.getProject(id);
-      const [houseMembers, members, owners, milestones, projectTasks, houseTasks] = await Promise.all([
+      const [houseMembers, members, owners, milestones, projectTaskList, houseTaskList] = await Promise.all([
         memberClient.listMembers({ houseId: project.houseId }),
         projectClient.listProjectMembers(id),
         projectClient.listProjectOwners(id),
@@ -40,7 +40,15 @@ export const ProjectDetail = () => {
         projectClient.listProjectTasks({ houseId: project.houseId, projectId: id }),
         taskClient.listTasks({ houseId: project.houseId }),
       ]);
-      return { project, houseMembers, members, owners, milestones, projectTasks, houseTasks };
+      return {
+        project,
+        houseMembers,
+        members,
+        owners,
+        milestones,
+        projectTasks: projectTaskList.tasks,
+        houseTasks: houseTaskList.tasks,
+      };
     } catch {
       return null;
     }

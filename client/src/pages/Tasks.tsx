@@ -14,7 +14,7 @@ export const TasksPage = () => {
   const houseId = useCurrentHouseId();
   const [tasks, { refetch: refetchTasks }] = createResource(
     () => houseId(),
-    async (h) => taskClient.listTasks({ houseId: h }),
+    async (h) => (await taskClient.listTasks({ houseId: h })).tasks,
   );
   const [members] = createResource(
     () => houseId(),

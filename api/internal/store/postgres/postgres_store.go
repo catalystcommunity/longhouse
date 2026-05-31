@@ -418,24 +418,50 @@ func (s *PostgresStore) ListProjectTasks(ctx context.Context, projectID string, 
 	return tasks, nil
 }
 
-// ---- Project members / owners -----------------------------------------
+// ---- Project members / owners (facade over project_grants) ------------
+//
+// Since migration 000012 there are no project_members / project_owners
+// tables. These methods preserve the old store surface by mapping onto
+// project_grants: owners are member-grantees at 'full', members are member-
+// grantees at 'edit' (owners ⊆ members). See docs/rbac.md.
 
-func (s *PostgresStore) AddProjectMember(ctx context.Context, projectID, memberID string) error {
-	pm := &models.ProjectMember{ProjectID: projectID, MemberID: memberID}
-	return db.WithContext(ctx).Create(pm).Error
+func (s *PostgresStore) projectHouseID(ctx context.Context, projectID string) (string, error) {
+	var p models.Project
+	if err := db.WithContext(ctx).Select("house_id").
+		Where("project_id = ?", projectID).First(&p).Error; err != nil {
+		return "", err
+	}
+	return p.HouseID, nil
 }
 
+// AddProjectMember grants a member 'edit' without downgrading a higher
+// existing grant (an owner stays full): ON CONFLICT DO NOTHING.
+func (s *PostgresStore) AddProjectMember(ctx context.Context, projectID, memberID string) error {
+	houseID, err := s.projectHouseID(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	row := &models.ProjectGrant{
+		ProjectID: projectID, HouseID: houseID,
+		GranteeType: models.GranteeMember, GranteeID: memberID,
+		AccessLevel: models.AccessEdit,
+	}
+	return db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(row).Error
+}
+
+// RemoveProjectMember revokes a member's project grant entirely.
 func (s *PostgresStore) RemoveProjectMember(ctx context.Context, projectID, memberID string) error {
 	return db.WithContext(ctx).
-		Where("project_id = ? AND member_id = ?", projectID, memberID).
-		Delete(&models.ProjectMember{}).Error
+		Where("project_id = ? AND grantee_type = ? AND grantee_id = ?", projectID, models.GranteeMember, memberID).
+		Delete(&models.ProjectGrant{}).Error
 }
 
 func (s *PostgresStore) ListProjectMembers(ctx context.Context, projectID string) ([]models.Member, error) {
 	var members []models.Member
 	err := db.WithContext(ctx).
-		Joins("JOIN project_members pm ON pm.member_id = members.member_id").
-		Where("pm.project_id = ?", projectID).
+		Joins("JOIN project_grants pg ON pg.grantee_id = members.member_id").
+		Where("pg.project_id = ? AND pg.grantee_type = ? AND pg.access_level IN ?",
+			projectID, models.GranteeMember, []string{models.AccessEdit, models.AccessFull}).
 		Order("members.display_name ASC").
 		Find(&members).Error
 	if err != nil {
@@ -444,28 +470,135 @@ func (s *PostgresStore) ListProjectMembers(ctx context.Context, projectID string
 	return members, nil
 }
 
+// AddProjectOwner grants (or upgrades to) 'full'.
 func (s *PostgresStore) AddProjectOwner(ctx context.Context, projectID, memberID string) error {
-	po := &models.ProjectOwner{ProjectID: projectID, MemberID: memberID}
-	return db.WithContext(ctx).Create(po).Error
+	houseID, err := s.projectHouseID(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	row := &models.ProjectGrant{
+		ProjectID: projectID, HouseID: houseID,
+		GranteeType: models.GranteeMember, GranteeID: memberID,
+		AccessLevel: models.AccessFull,
+	}
+	return db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "project_id"}, {Name: "grantee_type"}, {Name: "grantee_id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{"access_level": models.AccessFull}),
+	}).Create(row).Error
 }
 
+// RemoveProjectOwner demotes an owner back to a plain member ('edit'),
+// preserving the old behavior where un-owning kept them on the project.
 func (s *PostgresStore) RemoveProjectOwner(ctx context.Context, projectID, memberID string) error {
-	return db.WithContext(ctx).
-		Where("project_id = ? AND member_id = ?", projectID, memberID).
-		Delete(&models.ProjectOwner{}).Error
+	return db.WithContext(ctx).Model(&models.ProjectGrant{}).
+		Where("project_id = ? AND grantee_type = ? AND grantee_id = ? AND access_level = ?",
+			projectID, models.GranteeMember, memberID, models.AccessFull).
+		Update("access_level", models.AccessEdit).Error
 }
 
 func (s *PostgresStore) ListProjectOwners(ctx context.Context, projectID string) ([]models.Member, error) {
 	var members []models.Member
 	err := db.WithContext(ctx).
-		Joins("JOIN project_owners po ON po.member_id = members.member_id").
-		Where("po.project_id = ?", projectID).
+		Joins("JOIN project_grants pg ON pg.grantee_id = members.member_id").
+		Where("pg.project_id = ? AND pg.grantee_type = ? AND pg.access_level = ?",
+			projectID, models.GranteeMember, models.AccessFull).
 		Order("members.display_name ASC").
 		Find(&members).Error
 	if err != nil {
 		return nil, err
 	}
 	return members, nil
+}
+
+// ---- Resource grants (RBAC) -------------------------------------------
+
+func (s *PostgresStore) ListTaskGrants(ctx context.Context, taskID string) ([]models.TaskGrant, error) {
+	var grants []models.TaskGrant
+	if err := db.WithContext(ctx).Where("task_id = ?", taskID).Find(&grants).Error; err != nil {
+		return nil, err
+	}
+	return grants, nil
+}
+
+func (s *PostgresStore) PutTaskGrant(ctx context.Context, grant *models.TaskGrant) error {
+	return db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "task_id"}, {Name: "grantee_type"}, {Name: "grantee_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"access_level"}),
+	}).Create(grant).Error
+}
+
+func (s *PostgresStore) DeleteTaskGrant(ctx context.Context, taskID, granteeType, granteeID string) error {
+	return db.WithContext(ctx).
+		Where("task_id = ? AND grantee_type = ? AND grantee_id = ?", taskID, granteeType, granteeID).
+		Delete(&models.TaskGrant{}).Error
+}
+
+func (s *PostgresStore) ListProjectGrants(ctx context.Context, projectID string) ([]models.ProjectGrant, error) {
+	var grants []models.ProjectGrant
+	if err := db.WithContext(ctx).Where("project_id = ?", projectID).Find(&grants).Error; err != nil {
+		return nil, err
+	}
+	return grants, nil
+}
+
+func (s *PostgresStore) PutProjectGrant(ctx context.Context, grant *models.ProjectGrant) error {
+	return db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "project_id"}, {Name: "grantee_type"}, {Name: "grantee_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"access_level"}),
+	}).Create(grant).Error
+}
+
+func (s *PostgresStore) DeleteProjectGrant(ctx context.Context, projectID, granteeType, granteeID string) error {
+	return db.WithContext(ctx).
+		Where("project_id = ? AND grantee_type = ? AND grantee_id = ?", projectID, granteeType, granteeID).
+		Delete(&models.ProjectGrant{}).Error
+}
+
+// ---- Resolver helpers --------------------------------------------------
+
+// ListProjectsForTask returns the projects directly containing the task.
+func (s *PostgresStore) ListProjectsForTask(ctx context.Context, taskID string) ([]models.Project, error) {
+	var projects []models.Project
+	if err := db.WithContext(ctx).
+		Joins("JOIN project_tasks pt ON pt.project_id = projects.project_id").
+		Where("pt.task_id = ?", taskID).Find(&projects).Error; err != nil {
+		return nil, err
+	}
+	return projects, nil
+}
+
+// GetTaskAncestors walks parent_task_id upward via a recursive CTE,
+// nearest-first, excluding the task itself. A depth guard bounds the walk in
+// case of an (impossible) cyclic parent chain.
+func (s *PostgresStore) GetTaskAncestors(ctx context.Context, taskID string) ([]models.Task, error) {
+	var tasks []models.Task
+	const q = `
+WITH RECURSIVE chain AS (
+    SELECT t.*, 1 AS depth
+    FROM tasks t
+    JOIN tasks child ON child.parent_task_id = t.task_id
+    WHERE child.task_id = ?
+  UNION ALL
+    SELECT p.*, c.depth + 1
+    FROM tasks p
+    JOIN chain c ON c.parent_task_id = p.task_id
+    WHERE c.depth < 100
+)
+SELECT * FROM chain ORDER BY depth ASC`
+	if err := db.WithContext(ctx).Raw(q, taskID).Scan(&tasks).Error; err != nil {
+		return nil, err
+	}
+	return tasks, nil
+}
+
+// ListGroupIDsForMember returns the ids of every group the member belongs to.
+func (s *PostgresStore) ListGroupIDsForMember(ctx context.Context, memberID string) ([]string, error) {
+	var ids []string
+	if err := db.WithContext(ctx).Model(&models.GroupMember{}).
+		Where("member_id = ?", memberID).Pluck("group_id", &ids).Error; err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 // ---- Milestones --------------------------------------------------------

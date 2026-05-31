@@ -25,6 +25,10 @@ func (s *TaskService) Register(d *csilrpc.Dispatcher) {
 	d.Register("task", "CreateTask", s.createTask)
 	d.Register("task", "UpdateTask", s.updateTask)
 	d.Register("task", "DeleteTask", s.deleteTask)
+	d.Register("task", "SetTaskVisibility", s.setTaskVisibility)
+	d.Register("task", "ListTaskGrants", s.listTaskGrants)
+	d.Register("task", "PutTaskGrant", s.putTaskGrant)
+	d.Register("task", "DeleteTaskGrant", s.deleteTaskGrant)
 }
 
 func (s *TaskService) listTasks(ctx context.Context, body []byte) (any, error) {
@@ -32,7 +36,8 @@ func (s *TaskService) listTasks(ctx context.Context, body []byte) (any, error) {
 	if err := csilrpc.Decode(body, &req); err != nil {
 		return nil, err
 	}
-	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
+	id, memberID, err := requireMemberForHouse(ctx, string(req.HouseId))
+	if err != nil {
 		return nil, err
 	}
 	limit, offset := normalizePaging(req.Limit, req.Offset)
@@ -40,12 +45,22 @@ func (s *TaskService) listTasks(ctx context.Context, body []byte) (any, error) {
 	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
-	out := make([]csil.Task, len(tasks))
-	for i, t := range tasks {
-		assignees, _ := s.Store.ListTaskAssignees(ctx, t.TaskID)
-		out[i] = taskToCSIL(&t, assignees)
+	// Resolve effective access per task and filter to what the caller may
+	// read. hidden_count reports how many rows in this page were withheld —
+	// "you can hide a task, you can't hide that you hid one". See docs/rbac.md.
+	pol := newPolicy(s.Store)
+	g := pol.granteeFor(ctx, id, string(req.HouseId), memberID)
+	out := make([]csil.Task, 0, len(tasks))
+	hidden := uint64(0)
+	for i := range tasks {
+		if canRead(pol.taskAccess(ctx, &tasks[i], g)) {
+			assignees, _ := s.Store.ListTaskAssignees(ctx, tasks[i].TaskID)
+			out = append(out, taskToCSIL(&tasks[i], assignees))
+		} else {
+			hidden++
+		}
 	}
-	return out, nil
+	return csil.TaskList{Tasks: out, HiddenCount: hidden}, nil
 }
 
 func (s *TaskService) getTask(ctx context.Context, body []byte) (any, error) {
@@ -60,8 +75,15 @@ func (s *TaskService) getTask(ctx context.Context, body []byte) (any, error) {
 		}
 		return nil, csilrpc.Internal("internal error")
 	}
-	if _, _, err := requireMemberForHouse(ctx, t.HouseID); err != nil {
+	ident, memberID, err := requireMemberForHouse(ctx, t.HouseID)
+	if err != nil {
 		return nil, err
+	}
+	pol := newPolicy(s.Store)
+	g := pol.granteeFor(ctx, ident, t.HouseID, memberID)
+	if !canRead(pol.taskAccess(ctx, t, g)) {
+		// Don't leak existence of a task the caller can't see.
+		return nil, csilrpc.NotFound("task not found")
 	}
 	assignees, _ := s.Store.ListTaskAssignees(ctx, t.TaskID)
 	return taskToCSIL(t, assignees), nil
@@ -106,6 +128,23 @@ func (s *TaskService) createTask(ctx context.Context, body []byte) (any, error) 
 	if in.ParentTaskId != nil {
 		v := string(*in.ParentTaskId)
 		t.ParentTaskID = &v
+	}
+	// Visibility at create. A task isn't in any project yet, so the only
+	// possible container is a parent task:
+	//   * Top-level (no parent): pinned to read — no free-floating private
+	//     tasks. To get a private task, attach it to a private project and
+	//     then set-task-visibility. See docs/rbac.md.
+	//   * Subtask: inherit the umbrella — clamp the requested level (default
+	//     read) down to the parent's visibility.
+	if in.ParentTaskId != nil {
+		requestedVis := accessLevelPtr(in.Visibility, models.AccessRead)
+		ceil := models.AccessRead
+		if parent, perr := s.Store.GetTaskByID(ctx, string(*in.ParentTaskId)); perr == nil {
+			ceil = visibilityOf(parent.Visibility)
+		}
+		t.Visibility = models.MinAccess(requestedVis, ceil)
+	} else {
+		t.Visibility = models.AccessRead
 	}
 	// Recurrence: freq=nil means not recurring. Empty string also disables.
 	// The worker reads next_recurrence_at as the spawn anchor; seed it from
@@ -183,14 +222,17 @@ func (s *TaskService) updateTask(ctx context.Context, body []byte) (any, error) 
 	if err != nil {
 		return nil, csilrpc.NotFound("task not found")
 	}
-	id, callerMemberID, err := requireMemberForHouse(ctx, existing.HouseID)
+	ident, memberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
 		return nil, err
 	}
-	if callerMemberID != existing.OwnerMemberID {
-		if _, err := requireRole(id, existing.HouseID, "admin"); err != nil {
-			return nil, csilrpc.Forbidden("only the task owner or a house admin may edit this task")
-		}
+	// Content edits require `edit`. Visibility and grants are governance and
+	// are changed only via set-task-visibility / *-task-grant (full). An
+	// inbound Visibility here is ignored. See docs/rbac.md §7.
+	pol := newPolicy(s.Store)
+	g := pol.granteeFor(ctx, ident, existing.HouseID, memberID)
+	if !canEdit(pol.taskAccess(ctx, existing, g)) {
+		return nil, csilrpc.Forbidden("you need edit access to change this task")
 	}
 	if in.Title != "" {
 		existing.Title = in.Title
@@ -298,14 +340,15 @@ func (s *TaskService) deleteTask(ctx context.Context, body []byte) (any, error) 
 	if err != nil {
 		return nil, csilrpc.NotFound("task not found")
 	}
-	ident, callerMemberID, err := requireMemberForHouse(ctx, existing.HouseID)
+	ident, memberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
 		return nil, err
 	}
-	if callerMemberID != existing.OwnerMemberID {
-		if _, err := requireRole(ident, existing.HouseID, "admin"); err != nil {
-			return nil, csilrpc.Forbidden("only the task owner or a house admin may delete this task")
-		}
+	// Delete is governance — requires full (owner/admin resolve to full).
+	pol := newPolicy(s.Store)
+	g := pol.granteeFor(ctx, ident, existing.HouseID, memberID)
+	if !canFull(pol.taskAccess(ctx, existing, g)) {
+		return nil, csilrpc.Forbidden("you need full access to delete this task")
 	}
 	if existing.DeletedAt != nil {
 		return csil.EmptyResponse{}, nil // idempotent
@@ -316,6 +359,145 @@ func (s *TaskService) deleteTask(ctx context.Context, body []byte) (any, error) 
 		return nil, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
+}
+
+// setTaskVisibility changes the task's house-at-large visibility. Requires
+// full, and the requested level is bounded by the umbrella guardrail (a task
+// can't be more visible than the MIN of its containers). See docs/rbac.md.
+func (s *TaskService) setTaskVisibility(ctx context.Context, body []byte) (any, error) {
+	var in csil.SetTaskVisibilityRequest
+	if err := csilrpc.Decode(body, &in); err != nil {
+		return nil, err
+	}
+	if in.TaskId == "" {
+		return nil, csilrpc.BadRequest("task_id is required")
+	}
+	want := accessLevelVal(in.Visibility, "")
+	if !validAccessLevel(want) {
+		return nil, csilrpc.BadRequest("invalid visibility")
+	}
+	existing, err := s.Store.GetTaskByID(ctx, string(in.TaskId))
+	if err != nil {
+		return nil, csilrpc.NotFound("task not found")
+	}
+	ident, memberID, err := requireMemberForHouse(ctx, existing.HouseID)
+	if err != nil {
+		return nil, err
+	}
+	pol := newPolicy(s.Store)
+	g := pol.granteeFor(ctx, ident, existing.HouseID, memberID)
+	if !canFull(pol.taskAccess(ctx, existing, g)) {
+		return nil, csilrpc.Forbidden("you need full access to change visibility")
+	}
+	// A free-floating task (no parent, no projects) is pinned to read: it can
+	// be neither raised above read nor made private. Privacy requires a
+	// containing project. See docs/rbac.md.
+	if pol.isFreeFloating(ctx, existing) {
+		if want != models.AccessRead {
+			return nil, csilrpc.BadRequest("a task with no project or parent must stay read; add it to a project to change visibility")
+		}
+	} else {
+		ceil := pol.maxAllowedTaskVisibility(ctx, existing)
+		if models.AccessRank(want) > models.AccessRank(ceil) {
+			return nil, csilrpc.BadRequest("visibility cannot exceed the task's least-visible project or parent (" + ceil + ")")
+		}
+	}
+	existing.Visibility = want
+	if err := s.Store.UpdateTask(ctx, existing); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	assignees, _ := s.Store.ListTaskAssignees(ctx, existing.TaskID)
+	return taskToCSIL(existing, assignees), nil
+}
+
+// listTaskGrants returns the task's explicit grants. Viewing the access list
+// is governance — requires full.
+func (s *TaskService) listTaskGrants(ctx context.Context, body []byte) (any, error) {
+	var id csil.TaskID
+	if err := csilrpc.Decode(body, &id); err != nil {
+		return nil, err
+	}
+	t, _, err := s.requireTaskFull(ctx, string(id))
+	if err != nil {
+		return nil, err
+	}
+	grants, err := s.Store.ListTaskGrants(ctx, t.TaskID)
+	if err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	return taskGrantsToCSIL(grants), nil
+}
+
+// putTaskGrant adds or updates a (grantee, level) grant on the task.
+func (s *TaskService) putTaskGrant(ctx context.Context, body []byte) (any, error) {
+	var in csil.PutTaskGrantRequest
+	if err := csilrpc.Decode(body, &in); err != nil {
+		return nil, err
+	}
+	gt := granteeTypeVal(in.GranteeType)
+	if gt != models.GranteeMember && gt != models.GranteeGroup {
+		return nil, csilrpc.BadRequest("invalid grantee_type")
+	}
+	if in.GranteeId == "" {
+		return nil, csilrpc.BadRequest("grantee_id is required")
+	}
+	level := accessLevelVal(in.AccessLevel, "")
+	if !validAccessLevel(level) {
+		return nil, csilrpc.BadRequest("invalid access_level")
+	}
+	t, _, err := s.requireTaskFull(ctx, string(in.TaskId))
+	if err != nil {
+		return nil, err
+	}
+	grant := &models.TaskGrant{
+		TaskID: t.TaskID, HouseID: t.HouseID,
+		GranteeType: gt, GranteeID: in.GranteeId, AccessLevel: level,
+	}
+	if err := s.Store.PutTaskGrant(ctx, grant); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	return csil.EmptyResponse{}, nil
+}
+
+// deleteTaskGrant removes a grant from the task.
+func (s *TaskService) deleteTaskGrant(ctx context.Context, body []byte) (any, error) {
+	var in csil.TaskGrantRef
+	if err := csilrpc.Decode(body, &in); err != nil {
+		return nil, err
+	}
+	gt := granteeTypeVal(in.GranteeType)
+	if gt == "" || in.GranteeId == "" {
+		return nil, csilrpc.BadRequest("grantee_type and grantee_id are required")
+	}
+	t, _, err := s.requireTaskFull(ctx, string(in.TaskId))
+	if err != nil {
+		return nil, err
+	}
+	if err := s.Store.DeleteTaskGrant(ctx, t.TaskID, gt, in.GranteeId); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	return csil.EmptyResponse{}, nil
+}
+
+// requireTaskFull loads a task and confirms the caller has full access.
+func (s *TaskService) requireTaskFull(ctx context.Context, taskID string) (*models.Task, grantee, error) {
+	if taskID == "" {
+		return nil, grantee{}, csilrpc.BadRequest("task_id is required")
+	}
+	t, err := s.Store.GetTaskByID(ctx, taskID)
+	if err != nil {
+		return nil, grantee{}, csilrpc.NotFound("task not found")
+	}
+	ident, memberID, err := requireMemberForHouse(ctx, t.HouseID)
+	if err != nil {
+		return nil, grantee{}, err
+	}
+	pol := newPolicy(s.Store)
+	g := pol.granteeFor(ctx, ident, t.HouseID, memberID)
+	if !canFull(pol.taskAccess(ctx, t, g)) {
+		return nil, grantee{}, csilrpc.Forbidden("you need full access to manage this task")
+	}
+	return t, g, nil
 }
 
 // ---- small helpers ----------------------------------------------------
