@@ -4,7 +4,7 @@ description: Coordination system for organizations and neighborhoods
 type: application
 
 # Chart version — updated automatically by release workflow
-version: 0.9.0
+version: 0.9.1
 
 # Application version — matches the project release version
-appVersion: "0.9.0"
+appVersion: "0.9.1"
