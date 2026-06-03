@@ -30,6 +30,14 @@ type AuthService struct {
 	PKI       PKIClient
 	IDPDomain string
 
+	// RPDomain is our relying-party DNS identity — the value linkkeys binds
+	// each assertion to via its `audience` claim. We compare it against
+	// assertion.Audience in complete(). In this single-IDP self-RP deploy it
+	// equals IDPDomain. (linkkeys used to put the callback URL here; it now
+	// emits the RP domain, which is why complete() no longer compares against
+	// CallbackURL.)
+	RPDomain string
+
 	// Browser-flow config; used only by the GET /api/v1/auth/start handler
 	// in serve.go (kept as a 302 endpoint outside the dispatcher). Stashed
 	// here so a single struct carries everything the auth layer needs.
@@ -99,7 +107,10 @@ func (s *AuthService) complete(ctx context.Context, body []byte) (any, error) {
 	if assertion.Domain != s.IDPDomain {
 		return nil, csilrpc.Unauthorized("assertion from unexpected domain")
 	}
-	if assertion.Audience != "" && s.CallbackURL != "" && assertion.Audience != s.CallbackURL {
+	// The audience binds the assertion to our RP domain (NOT the callback
+	// URL — linkkeys changed that contract). Tolerate an empty audience for
+	// back-compat with older IDPs that don't set it.
+	if assertion.Audience != "" && s.RPDomain != "" && assertion.Audience != s.RPDomain {
 		return nil, csilrpc.Unauthorized("assertion audience mismatch")
 	}
 	return s.issueToken(ctx, assertion.Domain, assertion.UserID, assertion.DisplayName)

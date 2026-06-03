@@ -11,6 +11,10 @@ var (
 	APIPort = getEnvAsIntOrDefault("LONGHOUSE_API_PORT", 6080)
 	TCPPort = getEnvAsIntOrDefault("LONGHOUSE_TCP_PORT", 6081)
 
+	// LinkkeysDomain is our relying-party DNS identity. linkkeys binds each
+	// assertion to it via the `audience` claim, so this is the value the auth
+	// layer expects on assertion.Audience (see csilservices.AuthService.RPDomain).
+	// In the single-IDP self-RP deployment it equals LinkkeysIDPDomain.
 	LinkkeysDomain = getEnvOrDefault("LONGHOUSE_LINKKEYS_DOMAIN", "")
 	LinkkeysURL    = getEnvOrDefault("LONGHOUSE_LINKKEYS_URL", "")
 
@@ -35,8 +39,9 @@ var (
 
 	// AppCallbackURL is the SPA route the IDP returns the encrypted token to —
 	// e.g. https://app.example/auth/callback (prod) or
-	// http://localhost:5173/auth/callback (dev). It's both the callback we
-	// advertise via sign-request and the audience we expect on the assertion.
+	// http://localhost:5173/auth/callback (dev). It's only the redirect target
+	// we advertise via sign-request; the assertion's audience is the RP domain
+	// (LinkkeysDomain), not this URL.
 	AppCallbackURL = getEnvOrDefault("LONGHOUSE_APP_CALLBACK_URL", "")
 
 	// JWT signing secret. HMAC-SHA256 over a base64url'd JSON payload.

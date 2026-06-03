@@ -174,7 +174,7 @@ func TestCallback_HappyPath(t *testing.T) {
 	d := testDeps(pki)
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "https://longhouse.example/auth/callback", DisplayName: "Tod",
+		UserID: "u1", Domain: "idp.example", Audience: "idp.example", DisplayName: "Tod",
 	}, "")
 
 	if rec.Code != http.StatusFound {
@@ -202,7 +202,7 @@ func TestCallback_NonceMismatch(t *testing.T) {
 	d := testDeps(pki)
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "https://longhouse.example/auth/callback",
+		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
 	}, "bogus-nonce")
 
 	if rec.Code != http.StatusUnauthorized {
@@ -221,7 +221,7 @@ func TestCallback_WrongDomain(t *testing.T) {
 	d := testDeps(pki)
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "evil.example", Audience: "https://longhouse.example/auth/callback",
+		UserID: "u1", Domain: "evil.example", Audience: "idp.example",
 	}, "")
 
 	if rec.Code != http.StatusUnauthorized {
@@ -242,6 +242,28 @@ func TestCallback_AudienceMismatch(t *testing.T) {
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("status: got %d, want 401", rec.Code)
+	}
+	if !strings.Contains(strings.ToLower(rec.Body.String()), "audience") {
+		t.Errorf("expected audience mismatch msg: %q", rec.Body.String())
+	}
+}
+
+// TestCallback_RejectsOldCallbackURLAudience guards against silently
+// re-introducing the pre-contract-change comparison: an assertion whose
+// audience is the callback URL (the old linkkeys form) must now be rejected.
+func TestCallback_RejectsOldCallbackURLAudience(t *testing.T) {
+	pki := &fakePKI{
+		signRequest:  func(cb, n string) (string, error) { return "SIGNED", nil },
+		decryptToken: func(tok string) (string, error) { return "ASSERT", nil },
+	}
+	d := testDeps(pki)
+
+	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
+		UserID: "u1", Domain: "idp.example", Audience: "https://longhouse.example/auth/callback",
+	}, "")
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status: got %d, want 401 (old callback-URL audience must be rejected)", rec.Code)
 	}
 }
 
@@ -303,7 +325,7 @@ func TestCallback_APILoginError(t *testing.T) {
 	}
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "https://longhouse.example/auth/callback",
+		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
 	}, "")
 
 	if rec.Code != http.StatusBadGateway {
@@ -326,7 +348,7 @@ func TestCallback_MultiHouseRendersPicker(t *testing.T) {
 	}
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "https://longhouse.example/auth/callback",
+		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
 	}, "")
 
 	if rec.Code != http.StatusConflict {
@@ -443,7 +465,7 @@ func TestCallback_StashesTokenInSession(t *testing.T) {
 	}
 
 	rec := fullLoginFlow(t, d, &linkkeys.Assertion{
-		UserID: "u1", Domain: "idp.example", Audience: "https://longhouse.example/auth/callback",
+		UserID: "u1", Domain: "idp.example", Audience: "idp.example",
 	}, "")
 	if rec.Code != http.StatusFound {
 		t.Fatalf("callback status: got %d, body=%s", rec.Code, rec.Body.String())

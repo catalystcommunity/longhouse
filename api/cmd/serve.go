@@ -176,10 +176,19 @@ func buildAuthService() *csilservices.AuthService {
 	if config.JWTSecret == "" {
 		return nil
 	}
+	// RPDomain is the audience we expect on assertions. Prefer the explicit
+	// LONGHOUSE_LINKKEYS_DOMAIN; in this single-IDP self-RP deployment it
+	// equals the IDP domain, so fall back to that rather than silently
+	// disabling the audience check when the RP domain is left unset.
+	rpDomain := config.LinkkeysDomain
+	if rpDomain == "" {
+		rpDomain = config.LinkkeysIDPDomain
+	}
 	svc := &csilservices.AuthService{
 		Store:       store.AppStore,
 		JWTSecret:   []byte(config.JWTSecret),
 		IDPDomain:   config.LinkkeysIDPDomain,
+		RPDomain:    rpDomain,
 		IDPURL:      config.LinkkeysIDPURL,
 		CallbackURL: config.AppCallbackURL,
 	}

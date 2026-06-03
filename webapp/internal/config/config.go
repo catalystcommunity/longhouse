@@ -17,7 +17,9 @@ var (
 	// Linkkeys IDP — where the user is redirected to authenticate.
 	// IDPDomain is the user-identity domain (matched against
 	// assertion.Domain to confirm the assertion came from the right IDP).
-	// Audience matching uses RPCallbackURL, not this — see auth.go.
+	// It is also the audience we expect on the assertion: linkkeys binds
+	// assertions to the RP domain, which equals the IDP domain in this
+	// single-IDP self-RP deployment — see auth.go.
 	LinkkeysIDPURL    = getEnvOrDefault("LONGHOUSE_LINKKEYS_IDP_URL", "")
 	LinkkeysIDPDomain = getEnvOrDefault("LONGHOUSE_LINKKEYS_IDP_DOMAIN", "")
 
