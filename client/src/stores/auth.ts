@@ -57,6 +57,10 @@ const readHouses = (): House[] => {
 
 const [session, setSessionSig] = createSignal<Session | null>(readSession());
 const [houses, setHousesSig] = createSignal<House[]>(readHouses());
+// True once a /me round-trip has populated the house list this session. Lets
+// the UI tell "still loading houses" apart from "loaded, but you're in zero
+// houses" — the latter needs an admin to trust your domain, not a spinner.
+const [housesLoaded, setHousesLoadedSig] = createSignal<boolean>(false);
 const [currentHouseId, setCurrentHouseSig] = createSignal<string | null>(
   localStorage.getItem(HOUSE_KEY),
 );
@@ -81,6 +85,7 @@ createRoot(() => {
 
 export const useSession = () => session;
 export const useHouses = () => houses;
+export const useHousesLoaded = () => housesLoaded;
 export const useCurrentHouseId = () => currentHouseId;
 export const isAuthenticated = () => session() !== null;
 
@@ -117,12 +122,14 @@ export const signOut = () => {
   setSessionSig(null);
   setHousesSig([]);
   setCurrentHouseSig(null);
+  setHousesLoadedSig(false);
 };
 
 /** Replace the house list (from /me). Keeps the current selection if it's
  *  still present, otherwise falls back to the first house. */
 export const setHouses = (hs: House[]) => {
   setHousesSig(hs);
+  setHousesLoadedSig(true);
   const cur = currentHouseId();
   if (!cur || !hs.some((h) => h.id === cur)) {
     setCurrentHouseSig(hs[0]?.id ?? null);

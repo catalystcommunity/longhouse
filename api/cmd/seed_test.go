@@ -84,6 +84,39 @@ func (f *fakeStore) CreateTrustedDomain(_ context.Context, td *models.TrustedDom
 	return nil
 }
 
+func (f *fakeStore) FindMembersByLinkkeysIdentity(_ context.Context, domain, userID string) ([]models.Member, error) {
+	var out []models.Member
+	for _, m := range f.members {
+		if m.LinkkeysDomain == domain && m.LinkkeysUserID == userID {
+			out = append(out, m)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeStore) ListTrustedDomains(_ context.Context, houseID string) ([]models.TrustedDomain, error) {
+	var out []models.TrustedDomain
+	for _, td := range f.trustedDomains {
+		if td.HouseID == houseID {
+			out = append(out, td)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeStore) ListRolesForMember(_ context.Context, memberID string) ([]models.Role, error) {
+	var out []models.Role
+	for _, mr := range f.memberRoles {
+		if mr.MemberID != memberID {
+			continue
+		}
+		if r := f.roleByID(mr.RoleID); r != nil {
+			out = append(out, *r)
+		}
+	}
+	return out, nil
+}
+
 func (f *fakeStore) roleByID(id string) *models.Role {
 	for i := range f.roles {
 		if f.roles[i].RoleID == id {
@@ -220,5 +253,90 @@ func TestSeedInitialAdmin_NoOpWhenAlreadyBootstrapped(t *testing.T) {
 	if len(fs.houses) != 1 || len(fs.members) != 1 || len(fs.roles) != 0 {
 		t.Errorf("expected no new writes; got %d houses, %d members, %d roles",
 			len(fs.houses), len(fs.members), len(fs.roles))
+	}
+}
+
+// adminFakeStore builds a fakeStore where the configured bootstrap admin
+// already has a member row + admin role in a house, but (by default) no
+// trusted_domains row — the exact state of a house bootstrapped before the
+// trusted-domain seeding existed.
+func adminFakeStore() *fakeStore {
+	adminRole := models.Role{RoleID: "role-admin", HouseID: "founding-house", Name: models.RoleAdmin}
+	memberRole := models.Role{RoleID: "role-member", HouseID: "founding-house", Name: models.RoleMember}
+	return &fakeStore{
+		houses:  []models.House{{HouseID: "founding-house", Name: "Founding"}},
+		members: []models.Member{{MemberID: "admin-member", HouseID: "founding-house", LinkkeysDomain: "todandlorna.com", LinkkeysUserID: testAdminUUID}},
+		roles:   []models.Role{adminRole, memberRole},
+		memberRoles: []models.MemberRole{
+			{MemberID: "admin-member", RoleID: "role-admin"},
+			{MemberID: "admin-member", RoleID: "role-member"},
+		},
+		idSeq: 100,
+	}
+}
+
+func TestEnsureInitialTrustedDomain_BackfillsMissingRow(t *testing.T) {
+	fs := adminFakeStore()
+	withStore(t, fs)
+	withConfig(t, "todandlorna.com", testAdminUUID, "Founding")
+
+	if err := EnsureInitialTrustedDomain(); err != nil {
+		t.Fatalf("EnsureInitialTrustedDomain: %v", err)
+	}
+	if len(fs.trustedDomains) != 1 {
+		t.Fatalf("want 1 trusted domain, got %d", len(fs.trustedDomains))
+	}
+	if fs.trustedDomains[0].Domain != "todandlorna.com" || fs.trustedDomains[0].HouseID != "founding-house" {
+		t.Errorf("unexpected trusted domain row: %+v", fs.trustedDomains[0])
+	}
+	// One trusted-domain-added audit recorded.
+	if len(fs.memberAudits) != 1 || fs.memberAudits[0].Action != models.AuditActionTrustedDomainAdded {
+		t.Errorf("want a single trusted_domain_added audit, got %+v", fs.memberAudits)
+	}
+}
+
+func TestEnsureInitialTrustedDomain_IdempotentWhenPresent(t *testing.T) {
+	fs := adminFakeStore()
+	fs.trustedDomains = []models.TrustedDomain{{TrustedDomainID: "td-existing", HouseID: "founding-house", Domain: "todandlorna.com"}}
+	withStore(t, fs)
+	withConfig(t, "todandlorna.com", testAdminUUID, "Founding")
+
+	if err := EnsureInitialTrustedDomain(); err != nil {
+		t.Fatalf("EnsureInitialTrustedDomain: %v", err)
+	}
+	if len(fs.trustedDomains) != 1 {
+		t.Errorf("want no new trusted-domain rows, got %d", len(fs.trustedDomains))
+	}
+	if len(fs.memberAudits) != 0 {
+		t.Errorf("want no audits on a no-op, got %d", len(fs.memberAudits))
+	}
+}
+
+func TestEnsureInitialTrustedDomain_SkipsNonAdminHouse(t *testing.T) {
+	// Admin identity is only a plain member here — we must not auto-trust
+	// the whole domain on a house they merely joined.
+	fs := adminFakeStore()
+	fs.memberRoles = []models.MemberRole{{MemberID: "admin-member", RoleID: "role-member"}}
+	withStore(t, fs)
+	withConfig(t, "todandlorna.com", testAdminUUID, "Founding")
+
+	if err := EnsureInitialTrustedDomain(); err != nil {
+		t.Fatalf("EnsureInitialTrustedDomain: %v", err)
+	}
+	if len(fs.trustedDomains) != 0 {
+		t.Errorf("want no trusted-domain rows for a non-admin membership, got %d", len(fs.trustedDomains))
+	}
+}
+
+func TestEnsureInitialTrustedDomain_NoOpWhenConfigMissing(t *testing.T) {
+	fs := adminFakeStore()
+	withStore(t, fs)
+	withConfig(t, "", "", "Founding")
+
+	if err := EnsureInitialTrustedDomain(); err != nil {
+		t.Fatalf("EnsureInitialTrustedDomain: %v", err)
+	}
+	if len(fs.trustedDomains) != 0 {
+		t.Errorf("want no writes when config missing, got %d", len(fs.trustedDomains))
 	}
 }
