@@ -44,6 +44,9 @@ func Serve(flags map[string]string) error {
 	if err := SeedInitialAdmin(); err != nil {
 		return fmt.Errorf("failed to seed initial admin: %w", err)
 	}
+	if err := EnsureInitialTrustedDomain(); err != nil {
+		return fmt.Errorf("failed to ensure initial trusted domain: %w", err)
+	}
 
 	// Recurrence worker.
 	if !config.RecurrenceDisabled {

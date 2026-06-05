@@ -117,4 +117,97 @@ func SeedInitialAdmin() error {
 	return nil
 }
 
+// EnsureInitialTrustedDomain backfills the bootstrap admin's linkkeys
+// domain into trusted_domains for the house(s) that admin administers.
+//
+// SeedInitialAdmin already seeds this row on a fresh bootstrap, but it is
+// a no-op once any member exists, so a house that was bootstrapped before
+// the trusted-domain seeding existed (or where that non-fatal insert
+// failed once) would never auto-provision same-domain members — they can
+// authenticate but land with an empty house list. This runs every boot
+// and is idempotent: it only inserts a row that is genuinely missing, and
+// only on houses where the configured admin actually holds the admin role
+// (so we never auto-trust a whole domain on a house the admin merely
+// joined as a regular member).
+func EnsureInitialTrustedDomain() error {
+	ctx := context.Background()
+
+	domain := config.InitialAdminDomain
+	userID := config.InitialAdminUserID
+	if domain == "" || userID == "" {
+		return nil
+	}
+
+	members, err := store.AppStore.FindMembersByLinkkeysIdentity(ctx, domain, userID)
+	if err != nil {
+		return fmt.Errorf("looking up bootstrap admin members: %w", err)
+	}
+
+	for _, m := range members {
+		isAdmin, err := memberHasRole(ctx, m.MemberID, models.RoleAdmin)
+		if err != nil {
+			return fmt.Errorf("checking admin role for member %s: %w", m.MemberID, err)
+		}
+		if !isAdmin {
+			continue
+		}
+
+		trusted, err := store.AppStore.ListTrustedDomains(ctx, m.HouseID)
+		if err != nil {
+			return fmt.Errorf("listing trusted domains for house %s: %w", m.HouseID, err)
+		}
+		if containsDomain(trusted, domain) {
+			continue
+		}
+
+		td := &models.TrustedDomain{HouseID: m.HouseID, Domain: domain}
+		if err := store.AppStore.CreateTrustedDomain(ctx, td); err != nil {
+			// Non-fatal: don't block boot over one house's backfill.
+			log.WithError(err).WithFields(log.Fields{
+				"house_id": m.HouseID,
+				"domain":   domain,
+			}).Warn("backfill: could not insert trusted_domain row")
+			continue
+		}
+		memberID := m.MemberID
+		_ = store.AppStore.RecordMemberAudit(ctx, &models.MemberAudit{
+			HouseID:         m.HouseID,
+			SubjectMemberID: m.MemberID,
+			ActorMemberID:   &memberID,
+			Action:          models.AuditActionTrustedDomainAdded,
+			TargetType:      strPtr("trusted_domain"),
+			TargetID:        &td.TrustedDomainID,
+			Detail:          models.JSONMap{"domain": domain, "via": "trusted_domain_backfill"},
+		})
+		log.WithFields(log.Fields{
+			"house_id": m.HouseID,
+			"domain":   domain,
+		}).Info("Backfilled trusted_domain for bootstrap admin's house")
+	}
+
+	return nil
+}
+
+func memberHasRole(ctx context.Context, memberID, roleName string) (bool, error) {
+	roles, err := store.AppStore.ListRolesForMember(ctx, memberID)
+	if err != nil {
+		return false, err
+	}
+	for _, r := range roles {
+		if r.Name == roleName {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func containsDomain(tds []models.TrustedDomain, domain string) bool {
+	for _, td := range tds {
+		if td.Domain == domain {
+			return true
+		}
+	}
+	return false
+}
+
 func strPtr(s string) *string { return &s }

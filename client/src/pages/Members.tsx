@@ -1,4 +1,5 @@
 import { For, Show, createMemo, createResource, createSignal } from "solid-js";
+import { A } from "@solidjs/router";
 import { AuthGate } from "~/components/AuthGate";
 import { memberClient, roleClient, skillClient } from "~/data/clients";
 import { displayName, initial, lastSeenLabel, memberStatus, memberSwatch } from "~/lib/derive";
@@ -139,6 +140,10 @@ const InviteForm = (props: {
           required
           style="padding:8px 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);font-size:14px;font-family:var(--mono, monospace);font-size:12px"
         />
+        <span style="font-size:11px;color:var(--ink-mute)">
+          The person's linkkeys account id — not their email. Ask them for it,
+          or copy it from their linkkeys profile.
+        </span>
       </label>
       <label style="display:flex;flex-direction:column;gap:4px">
         <span style="font-size:12px;color:var(--ink-mute)">Display name (optional)</span>
@@ -154,6 +159,16 @@ const InviteForm = (props: {
         {busy() ? "Saving…" : "Invite"}
       </button>
       <button type="button" class="btn btn-ghost" onClick={props.onCancel} disabled={busy()}>Cancel</button>
+      <Show when={!domain().trim() || !userId().trim()}>
+        <p style="color:var(--ink-mute);font-size:12px;grid-column:1/-1;margin:0">
+          Fill in both the linkkeys domain and user_id to enable Invite.
+        </p>
+      </Show>
+      <p style="color:var(--ink-mute);font-size:12px;grid-column:1/-1;margin:0">
+        Adding everyone from a domain? Skip per-person invites — add a{" "}
+        <A href="/settings" style="color:var(--ocean-2)">trusted domain</A>{" "}
+        and anyone signing in from it auto-joins on their next sign-in.
+      </p>
       <Show when={err()}>
         {(m) => <p style="color:var(--rust);font-size:13px;grid-column:1/-1;margin:0">{m()}</p>}
       </Show>
