@@ -80,8 +80,10 @@ h1.greet em {
 
 .hero-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 
-/* sun */
-.sun {
+/* sun — scoped to the hero scene; `.sun` is also used by the header theme
+   toggle (<Sun class="sun" />), and an unscoped rule here would yank that
+   icon out of its button and blow it up to 96px. */
+.hero-scene .sun {
   position: absolute;
   top: 44px; right: 9%;
   width: 96px; height: 96px;
@@ -93,7 +95,7 @@ h1.greet em {
   opacity: 0.85;
   animation: sunBob 18s ease-in-out infinite;
 }
-[data-theme="dark"] .sun {
+[data-theme="dark"] .hero-scene .sun {
   background: radial-gradient(circle at 35% 35%, #b6b88c, #7d8068 60%, #4f5240 100%);
   box-shadow:
     0 0 100px 20px rgba(140, 160, 130, 0.30),
