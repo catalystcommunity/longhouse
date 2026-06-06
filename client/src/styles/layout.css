@@ -17,6 +17,11 @@
   padding: 28px 0 22px;
   border-bottom: 1px solid var(--line);
   position: relative;
+  /* The `.reveal` animation leaves a persistent transform on the header,
+     which makes it a stacking context — that traps the account-menu
+     popover inside the header so later page content paints over it.
+     Lift the whole header above content so the popover shows. */
+  z-index: 20;
   gap: 18px;
 }
 .head::after {
