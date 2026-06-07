@@ -10,6 +10,7 @@ import {
   AuthClient,
   BugClient,
   CommentClient,
+  DependencyClient,
   DevAuthClient,
   EventClient,
   GroupClient,
@@ -33,6 +34,7 @@ export const memberClient = new MemberClient(cborTransport);
 export const taskClient = new TaskClient(cborTransport);
 export const eventClient = new EventClient(cborTransport);
 export const projectClient = new ProjectClient(cborTransport);
+export const dependencyClient = new DependencyClient(cborTransport);
 export const houseClient = new HouseClient(cborTransport);
 export const roleClient = new RoleClient(cborTransport);
 export const skillClient = new SkillClient(cborTransport);

@@ -127,6 +127,12 @@ dev-auth and recurrence-worker knobs.
   child rows up to a configurable horizon (2 years for events), and
   bumps `next_recurrence_at` forward. Deleting an instance hard-deletes
   that row; "delete this & future" also clears recurrence on the root.
+- **Dependencies (tasks AND projects) are one-directional, stored once.**
+  An edge flows from the dependent to the dependency it requires; either end
+  is a task or project. The reverse ("what depends on X") is computed, never
+  stored. Writes need `edit` on the dependent + `read` on the dependency;
+  cycles are rejected in the DB (recursive CTE). The SPA edits only the
+  forward direction. See `docs/dependencies.md`.
 - **PostgreSQL only** (no SQLite). goose for migrations, GORM for ORM.
 - **Multi-module Go project**: `api`, `coredb` are separate modules.
 - **No external CLI framework** (hand-rolled docopt-style).

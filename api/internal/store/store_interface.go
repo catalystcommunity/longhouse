@@ -109,6 +109,22 @@ type Store interface {
 	GetTaskAncestors(ctx context.Context, taskID string) ([]models.Task, error)
 	ListGroupIDsForMember(ctx context.Context, memberID string) ([]string, error)
 
+	// Dependencies — directed edges between work items (task/project). Only
+	// the dependent->dependency direction is stored. AddDependency dedupes
+	// (ON CONFLICT DO NOTHING). ListDependencies returns the edges where the
+	// given node is the dependent (what it depends on); ListDependents
+	// returns the edges where it is the dependency (what depends on it).
+	// DependencyPathExists answers, via a recursive CTE, whether following
+	// dependent->dependency edges from (fromType,fromID) can reach
+	// (toType,toID) — used to reject cycle-creating edges. RemoveDependencies-
+	// ForNode clears every edge touching a node (used on project delete).
+	AddDependency(ctx context.Context, dep *models.Dependency) error
+	RemoveDependency(ctx context.Context, dependentType, dependentID, dependencyType, dependencyID string) error
+	ListDependencies(ctx context.Context, nodeType, nodeID string) ([]models.Dependency, error)
+	ListDependents(ctx context.Context, nodeType, nodeID string) ([]models.Dependency, error)
+	DependencyPathExists(ctx context.Context, fromType, fromID, toType, toID string) (bool, error)
+	RemoveDependenciesForNode(ctx context.Context, nodeType, nodeID string) error
+
 	// Milestones — timeline markers per project, ordered by position.
 	CreateMilestone(ctx context.Context, m *models.Milestone) error
 	UpdateMilestone(ctx context.Context, m *models.Milestone) error

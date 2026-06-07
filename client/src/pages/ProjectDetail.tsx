@@ -7,6 +7,7 @@ import { DateTimePicker } from "~/components/DateTimePicker";
 import { RecurrenceFields, recurrenceLabel, toRecurrence, type RecurrenceFreq } from "~/components/RecurrenceFields";
 import { TaskDetailEditor } from "~/components/TaskDetailEditor";
 import { CommentsSection } from "~/components/CommentsSection";
+import { DependenciesSection } from "~/components/DependenciesSection";
 import { memberClient, projectClient, taskClient } from "~/data/clients";
 import { displayName, dueLabel, initial, isTaskClosed, memberSwatch, toAvatar } from "~/lib/derive";
 import { hasRole } from "~/stores/auth";
@@ -187,6 +188,11 @@ export const ProjectDetail = () => {
                     canEdit={isAdmin()}
                     onChanged={async () => { await refetch(); }}
                   />
+
+                  <section style="margin-top:28px">
+                    <h3 style="margin:0 0 8px;font-family:var(--display);font-size:20px;color:var(--grass-4)">Dependencies</h3>
+                    <DependenciesSection nodeType="project" nodeId={p().projectId} houseId={p().houseId} />
+                  </section>
 
                   <section style="margin-top:28px">
                     <h3 style="margin:0 0 8px;font-family:var(--display);font-size:20px;color:var(--grass-4)">Discussion</h3>

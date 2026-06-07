@@ -384,6 +384,12 @@ func (s *PostgresStore) UpdateProject(ctx context.Context, project *models.Proje
 }
 
 func (s *PostgresStore) DeleteProject(ctx context.Context, projectID string) error {
+	// Clear any dependency edges touching this project before the hard delete
+	// (the dependencies table has no FK back to projects). Best-effort: a
+	// failure here shouldn't block the delete, but surface it if it occurs.
+	if err := s.RemoveDependenciesForNode(ctx, models.DependencyProject, projectID); err != nil {
+		return err
+	}
 	return db.WithContext(ctx).Where("project_id = ?", projectID).Delete(&models.Project{}).Error
 }
 
@@ -599,6 +605,79 @@ func (s *PostgresStore) ListGroupIDsForMember(ctx context.Context, memberID stri
 		return nil, err
 	}
 	return ids, nil
+}
+
+// ---- Dependencies ------------------------------------------------------
+
+// AddDependency inserts an edge, ignoring a duplicate (the PK covers the
+// full edge). The caller is responsible for self-loop and cycle checks.
+func (s *PostgresStore) AddDependency(ctx context.Context, dep *models.Dependency) error {
+	return db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(dep).Error
+}
+
+func (s *PostgresStore) RemoveDependency(ctx context.Context, dependentType, dependentID, dependencyType, dependencyID string) error {
+	return db.WithContext(ctx).
+		Where("dependent_type = ? AND dependent_id = ? AND dependency_type = ? AND dependency_id = ?",
+			dependentType, dependentID, dependencyType, dependencyID).
+		Delete(&models.Dependency{}).Error
+}
+
+// ListDependencies returns the edges where the node is the dependent — i.e.
+// the things it depends on.
+func (s *PostgresStore) ListDependencies(ctx context.Context, nodeType, nodeID string) ([]models.Dependency, error) {
+	var rows []models.Dependency
+	if err := db.WithContext(ctx).
+		Where("dependent_type = ? AND dependent_id = ?", nodeType, nodeID).
+		Order("created_at ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// ListDependents returns the edges where the node is the dependency — i.e.
+// the things that depend on it (the computed reverse view).
+func (s *PostgresStore) ListDependents(ctx context.Context, nodeType, nodeID string) ([]models.Dependency, error) {
+	var rows []models.Dependency
+	if err := db.WithContext(ctx).
+		Where("dependency_type = ? AND dependency_id = ?", nodeType, nodeID).
+		Order("created_at ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// DependencyPathExists walks forward from (fromType,fromID) along
+// dependent->dependency edges and reports whether (toType,toID) is reachable.
+// Used before inserting an edge X->Y: if a path already runs from Y back to
+// X, adding X->Y would close a cycle. UNION (not UNION ALL) dedupes visited
+// nodes so the walk terminates even on pre-existing cyclic data. The whole
+// check runs in the database.
+func (s *PostgresStore) DependencyPathExists(ctx context.Context, fromType, fromID, toType, toID string) (bool, error) {
+	const q = `
+WITH RECURSIVE reach AS (
+        SELECT ?::dependency_node_type AS t, ?::uuid AS id
+    UNION
+        SELECT d.dependency_type, d.dependency_id
+        FROM dependencies d
+        JOIN reach r ON d.dependent_type = r.t AND d.dependent_id = r.id
+)
+SELECT EXISTS (
+    SELECT 1 FROM reach WHERE t = ?::dependency_node_type AND id = ?::uuid
+)`
+	var exists bool
+	if err := db.WithContext(ctx).Raw(q, fromType, fromID, toType, toID).Scan(&exists).Error; err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+// RemoveDependenciesForNode deletes every edge touching the node in either
+// position. Called when a node is hard-deleted (projects) so no edges dangle.
+func (s *PostgresStore) RemoveDependenciesForNode(ctx context.Context, nodeType, nodeID string) error {
+	return db.WithContext(ctx).
+		Where("(dependent_type = ? AND dependent_id = ?) OR (dependency_type = ? AND dependency_id = ?)",
+			nodeType, nodeID, nodeType, nodeID).
+		Delete(&models.Dependency{}).Error
 }
 
 // ---- Milestones --------------------------------------------------------

@@ -35,6 +35,9 @@ AccessLevel      = "none" / "read" / "edit" / "full"
 GranteeType      = "member" / "group"
 ResourceType     = "event" / "task" / "house"
 ProjectStatus    = "active" / "archived"
+;; A dependency edge connects two work items; either end may be a task or a
+;; project. See the Dependencies section below.
+DependencyNodeType = "task" / "project"
 RecurrenceFreq   = "hourly" / "daily" / "weekly" / "monthly" / "quarterly" / "yearly"
 MilestoneState   = "done" / "current" / "future"
 
@@ -671,6 +674,52 @@ ProjectOwnerRef = {
     member_id: MemberID
 }
 
+;; ---- Dependencies -----------------------------------------------------
+;; A dependency is a single directed edge: `dependent` depends on
+;; `dependency`. Either end is a task or a project. ONLY this direction is
+;; stored (one row per edge). The reverse view ("what depends on X") is
+;; computed by querying the same table with the columns swapped — it is
+;; never stored. See the DependencyService + docs.
+
+;; DependencyRef is the add/remove payload: the full edge, both ends.
+DependencyRef = {
+    dependent_type:  DependencyNodeType,
+    dependent_id:    text,
+    dependency_type: DependencyNodeType,
+    dependency_id:   text
+}
+
+;; DependencyTarget names one work item for the read op.
+DependencyTarget = {
+    type: DependencyNodeType,
+    id:   text
+}
+
+;; DependencyNode is one resolved end of an edge, enriched for display.
+;; `title` and `status` are NOT columns on the edge — the server joins to
+;; the underlying task/project at read time, so they are receive-only
+;; (response-only) fields with no storage behind them.
+DependencyNode = {
+    type: DependencyNodeType,
+    id:   text,
+
+    @receive-only
+    title: text,
+
+    @receive-only
+    ? status: text
+}
+
+;; DependencyGraph is the read response for one target. `dependencies` is
+;; the stored direction (what the target depends on). `dependents` is the
+;; COMPUTED reverse (what depends on the target) — never stored, assembled
+;; per request. Nodes the caller may not read are silently omitted from
+;; both lists.
+DependencyGraph = {
+    dependencies: [* DependencyNode],
+    dependents:   [* DependencyNode]
+}
+
 ;; ---- Resource grants (RBAC) -------------------------------------------
 ;; A grant is one (grantee, level) row against a task or project. grantee_id
 ;; is a MemberID or GroupID depending on grantee_type. Effective access is
@@ -911,6 +960,23 @@ service TaskService {
     list-task-grants: TaskID -> [* Grant] / ServiceError,
     put-task-grant: PutTaskGrantRequest -> EmptyResponse / ServiceError,
     delete-task-grant: TaskGrantRef -> EmptyResponse / ServiceError
+}
+
+;; DependencyService manages the polymorphic dependency edges between tasks
+;; and projects. The model is one-directional: an edge flows from the
+;; dependent to the dependency it requires.
+;;   add-dependency    — requires `edit` on the dependent and `read` on the
+;;                       dependency; both ends must live in the same house;
+;;                       self-edges and edges that would create a cycle are
+;;                       rejected (cycle check runs in the database).
+;;   remove-dependency — requires `edit` on the dependent.
+;;   get-dependencies  — requires `read` on the target; returns both the
+;;                       stored `dependencies` and the computed reverse
+;;                       `dependents`, each filtered to readable nodes.
+service DependencyService {
+    add-dependency:    DependencyRef    -> EmptyResponse   / ServiceError,
+    remove-dependency: DependencyRef    -> EmptyResponse   / ServiceError,
+    get-dependencies:  DependencyTarget -> DependencyGraph / ServiceError
 }
 
 service CommentService {
