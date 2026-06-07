@@ -69,6 +69,9 @@ type ResourceType interface{}
 // ProjectStatus is a type alias
 type ProjectStatus interface{}
 
+// DependencyNodeType is a type alias
+type DependencyNodeType interface{}
+
 // RecurrenceFreq is a type alias
 type RecurrenceFreq interface{}
 
@@ -524,6 +527,34 @@ type ProjectMemberRef struct {
 type ProjectOwnerRef struct {
 	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
 	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+}
+
+// DependencyRef represents a structured data type
+type DependencyRef struct {
+	DependentType  DependencyNodeType `json:"dependent_type" yaml:"dependent_type"`
+	DependentId    string             `json:"dependent_id" yaml:"dependent_id"`
+	DependencyType DependencyNodeType `json:"dependency_type" yaml:"dependency_type"`
+	DependencyId   string             `json:"dependency_id" yaml:"dependency_id"`
+}
+
+// DependencyTarget represents a structured data type
+type DependencyTarget struct {
+	Type DependencyNodeType `json:"type" yaml:"type"`
+	Id   string             `json:"id" yaml:"id"`
+}
+
+// DependencyNode represents a structured data type
+type DependencyNode struct {
+	Type   DependencyNodeType `json:"type" yaml:"type"`
+	Id     string             `json:"id" yaml:"id"`
+	Title  string             `json:"title" yaml:"title"`
+	Status *string            `json:"status,omitempty" yaml:"status,omitempty"`
+}
+
+// DependencyGraph represents a structured data type
+type DependencyGraph struct {
+	Dependencies []DependencyNode `json:"dependencies" yaml:"dependencies"`
+	Dependents   []DependencyNode `json:"dependents" yaml:"dependents"`
 }
 
 // Grant represents a structured data type

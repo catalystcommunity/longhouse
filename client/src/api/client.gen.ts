@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { BoolResponse, BugReportRequest, Comment, CommentID, CommentListRequest, CompleteRequest, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Grant, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectID, ProjectList, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, PutTaskGrantRequest, ResourceRef, Role, RoleID, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskGrantRef, TaskID, TaskList, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import type { BoolResponse, BugReportRequest, Comment, CommentID, CommentListRequest, CompleteRequest, DependencyGraph, DependencyRef, DependencyTarget, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Grant, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectID, ProjectList, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, PutTaskGrantRequest, ResourceRef, Role, RoleID, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskGrantRef, TaskID, TaskList, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
 
 export interface ServiceTransport {
   call<TReq, TRes>(
@@ -102,6 +102,34 @@ export class CommentClient {
    */
   listComments(req: CommentListRequest, opts?: { signal?: AbortSignal }): Promise<Comment[]> {
     return this.t.call<CommentListRequest, Comment[]>("comment", "ListComments", req, opts);
+  }
+}
+
+export class DependencyClient {
+  constructor(private readonly t: ServiceTransport) {}
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  addDependency(req: DependencyRef, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
+    return this.t.call<DependencyRef, EmptyResponse>("dependency", "AddDependency", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  removeDependency(req: DependencyRef, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
+    return this.t.call<DependencyRef, EmptyResponse>("dependency", "RemoveDependency", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  getDependencies(req: DependencyTarget, opts?: { signal?: AbortSignal }): Promise<DependencyGraph> {
+    return this.t.call<DependencyTarget, DependencyGraph>("dependency", "GetDependencies", req, opts);
   }
 }
 
@@ -853,6 +881,7 @@ export class ApiClient {
   readonly auth: AuthClient;
   readonly bug: BugClient;
   readonly comment: CommentClient;
+  readonly dependency: DependencyClient;
   readonly devAuth: DevAuthClient;
   readonly event: EventClient;
   readonly group: GroupClient;
@@ -871,6 +900,7 @@ export class ApiClient {
     this.auth = new AuthClient(t);
     this.bug = new BugClient(t);
     this.comment = new CommentClient(t);
+    this.dependency = new DependencyClient(t);
     this.devAuth = new DevAuthClient(t);
     this.event = new EventClient(t);
     this.group = new GroupClient(t);

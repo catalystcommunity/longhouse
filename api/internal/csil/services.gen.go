@@ -130,6 +130,13 @@ type TaskService interface {
 	DeleteTaskGrant(ctx context.Context, req TaskGrantRef) (interface{}, error)
 }
 
+// DependencyService defines the service interface
+type DependencyService interface {
+	AddDependency(ctx context.Context, req DependencyRef) (interface{}, error)
+	RemoveDependency(ctx context.Context, req DependencyRef) (interface{}, error)
+	GetDependencies(ctx context.Context, req DependencyTarget) (interface{}, error)
+}
+
 // CommentService defines the service interface
 type CommentService interface {
 	CreateComment(ctx context.Context, req Comment) (interface{}, error)

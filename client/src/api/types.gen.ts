@@ -46,6 +46,8 @@ export type ResourceType = unknown | unknown | unknown;
 
 export type ProjectStatus = unknown | unknown;
 
+export type DependencyNodeType = unknown | unknown;
+
 export type RecurrenceFreq = unknown | unknown | unknown | unknown | unknown | unknown;
 
 export type MilestoneState = unknown | unknown | unknown;
@@ -446,6 +448,30 @@ export interface ProjectMemberRef {
 export interface ProjectOwnerRef {
   projectId: ProjectID;
   memberId: MemberID;
+}
+
+export interface DependencyRef {
+  dependentType: DependencyNodeType;
+  dependentId: string;
+  dependencyType: DependencyNodeType;
+  dependencyId: string;
+}
+
+export interface DependencyTarget {
+  type: DependencyNodeType;
+  id: string;
+}
+
+export interface DependencyNode {
+  type: DependencyNodeType;
+  id: string;
+  title: string;
+  status?: string;
+}
+
+export interface DependencyGraph {
+  dependencies: DependencyNode[];
+  dependents: DependencyNode[];
 }
 
 export interface Grant {

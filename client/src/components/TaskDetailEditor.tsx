@@ -3,6 +3,7 @@ import { DateTimePicker } from "./DateTimePicker";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { RecurrenceFields, type RecurrenceFreq } from "./RecurrenceFields";
 import { CommentsSection } from "./CommentsSection";
+import { DependenciesSection } from "./DependenciesSection";
 import { taskClient } from "~/data/clients";
 import { displayName, initial, memberSwatch } from "~/lib/derive";
 import type { Member, Task } from "~/api/types.gen";
@@ -208,6 +209,8 @@ export const TaskDetailEditor = (props: Props) => {
         </button>
       </div>
     </form>
+
+      <DependenciesSection nodeType="task" nodeId={props.task.taskId} houseId={props.task.houseId} />
 
       <CommentsSection
         targetType="task"
