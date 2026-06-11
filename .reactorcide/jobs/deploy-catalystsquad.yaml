@@ -1,0 +1,78 @@
+# Auto-deploy: longhouse → catalystsquad environment.
+#
+# Sibling of deploy-tnl-example.yaml. Deploys the same images to the
+# same foundry cluster, but in its own namespace/release and pointed at
+# the catalystsquad.com linkkeys IDP (linkkeys.catalystsquad.com).
+#
+#   * Every push to `main` that bumps `version/VERSION.txt` (i.e. every
+#     successful release) fires this job alongside the todandlorna deploy
+#     and the `*-build-and-deploy` jobs. The build jobs push new images;
+#     this job runs `helm upgrade` against the chart in the working tree.
+#
+#   * `reactorcide run-local --job-dir ./ ./.reactorcide/jobs/deploy-catalystsquad.yaml`
+#     runs the same flow against your laptop's docker (see run-local notes
+#     at the bottom of deploy-tnl-example.yaml).
+name: longhouse-deploy-catalystsquad
+description: "Auto-deploy longhouse to the catalystsquad environment after a release"
+
+# Fire on the same signal as the build-and-deploy jobs: a push to main
+# that bumped version/VERSION.txt.
+#
+# NOTE: this trigger is LIVE. Until the linkkeys API key secret
+# `catalystsquad/longhouse:linkkeys_api_key` exists in the CI secrets
+# store, this job will fail to resolve LINKKEYS_PKI_API_KEY and error on
+# the next release. Set that secret (see run-local notes in
+# deploy-tnl-example.yaml) before the next version bump lands on main.
+triggers:
+  events:
+    - push
+  branches:
+    - main
+paths:
+  include: ["version/VERSION.txt"]
+
+job:
+  image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
+  command: "bash /job/src/.reactorcide/jobs/scripts/deploy.sh"
+  timeout: 600
+  priority: 5
+
+environment:
+  # Cluster + chart selection. Own namespace + values overlay so this
+  # env is fully isolated from the todandlorna release on the same
+  # cluster (separate postgres cluster, secrets, regcred, gateway routes).
+  K8S_NAMESPACE: "longhouse-catalystsquad"
+  HELM_RELEASE: "longhouse"
+  HELM_VALUES_FILE: "deploy/values-catalystsquad.yaml"
+
+  # IMAGE_TAG is intentionally left unset. deploy.sh defaults it from
+  # version/VERSION.txt at runtime, so the job is always in lockstep
+  # with the commit that triggered it.
+  # IMAGE_TAG: "0.2.0"
+
+  # Registry pull credentials (used to create the regcred Secret in
+  # the target namespace so the cluster can pull from
+  # containers.catalystsquad.com).
+  REGISTRY_USER: "${secret:catalystcommunity/registry:user}"
+  REGISTRY_PASSWORD: "${secret:catalystcommunity/registry:password}"
+
+  # Kubeconfig for the target cluster — same foundry cluster as the
+  # todandlorna deploy, so we reuse the shared kubeconfig secret. If this
+  # env ever moves to a different cluster, switch to a per-env secret
+  # path (e.g. `${secret:catalystsquad/k8s:kubeconfig}`).
+  KUBECONFIG_CONTENT: "${secret:catalystcommunity/k8s:kubeconfig}"
+
+  # API key for the linkkeys RP the longhouse webapp authenticates
+  # against (linkkeys.catalystsquad.com with ENABLE_RP_ENDPOINTS=true).
+  # deploy.sh writes this into the helm runtime values as
+  # `linkkeysRp.apiKey`, which secret.yaml turns into the
+  # `LONGHOUSE_LINKKEYS_PKI_API_KEY` env var on the web pod.
+  #
+  # TODO(catalystsquad): this secret does not exist yet. Register an
+  # API-key user on the catalystsquad linkkeys RP
+  # (`linkkeys user create longhouse-web "Longhouse webapp" --api-key`)
+  # and store the key:
+  #   REACTORCIDE_SECRETS_PASSWORD="$(cat ~/.reactorcide-pass)" \
+  #     reactorcide secrets set catalystsquad/longhouse linkkeys_api_key
+  # (the CI secrets DB needs the same key for the push-to-main path).
+  LINKKEYS_PKI_API_KEY: "${secret:catalystsquad/longhouse:linkkeys_api_key}"

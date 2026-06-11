@@ -1,0 +1,80 @@
+image:
+  api:
+    repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-api
+  web:
+    repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-web
+
+# External RP — reusing linkkeys.catalystsquad.com (which must have
+# ENABLE_RP_ENDPOINTS=true). No sidecar in this pod. apiKey is injected
+# at deploy time by deploy.sh from the LINKKEYS_PKI_API_KEY env var
+# (sourced from reactorcide secret catalystsquad/longhouse:linkkeys_api_key).
+linkkeysRp:
+  enabled: false
+  url: "https://linkkeys.catalystsquad.com"
+
+imagePullSecrets:
+  - name: regcred
+
+database:
+  url: ""  # Overridden by Zalando operator credentials in deployment
+
+postgresql:
+  enabled: true
+  teamId: longhouse
+  database: longhouse_db
+  user: longhouse
+  instances: 1
+  storage:
+    size: 1Gi
+
+server:
+  # Legacy api-side keys (kept for compatibility with older code paths).
+  linkkeysDomain: "catalystsquad.com"
+  linkkeysUrl: "https://linkkeys.catalystsquad.com"
+
+  # Bootstrap the first admin + house on initial deploy. The api only
+  # acts on these when the members table is empty, so this is a one-time
+  # operation — safe to leave set across re-deploys, no-op after the
+  # initial admin exists.
+  initialAdmin:
+    domain: "catalystsquad.com"
+    userId: "019d6ac9-5df8-7ac2-99cd-478ee78aa621"
+  initialHouseName: "Catalyst Squad"
+
+  # Auth config — all three required for the browser login flow.
+  # /auth/start refuses with 500 if any of these is empty.
+  linkkeysIdpUrl: "https://linkkeys.catalystsquad.com"
+  linkkeysIdpDomain: "catalystsquad.com"
+  appCallbackUrl: "https://longhouse.catalystsquad.com/auth/callback"
+
+gateway:
+  httpRoute:
+    api:
+      enabled: true
+      parentGateway: contour
+      parentNamespace: projectcontour
+      parentSection: http
+      # The api also rides on the web hostname under /api/* so the SPA's
+      # relative fetches reach it without CORS. Gateway API breaks ties
+      # by path-match specificity, so /api here wins over the web
+      # route's un-prefixed match on the same hostname.
+      hostnames:
+        - longhouse-api.catalystsquad.com
+        - longhouse.catalystsquad.com
+      pathPrefixes:
+        - /api
+    web:
+      enabled: true
+      parentGateway: contour
+      parentNamespace: projectcontour
+      parentSection: http
+      hostnames:
+        - longhouse.catalystsquad.com
+  tcpRoute:
+    # Disabled until a TCP listener is added to the contour gateway.
+    # Requires adding a listener section to the Gateway resource in foundry
+    # with a dedicated port for the CSIL protocol.
+    enabled: false
+    parentGateway: contour
+    parentNamespace: projectcontour
+    parentSection: longhouse-tcp
