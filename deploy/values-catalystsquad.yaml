@@ -4,13 +4,25 @@ image:
   web:
     repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-web
 
-# External RP — reusing linkkeys.catalystsquad.com (which must have
-# ENABLE_RP_ENDPOINTS=true). No sidecar in this pod. apiKey is injected
+# External RP — the catalystsquad linkkeys instance, which has
+# ENABLE_RP_ENDPOINTS=true. No sidecar in this pod. apiKey is injected
 # at deploy time by deploy.sh from the LINKKEYS_PKI_API_KEY env var
 # (sourced from reactorcide secret catalystsquad/longhouse:linkkeys_api_key).
+#
+# This URL is the *server-side* sign-request endpoint the api calls; it
+# is never handed to the browser (the browser uses the public
+# server.linkkeysIdpUrl below). Note the http:// scheme — unlike the tnl
+# env, which uses https://linkkeys.todandlorna.com: catalystsquad.com is
+# Cloudflare-proxied, and in-cluster DNS resolves linkkeys.catalystsquad.com
+# to the contour gateway LB (10.16.0.30), which only serves the HTTP (:80)
+# listener for this host — TLS is terminated externally at Cloudflare/Caddy.
+# So an https:// call hits :443 and gets connection-refused (→ /auth/start
+# 502s), while http:// routes through contour to the linkkeys Service and
+# works. The request stays inside the cluster, so the api key is not
+# exposed publicly.
 linkkeysRp:
   enabled: false
-  url: "https://linkkeys.catalystsquad.com"
+  url: "http://linkkeys.catalystsquad.com"
 
 imagePullSecrets:
   - name: regcred
