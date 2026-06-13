@@ -353,11 +353,14 @@ func (s *TaskService) deleteTask(ctx context.Context, body []byte) (any, error) 
 	if existing.DeletedAt != nil {
 		return csil.EmptyResponse{}, nil // idempotent
 	}
-	now := time.Now().UTC()
-	existing.DeletedAt = &now
-	if err := s.Store.UpdateTask(ctx, existing); err != nil {
+	opID, err := s.Store.NewID(ctx)
+	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
+	if err := s.Store.SoftDeleteTask(ctx, existing.TaskID, memberID, opID); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	annotateDelete(ctx, existing.HouseID, "task", existing.TaskID, opID, existing)
 	return csil.EmptyResponse{}, nil
 }
 

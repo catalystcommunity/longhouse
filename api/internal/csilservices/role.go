@@ -83,18 +83,24 @@ func (s *RoleService) deleteRole(ctx context.Context, body []byte) (any, error) 
 		return nil, err
 	}
 	existing, err := s.Store.GetRoleByID(ctx, string(id))
-	if err != nil {
+	if err != nil || existing.DeletedAt != nil {
 		return nil, csilrpc.NotFound("role not found")
 	}
-	if _, _, err := requireRoleForHouse(ctx, existing.HouseID, "admin"); err != nil {
+	_, callerMemberID, err := requireRoleForHouse(ctx, existing.HouseID, "admin")
+	if err != nil {
 		return nil, err
 	}
 	if existing.Name == models.RoleAdmin || existing.Name == models.RoleMember {
 		return nil, csilrpc.Conflict("the admin and member roles are reserved and cannot be deleted")
 	}
-	if err := s.Store.DeleteRole(ctx, existing.RoleID); err != nil {
+	opID, err := s.Store.NewID(ctx)
+	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
+	if err := s.Store.SoftDeleteRole(ctx, existing.RoleID, callerMemberID, opID); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	annotateDelete(ctx, existing.HouseID, "role", existing.RoleID, opID, existing)
 	return csil.EmptyResponse{}, nil
 }
 

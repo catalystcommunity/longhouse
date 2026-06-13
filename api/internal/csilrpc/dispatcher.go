@@ -26,8 +26,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/catalystcommunity/longhouse/api/internal/audit"
 	"github.com/catalystcommunity/longhouse/api/internal/auth"
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
+	"github.com/catalystcommunity/longhouse/api/internal/store/postgres/models"
 	"github.com/fxamacker/cbor/v2"
 	log "github.com/sirupsen/logrus"
 )
@@ -71,7 +73,18 @@ type Dispatcher struct {
 	// deterministic" so output bytes are stable for a given response value
 	// — keeps cache-key derivation and testing sane.
 	encMode cbor.EncMode
+
+	// auditRecorder, when set, receives an audit entry for every authenticated
+	// mutation (and denied/failed attempt). Nil disables audit recording.
+	// The auth/devauth services are skipped here — they emit their own
+	// security events with per-house fan-out.
+	auditRecorder audit.Recorder
 }
+
+// SetAuditRecorder wires the audit sink. Call once at startup. Safe to leave
+// unset (audit recording is then a no-op) — used by tests that exercise just
+// the dispatch surface.
+func (d *Dispatcher) SetAuditRecorder(rec audit.Recorder) { d.auditRecorder = rec }
 
 // New constructs an empty Dispatcher. Pass the JWT secret so non-public
 // methods can verify bearers; pass nil only in tests that exercise just
@@ -149,13 +162,17 @@ func (d *Dispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// into context with the same key the rest of the auth package uses, so
 	// service implementations can read it with auth.IdentityFromContext.
 	ctx := r.Context()
-	if !d.publicMethods[service+"."+method] {
+	authenticated := !d.publicMethods[service+"."+method]
+	if authenticated {
 		id, authErr := d.verifyBearer(r)
 		if authErr != nil {
 			writeErr(w, d.encMode, authErr)
 			return
 		}
 		ctx = auth.WithIdentity(ctx, id)
+		// Seed an audit draft so the handler can enrich it (resource id,
+		// house, before/after); the dispatcher records it after the call.
+		ctx, _ = audit.WithDraft(ctx)
 	}
 
 	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBytes))
@@ -165,6 +182,9 @@ func (d *Dispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, callErr := handler(ctx, body)
+	if authenticated {
+		d.emitAudit(ctx, service, method, callErr)
+	}
 	if callErr != nil {
 		var serr *Error
 		if errors.As(callErr, &serr) {
@@ -198,6 +218,28 @@ func (d *Dispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/cbor")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(buf)
+}
+
+// emitAudit records an audit entry for a completed authenticated call. The
+// auth/devauth services are skipped — they emit their own security events with
+// per-house fan-out and unattributable-failure handling. Best-effort: a failed
+// audit write is logged loudly but never affects the response the caller sees.
+func (d *Dispatcher) emitAudit(ctx context.Context, service, method string, callErr error) {
+	if d.auditRecorder == nil || service == "auth" || service == "devauth" {
+		return
+	}
+	outcome := models.AuditOutcomeOK
+	if callErr != nil {
+		outcome = models.AuditOutcomeError
+		var serr *Error
+		if errors.As(callErr, &serr) && (serr.Code == http.StatusUnauthorized || serr.Code == http.StatusForbidden) {
+			outcome = models.AuditOutcomeDenied
+		}
+	}
+	if err := audit.Emit(ctx, d.auditRecorder, service, method, auth.IdentityFromContext(ctx), outcome); err != nil {
+		log.WithFields(log.Fields{"service": service, "method": method}).
+			WithError(err).Error("audit: record failed")
+	}
 }
 
 // maxRequestBytes caps the request body. Generous (1 MiB) for any plausible

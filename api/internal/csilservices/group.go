@@ -82,15 +82,21 @@ func (s *GroupService) deleteGroup(ctx context.Context, body []byte) (any, error
 		return nil, err
 	}
 	existing, err := s.Store.GetGroupByID(ctx, string(id))
-	if err != nil {
+	if err != nil || existing.DeletedAt != nil {
 		return nil, csilrpc.NotFound("group not found")
 	}
-	if _, _, err := requireRoleForHouse(ctx, existing.HouseID, "admin"); err != nil {
+	_, callerMemberID, err := requireRoleForHouse(ctx, existing.HouseID, "admin")
+	if err != nil {
 		return nil, err
 	}
-	if err := s.Store.DeleteGroup(ctx, existing.GroupID); err != nil {
+	opID, err := s.Store.NewID(ctx)
+	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
+	if err := s.Store.SoftDeleteGroup(ctx, existing.GroupID, callerMemberID, opID); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	annotateDelete(ctx, existing.HouseID, "group", existing.GroupID, opID, existing)
 	return csil.EmptyResponse{}, nil
 }
 

@@ -28,6 +28,10 @@ func (fakeAuthStore) FindMembersByLinkkeysIdentity(context.Context, string, stri
 	return nil, nil
 }
 
+// issueToken now records a security audit event; the double accepts it as a
+// no-op so the auth-flow tests don't need a real audit sink.
+func (fakeAuthStore) RecordAuditEntry(context.Context, *models.AuditEntry) error { return nil }
+
 // fakeCompletePKI returns a fixed assertion from VerifyAssertion so we can
 // drive complete()'s audience check directly.
 type fakeCompletePKI struct {

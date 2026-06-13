@@ -194,6 +194,9 @@ func (s *CommentService) deleteComment(ctx context.Context, body []byte) (any, e
 		}
 		return nil, csilrpc.Internal("internal error")
 	}
+	if existing.DeletedAt != nil {
+		return csil.EmptyResponse{}, nil // idempotent
+	}
 	ident, callerMemberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
 		return nil, err
@@ -203,9 +206,14 @@ func (s *CommentService) deleteComment(ctx context.Context, body []byte) (any, e
 			return nil, csilrpc.Forbidden("only the author or a house admin may delete a comment")
 		}
 	}
-	if err := s.Store.DeleteComment(ctx, string(id)); err != nil {
+	opID, err := s.Store.NewID(ctx)
+	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
+	if err := s.Store.SoftDeleteComment(ctx, string(id), callerMemberID, opID); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	annotateDelete(ctx, existing.HouseID, "comment", existing.CommentID, opID, existing)
 	return csil.EmptyResponse{}, nil
 }
 

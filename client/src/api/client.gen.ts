@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { BoolResponse, BugReportRequest, Comment, CommentID, CommentListRequest, CompleteRequest, DependencyGraph, DependencyRef, DependencyTarget, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Grant, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectID, ProjectList, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, PutTaskGrantRequest, ResourceRef, Role, RoleID, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskGrantRef, TaskID, TaskList, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import type { AuditPage, AuditQuery, BoolResponse, BugReportRequest, Comment, CommentID, CommentListRequest, CompleteRequest, DependencyGraph, DependencyRef, DependencyTarget, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Grant, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectID, ProjectList, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutTaskGrantRequest, ResourceRef, RestoreRequest, Role, RoleID, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskGrantRef, TaskID, TaskList, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
 
 export interface ServiceTransport {
   call<TReq, TRes>(
@@ -11,6 +11,18 @@ export interface ServiceTransport {
     req: TReq,
     opts?: { signal?: AbortSignal },
   ): Promise<TRes>;
+}
+
+export class AuditClient {
+  constructor(private readonly t: ServiceTransport) {}
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  queryAudit(req: AuditQuery, opts?: { signal?: AbortSignal }): Promise<AuditPage> {
+    return this.t.call<AuditQuery, AuditPage>("audit", "QueryAudit", req, opts);
+  }
 }
 
 export class AuthClient {
@@ -38,6 +50,14 @@ export class AuthClient {
    */
   refresh(req: EmptyRequest, opts?: { signal?: AbortSignal }): Promise<LoginResponse> {
     return this.t.call<EmptyRequest, LoginResponse>("auth", "Refresh", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  logout(req: EmptyRequest, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
+    return this.t.call<EmptyRequest, EmptyResponse>("auth", "Logout", req, opts);
   }
 
   /**
@@ -360,8 +380,16 @@ export class MemberClient {
    * @throws {ServiceError} when the API returns an error response
    * @throws transport errors (network, timeout) defined by the transport
    */
-  deleteMember(req: MemberID, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
-    return this.t.call<MemberID, EmptyResponse>("member", "DeleteMember", req, opts);
+  deactivateMember(req: MemberID, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
+    return this.t.call<MemberID, EmptyResponse>("member", "DeactivateMember", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  reactivateMember(req: MemberID, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
+    return this.t.call<MemberID, EmptyResponse>("member", "ReactivateMember", req, opts);
   }
 
   /**
@@ -841,6 +869,34 @@ export class TaskClient {
   }
 }
 
+export class TrashClient {
+  constructor(private readonly t: ServiceTransport) {}
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  listTrash(req: HouseScopedListRequest, opts?: { signal?: AbortSignal }): Promise<TrashPage> {
+    return this.t.call<HouseScopedListRequest, TrashPage>("trash", "ListTrash", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  restore(req: RestoreRequest, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
+    return this.t.call<RestoreRequest, EmptyResponse>("trash", "Restore", req, opts);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) defined by the transport
+   */
+  purge(req: PurgeRequest, opts?: { signal?: AbortSignal }): Promise<EmptyResponse> {
+    return this.t.call<PurgeRequest, EmptyResponse>("trash", "Purge", req, opts);
+  }
+}
+
 export class TrustedDomainClient {
   constructor(private readonly t: ServiceTransport) {}
 
@@ -878,6 +934,7 @@ export class TrustedDomainClient {
 }
 
 export class ApiClient {
+  readonly audit: AuditClient;
   readonly auth: AuthClient;
   readonly bug: BugClient;
   readonly comment: CommentClient;
@@ -895,8 +952,10 @@ export class ApiClient {
   readonly share: ShareClient;
   readonly skill: SkillClient;
   readonly task: TaskClient;
+  readonly trash: TrashClient;
   readonly trustedDomain: TrustedDomainClient;
   constructor(t: ServiceTransport) {
+    this.audit = new AuditClient(t);
     this.auth = new AuthClient(t);
     this.bug = new BugClient(t);
     this.comment = new CommentClient(t);
@@ -914,6 +973,7 @@ export class ApiClient {
     this.share = new ShareClient(t);
     this.skill = new SkillClient(t);
     this.task = new TaskClient(t);
+    this.trash = new TrashClient(t);
     this.trustedDomain = new TrustedDomainClient(t);
   }
 }

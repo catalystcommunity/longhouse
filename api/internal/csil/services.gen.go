@@ -9,171 +9,185 @@ import (
 
 // AuthService defines the service interface
 type AuthService interface {
-	Login(ctx context.Context, req LoginRequest) (interface{}, error)
-	Complete(ctx context.Context, req CompleteRequest) (interface{}, error)
-	Refresh(ctx context.Context, req EmptyRequest) (interface{}, error)
-	Me(ctx context.Context, req EmptyRequest) (interface{}, error)
+	Login(ctx context.Context, req LoginRequest) (LoginResponse, error)
+	Complete(ctx context.Context, req CompleteRequest) (LoginResponse, error)
+	Refresh(ctx context.Context, req EmptyRequest) (LoginResponse, error)
+	Logout(ctx context.Context, req EmptyRequest) (EmptyResponse, error)
+	Me(ctx context.Context, req EmptyRequest) (MeResponse, error)
 }
 
 // DevAuthService defines the service interface
 type DevAuthService interface {
-	ListDevUsers(ctx context.Context, req EmptyRequest) (interface{}, error)
-	DevLogin(ctx context.Context, req DevLoginRequest) (interface{}, error)
+	ListDevUsers(ctx context.Context, req EmptyRequest) (DevUsersResponse, error)
+	DevLogin(ctx context.Context, req DevLoginRequest) (LoginResponse, error)
 }
 
 // HouseService defines the service interface
 type HouseService interface {
-	CreateHouse(ctx context.Context, req House) (interface{}, error)
-	GetHouse(ctx context.Context, req HouseID) (interface{}, error)
-	UpdateHouse(ctx context.Context, req House) (interface{}, error)
-	DeleteHouse(ctx context.Context, req HouseID) (interface{}, error)
-	ListHouses(ctx context.Context, req HouseListRequest) (interface{}, error)
+	CreateHouse(ctx context.Context, req House) (House, error)
+	GetHouse(ctx context.Context, req HouseID) (House, error)
+	UpdateHouse(ctx context.Context, req House) (House, error)
+	DeleteHouse(ctx context.Context, req HouseID) (EmptyResponse, error)
+	ListHouses(ctx context.Context, req HouseListRequest) ([]House, error)
 }
 
 // MemberService defines the service interface
 type MemberService interface {
-	CreateMember(ctx context.Context, req Member) (interface{}, error)
-	GetMember(ctx context.Context, req MemberID) (interface{}, error)
-	GetMemberByIdentity(ctx context.Context, req Member) (interface{}, error)
-	UpdateMember(ctx context.Context, req Member) (interface{}, error)
-	DeleteMember(ctx context.Context, req MemberID) (interface{}, error)
-	ListMembers(ctx context.Context, req HouseScopedListRequest) (interface{}, error)
+	CreateMember(ctx context.Context, req Member) (Member, error)
+	GetMember(ctx context.Context, req MemberID) (Member, error)
+	GetMemberByIdentity(ctx context.Context, req Member) (Member, error)
+	UpdateMember(ctx context.Context, req Member) (Member, error)
+	DeactivateMember(ctx context.Context, req MemberID) (EmptyResponse, error)
+	ReactivateMember(ctx context.Context, req MemberID) (EmptyResponse, error)
+	ListMembers(ctx context.Context, req HouseScopedListRequest) ([]Member, error)
 }
 
 // TrustedDomainService defines the service interface
 type TrustedDomainService interface {
-	AddTrustedDomain(ctx context.Context, req TrustedDomain) (interface{}, error)
-	RemoveTrustedDomain(ctx context.Context, req TrustedDomainID) (interface{}, error)
-	ListTrustedDomains(ctx context.Context, req HouseID) (interface{}, error)
-	IsDomainTrusted(ctx context.Context, req TrustedDomain) (interface{}, error)
+	AddTrustedDomain(ctx context.Context, req TrustedDomain) (TrustedDomain, error)
+	RemoveTrustedDomain(ctx context.Context, req TrustedDomainID) (EmptyResponse, error)
+	ListTrustedDomains(ctx context.Context, req HouseID) ([]TrustedDomain, error)
+	IsDomainTrusted(ctx context.Context, req TrustedDomain) (BoolResponse, error)
 }
 
 // RoleService defines the service interface
 type RoleService interface {
-	CreateRole(ctx context.Context, req Role) (interface{}, error)
-	UpdateRole(ctx context.Context, req Role) (interface{}, error)
-	DeleteRole(ctx context.Context, req RoleID) (interface{}, error)
-	ListRoles(ctx context.Context, req HouseScopedListRequest) (interface{}, error)
-	GrantRole(ctx context.Context, req MemberRoleRef) (interface{}, error)
-	RevokeRole(ctx context.Context, req MemberRoleRef) (interface{}, error)
-	ListMemberRoles(ctx context.Context, req MemberScopedListRequest) (interface{}, error)
+	CreateRole(ctx context.Context, req Role) (Role, error)
+	UpdateRole(ctx context.Context, req Role) (Role, error)
+	DeleteRole(ctx context.Context, req RoleID) (EmptyResponse, error)
+	ListRoles(ctx context.Context, req HouseScopedListRequest) ([]Role, error)
+	GrantRole(ctx context.Context, req MemberRoleRef) (EmptyResponse, error)
+	RevokeRole(ctx context.Context, req MemberRoleRef) (EmptyResponse, error)
+	ListMemberRoles(ctx context.Context, req MemberScopedListRequest) ([]Role, error)
 }
 
 // SkillService defines the service interface
 type SkillService interface {
-	CreateSkill(ctx context.Context, req Skill) (interface{}, error)
-	UpdateSkill(ctx context.Context, req Skill) (interface{}, error)
-	DeleteSkill(ctx context.Context, req SkillID) (interface{}, error)
-	ListSkills(ctx context.Context, req HouseScopedListRequest) (interface{}, error)
-	AddMemberSkill(ctx context.Context, req MemberSkillRef) (interface{}, error)
-	RemoveMemberSkill(ctx context.Context, req MemberSkillRef) (interface{}, error)
-	ListMemberSkills(ctx context.Context, req MemberScopedListRequest) (interface{}, error)
-	AddGroupSkill(ctx context.Context, req GroupSkillRef) (interface{}, error)
-	RemoveGroupSkill(ctx context.Context, req GroupSkillRef) (interface{}, error)
-	ListGroupSkills(ctx context.Context, req GroupID) (interface{}, error)
+	CreateSkill(ctx context.Context, req Skill) (Skill, error)
+	UpdateSkill(ctx context.Context, req Skill) (Skill, error)
+	DeleteSkill(ctx context.Context, req SkillID) (EmptyResponse, error)
+	ListSkills(ctx context.Context, req HouseScopedListRequest) ([]Skill, error)
+	AddMemberSkill(ctx context.Context, req MemberSkillRef) (EmptyResponse, error)
+	RemoveMemberSkill(ctx context.Context, req MemberSkillRef) (EmptyResponse, error)
+	ListMemberSkills(ctx context.Context, req MemberScopedListRequest) ([]Skill, error)
+	AddGroupSkill(ctx context.Context, req GroupSkillRef) (EmptyResponse, error)
+	RemoveGroupSkill(ctx context.Context, req GroupSkillRef) (EmptyResponse, error)
+	ListGroupSkills(ctx context.Context, req GroupID) ([]Skill, error)
 }
 
 // GroupService defines the service interface
 type GroupService interface {
-	CreateGroup(ctx context.Context, req Group) (interface{}, error)
-	UpdateGroup(ctx context.Context, req Group) (interface{}, error)
-	DeleteGroup(ctx context.Context, req GroupID) (interface{}, error)
-	ListGroups(ctx context.Context, req HouseScopedListRequest) (interface{}, error)
-	AddGroupMember(ctx context.Context, req GroupMemberRef) (interface{}, error)
-	RemoveGroupMember(ctx context.Context, req GroupMemberRef) (interface{}, error)
-	ListGroupMembers(ctx context.Context, req MemberScopedListRequest) (interface{}, error)
+	CreateGroup(ctx context.Context, req Group) (Group, error)
+	UpdateGroup(ctx context.Context, req Group) (Group, error)
+	DeleteGroup(ctx context.Context, req GroupID) (EmptyResponse, error)
+	ListGroups(ctx context.Context, req HouseScopedListRequest) ([]Group, error)
+	AddGroupMember(ctx context.Context, req GroupMemberRef) (EmptyResponse, error)
+	RemoveGroupMember(ctx context.Context, req GroupMemberRef) (EmptyResponse, error)
+	ListGroupMembers(ctx context.Context, req MemberScopedListRequest) ([]Member, error)
 }
 
 // ProjectService defines the service interface
 type ProjectService interface {
-	CreateProject(ctx context.Context, req Project) (interface{}, error)
-	GetProject(ctx context.Context, req ProjectID) (interface{}, error)
-	UpdateProject(ctx context.Context, req Project) (interface{}, error)
-	DeleteProject(ctx context.Context, req ProjectID) (interface{}, error)
-	ListProjects(ctx context.Context, req HouseScopedListRequest) (interface{}, error)
-	ListProjectTasks(ctx context.Context, req ProjectScopedListRequest) (interface{}, error)
-	AddProjectTask(ctx context.Context, req ProjectTaskOrderRequest) (interface{}, error)
-	RemoveProjectTask(ctx context.Context, req ProjectTaskRef) (interface{}, error)
-	SetProjectTaskPosition(ctx context.Context, req ProjectTaskOrderRequest) (interface{}, error)
-	ListProjectMembers(ctx context.Context, req ProjectID) (interface{}, error)
-	AddProjectMember(ctx context.Context, req ProjectMemberRef) (interface{}, error)
-	RemoveProjectMember(ctx context.Context, req ProjectMemberRef) (interface{}, error)
-	ListProjectOwners(ctx context.Context, req ProjectID) (interface{}, error)
-	AddProjectOwner(ctx context.Context, req ProjectOwnerRef) (interface{}, error)
-	RemoveProjectOwner(ctx context.Context, req ProjectOwnerRef) (interface{}, error)
-	ListMilestones(ctx context.Context, req ProjectID) (interface{}, error)
-	CreateMilestone(ctx context.Context, req Milestone) (interface{}, error)
-	UpdateMilestone(ctx context.Context, req Milestone) (interface{}, error)
-	DeleteMilestone(ctx context.Context, req MilestoneID) (interface{}, error)
+	CreateProject(ctx context.Context, req Project) (Project, error)
+	GetProject(ctx context.Context, req ProjectID) (Project, error)
+	UpdateProject(ctx context.Context, req Project) (Project, error)
+	DeleteProject(ctx context.Context, req ProjectID) (EmptyResponse, error)
+	ListProjects(ctx context.Context, req HouseScopedListRequest) (ProjectList, error)
+	ListProjectTasks(ctx context.Context, req ProjectScopedListRequest) (TaskList, error)
+	AddProjectTask(ctx context.Context, req ProjectTaskOrderRequest) (EmptyResponse, error)
+	RemoveProjectTask(ctx context.Context, req ProjectTaskRef) (EmptyResponse, error)
+	SetProjectTaskPosition(ctx context.Context, req ProjectTaskOrderRequest) (EmptyResponse, error)
+	ListProjectMembers(ctx context.Context, req ProjectID) ([]Member, error)
+	AddProjectMember(ctx context.Context, req ProjectMemberRef) (EmptyResponse, error)
+	RemoveProjectMember(ctx context.Context, req ProjectMemberRef) (EmptyResponse, error)
+	ListProjectOwners(ctx context.Context, req ProjectID) ([]Member, error)
+	AddProjectOwner(ctx context.Context, req ProjectOwnerRef) (EmptyResponse, error)
+	RemoveProjectOwner(ctx context.Context, req ProjectOwnerRef) (EmptyResponse, error)
+	ListMilestones(ctx context.Context, req ProjectID) ([]Milestone, error)
+	CreateMilestone(ctx context.Context, req Milestone) (Milestone, error)
+	UpdateMilestone(ctx context.Context, req Milestone) (Milestone, error)
+	DeleteMilestone(ctx context.Context, req MilestoneID) (EmptyResponse, error)
 }
 
 // EventService defines the service interface
 type EventService interface {
-	CreateEvent(ctx context.Context, req Event) (interface{}, error)
-	GetEvent(ctx context.Context, req EventID) (interface{}, error)
-	UpdateEvent(ctx context.Context, req Event) (interface{}, error)
-	DeleteEvent(ctx context.Context, req EventID) (interface{}, error)
-	DeleteEventAndFuture(ctx context.Context, req EventID) (interface{}, error)
-	ListEvents(ctx context.Context, req HouseScopedListRequest) (interface{}, error)
+	CreateEvent(ctx context.Context, req Event) (Event, error)
+	GetEvent(ctx context.Context, req EventID) (Event, error)
+	UpdateEvent(ctx context.Context, req Event) (Event, error)
+	DeleteEvent(ctx context.Context, req EventID) (EmptyResponse, error)
+	DeleteEventAndFuture(ctx context.Context, req EventID) (EmptyResponse, error)
+	ListEvents(ctx context.Context, req HouseScopedListRequest) ([]Event, error)
 }
 
 // TaskService defines the service interface
 type TaskService interface {
-	CreateTask(ctx context.Context, req Task) (interface{}, error)
-	GetTask(ctx context.Context, req TaskID) (interface{}, error)
-	UpdateTask(ctx context.Context, req Task) (interface{}, error)
-	DeleteTask(ctx context.Context, req TaskID) (interface{}, error)
-	ListTasks(ctx context.Context, req HouseScopedListRequest) (interface{}, error)
-	SetTaskVisibility(ctx context.Context, req SetTaskVisibilityRequest) (interface{}, error)
-	ListTaskGrants(ctx context.Context, req TaskID) (interface{}, error)
-	PutTaskGrant(ctx context.Context, req PutTaskGrantRequest) (interface{}, error)
-	DeleteTaskGrant(ctx context.Context, req TaskGrantRef) (interface{}, error)
+	CreateTask(ctx context.Context, req Task) (Task, error)
+	GetTask(ctx context.Context, req TaskID) (Task, error)
+	UpdateTask(ctx context.Context, req Task) (Task, error)
+	DeleteTask(ctx context.Context, req TaskID) (EmptyResponse, error)
+	ListTasks(ctx context.Context, req HouseScopedListRequest) (TaskList, error)
+	SetTaskVisibility(ctx context.Context, req SetTaskVisibilityRequest) (Task, error)
+	ListTaskGrants(ctx context.Context, req TaskID) ([]Grant, error)
+	PutTaskGrant(ctx context.Context, req PutTaskGrantRequest) (EmptyResponse, error)
+	DeleteTaskGrant(ctx context.Context, req TaskGrantRef) (EmptyResponse, error)
 }
 
 // DependencyService defines the service interface
 type DependencyService interface {
-	AddDependency(ctx context.Context, req DependencyRef) (interface{}, error)
-	RemoveDependency(ctx context.Context, req DependencyRef) (interface{}, error)
-	GetDependencies(ctx context.Context, req DependencyTarget) (interface{}, error)
+	AddDependency(ctx context.Context, req DependencyRef) (EmptyResponse, error)
+	RemoveDependency(ctx context.Context, req DependencyRef) (EmptyResponse, error)
+	GetDependencies(ctx context.Context, req DependencyTarget) (DependencyGraph, error)
 }
 
 // CommentService defines the service interface
 type CommentService interface {
-	CreateComment(ctx context.Context, req Comment) (interface{}, error)
-	GetComment(ctx context.Context, req CommentID) (interface{}, error)
-	UpdateComment(ctx context.Context, req Comment) (interface{}, error)
-	DeleteComment(ctx context.Context, req CommentID) (interface{}, error)
-	ListComments(ctx context.Context, req CommentListRequest) (interface{}, error)
+	CreateComment(ctx context.Context, req Comment) (Comment, error)
+	GetComment(ctx context.Context, req CommentID) (Comment, error)
+	UpdateComment(ctx context.Context, req Comment) (Comment, error)
+	DeleteComment(ctx context.Context, req CommentID) (EmptyResponse, error)
+	ListComments(ctx context.Context, req CommentListRequest) ([]Comment, error)
 }
 
 // NotificationService defines the service interface
 type NotificationService interface {
-	ListNotifications(ctx context.Context, req NotificationListRequest) (interface{}, error)
-	UnreadCount(ctx context.Context, req HouseID) (interface{}, error)
-	MarkRead(ctx context.Context, req NotificationID) (interface{}, error)
-	MarkAllRead(ctx context.Context, req HouseID) (interface{}, error)
+	ListNotifications(ctx context.Context, req NotificationListRequest) ([]Notification, error)
+	UnreadCount(ctx context.Context, req HouseID) (NotificationUnreadCount, error)
+	MarkRead(ctx context.Context, req NotificationID) (Notification, error)
+	MarkAllRead(ctx context.Context, req HouseID) (EmptyResponse, error)
 }
 
 // ShareService defines the service interface
 type ShareService interface {
-	CreateShare(ctx context.Context, req Share) (interface{}, error)
-	DeleteShare(ctx context.Context, req ShareID) (interface{}, error)
-	ListSharesByResource(ctx context.Context, req ResourceRef) (interface{}, error)
-	CheckAccess(ctx context.Context, req ShareAccessRequest) (interface{}, error)
+	CreateShare(ctx context.Context, req Share) (Share, error)
+	DeleteShare(ctx context.Context, req ShareID) (EmptyResponse, error)
+	ListSharesByResource(ctx context.Context, req ResourceRef) ([]Share, error)
+	CheckAccess(ctx context.Context, req ShareAccessRequest) (Share, error)
 }
 
 // MemberAuditService defines the service interface
 type MemberAuditService interface {
-	ListAuditsForMember(ctx context.Context, req MemberScopedListRequest) (interface{}, error)
+	ListAuditsForMember(ctx context.Context, req MemberScopedListRequest) ([]MemberAudit, error)
 }
 
 // SettingsService defines the service interface
 type SettingsService interface {
-	GetSettings(ctx context.Context, req HouseID) (interface{}, error)
-	UpdateSettings(ctx context.Context, req UpdateSettingsRequest) (interface{}, error)
+	GetSettings(ctx context.Context, req HouseID) (EffectiveSettings, error)
+	UpdateSettings(ctx context.Context, req UpdateSettingsRequest) (EffectiveSettings, error)
 }
 
 // BugService defines the service interface
 type BugService interface {
-	ReportBug(ctx context.Context, req BugReportRequest) (interface{}, error)
+	ReportBug(ctx context.Context, req BugReportRequest) (Task, error)
+}
+
+// AuditService defines the service interface
+type AuditService interface {
+	QueryAudit(ctx context.Context, req AuditQuery) (AuditPage, error)
+}
+
+// TrashService defines the service interface
+type TrashService interface {
+	ListTrash(ctx context.Context, req HouseScopedListRequest) (TrashPage, error)
+	Restore(ctx context.Context, req RestoreRequest) (EmptyResponse, error)
+	Purge(ctx context.Context, req PurgeRequest) (EmptyResponse, error)
 }
