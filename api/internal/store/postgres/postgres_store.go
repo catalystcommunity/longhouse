@@ -152,7 +152,7 @@ func (s *PostgresStore) CreateRole(ctx context.Context, role *models.Role) error
 
 func (s *PostgresStore) GetRoleByID(ctx context.Context, roleID string) (*models.Role, error) {
 	var role models.Role
-	if err := db.WithContext(ctx).Where("role_id = ?", roleID).First(&role).Error; err != nil {
+	if err := db.WithContext(ctx).Where("role_id = ? AND deleted_at IS NULL", roleID).First(&role).Error; err != nil {
 		return nil, err
 	}
 	return &role, nil
@@ -176,7 +176,7 @@ func (s *PostgresStore) DeleteRole(ctx context.Context, roleID string) error {
 
 func (s *PostgresStore) ListRolesByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Role, error) {
 	var roles []models.Role
-	if err := db.WithContext(ctx).Where("house_id = ?", houseID).Order("name ASC").Limit(limit).Offset(offset).Find(&roles).Error; err != nil {
+	if err := db.WithContext(ctx).Where("house_id = ? AND deleted_at IS NULL", houseID).Order("name ASC").Limit(limit).Offset(offset).Find(&roles).Error; err != nil {
 		return nil, err
 	}
 	return roles, nil
@@ -195,7 +195,7 @@ func (s *PostgresStore) ListRolesForMember(ctx context.Context, memberID string)
 	var roles []models.Role
 	err := db.WithContext(ctx).
 		Joins("JOIN member_roles mr ON mr.role_id = roles.role_id").
-		Where("mr.member_id = ?", memberID).
+		Where("mr.member_id = ? AND roles.deleted_at IS NULL", memberID).
 		Order("roles.name ASC").
 		Find(&roles).Error
 	if err != nil {
@@ -212,7 +212,7 @@ func (s *PostgresStore) CreateSkill(ctx context.Context, skill *models.Skill) er
 
 func (s *PostgresStore) GetSkillByID(ctx context.Context, skillID string) (*models.Skill, error) {
 	var skill models.Skill
-	if err := db.WithContext(ctx).Where("skill_id = ?", skillID).First(&skill).Error; err != nil {
+	if err := db.WithContext(ctx).Where("skill_id = ? AND deleted_at IS NULL", skillID).First(&skill).Error; err != nil {
 		return nil, err
 	}
 	return &skill, nil
@@ -228,7 +228,7 @@ func (s *PostgresStore) DeleteSkill(ctx context.Context, skillID string) error {
 
 func (s *PostgresStore) ListSkillsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Skill, error) {
 	var skills []models.Skill
-	if err := db.WithContext(ctx).Where("house_id = ?", houseID).Order("name ASC").Limit(limit).Offset(offset).Find(&skills).Error; err != nil {
+	if err := db.WithContext(ctx).Where("house_id = ? AND deleted_at IS NULL", houseID).Order("name ASC").Limit(limit).Offset(offset).Find(&skills).Error; err != nil {
 		return nil, err
 	}
 	return skills, nil
@@ -247,7 +247,7 @@ func (s *PostgresStore) ListSkillsForMember(ctx context.Context, memberID string
 	var skills []models.Skill
 	err := db.WithContext(ctx).
 		Joins("JOIN member_skills ms ON ms.skill_id = skills.skill_id").
-		Where("ms.member_id = ?", memberID).
+		Where("ms.member_id = ? AND skills.deleted_at IS NULL", memberID).
 		Order("skills.name ASC").
 		Find(&skills).Error
 	if err != nil {
@@ -274,7 +274,7 @@ func (s *PostgresStore) ListSkillsForGroup(ctx context.Context, groupID string) 
 	var skills []models.Skill
 	err := db.WithContext(ctx).
 		Joins("JOIN group_skills gs ON gs.skill_id = skills.skill_id").
-		Where("gs.group_id = ?", groupID).
+		Where("gs.group_id = ? AND skills.deleted_at IS NULL", groupID).
 		Order("skills.name ASC").
 		Find(&skills).Error
 	if err != nil {
@@ -291,7 +291,7 @@ func (s *PostgresStore) CreateGroup(ctx context.Context, group *models.Group) er
 
 func (s *PostgresStore) GetGroupByID(ctx context.Context, groupID string) (*models.Group, error) {
 	var g models.Group
-	if err := db.WithContext(ctx).Where("group_id = ?", groupID).First(&g).Error; err != nil {
+	if err := db.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupID).First(&g).Error; err != nil {
 		return nil, err
 	}
 	return &g, nil
@@ -307,7 +307,7 @@ func (s *PostgresStore) DeleteGroup(ctx context.Context, groupID string) error {
 
 func (s *PostgresStore) ListGroupsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Group, error) {
 	var groups []models.Group
-	if err := db.WithContext(ctx).Where("house_id = ?", houseID).Order("name ASC").Limit(limit).Offset(offset).Find(&groups).Error; err != nil {
+	if err := db.WithContext(ctx).Where("house_id = ? AND deleted_at IS NULL", houseID).Order("name ASC").Limit(limit).Offset(offset).Find(&groups).Error; err != nil {
 		return nil, err
 	}
 	return groups, nil
@@ -373,7 +373,7 @@ func (s *PostgresStore) CreateProject(ctx context.Context, project *models.Proje
 
 func (s *PostgresStore) GetProjectByID(ctx context.Context, projectID string) (*models.Project, error) {
 	var project models.Project
-	if err := db.WithContext(ctx).Where("project_id = ?", projectID).First(&project).Error; err != nil {
+	if err := db.WithContext(ctx).Where("project_id = ? AND deleted_at IS NULL", projectID).First(&project).Error; err != nil {
 		return nil, err
 	}
 	return &project, nil
@@ -393,9 +393,67 @@ func (s *PostgresStore) DeleteProject(ctx context.Context, projectID string) err
 	return db.WithContext(ctx).Where("project_id = ?", projectID).Delete(&models.Project{}).Error
 }
 
+// NewID returns a fresh ULID (as text) using the same DB generator the schema
+// defaults use. Handlers call this once per logical delete to mint a
+// deleted_op_id shared across every row the delete touches, so restore can
+// revert the whole batch.
+func (s *PostgresStore) NewID(ctx context.Context) (string, error) {
+	var id string
+	if err := db.WithContext(ctx).Raw("SELECT generate_ulid()::text").Scan(&id).Error; err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func softDeleteFields(byMemberID, opID string) map[string]any {
+	return map[string]any{
+		"deleted_at":           time.Now().UTC(),
+		"deleted_by_member_id": byMemberID,
+		"deleted_op_id":        opID,
+	}
+}
+
+var restoreFields = map[string]any{
+	"deleted_at":           nil,
+	"deleted_by_member_id": nil,
+	"deleted_op_id":        nil,
+}
+
+func (s *PostgresStore) SoftDeleteProject(ctx context.Context, projectID, byMemberID, opID string) error {
+	return db.WithContext(ctx).Model(&models.Project{}).
+		Where("project_id = ? AND deleted_at IS NULL", projectID).
+		Updates(softDeleteFields(byMemberID, opID)).Error
+}
+
+func (s *PostgresStore) RestoreProjectsByOp(ctx context.Context, opID string) error {
+	return db.WithContext(ctx).Model(&models.Project{}).
+		Where("deleted_op_id = ?", opID).Updates(restoreFields).Error
+}
+
+// PurgeProjectsDeletedBefore permanently removes projects soft-deleted before
+// cutoff, clearing their (FK-less) dependency edges first. Returns the count.
+func (s *PostgresStore) PurgeProjectsDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	var ids []string
+	if err := db.WithContext(ctx).Model(&models.Project{}).
+		Where("deleted_at IS NOT NULL AND deleted_at < ?", cutoff).
+		Pluck("project_id", &ids).Error; err != nil {
+		return 0, err
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	for _, id := range ids {
+		if err := s.RemoveDependenciesForNode(ctx, models.DependencyProject, id); err != nil {
+			return 0, err
+		}
+	}
+	res := db.WithContext(ctx).Where("project_id IN ?", ids).Delete(&models.Project{})
+	return res.RowsAffected, res.Error
+}
+
 func (s *PostgresStore) ListProjectsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Project, error) {
 	var projects []models.Project
-	if err := db.WithContext(ctx).Where("house_id = ?", houseID).Order("created_at DESC").Limit(limit).Offset(offset).Find(&projects).Error; err != nil {
+	if err := db.WithContext(ctx).Where("house_id = ? AND deleted_at IS NULL", houseID).Order("created_at DESC").Limit(limit).Offset(offset).Find(&projects).Error; err != nil {
 		return nil, err
 	}
 	return projects, nil
@@ -567,7 +625,7 @@ func (s *PostgresStore) ListProjectsForTask(ctx context.Context, taskID string) 
 	var projects []models.Project
 	if err := db.WithContext(ctx).
 		Joins("JOIN project_tasks pt ON pt.project_id = projects.project_id").
-		Where("pt.task_id = ?", taskID).Find(&projects).Error; err != nil {
+		Where("pt.task_id = ? AND projects.deleted_at IS NULL", taskID).Find(&projects).Error; err != nil {
 		return nil, err
 	}
 	return projects, nil
@@ -698,7 +756,7 @@ func (s *PostgresStore) DeleteMilestone(ctx context.Context, milestoneID string)
 
 func (s *PostgresStore) GetMilestoneByID(ctx context.Context, milestoneID string) (*models.Milestone, error) {
 	var m models.Milestone
-	err := db.WithContext(ctx).Where("milestone_id = ?", milestoneID).First(&m).Error
+	err := db.WithContext(ctx).Where("milestone_id = ? AND deleted_at IS NULL", milestoneID).First(&m).Error
 	if err != nil {
 		return nil, err
 	}
@@ -708,7 +766,7 @@ func (s *PostgresStore) GetMilestoneByID(ctx context.Context, milestoneID string
 func (s *PostgresStore) ListMilestonesByProject(ctx context.Context, projectID string) ([]models.Milestone, error) {
 	var out []models.Milestone
 	err := db.WithContext(ctx).
-		Where("project_id = ?", projectID).
+		Where("project_id = ? AND deleted_at IS NULL", projectID).
 		Order("position ASC").
 		Find(&out).Error
 	if err != nil {
@@ -808,7 +866,7 @@ func (s *PostgresStore) CreateEvent(ctx context.Context, event *models.Event) er
 
 func (s *PostgresStore) GetEventByID(ctx context.Context, eventID string) (*models.Event, error) {
 	var event models.Event
-	if err := db.WithContext(ctx).Where("event_id = ?", eventID).First(&event).Error; err != nil {
+	if err := db.WithContext(ctx).Where("event_id = ? AND deleted_at IS NULL", eventID).First(&event).Error; err != nil {
 		return nil, err
 	}
 	return &event, nil
@@ -824,7 +882,7 @@ func (s *PostgresStore) DeleteEvent(ctx context.Context, eventID string) error {
 
 func (s *PostgresStore) ListEventsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Event, error) {
 	var events []models.Event
-	if err := db.WithContext(ctx).Where("house_id = ?", houseID).Order("starts_at ASC NULLS LAST").Limit(limit).Offset(offset).Find(&events).Error; err != nil {
+	if err := db.WithContext(ctx).Where("house_id = ? AND deleted_at IS NULL", houseID).Order("starts_at ASC NULLS LAST").Limit(limit).Offset(offset).Find(&events).Error; err != nil {
 		return nil, err
 	}
 	return events, nil
@@ -842,7 +900,7 @@ func (s *PostgresStore) ListDueRecurringEvents(ctx context.Context, before time.
 	}
 	var events []models.Event
 	err := db.WithContext(ctx).
-		Where("recurrence_freq IS NOT NULL AND next_recurrence_at IS NOT NULL AND next_recurrence_at <= ?", before).
+		Where("recurrence_freq IS NOT NULL AND next_recurrence_at IS NOT NULL AND next_recurrence_at <= ? AND deleted_at IS NULL", before).
 		Order("next_recurrence_at ASC").
 		Limit(limit).
 		Find(&events).Error
@@ -875,6 +933,46 @@ func (s *PostgresStore) DeleteEventsAfter(ctx context.Context, rootEventID strin
 		Delete(&models.Event{}).Error
 }
 
+// SoftDeleteEvent soft-deletes a single event (or, when called on a recurrence
+// root, the caller is expected to also soft-delete its children via
+// SoftDeleteEventsAfter under the same opID).
+func (s *PostgresStore) SoftDeleteEvent(ctx context.Context, eventID, byMemberID, opID string) error {
+	return db.WithContext(ctx).Model(&models.Event{}).
+		Where("event_id = ? AND deleted_at IS NULL", eventID).
+		Updates(softDeleteFields(byMemberID, opID)).Error
+}
+
+// SoftDeleteEventsAfter soft-deletes the children of rootEventID at/after
+// fromInclusive (the "this & future" sweep), stamping the shared opID.
+func (s *PostgresStore) SoftDeleteEventsAfter(ctx context.Context, rootEventID string, fromInclusive time.Time, byMemberID, opID string) error {
+	return db.WithContext(ctx).Model(&models.Event{}).
+		Where("recurrence_root_event_id = ? AND starts_at >= ? AND deleted_at IS NULL", rootEventID, fromInclusive).
+		Updates(softDeleteFields(byMemberID, opID)).Error
+}
+
+// SoftDeleteEventSeries soft-deletes a recurrence root and every child that
+// points at it, under one opID (the "delete the whole series" case). The
+// recurrence worker skips soft-deleted roots (ListDueRecurringEvents filters
+// deleted_at IS NULL), so muting the root's recurrence_freq is unnecessary —
+// restore is a clean un-delete and spawning resumes.
+func (s *PostgresStore) SoftDeleteEventSeries(ctx context.Context, rootEventID, byMemberID, opID string) error {
+	return db.WithContext(ctx).Model(&models.Event{}).
+		Where("(event_id = ? OR recurrence_root_event_id = ?) AND deleted_at IS NULL", rootEventID, rootEventID).
+		Updates(softDeleteFields(byMemberID, opID)).Error
+}
+
+func (s *PostgresStore) RestoreEventsByOp(ctx context.Context, opID string) error {
+	return db.WithContext(ctx).Model(&models.Event{}).
+		Where("deleted_op_id = ?", opID).Updates(restoreFields).Error
+}
+
+func (s *PostgresStore) PurgeEventsDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	res := db.WithContext(ctx).
+		Where("deleted_at IS NOT NULL AND deleted_at < ?", cutoff).
+		Delete(&models.Event{})
+	return res.RowsAffected, res.Error
+}
+
 // Task operations
 
 func (s *PostgresStore) CreateTask(ctx context.Context, task *models.Task) error {
@@ -883,7 +981,7 @@ func (s *PostgresStore) CreateTask(ctx context.Context, task *models.Task) error
 
 func (s *PostgresStore) GetTaskByID(ctx context.Context, taskID string) (*models.Task, error) {
 	var task models.Task
-	if err := db.WithContext(ctx).Where("task_id = ?", taskID).First(&task).Error; err != nil {
+	if err := db.WithContext(ctx).Where("task_id = ? AND deleted_at IS NULL", taskID).First(&task).Error; err != nil {
 		return nil, err
 	}
 	return &task, nil
@@ -917,7 +1015,7 @@ func (s *PostgresStore) CreateComment(ctx context.Context, comment *models.Comme
 
 func (s *PostgresStore) GetCommentByID(ctx context.Context, commentID string) (*models.Comment, error) {
 	var comment models.Comment
-	if err := db.WithContext(ctx).Where("comment_id = ?", commentID).First(&comment).Error; err != nil {
+	if err := db.WithContext(ctx).Where("comment_id = ? AND deleted_at IS NULL", commentID).First(&comment).Error; err != nil {
 		return nil, err
 	}
 	return &comment, nil
@@ -931,9 +1029,27 @@ func (s *PostgresStore) DeleteComment(ctx context.Context, commentID string) err
 	return db.WithContext(ctx).Where("comment_id = ?", commentID).Delete(&models.Comment{}).Error
 }
 
+func (s *PostgresStore) SoftDeleteComment(ctx context.Context, commentID, byMemberID, opID string) error {
+	return db.WithContext(ctx).Model(&models.Comment{}).
+		Where("comment_id = ? AND deleted_at IS NULL", commentID).
+		Updates(softDeleteFields(byMemberID, opID)).Error
+}
+
+func (s *PostgresStore) RestoreCommentsByOp(ctx context.Context, opID string) error {
+	return db.WithContext(ctx).Model(&models.Comment{}).
+		Where("deleted_op_id = ?", opID).Updates(restoreFields).Error
+}
+
+func (s *PostgresStore) PurgeCommentsDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	res := db.WithContext(ctx).
+		Where("deleted_at IS NOT NULL AND deleted_at < ?", cutoff).
+		Delete(&models.Comment{})
+	return res.RowsAffected, res.Error
+}
+
 func (s *PostgresStore) ListCommentsByTarget(ctx context.Context, targetType, targetID string, limit, offset int) ([]models.Comment, error) {
 	var comments []models.Comment
-	if err := db.WithContext(ctx).Where("target_type = ? AND target_id = ?", targetType, targetID).Order("created_at ASC").Limit(limit).Offset(offset).Find(&comments).Error; err != nil {
+	if err := db.WithContext(ctx).Where("target_type = ? AND target_id = ? AND deleted_at IS NULL", targetType, targetID).Order("created_at ASC").Limit(limit).Offset(offset).Find(&comments).Error; err != nil {
 		return nil, err
 	}
 	return comments, nil

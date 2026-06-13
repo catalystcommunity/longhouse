@@ -12,6 +12,25 @@ var AppStore Store
 type Store interface {
 	Initialize() (cleanup func(), err error)
 
+	// Audit log (append-only, partitioned by month). RecordAuditEntry appends
+	// one event; ListAuditEntries serves the admin-only per-house query.
+	RecordAuditEntry(ctx context.Context, e *models.AuditEntry) error
+	ListAuditEntries(ctx context.Context, houseID string, f models.AuditFilter) ([]models.AuditEntry, error)
+	GetDeleteOpDetail(ctx context.Context, houseID, opID string) (models.JSONMap, error)
+
+	// Trash bin (admin-only). ListTrash unions soft-deleted rows across all
+	// Tier-1 tables; FindDeletedOpID resolves a single item's delete-op for a
+	// batch restore; PurgeResource permanently deletes one trashed item now.
+	ListTrash(ctx context.Context, houseID string, limit, offset int) ([]models.TrashRow, error)
+	FindDeletedOpID(ctx context.Context, resourceType, resourceID string) (string, error)
+	ResourceHouseID(ctx context.Context, resourceType, resourceID string) (string, error)
+	PurgeResource(ctx context.Context, resourceType, resourceID string) error
+
+	// Trash purge sweep + audit partition maintenance (background workers).
+	PurgeAllSoftDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
+	CreateAuditPartitionsAhead(ctx context.Context, now time.Time, ahead int) error
+	DropAuditPartitionsBefore(ctx context.Context, now time.Time, retentionMonths int) (int, error)
+
 	// House operations
 	CreateHouse(ctx context.Context, house *models.House) error
 	GetHouseByID(ctx context.Context, houseID string) (*models.House, error)
@@ -30,6 +49,10 @@ type Store interface {
 	FindMembersByLinkkeysIdentity(ctx context.Context, domain, userID string) ([]models.Member, error)
 	UpdateMember(ctx context.Context, member *models.Member) error
 	DeleteMember(ctx context.Context, memberID string) error
+	// Members deactivate (denied future login) rather than soft-delete; their
+	// record + owned content stay. Not part of the trash bin.
+	DeactivateMember(ctx context.Context, memberID, byMemberID string) error
+	ReactivateMember(ctx context.Context, memberID string) error
 	ListMembersByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Member, error)
 
 	// Role operations
@@ -38,6 +61,9 @@ type Store interface {
 	GetRoleByName(ctx context.Context, houseID, name string) (*models.Role, error)
 	UpdateRole(ctx context.Context, role *models.Role) error
 	DeleteRole(ctx context.Context, roleID string) error
+	SoftDeleteRole(ctx context.Context, roleID, byMemberID, opID string) error
+	RestoreRolesByOp(ctx context.Context, opID string) error
+	PurgeRolesDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	ListRolesByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Role, error)
 	AssignRole(ctx context.Context, memberID, roleID string) error
 	RevokeRole(ctx context.Context, memberID, roleID string) error
@@ -48,6 +74,9 @@ type Store interface {
 	GetSkillByID(ctx context.Context, skillID string) (*models.Skill, error)
 	UpdateSkill(ctx context.Context, skill *models.Skill) error
 	DeleteSkill(ctx context.Context, skillID string) error
+	SoftDeleteSkill(ctx context.Context, skillID, byMemberID, opID string) error
+	RestoreSkillsByOp(ctx context.Context, opID string) error
+	PurgeSkillsDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	ListSkillsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Skill, error)
 	AssignSkill(ctx context.Context, memberID, skillID string) error
 	UnassignSkill(ctx context.Context, memberID, skillID string) error
@@ -62,6 +91,9 @@ type Store interface {
 	GetGroupByID(ctx context.Context, groupID string) (*models.Group, error)
 	UpdateGroup(ctx context.Context, group *models.Group) error
 	DeleteGroup(ctx context.Context, groupID string) error
+	SoftDeleteGroup(ctx context.Context, groupID, byMemberID, opID string) error
+	RestoreGroupsByOp(ctx context.Context, opID string) error
+	PurgeGroupsDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	ListGroupsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Group, error)
 	AddGroupMember(ctx context.Context, groupID, memberID string) error
 	RemoveGroupMember(ctx context.Context, groupID, memberID string) error
@@ -71,11 +103,18 @@ type Store interface {
 	ListDueRecurringTasks(ctx context.Context, before time.Time, limit int) ([]models.Task, error)
 	LatestRecurrenceChildOf(ctx context.Context, rootTaskID string) (*models.Task, error)
 
+	// NewID mints a fresh ULID (text) via the DB generator — used for a
+	// deleted_op_id shared across every row a single delete touches.
+	NewID(ctx context.Context) (string, error)
+
 	// Project operations
 	CreateProject(ctx context.Context, project *models.Project) error
 	GetProjectByID(ctx context.Context, projectID string) (*models.Project, error)
 	UpdateProject(ctx context.Context, project *models.Project) error
 	DeleteProject(ctx context.Context, projectID string) error
+	SoftDeleteProject(ctx context.Context, projectID, byMemberID, opID string) error
+	RestoreProjectsByOp(ctx context.Context, opID string) error
+	PurgeProjectsDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	ListProjectsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Project, error)
 	AddProjectTask(ctx context.Context, projectID, taskID string, position int) error
 	RemoveProjectTask(ctx context.Context, projectID, taskID string) error
@@ -129,6 +168,9 @@ type Store interface {
 	CreateMilestone(ctx context.Context, m *models.Milestone) error
 	UpdateMilestone(ctx context.Context, m *models.Milestone) error
 	DeleteMilestone(ctx context.Context, milestoneID string) error
+	SoftDeleteMilestone(ctx context.Context, milestoneID, byMemberID, opID string) error
+	RestoreMilestonesByOp(ctx context.Context, opID string) error
+	PurgeMilestonesDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	GetMilestoneByID(ctx context.Context, milestoneID string) (*models.Milestone, error)
 	ListMilestonesByProject(ctx context.Context, projectID string) ([]models.Milestone, error)
 
@@ -152,6 +194,11 @@ type Store interface {
 	GetEventByID(ctx context.Context, eventID string) (*models.Event, error)
 	UpdateEvent(ctx context.Context, event *models.Event) error
 	DeleteEvent(ctx context.Context, eventID string) error
+	SoftDeleteEvent(ctx context.Context, eventID, byMemberID, opID string) error
+	SoftDeleteEventSeries(ctx context.Context, rootEventID, byMemberID, opID string) error
+	SoftDeleteEventsAfter(ctx context.Context, rootEventID string, fromInclusive time.Time, byMemberID, opID string) error
+	RestoreEventsByOp(ctx context.Context, opID string) error
+	PurgeEventsDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	ListEventsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Event, error)
 
 	// Recurrence-spawn helpers — the worker reads ListDueRecurringEvents
@@ -167,6 +214,9 @@ type Store interface {
 	GetTaskByID(ctx context.Context, taskID string) (*models.Task, error)
 	UpdateTask(ctx context.Context, task *models.Task) error
 	DeleteTask(ctx context.Context, taskID string) error
+	SoftDeleteTask(ctx context.Context, taskID, byMemberID, opID string) error
+	RestoreTasksByOp(ctx context.Context, opID string) error
+	PurgeTasksDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	ListTasksByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Task, error)
 
 	// Task assignees (set semantics — order is not preserved).
@@ -179,6 +229,9 @@ type Store interface {
 	GetCommentByID(ctx context.Context, commentID string) (*models.Comment, error)
 	UpdateComment(ctx context.Context, comment *models.Comment) error
 	DeleteComment(ctx context.Context, commentID string) error
+	SoftDeleteComment(ctx context.Context, commentID, byMemberID, opID string) error
+	RestoreCommentsByOp(ctx context.Context, opID string) error
+	PurgeCommentsDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	ListCommentsByTarget(ctx context.Context, targetType, targetID string, limit, offset int) ([]models.Comment, error)
 	// CreateCommentWithNotifications persists the comment and, in the SAME
 	// transaction, the notification event snapshot plus one notification row

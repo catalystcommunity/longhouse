@@ -74,6 +74,8 @@ type Task struct {
 	NextRecurrenceAt     *time.Time `gorm:"column:next_recurrence_at" json:"next_recurrence_at,omitempty"`
 	RecurrenceRootTaskID *string    `gorm:"column:recurrence_root_task_id" json:"recurrence_root_task_id,omitempty"`
 	DeletedAt            *time.Time `gorm:"column:deleted_at" json:"deleted_at,omitempty"`
+	DeletedByMemberID    *string    `gorm:"column:deleted_by_member_id" json:"deleted_by_member_id,omitempty"`
+	DeletedOpID          *string    `gorm:"column:deleted_op_id" json:"deleted_op_id,omitempty"`
 	CreatedAt            time.Time  `gorm:"column:created_at;not null" json:"created_at"`
 	UpdatedAt            time.Time  `gorm:"column:updated_at;not null" json:"updated_at"`
 }

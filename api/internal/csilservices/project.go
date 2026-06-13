@@ -88,6 +88,9 @@ func (s *ProjectService) getProject(ctx context.Context, body []byte) (any, erro
 		}
 		return nil, csilrpc.Internal("internal error")
 	}
+	if p.DeletedAt != nil {
+		return nil, csilrpc.NotFound("project not found")
+	}
 	ident, memberID, err := requireMemberForHouse(ctx, p.HouseID)
 	if err != nil {
 		return nil, err
@@ -190,16 +193,24 @@ func (s *ProjectService) deleteProject(ctx context.Context, body []byte) (any, e
 		return nil, err
 	}
 	p, err := s.Store.GetProjectByID(ctx, string(id))
-	if err != nil {
+	if err != nil || p.DeletedAt != nil {
 		return nil, csilrpc.NotFound("project not found")
 	}
 	// Delete is governance — requires full.
-	if _, _, err := s.requireProjectAccess(ctx, p, models.AccessFull); err != nil {
+	_, g, err := s.requireProjectAccess(ctx, p, models.AccessFull)
+	if err != nil {
 		return nil, err
 	}
-	if err := s.Store.DeleteProject(ctx, p.ProjectID); err != nil {
+	// Soft delete into the trash: a configurable-retention purge worker
+	// removes it for good later; an admin can restore it until then.
+	opID, err := s.Store.NewID(ctx)
+	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
+	if err := s.Store.SoftDeleteProject(ctx, p.ProjectID, g.memberID, opID); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	annotateDelete(ctx, p.HouseID, "project", p.ProjectID, opID, p)
 	return csil.EmptyResponse{}, nil
 }
 
@@ -443,15 +454,30 @@ func (s *ProjectService) deleteMilestone(ctx context.Context, body []byte) (any,
 		return nil, err
 	}
 	existing, err := s.Store.GetMilestoneByID(ctx, string(id))
-	if err != nil {
+	if err != nil || existing.DeletedAt != nil {
 		return nil, csilrpc.NotFound("milestone not found")
 	}
 	if err := s.authzProject(ctx, existing.ProjectID, models.AccessEdit); err != nil {
 		return nil, err
 	}
-	if err := s.Store.DeleteMilestone(ctx, existing.MilestoneID); err != nil {
+	// Resolve the caller's member id in the project's house to stamp
+	// deleted_by_member_id (milestones carry project_id, not house_id).
+	p, err := s.Store.GetProjectByID(ctx, existing.ProjectID)
+	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
+	_, callerMemberID, err := requireMemberForHouse(ctx, p.HouseID)
+	if err != nil {
+		return nil, err
+	}
+	opID, err := s.Store.NewID(ctx)
+	if err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	if err := s.Store.SoftDeleteMilestone(ctx, existing.MilestoneID, callerMemberID, opID); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	annotateDelete(ctx, p.HouseID, "milestone", existing.MilestoneID, opID, existing)
 	return csil.EmptyResponse{}, nil
 }
 

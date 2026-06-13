@@ -18,6 +18,9 @@ type Event struct {
 	RecurrenceBySetpos    *int       `gorm:"column:recurrence_by_setpos" json:"recurrence_by_setpos,omitempty"`
 	NextRecurrenceAt      *time.Time `gorm:"column:next_recurrence_at" json:"next_recurrence_at,omitempty"`
 	RecurrenceRootEventID *string    `gorm:"column:recurrence_root_event_id" json:"recurrence_root_event_id,omitempty"`
+	DeletedAt             *time.Time `gorm:"column:deleted_at" json:"deleted_at,omitempty"`
+	DeletedByMemberID     *string    `gorm:"column:deleted_by_member_id" json:"deleted_by_member_id,omitempty"`
+	DeletedOpID           *string    `gorm:"column:deleted_op_id" json:"deleted_op_id,omitempty"`
 	CreatedAt             time.Time  `gorm:"column:created_at;not null" json:"created_at"`
 	UpdatedAt             time.Time  `gorm:"column:updated_at;not null" json:"updated_at"`
 }

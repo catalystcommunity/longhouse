@@ -1,7 +1,7 @@
 import { A, useLocation, useNavigate } from "@solidjs/router";
 import { Show, createSignal, onCleanup, onMount } from "solid-js";
 import { toggleScene, toggleTheme, useSceneOn } from "~/stores/theme";
-import { selectHouse, signOut, useCurrentHouseId, useHouses, useSession } from "~/stores/auth";
+import { hasRole, selectHouse, signOut, useCurrentHouseId, useHouses, useSession } from "~/stores/auth";
 import { Bell, Landscape, LonghouseMark, Moon, Search, Sun } from "./Icons";
 import { BugReportButton } from "./BugReportButton";
 import { NotificationBell } from "./NotificationBell";
@@ -90,6 +90,9 @@ export const Header = () => {
         {NAV.map((n) => (
           <A href={n.href} class={isActive(n.href) ? "active" : ""}>{n.label}</A>
         ))}
+        <Show when={hasRole("admin")}>
+          <A href="/admin/activity" class={isActive("/admin/activity") ? "active" : ""}>Activity</A>
+        </Show>
       </nav>
 
       <div class="head-end">

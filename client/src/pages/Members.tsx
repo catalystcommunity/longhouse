@@ -200,10 +200,19 @@ const MemberRow = (props: {
     async (req) => skillClient.listMemberSkills(req),
   );
 
-  const removeMember = async () => {
-    if (!confirm(`Remove ${displayName(props.member)} from this house?`)) return;
+  const isDeactivated = () => !!props.member.deactivatedAt;
+
+  const deactivateMember = async () => {
+    if (!confirm(`Deactivate ${displayName(props.member)}? They'll be denied future login, but their record and content stay and you can reactivate them later.`)) return;
     try {
-      await memberClient.deleteMember(props.member.memberId);
+      await memberClient.deactivateMember(props.member.memberId);
+      await props.onChanged();
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+  };
+
+  const reactivateMember = async () => {
+    try {
+      await memberClient.reactivateMember(props.member.memberId);
       await props.onChanged();
     } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
   };
@@ -232,6 +241,9 @@ const MemberRow = (props: {
               <Show when={isSelf()}>
                 <span style="font-size:11px;font-weight:400;color:var(--ink-mute);margin-left:8px">you</span>
               </Show>
+              <Show when={isDeactivated()}>
+                <span style="font-size:11px;font-weight:400;color:var(--rust);margin-left:8px">deactivated</span>
+              </Show>
             </div>
             <div class="doing">
               {props.member.linkkeysUserId}@{props.member.linkkeysDomain}
@@ -244,9 +256,18 @@ const MemberRow = (props: {
           </button>
         </Show>
         <Show when={!editing() && canAdmin() && !isSelf()}>
-          <button class="btn-quiet" onClick={removeMember} style="font-size:12px;padding:4px 10px;color:var(--rust)">
-            Remove
-          </button>
+          <Show
+            when={isDeactivated()}
+            fallback={
+              <button class="btn-quiet" onClick={deactivateMember} style="font-size:12px;padding:4px 10px;color:var(--rust)">
+                Deactivate
+              </button>
+            }
+          >
+            <button class="btn-quiet" onClick={reactivateMember} style="font-size:12px;padding:4px 10px;color:var(--grass-4)">
+              Reactivate
+            </button>
+          </Show>
         </Show>
         <Show when={!editing()}>
           <span class="ago">{lastSeenLabel(props.member) ?? ""}</span>

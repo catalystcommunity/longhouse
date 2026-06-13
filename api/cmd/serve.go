@@ -68,6 +68,30 @@ func Serve(flags map[string]string) error {
 		log.Info("Notification cull worker disabled")
 	}
 
+	// Trash purge worker — permanently deletes soft-deleted rows past the
+	// retention window. The audit record of the delete outlives this.
+	if !config.TrashPurgeDisabled {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go runTrashPurgeWorker(ctx,
+			time.Duration(config.TrashPurgeTickSeconds)*time.Second,
+			time.Duration(config.TrashRetentionDays)*24*time.Hour)
+	} else {
+		log.Info("Trash purge worker disabled")
+	}
+
+	// Audit partition maintenance — rolls the monthly audit_log partition
+	// window forward and drops aged-out partitions (retention).
+	if !config.AuditPartitionDisabled {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go runAuditPartitionWorker(ctx,
+			time.Duration(config.AuditPartitionTickSeconds)*time.Second,
+			config.AuditPartitionAheadMonths, config.AuditRetentionMonths)
+	} else {
+		log.Info("Audit partition worker disabled")
+	}
+
 	// TCP server (legacy CSIL-on-raw-TCP listener, kept until callers migrate).
 	go func() {
 		log.Infof("Starting TCP server on :%d", config.TCPPort)
@@ -98,6 +122,9 @@ func buildHTTPHandler() (http.Handler, error) {
 	jwtSecret := []byte(config.JWTSecret)
 
 	d := csilrpc.New(jwtSecret)
+	// Wire the audit sink so the dispatcher records every authenticated
+	// mutation (auth/devauth emit their own security events).
+	d.SetAuditRecorder(store.AppStore)
 
 	authSvc := buildAuthService()
 	if authSvc != nil {
@@ -117,6 +144,8 @@ func buildHTTPHandler() (http.Handler, error) {
 	(&csilservices.TrustedDomainService{Store: store.AppStore}).Register(d)
 	(&csilservices.CommentService{Store: store.AppStore}).Register(d)
 	(&csilservices.NotificationService{Store: store.AppStore}).Register(d)
+	(&csilservices.AuditService{Store: store.AppStore}).Register(d)
+	(&csilservices.TrashService{Store: store.AppStore}).Register(d)
 
 	if devSvc := buildDevAuthService(authSvc); devSvc != nil {
 		devSvc.Register(d)
@@ -258,6 +287,77 @@ func runRecurrenceWorker(ctx context.Context, interval time.Duration) {
 					"errors":          len(res.Errors),
 				}).Info("recurrence tick")
 			}
+		}
+	}
+}
+
+// runTrashPurgeWorker permanently deletes soft-deleted rows whose deleted_at is
+// older than the retention window — the trash bin's "empty after N days". The
+// audit log entry for the original delete is NOT touched (audit retention is
+// far longer), so "who deleted X" survives the purge. Errors are logged.
+func runTrashPurgeWorker(ctx context.Context, interval, retention time.Duration) {
+	if interval <= 0 {
+		interval = time.Hour
+	}
+	if retention <= 0 {
+		retention = 30 * 24 * time.Hour
+	}
+	tick := time.NewTicker(interval)
+	defer tick.Stop()
+	log.Infof("Trash purge worker tick = %s, retention = %s", interval, retention)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-tick.C:
+			cutoff := now.UTC().Add(-retention)
+			n, err := store.AppStore.PurgeAllSoftDeletedBefore(ctx, cutoff)
+			if err != nil {
+				log.WithError(err).Error("trash purge failed")
+				continue
+			}
+			if n > 0 {
+				log.WithFields(log.Fields{"purged_rows": n, "cutoff": cutoff}).Info("trash purge")
+			}
+		}
+	}
+}
+
+// runAuditPartitionWorker keeps the audit_log partition window healthy: it
+// pre-creates `ahead` months of partitions and drops partitions older than
+// `retentionMonths`. Runs once immediately so a fresh deploy has its window
+// before the first tick. Errors are logged, not fatal.
+func runAuditPartitionWorker(ctx context.Context, interval time.Duration, ahead, retentionMonths int) {
+	if interval <= 0 {
+		interval = time.Hour
+	}
+	if ahead < 0 {
+		ahead = 2
+	}
+	if retentionMonths <= 0 {
+		retentionMonths = 24
+	}
+	maintain := func(now time.Time) {
+		if err := store.AppStore.CreateAuditPartitionsAhead(ctx, now, ahead); err != nil {
+			log.WithError(err).Error("audit partition create failed")
+		}
+		dropped, err := store.AppStore.DropAuditPartitionsBefore(ctx, now, retentionMonths)
+		if err != nil {
+			log.WithError(err).Error("audit partition drop failed")
+		} else if dropped > 0 {
+			log.WithFields(log.Fields{"dropped_partitions": dropped}).Info("audit partition retention")
+		}
+	}
+	tick := time.NewTicker(interval)
+	defer tick.Stop()
+	log.Infof("Audit partition worker tick = %s, ahead = %d months, retention = %d months", interval, ahead, retentionMonths)
+	maintain(time.Now().UTC())
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-tick.C:
+			maintain(now.UTC())
 		}
 	}
 }

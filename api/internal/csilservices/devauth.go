@@ -5,6 +5,7 @@ import (
 
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
 	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
+	"github.com/catalystcommunity/longhouse/api/internal/store/postgres/models"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -75,7 +76,7 @@ func (s *DevAuthService) devLogin(ctx context.Context, body []byte) (any, error)
 	if err != nil || member == nil {
 		return nil, csilrpc.BadRequest("member not found")
 	}
-	resp, err := s.Auth.issueToken(ctx, member.LinkkeysDomain, member.LinkkeysUserID, member.DisplayName)
+	resp, err := s.Auth.issueToken(ctx, member.LinkkeysDomain, member.LinkkeysUserID, member.DisplayName, models.AuditActionDevLogin)
 	if err != nil {
 		return nil, err
 	}

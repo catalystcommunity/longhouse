@@ -12,6 +12,7 @@ import { SkillsPage } from "~/pages/Skills";
 import { SettingsPage } from "~/pages/Settings";
 import { AccountPage } from "~/pages/Account";
 import { MorePage } from "~/pages/More";
+import { ActivityTrashPage } from "~/pages/ActivityTrash";
 import { AuthCallback } from "~/pages/AuthCallback";
 import { Stub } from "~/pages/Stub";
 
@@ -34,6 +35,7 @@ export const App = () => (
     <Route path="/groups" component={GroupsPage} />
     <Route path="/skills" component={SkillsPage} />
     <Route path="/settings" component={SettingsPage} />
+    <Route path="/admin/activity" component={ActivityTrashPage} />
     <Route path="/auth/callback" component={AuthCallback} />
     <Route path="/shares" component={Stub} />
     <Route path="/more" component={MorePage} />

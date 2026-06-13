@@ -13,9 +13,12 @@ type Project struct {
 	// CreatedByMemberID is the creating member; owner falls back to this
 	// when the project has no explicit owner (full) grants. Nullable: the
 	// member row may have been deleted (ON DELETE SET NULL).
-	CreatedByMemberID *string   `gorm:"column:created_by_member_id" json:"created_by_member_id,omitempty"`
-	CreatedAt         time.Time `gorm:"column:created_at;not null" json:"created_at"`
-	UpdatedAt         time.Time `gorm:"column:updated_at;not null" json:"updated_at"`
+	CreatedByMemberID *string    `gorm:"column:created_by_member_id" json:"created_by_member_id,omitempty"`
+	DeletedAt         *time.Time `gorm:"column:deleted_at" json:"deleted_at,omitempty"`
+	DeletedByMemberID *string    `gorm:"column:deleted_by_member_id" json:"deleted_by_member_id,omitempty"`
+	DeletedOpID       *string    `gorm:"column:deleted_op_id" json:"deleted_op_id,omitempty"`
+	CreatedAt         time.Time  `gorm:"column:created_at;not null" json:"created_at"`
+	UpdatedAt         time.Time  `gorm:"column:updated_at;not null" json:"updated_at"`
 }
 
 func (Project) TableName() string { return "projects" }
@@ -55,10 +58,13 @@ type Milestone struct {
 	ProjectID   string    `gorm:"column:project_id;not null" json:"project_id"`
 	Label       string    `gorm:"column:label;not null" json:"label"`
 	WhenLabel   string    `gorm:"column:when_label;not null" json:"when_label"`
-	State       string    `gorm:"column:state;type:milestone_state;not null" json:"state"`
-	Position    int       `gorm:"column:position;not null" json:"position"`
-	CreatedAt   time.Time `gorm:"column:created_at;not null" json:"created_at"`
-	UpdatedAt   time.Time `gorm:"column:updated_at;not null" json:"updated_at"`
+	State       string     `gorm:"column:state;type:milestone_state;not null" json:"state"`
+	Position    int        `gorm:"column:position;not null" json:"position"`
+	DeletedAt   *time.Time `gorm:"column:deleted_at" json:"deleted_at,omitempty"`
+	DeletedByMemberID *string `gorm:"column:deleted_by_member_id" json:"deleted_by_member_id,omitempty"`
+	DeletedOpID *string    `gorm:"column:deleted_op_id" json:"deleted_op_id,omitempty"`
+	CreatedAt   time.Time  `gorm:"column:created_at;not null" json:"created_at"`
+	UpdatedAt   time.Time  `gorm:"column:updated_at;not null" json:"updated_at"`
 }
 
 func (Milestone) TableName() string { return "milestones" }

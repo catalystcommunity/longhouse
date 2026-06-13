@@ -7,6 +7,7 @@
  */
 
 import {
+  AuditClient,
   AuthClient,
   BugClient,
   CommentClient,
@@ -24,6 +25,7 @@ import {
   ShareClient,
   SkillClient,
   TaskClient,
+  TrashClient,
   TrustedDomainClient,
 } from "~/api/client.gen";
 import { cborTransport } from "~/transport/csilrpc";
@@ -46,3 +48,5 @@ export const memberAuditClient = new MemberAuditClient(cborTransport);
 export const settingsClient = new SettingsClient(cborTransport);
 export const bugClient = new BugClient(cborTransport);
 export const notificationClient = new NotificationClient(cborTransport);
+export const auditClient = new AuditClient(cborTransport);
+export const trashClient = new TrashClient(cborTransport);

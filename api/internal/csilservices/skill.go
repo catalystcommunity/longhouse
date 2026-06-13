@@ -83,15 +83,21 @@ func (s *SkillService) deleteSkill(ctx context.Context, body []byte) (any, error
 		return nil, err
 	}
 	existing, err := s.Store.GetSkillByID(ctx, string(id))
-	if err != nil {
+	if err != nil || existing.DeletedAt != nil {
 		return nil, csilrpc.NotFound("skill not found")
 	}
-	if _, _, err := requireRoleForHouse(ctx, existing.HouseID, "admin"); err != nil {
+	_, callerMemberID, err := requireRoleForHouse(ctx, existing.HouseID, "admin")
+	if err != nil {
 		return nil, err
 	}
-	if err := s.Store.DeleteSkill(ctx, existing.SkillID); err != nil {
+	opID, err := s.Store.NewID(ctx)
+	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
+	if err := s.Store.SoftDeleteSkill(ctx, existing.SkillID, callerMemberID, opID); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	annotateDelete(ctx, existing.HouseID, "skill", existing.SkillID, opID, existing)
 	return csil.EmptyResponse{}, nil
 }
 

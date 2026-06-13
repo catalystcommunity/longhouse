@@ -64,6 +64,22 @@ var (
 	NotificationCullTickSeconds = getEnvAsIntOrDefault("LONGHOUSE_NOTIFICATION_CULL_TICK_SECONDS", 3600)
 	NotificationRetentionDays   = getEnvAsIntOrDefault("LONGHOUSE_NOTIFICATION_RETENTION_DAYS", 180)
 
+	// Trash purge worker. Soft-deleted (trashed) rows older than the retention
+	// window are permanently deleted; the audit record of the delete survives
+	// (audit retention is much longer), so "who deleted X" outlives the
+	// ability to restore it. Defaults: 30-day trash, sweep hourly.
+	TrashPurgeDisabled    = getEnvOrDefault("LONGHOUSE_TRASH_PURGE_DISABLED", "") == "true"
+	TrashPurgeTickSeconds = getEnvAsIntOrDefault("LONGHOUSE_TRASH_PURGE_TICK_SECONDS", 3600)
+	TrashRetentionDays    = getEnvAsIntOrDefault("LONGHOUSE_TRASH_RETENTION_DAYS", 30)
+
+	// Audit partition maintenance worker. Creates monthly audit_log partitions
+	// ahead of time and drops those older than the retention window. Defaults:
+	// keep 24 months, keep 2 months of partitions pre-created, sweep hourly.
+	AuditPartitionDisabled    = getEnvOrDefault("LONGHOUSE_AUDIT_PARTITION_DISABLED", "") == "true"
+	AuditPartitionTickSeconds = getEnvAsIntOrDefault("LONGHOUSE_AUDIT_PARTITION_TICK_SECONDS", 3600)
+	AuditRetentionMonths      = getEnvAsIntOrDefault("LONGHOUSE_AUDIT_RETENTION_MONTHS", 24)
+	AuditPartitionAheadMonths = getEnvAsIntOrDefault("LONGHOUSE_AUDIT_PARTITION_AHEAD_MONTHS", 2)
+
 	// Env classifies the deployment. Missing reads as "prod" — the safe
 	// interpretation. Other accepted values: "nonprod" (shared non-prod
 	// envs) and "dev" (local). Used only to gate dev-mode features today;

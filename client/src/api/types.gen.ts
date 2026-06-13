@@ -70,6 +70,7 @@ export interface Member {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   lastSeenAt?: Timestamp;
+  deactivatedAt?: Timestamp;
 }
 
 export interface TrustedDomain {
@@ -536,5 +537,69 @@ export interface BugReportRequest {
 export interface ServiceError {
   code: number;
   message: string;
+}
+
+export type AuditID = string;
+
+export interface AuditEntry {
+  auditId: AuditID;
+  houseId?: HouseID;
+  actorMemberId?: MemberID;
+  actorDomain: string;
+  actorUserId: string;
+  serviceName: string;
+  method: string;
+  action: string;
+  resourceType?: string;
+  resourceId?: string;
+  outcome: string;
+  before?: string;
+  after?: string;
+  detail?: string;
+  createdAt: Timestamp;
+}
+
+export interface AuditQuery {
+  houseId: HouseID;
+  actorMemberId?: MemberID;
+  resourceType?: string;
+  action?: string;
+  since?: Timestamp;
+  until?: Timestamp;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface AuditPage {
+  entries: AuditEntry[];
+  nextCursor?: string;
+}
+
+export interface TrashItem {
+  resourceType: string;
+  resourceId: string;
+  houseId: HouseID;
+  title?: string;
+  deletedAt: Timestamp;
+  deletedByMemberId?: MemberID;
+  deletedOpId: string;
+}
+
+export interface TrashPage {
+  items: TrashItem[];
+  nextCursor?: string;
+}
+
+export interface RestoreRequest {
+  houseId: HouseID;
+  deletedOpId?: string;
+  resourceType?: string;
+  resourceId?: string;
+}
+
+export interface PurgeRequest {
+  houseId: HouseID;
+  resourceType: string;
+  resourceId: string;
 }
 

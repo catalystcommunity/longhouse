@@ -50,6 +50,7 @@ func memberToCSIL(m *models.Member) csil.Member {
 		CreatedAt:      ts(m.CreatedAt),
 		UpdatedAt:      ts(m.UpdatedAt),
 		LastSeenAt:     tsPtr(m.LastSeenAt),
+		DeactivatedAt:  tsPtr(m.DeactivatedAt),
 	}
 	if len(m.CachedPubKey) > 0 {
 		key := m.CachedPubKey

@@ -1,5 +1,7 @@
+import { Show } from "solid-js";
 import { A } from "@solidjs/router";
 import { Calendar, Clock, Cloud, Home, People, Pin } from "~/components/Icons";
+import { hasRole } from "~/stores/auth";
 
 /**
  * Mobile "More" surface — every section not pinned to the bottom tabbar
@@ -41,6 +43,25 @@ export const MorePage = () => (
           </A>
         </li>
       ))}
+      <Show when={hasRole("admin")}>
+        <li>
+          <A
+            href="/admin/activity"
+            style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-low);text-decoration:none;color:inherit"
+          >
+            <span
+              aria-hidden="true"
+              style="width:36px;height:36px;display:grid;place-items:center;border-radius:9px;background:color-mix(in oklab, var(--grass-2) 25%, transparent);color:var(--grass-4)"
+            >
+              <Cloud />
+            </span>
+            <span style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-family:var(--display);font-size:18px;color:var(--ink)">Activity &amp; Trash</span>
+              <span style="font-size:13px;color:var(--ink-mute)">Audit log and recoverable trash bin (admins).</span>
+            </span>
+          </A>
+        </li>
+      </Show>
     </ul>
   </div>
 );

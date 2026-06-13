@@ -3,6 +3,7 @@ package csilservices
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
 	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
@@ -52,6 +53,9 @@ func (s *EventService) getEvent(ctx context.Context, body []byte) (any, error) {
 			return nil, csilrpc.NotFound("event not found")
 		}
 		return nil, csilrpc.Internal("internal error")
+	}
+	if e.DeletedAt != nil {
+		return nil, csilrpc.NotFound("event not found")
 	}
 	if _, _, err := requireMemberForHouse(ctx, e.HouseID); err != nil {
 		return nil, err
@@ -210,7 +214,7 @@ func (s *EventService) deleteEvent(ctx context.Context, body []byte) (any, error
 		return nil, err
 	}
 	existing, err := s.Store.GetEventByID(ctx, string(id))
-	if err != nil {
+	if err != nil || existing.DeletedAt != nil {
 		return nil, csilrpc.NotFound("event not found")
 	}
 	ident, callerMemberID, err := requireMemberForHouse(ctx, existing.HouseID)
@@ -222,9 +226,14 @@ func (s *EventService) deleteEvent(ctx context.Context, body []byte) (any, error
 			return nil, csilrpc.Forbidden("only the event owner or a house admin may delete this event")
 		}
 	}
-	if err := s.Store.DeleteEvent(ctx, existing.EventID); err != nil {
+	opID, err := s.Store.NewID(ctx)
+	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
+	if err := s.Store.SoftDeleteEvent(ctx, existing.EventID, callerMemberID, opID); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	annotateDelete(ctx, existing.HouseID, "event", existing.EventID, opID, existing)
 	return csil.EmptyResponse{}, nil
 }
 
@@ -241,7 +250,7 @@ func (s *EventService) deleteEventAndFuture(ctx context.Context, body []byte) (a
 		return nil, err
 	}
 	existing, err := s.Store.GetEventByID(ctx, string(id))
-	if err != nil {
+	if err != nil || existing.DeletedAt != nil {
 		return nil, csilrpc.NotFound("event not found")
 	}
 	ident, callerMemberID, err := requireMemberForHouse(ctx, existing.HouseID)
@@ -253,28 +262,53 @@ func (s *EventService) deleteEventAndFuture(ctx context.Context, body []byte) (a
 			return nil, csilrpc.Forbidden("only the event owner or a house admin may delete this series")
 		}
 	}
+	opID, err := s.Store.NewID(ctx)
+	if err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
 	if existing.RecurrenceRootEventID == nil {
-		// Root row — CASCADE drops the children.
-		if err := s.Store.DeleteEvent(ctx, existing.EventID); err != nil {
+		// Root row — soft-delete the whole series (root + every child) under
+		// one opID. The recurrence worker skips soft-deleted roots, so no need
+		// to mute recurrence_freq; restore is a clean un-delete that resumes
+		// spawning.
+		if err := s.Store.SoftDeleteEventSeries(ctx, existing.EventID, callerMemberID, opID); err != nil {
 			return nil, csilrpc.Internal("internal error")
 		}
+		annotateDeleteWithDetail(ctx, existing.HouseID, "event", existing.EventID, opID, existing,
+			map[string]any{"mode": "series"})
 		return csil.EmptyResponse{}, nil
 	}
-	// Child row — drop it + future siblings, then mute the root.
+	// Child row — soft-delete it + future siblings, then mute the root so the
+	// spawner stops repopulating future occurrences. (Re-arming the root's
+	// recurrence on restore is layered in once the audit before-snapshot
+	// exists; the soft-deleted children themselves restore via their opID.)
 	if existing.StartsAt == nil {
 		return nil, csilrpc.BadRequest("event has no starts_at; cannot delete this-and-future")
 	}
 	rootID := *existing.RecurrenceRootEventID
-	if err := s.Store.DeleteEventsAfter(ctx, rootID, *existing.StartsAt); err != nil {
+	if err := s.Store.SoftDeleteEventsAfter(ctx, rootID, *existing.StartsAt, callerMemberID, opID); err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
+	var priorFreq *string
+	var priorNext *time.Time
 	root, err := s.Store.GetEventByID(ctx, rootID)
 	if err == nil && root != nil {
+		priorFreq = root.RecurrenceFreq
+		priorNext = root.NextRecurrenceAt
 		root.RecurrenceFreq = nil
 		root.NextRecurrenceAt = nil
 		if err := s.Store.UpdateEvent(ctx, root); err != nil {
 			return nil, csilrpc.Internal("internal error")
 		}
 	}
+	// Record enough to re-arm the root's recurrence on restore (the soft-delete
+	// of the children alone doesn't capture the root mutation).
+	annotateDeleteWithDetail(ctx, existing.HouseID, "event", existing.EventID, opID, existing,
+		map[string]any{
+			"mode":                          "this_and_future",
+			"root_event_id":                 rootID,
+			"root_prior_recurrence_freq":    priorFreq,
+			"root_prior_next_recurrence_at": priorNext,
+		})
 	return csil.EmptyResponse{}, nil
 }

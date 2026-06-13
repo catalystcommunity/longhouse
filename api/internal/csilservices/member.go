@@ -22,7 +22,8 @@ func (s *MemberService) Register(d *csilrpc.Dispatcher) {
 	d.Register("member", "GetMember", s.getMember)
 	d.Register("member", "CreateMember", s.createMember)
 	d.Register("member", "UpdateMember", s.updateMember)
-	d.Register("member", "DeleteMember", s.deleteMember)
+	d.Register("member", "DeactivateMember", s.deactivateMember)
+	d.Register("member", "ReactivateMember", s.reactivateMember)
 }
 
 func (s *MemberService) listMembers(ctx context.Context, body []byte) (any, error) {
@@ -96,7 +97,30 @@ func (s *MemberService) createMember(ctx context.Context, body []byte) (any, err
 	return memberToCSIL(m), nil
 }
 
-func (s *MemberService) deleteMember(ctx context.Context, body []byte) (any, error) {
+// deactivateMember denies a member future access to the house (keeping their
+// record + owned content). Admin-only; idempotent.
+func (s *MemberService) deactivateMember(ctx context.Context, body []byte) (any, error) {
+	var id csil.MemberID
+	if err := csilrpc.Decode(body, &id); err != nil {
+		return nil, err
+	}
+	existing, err := s.Store.GetMemberByID(ctx, string(id))
+	if err != nil {
+		return nil, csilrpc.NotFound("member not found")
+	}
+	_, callerMemberID, err := requireRoleForHouse(ctx, existing.HouseID, "admin")
+	if err != nil {
+		return nil, err
+	}
+	if err := s.Store.DeactivateMember(ctx, existing.MemberID, callerMemberID); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	}
+	annotateAudit(ctx, existing.HouseID, "deactivate", "member", existing.MemberID, nil)
+	return csil.EmptyResponse{}, nil
+}
+
+// reactivateMember restores a deactivated member's access. Admin-only.
+func (s *MemberService) reactivateMember(ctx context.Context, body []byte) (any, error) {
 	var id csil.MemberID
 	if err := csilrpc.Decode(body, &id); err != nil {
 		return nil, err
@@ -108,9 +132,10 @@ func (s *MemberService) deleteMember(ctx context.Context, body []byte) (any, err
 	if _, _, err := requireRoleForHouse(ctx, existing.HouseID, "admin"); err != nil {
 		return nil, err
 	}
-	if err := s.Store.DeleteMember(ctx, existing.MemberID); err != nil {
+	if err := s.Store.ReactivateMember(ctx, existing.MemberID); err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
+	annotateAudit(ctx, existing.HouseID, "reactivate", "member", existing.MemberID, nil)
 	return csil.EmptyResponse{}, nil
 }
 
