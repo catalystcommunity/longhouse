@@ -58,12 +58,38 @@ The dogfood site lives at `https://longhouse.todandlorna.com`. Changes
 are validated there before opening a PR.
 
 `~/longhouse-redeploy.sh` (personal helper, not in repo) is the
-iteration loop: build local images → push to
-`containers.catalystsquad.com` under a `dev-<UTC>-<git-sha>[-dirty]`
-tag → `helm upgrade` the `longhouse` namespace against the foundry
-cluster (`~/.foundry/kubeconfig`).
+iteration loop. It `helm upgrade`s the `longhouse` release against the
+foundry cluster (`~/.foundry/kubeconfig`). Two environments share that
+release name, differing only by namespace + values file, and the script
+hits **both by default**:
 
-One-time setup:
+- **todandlorna** → namespace `longhouse` (`deploy/values-todandlorna.yaml`),
+  the dogfood site at `https://longhouse.todandlorna.com`
+- **catalystsquad** → namespace `longhouse-catalystsquad`
+  (`deploy/values-catalystsquad.yaml`)
+
+By default it deploys the **latest release** (the tag in
+`version/VERSION.txt`) with no build. Building a fresh
+`dev-<UTC>-<git-sha>[-dirty]` image is opt-in via `--dev`.
+
+Common flows:
+
+```bash
+~/longhouse-redeploy.sh                 # deploy latest release (VERSION.txt)
+                                        #   to BOTH envs, no build
+~/longhouse-redeploy.sh --dev           # build local images → push to
+                                        #   containers.catalystsquad.com under a
+                                        #   dev tag → deploy that tag
+~/longhouse-redeploy.sh --tag X.Y.Z     # pin to an explicit tag (no build)
+~/longhouse-redeploy.sh --no-build      # config-only re-deploy (keeps each
+                                        #   env's currently-running tag)
+~/longhouse-redeploy.sh --env todandlorna     # restrict to one env
+                                              #   (todandlorna|catalystsquad|both)
+~/longhouse-redeploy.sh --logs          # tail api logs at the end (per env)
+```
+
+`--dev` is the only mode that pushes, so it's the only one needing
+registry auth. One-time setup:
 
 ```bash
 # Auth to the registry (token persists in ~/.docker/config.json):
@@ -75,19 +101,10 @@ REACTORCIDE_SECRETS_PASSWORD="$(cat ~/.reactorcide-pass)" \
       --password-stdin
 ```
 
-Common flows:
-
-```bash
-~/longhouse-redeploy.sh                 # build + push + helm upgrade
-~/longhouse-redeploy.sh --no-build      # config-only re-deploy (keeps the
-                                        # currently-deployed image tag)
-~/longhouse-redeploy.sh --tag X.Y.Z     # pin to an explicit released tag
-~/longhouse-redeploy.sh --logs          # tail api logs at the end
-```
-
-CI (`.reactorcide/jobs/`) does the same thing on push-to-main bumps of
-`version/VERSION.txt`; the local script just lets you iterate against
-the dogfood namespace without going through a release.
+CI (`.reactorcide/jobs/`) builds + pushes release images on push-to-main
+bumps of `version/VERSION.txt`; the default `redeploy` then just rolls
+those released tags, while `--dev` lets you iterate against the dogfood
+namespaces without going through a release.
 
 ## Browser-driving (optional, Claude Code only)
 
