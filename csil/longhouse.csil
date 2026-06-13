@@ -76,7 +76,12 @@ Member = {
     updated_at: Timestamp,
 
     @receive-only
-    ? last_seen_at: Timestamp
+    ? last_seen_at: Timestamp,
+
+    ;; Set when an admin has deactivated the member (denied future login).
+    ;; Reactivating clears it. Receive-only — managed via deactivate/reactivate.
+    @receive-only
+    ? deactivated_at: Timestamp
 }
 
 TrustedDomain = {
@@ -839,6 +844,7 @@ service AuthService {
     login:    LoginRequest    -> LoginResponse / ServiceError,
     complete: CompleteRequest -> LoginResponse / ServiceError,
     refresh:  EmptyRequest    -> LoginResponse / ServiceError,
+    logout:   EmptyRequest    -> EmptyResponse / ServiceError,
     me:       EmptyRequest    -> MeResponse    / ServiceError
 }
 
@@ -862,7 +868,10 @@ service MemberService {
     get-member: MemberID -> Member / ServiceError,
     get-member-by-identity: Member -> Member / ServiceError,
     update-member: Member -> Member / ServiceError,
-    delete-member: MemberID -> EmptyResponse / ServiceError,
+    ;; Members aren't deleted — deactivating denies future login while keeping
+    ;; the record and their owned content; reactivating restores access.
+    deactivate-member: MemberID -> EmptyResponse / ServiceError,
+    reactivate-member: MemberID -> EmptyResponse / ServiceError,
     list-members: HouseScopedListRequest -> [* Member] / ServiceError
 }
 
@@ -1020,4 +1029,91 @@ service SettingsService {
 ;; task, attach to project." Returns the created Task.
 service BugService {
     report-bug: BugReportRequest -> Task / ServiceError
+}
+
+;; ============================================================
+;; Audit log + trash bin (admin-only). See docs/dependencies.md sibling
+;; design; every method requires the caller's "admin" role in the house.
+;; ============================================================
+
+AuditID = text
+
+;; One audit_log row: a mutation or security event. before/after/detail are
+;; JSON-encoded text (CSIL doesn't model jsonb directly), matching MemberAudit.
+AuditEntry = {
+    @receive-only audit_id: AuditID,
+    ? house_id: HouseID,
+    ? actor_member_id: MemberID,
+    actor_domain: text,
+    actor_user_id: text,
+    service_name: text,
+    method: text,
+    action: text,
+    ? resource_type: text,
+    ? resource_id: text,
+    outcome: text,
+    ? before: text,
+    ? after: text,
+    ? detail: text,
+    @receive-only created_at: Timestamp
+}
+
+;; Admin query over a house's audit log. cursor is the opaque keyset token
+;; returned as next_cursor by the prior page (newest-first).
+AuditQuery = {
+    house_id: HouseID,
+    ? actor_member_id: MemberID,
+    ? resource_type: text,
+    ? action: text,
+    ? since: Timestamp,
+    ? until: Timestamp,
+    ? cursor: text,
+    ? limit: uint .default 100
+}
+
+AuditPage = {
+    entries: [* AuditEntry],
+    ? next_cursor: text
+}
+
+;; A soft-deleted item visible in the trash bin.
+TrashItem = {
+    resource_type: text,
+    resource_id: text,
+    house_id: HouseID,
+    ? title: text,
+    deleted_at: Timestamp,
+    ? deleted_by_member_id: MemberID,
+    deleted_op_id: text
+}
+
+TrashPage = {
+    items: [* TrashItem],
+    ? next_cursor: text
+}
+
+;; Restore either a whole delete operation (deleted_op_id) or a single item
+;; (resource_type + resource_id). house_id scopes/authorizes the call.
+RestoreRequest = {
+    house_id: HouseID,
+    ? deleted_op_id: text,
+    ? resource_type: text,
+    ? resource_id: text
+}
+
+;; Permanently delete one soft-deleted item now (skip the retention wait).
+PurgeRequest = {
+    house_id: HouseID,
+    resource_type: text,
+    resource_id: text
+}
+
+service AuditService {
+    query-audit: AuditQuery -> AuditPage / ServiceError
+}
+
+service TrashService {
+    list-trash: HouseScopedListRequest -> TrashPage     / ServiceError,
+    restore:    RestoreRequest         -> EmptyResponse  / ServiceError,
+    purge:      PurgeRequest           -> EmptyResponse  / ServiceError
 }
