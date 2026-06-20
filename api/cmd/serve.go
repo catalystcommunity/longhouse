@@ -108,8 +108,9 @@ func Serve(flags map[string]string) error {
 	return http.ListenAndServe(fmt.Sprintf(":%d", config.APIPort), handler)
 }
 
-// buildHTTPHandler assembles the public HTTP surface. The bulk of it lives
-// at POST /api/csil/{service}/{method} via the CSIL-RPC dispatcher. Two
+// buildHTTPHandler assembles the public HTTP surface. The bulk of it lives at
+// POST /csil/v1/rpc — the canonical CSIL-RPC v1 carrier — with the legacy
+// POST /api/csil/{service}/{method} dispatcher kept as a transition shim. Two
 // small non-CSIL endpoints remain:
 //
 //	GET /api/health          — k8s probe, always 200 ok.
@@ -160,6 +161,15 @@ func buildHTTPHandler() (http.Handler, error) {
 			http.Error(w, "browser login is not configured on this server", http.StatusInternalServerError)
 		}))
 	}
+	// Canonical CSIL-RPC v1 carrier — one self-routing endpoint for every op.
+	// Mounted at the canonical path and, for parity with longhouse's existing
+	// routing (the SPA's relative fetches and the gateway only carry /api/*),
+	// under /api too so the browser reaches it with no proxy/gateway change.
+	mux.HandleFunc("POST "+csilrpc.RPCMountPath, d.ServeRPC)
+	mux.HandleFunc("POST /api"+csilrpc.RPCMountPath, d.ServeRPC)
+	// Legacy path-routed carrier, kept as a transition shim while clients cut
+	// over to the envelope carrier.
+	// TODO: drop /api/csil/{service}/{method} once all clients use /csil/v1/rpc.
 	mux.Handle("/api/csil/", d)
 
 	c := cors.New(cors.Options{
