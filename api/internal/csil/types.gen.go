@@ -94,6 +94,8 @@ type Member struct {
 	LinkkeysDomain  string     `json:"linkkeys_domain" yaml:"linkkeys_domain" cbor:"linkkeys_domain"`
 	LinkkeysUserId  string     `json:"linkkeys_user_id" yaml:"linkkeys_user_id" cbor:"linkkeys_user_id"`
 	DisplayName     *string    `json:"display_name,omitempty" yaml:"display_name,omitempty" cbor:"display_name,omitempty"`
+	Email           *string    `json:"email,omitempty" yaml:"email,omitempty" cbor:"email,omitempty"`
+	AvatarUrl       *string    `json:"avatar_url,omitempty" yaml:"avatar_url,omitempty" cbor:"avatar_url,omitempty"`
 	CachedPublicKey *[]byte    `json:"cached_public_key,omitempty" yaml:"cached_public_key,omitempty" cbor:"cached_public_key,omitempty"`
 	CreatedAt       Timestamp  `json:"created_at" yaml:"created_at" cbor:"created_at"`
 	UpdatedAt       Timestamp  `json:"updated_at" yaml:"updated_at" cbor:"updated_at"`

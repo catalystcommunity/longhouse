@@ -67,6 +67,19 @@ Member = {
     linkkeys_domain: text,
     linkkeys_user_id: text,
     ? display_name: text,
+
+    ;; email is seeded/reconciled from a verified linkkeys claim (when one is
+    ;; released). Receive-only: it is destined for verification, so clients
+    ;; display it but never set it — preventing an unverified address from
+    ;; masquerading as verified.
+    @receive-only
+    ? email: text,
+
+    ;; avatar_url is seeded from a linkkeys claim but user-overridable; the
+    ;; image it points at is fetched, validated, and cached, then served at
+    ;; GET /api/v1/avatars/{member}.
+    ? avatar_url: text,
+
     ? cached_public_key: bytes,
 
     @receive-only

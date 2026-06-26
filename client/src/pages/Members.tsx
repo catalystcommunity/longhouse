@@ -315,12 +315,17 @@ const MemberRow = (props: {
   );
 };
 
+// Edits the profile fields a member owns: display name and avatar URL. Email is
+// shown read-only — it's seeded from a verified linkkeys claim and isn't
+// user-settable here (verification territory). The avatar URL is user-
+// overridable; the api fetches + caches the image it points at.
 const DisplayNameEditor = (props: {
   member: Member;
   onCancel: () => void;
   onSaved: () => Promise<void> | void;
 }) => {
   const [name, setName] = createSignal(props.member.displayName ?? "");
+  const [avatar, setAvatar] = createSignal(props.member.avatarUrl ?? "");
   const [busy, setBusy] = createSignal(false);
   const [err, setErr] = createSignal<string | null>(null);
   const submit = async (e: SubmitEvent) => {
@@ -332,17 +337,24 @@ const DisplayNameEditor = (props: {
       await memberClient.updateMember({
         ...props.member,
         displayName: name().trim() || undefined,
+        avatarUrl: avatar().trim() || undefined,
       } as any);
       await props.onSaved();
     } catch (e2) { setErr(e2 instanceof Error ? e2.message : String(e2)); }
     finally { setBusy(false); }
   };
+  const field = "padding:6px 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);font-size:14px";
   return (
     <form onSubmit={submit} style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <input
         type="text" value={name()} onInput={(e) => setName(e.currentTarget.value)}
         placeholder="display name" autofocus
-        style="flex:1 1 200px;padding:6px 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);font-size:14px"
+        style={`flex:1 1 200px;${field}`}
+      />
+      <input
+        type="url" value={avatar()} onInput={(e) => setAvatar(e.currentTarget.value)}
+        placeholder="avatar image URL"
+        style={`flex:1 1 200px;${field}`}
       />
       <button class="btn btn-primary" disabled={busy()} type="submit" style="padding:6px 14px">
         {busy() ? "…" : "Save"}
@@ -350,6 +362,9 @@ const DisplayNameEditor = (props: {
       <button type="button" class="btn btn-ghost" onClick={props.onCancel} disabled={busy()} style="padding:6px 12px">
         Cancel
       </button>
+      <Show when={props.member.email}>
+        {(em) => <span style="color:var(--ink-mute);font-size:12px;flex:1 1 100%">{em()} · from linkkeys</span>}
+      </Show>
       <Show when={err()}>{(m) => <span style="color:var(--rust);font-size:12px;flex:1 1 100%">{m()}</span>}</Show>
     </form>
   );

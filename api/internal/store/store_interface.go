@@ -55,6 +55,11 @@ type Store interface {
 	ReactivateMember(ctx context.Context, memberID string) error
 	ListMembersByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Member, error)
 
+	// Cached avatar operations. GetCachedAvatar returns (nil, nil) on a clean
+	// miss; PutCachedAvatar upserts by url_hash.
+	GetCachedAvatar(ctx context.Context, urlHash string) (*models.CachedAvatar, error)
+	PutCachedAvatar(ctx context.Context, avatar *models.CachedAvatar) error
+
 	// Role operations
 	CreateRole(ctx context.Context, role *models.Role) error
 	GetRoleByID(ctx context.Context, roleID string) (*models.Role, error)

@@ -91,6 +91,19 @@ linkkeysRp:
   domainKeyPassphrase: ""
   # Accept self-signed RP certs when the webapp calls the sidecar.
   allowInvalidCerts: false
+  # Transport the api uses to reach the linkkeys RP: "http" (the JSON PKI
+  # sidecar/endpoint above) or "tcp" (canonical CSIL-RPC over TCP+TLS).
+  # Defaults to http. The tcp* knobs below apply only when this is "tcp".
+  transport: ""
+  # Explicit host:port for the CSIL-RPC/TCP endpoint. Leave empty to discover
+  # it from DNS (_linkkeys_apis.<idpDomain> TXT). Port defaults to 4987.
+  tcpAddr: ""
+  # Comma-separated pinned server-cert fingerprints (SHA-256 hex of the SPKI
+  # public key). Leave empty to discover from DNS (_linkkeys.<idpDomain> TXT).
+  tcpFingerprints: ""
+  # Skip server-cert fingerprint pinning. Dev clusters with self-signed certs
+  # only — never in prod.
+  tcpAllowInsecure: false
   # Extra env vars to pass through to the linkkeys container (for any
   # deployment-specific knobs not covered above).
   extraEnv: []

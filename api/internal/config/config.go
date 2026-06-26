@@ -28,6 +28,22 @@ var (
 	LinkkeysPKIAPIKey       = getEnvOrDefault("LONGHOUSE_LINKKEYS_PKI_API_KEY", "")
 	LinkkeysPKIAllowInvalid = getEnvOrDefault("LONGHOUSE_LINKKEYS_PKI_ALLOW_INVALID_CERTS", "") == "true"
 
+	// LinkkeysTransport selects how the api reaches the linkkeys RP: "http"
+	// (the legacy JSON PKI sidecar, see linkkeys.Client) or "tcp" (the
+	// canonical CSIL-RPC/TCP endpoint, see linkkeys.TCPClient). Defaults to
+	// http for back-compat; flip to tcp once the deployment publishes a
+	// reachable CSIL-RPC endpoint.
+	LinkkeysTransport = getEnvOrDefault("LONGHOUSE_LINKKEYS_TRANSPORT", "http")
+
+	// TCP transport knobs (used only when LinkkeysTransport == "tcp"). Addr
+	// and Fingerprints are optional overrides; when empty they're discovered
+	// from DNS off LinkkeysIDPDomain (the _linkkeys_apis / _linkkeys TXT
+	// records). AllowInsecure skips server-cert fingerprint pinning — dev
+	// clusters with self-signed certs only.
+	LinkkeysTCPAddr          = getEnvOrDefault("LONGHOUSE_LINKKEYS_TCP_ADDR", "")
+	LinkkeysTCPFingerprints  = getEnvOrDefault("LONGHOUSE_LINKKEYS_TCP_FINGERPRINTS", "")
+	LinkkeysTCPAllowInsecure = getEnvOrDefault("LONGHOUSE_LINKKEYS_TCP_ALLOW_INSECURE", "") == "true"
+
 	// IDP whose assertions we trust. We pin a single IDP per deployment;
 	// federated multi-IDP can come later.
 	LinkkeysIDPDomain = getEnvOrDefault("LONGHOUSE_LINKKEYS_IDP_DOMAIN", "")
@@ -148,6 +164,15 @@ func ApplyFlags(flags map[string]string) {
 	}
 	if v, ok := flags["linkkeys-pki-api-key"]; ok {
 		LinkkeysPKIAPIKey = v
+	}
+	if v, ok := flags["linkkeys-transport"]; ok {
+		LinkkeysTransport = v
+	}
+	if v, ok := flags["linkkeys-tcp-addr"]; ok {
+		LinkkeysTCPAddr = v
+	}
+	if v, ok := flags["linkkeys-tcp-fingerprints"]; ok {
+		LinkkeysTCPFingerprints = v
 	}
 	if v, ok := flags["linkkeys-idp-domain"]; ok {
 		LinkkeysIDPDomain = v

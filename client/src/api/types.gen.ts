@@ -66,6 +66,8 @@ export interface Member {
   linkkeysDomain: string;
   linkkeysUserId: string;
   displayName?: string;
+  email?: string;
+  avatarUrl?: string;
   cachedPublicKey?: Uint8Array;
   createdAt: Timestamp;
   updatedAt: Timestamp;

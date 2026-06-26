@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/catalystcommunity/longhouse/api/internal/auth"
@@ -161,6 +162,12 @@ func buildHTTPHandler() (http.Handler, error) {
 			http.Error(w, "browser login is not configured on this server", http.StatusInternalServerError)
 		}))
 	}
+	// Cached avatar images: authenticated plain-GET (outside the CSIL-RPC
+	// carrier) so the SPA can fetch the bytes with its bearer. Needs the JWT
+	// secret to verify; absent it, the route can't authenticate, so we skip it.
+	if jwtSecret != nil {
+		mux.Handle("GET /api/v1/avatars/{member}", newAvatarHandler(store.AppStore, jwtSecret))
+	}
 	// Canonical CSIL-RPC v1 carrier — one self-routing endpoint for every op.
 	// Mounted at the canonical path and, for parity with longhouse's existing
 	// routing (the SPA's relative fetches and the gateway only carry /api/*),
@@ -235,17 +242,58 @@ func buildAuthService() *csilservices.AuthService {
 		IDPURL:      config.LinkkeysIDPURL,
 		CallbackURL: config.AppCallbackURL,
 	}
-	if config.LinkkeysPKIURL != "" && config.LinkkeysIDPDomain != "" {
-		svc.PKI = linkkeys.New(
+	if pki := buildPKIClient(); pki != nil {
+		svc.PKI = pki
+	} else {
+		log.Warn("linkkeys RP not configured: auth.Login/Complete will fail. " +
+			"Use devauth.DevLogin locally (LONGHOUSE_DEV_AUTH_ENABLED=true).")
+	}
+	return svc
+}
+
+// buildPKIClient constructs the linkkeys RP client for the configured
+// transport. "tcp" speaks canonical CSIL-RPC over TCP (linkkeys.TCPClient),
+// "http" (default) keeps the legacy JSON PKI sidecar (linkkeys.Client). Both
+// satisfy csilservices.PKIClient; the TCP client additionally implements
+// csilservices.UserInfoFetcher, enabling display-name/claims enrichment.
+// Returns nil (auth disabled) when the chosen transport is unconfigured.
+func buildPKIClient() csilservices.PKIClient {
+	switch strings.ToLower(config.LinkkeysTransport) {
+	case "tcp":
+		// DNS discovery needs the IDP domain; an explicit addr can stand in
+		// for it (e.g. dev with no published records).
+		if config.LinkkeysIDPDomain == "" && config.LinkkeysTCPAddr == "" {
+			return nil
+		}
+		var fps []string
+		if config.LinkkeysTCPFingerprints != "" {
+			fps = strings.Split(config.LinkkeysTCPFingerprints, ",")
+		}
+		c, err := linkkeys.NewTCPClient(linkkeys.TCPConfig{
+			Domain:       config.LinkkeysIDPDomain,
+			APIBase:      config.LinkkeysIDPURL,
+			APIKey:       config.LinkkeysPKIAPIKey,
+			Addr:         config.LinkkeysTCPAddr,
+			Fingerprints: fps,
+			Insecure:     config.LinkkeysTCPAllowInsecure,
+		})
+		if err != nil {
+			log.WithError(err).Error("linkkeys tcp transport init failed; auth.Login/Complete will fail")
+			return nil
+		}
+		log.Info("linkkeys RP transport: tcp (CSIL-RPC)")
+		return c
+	default: // "http"
+		if config.LinkkeysPKIURL == "" || config.LinkkeysIDPDomain == "" {
+			return nil
+		}
+		log.Info("linkkeys RP transport: http (PKI sidecar)")
+		return linkkeys.New(
 			config.LinkkeysPKIURL,
 			config.LinkkeysPKIAPIKey,
 			config.LinkkeysPKIAllowInvalid,
 		)
-	} else {
-		log.Warn("linkkeys browser flow not configured: auth.Login/Complete will fail. " +
-			"Use devauth.DevLogin locally (LONGHOUSE_DEV_AUTH_ENABLED=true).")
 	}
-	return svc
 }
 
 // buildDevAuthService is the gated counterpart. Returns nil unless every

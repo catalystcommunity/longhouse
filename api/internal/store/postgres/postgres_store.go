@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -142,6 +143,29 @@ func (s *PostgresStore) ListMembersByHouse(ctx context.Context, houseID string, 
 		return nil, err
 	}
 	return members, nil
+}
+
+// GetCachedAvatar returns the cached image for a source-URL hash, or (nil, nil)
+// when nothing is cached yet.
+func (s *PostgresStore) GetCachedAvatar(ctx context.Context, urlHash string) (*models.CachedAvatar, error) {
+	var a models.CachedAvatar
+	err := db.WithContext(ctx).Where("url_hash = ?", urlHash).First(&a).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+// PutCachedAvatar upserts by url_hash so a re-fetch of the same URL refreshes
+// the bytes in place.
+func (s *PostgresStore) PutCachedAvatar(ctx context.Context, avatar *models.CachedAvatar) error {
+	return db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "url_hash"}},
+		UpdateAll: true,
+	}).Create(avatar).Error
 }
 
 // Role operations
