@@ -158,10 +158,15 @@ export interface AvatarBits {
   initials: string;
   swatch: Swatch;
   name?: string;
+  /** Set only when the member has an avatar_url, so the Avatar component knows
+   *  to fetch a cached image (and avoids a 404 round-trip for the common case
+   *  of no avatar). The image is served at GET /api/v1/avatars/{memberId}. */
+  avatarMemberId?: string;
 }
 
 export const toAvatar = (m: Member): AvatarBits => ({
   initials: initial(m),
   swatch: memberSwatch(m.memberId),
   name: displayName(m),
+  avatarMemberId: m.avatarUrl ? m.memberId : undefined,
 });

@@ -53,6 +53,70 @@ type PKIClient interface {
 	VerifyAssertion(signedAssertion, expectedDomain string) (*linkkeys.Assertion, error)
 }
 
+// UserInfoFetcher is an optional capability a PKIClient may implement to redeem
+// a verified assertion for the full linkkeys UserInfo (display name + released
+// claims) — richer than the assertion itself. The CSIL-RPC/TCP transport
+// implements it; the legacy HTTP sidecar does not. Enrichment is best-effort:
+// login never blocks on it, and any failure or empty result falls back to the
+// assertion's own fields (see enrichDisplayName).
+type UserInfoFetcher interface {
+	FetchUserInfo(token, domain string) (*linkkeys.UserInfo, error)
+}
+
+// fetchClaims redeems a verified assertion for the claim set the user's consent
+// + the IDP's policy released to us (claim_type → value). Best-effort and
+// strictly optional: returns nil when the PKI transport can't fetch UserInfo
+// (the HTTP shim), the fetch fails, or nothing was released — callers must
+// degrade to the assertion's own fields. We log released claim TYPES (never
+// values) so the dogfood logs show what richer identity is actually available.
+func (s *AuthService) fetchClaims(token string, a *linkkeys.Assertion) map[string]string {
+	fetcher, ok := s.PKI.(UserInfoFetcher)
+	if !ok {
+		return nil
+	}
+	info, err := fetcher.FetchUserInfo(token, a.Domain)
+	if err != nil {
+		log.WithError(err).Debug("auth: userinfo-fetch failed; proceeding without claims")
+		return nil
+	}
+	if info == nil {
+		return nil
+	}
+	claims := info.ClaimValues()
+	// The UserInfo envelope carries the display name out of band; fold it in as
+	// a display_name claim when it didn't arrive as one, so reconciliation has a
+	// single source of truth.
+	if info.DisplayName != "" {
+		if _, ok := claims["display_name"]; !ok {
+			if claims == nil {
+				claims = make(map[string]string, 1)
+			}
+			claims["display_name"] = info.DisplayName
+		}
+	}
+	if len(claims) > 0 {
+		types := make([]string, 0, len(claims))
+		for t := range claims {
+			types = append(types, t)
+		}
+		log.WithFields(log.Fields{
+			"domain":      a.Domain,
+			"user_id":     a.UserID,
+			"claim_types": types,
+		}).Debug("auth: linkkeys released claims")
+	}
+	return claims
+}
+
+// resolveDisplayName prefers a released display_name claim, falling back to the
+// assertion's display name (i.e. pre-claims behavior) when none was granted.
+func resolveDisplayName(claims map[string]string, a *linkkeys.Assertion) string {
+	if v, ok := claims["display_name"]; ok && v != "" {
+		return v
+	}
+	return a.DisplayName
+}
+
 func (s *AuthService) Register(d *csilrpc.Dispatcher) {
 	d.RegisterPublic("auth", "Login", s.login)
 	d.RegisterPublic("auth", "Complete", s.complete)
@@ -138,7 +202,9 @@ func (s *AuthService) login(ctx context.Context, body []byte) (any, error) {
 		s.recordSecurityFailure(ctx, "", "", "login: assertion verification failed")
 		return nil, csilrpc.Unauthorized("assertion verification failed")
 	}
-	return s.issueToken(ctx, assertion.Domain, assertion.UserID, assertion.DisplayName, models.AuditActionLogin)
+	claims := s.fetchClaims(req.SignedAssertion, assertion)
+	display := resolveDisplayName(claims, assertion)
+	return s.issueToken(ctx, assertion.Domain, assertion.UserID, display, claims, models.AuditActionLogin)
 }
 
 func (s *AuthService) complete(ctx context.Context, body []byte) (any, error) {
@@ -180,7 +246,9 @@ func (s *AuthService) complete(ctx context.Context, body []byte) (any, error) {
 		s.recordSecurityFailure(ctx, assertion.Domain, assertion.UserID, "complete: assertion audience mismatch")
 		return nil, csilrpc.Unauthorized("assertion audience mismatch")
 	}
-	return s.issueToken(ctx, assertion.Domain, assertion.UserID, assertion.DisplayName, models.AuditActionLogin)
+	claims := s.fetchClaims(signed, assertion)
+	display := resolveDisplayName(claims, assertion)
+	return s.issueToken(ctx, assertion.Domain, assertion.UserID, display, claims, models.AuditActionLogin)
 }
 
 func (s *AuthService) refresh(ctx context.Context, _ []byte) (any, error) {
@@ -188,7 +256,9 @@ func (s *AuthService) refresh(ctx context.Context, _ []byte) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.issueToken(ctx, id.Domain, id.UserID, id.DisplayName, models.AuditActionRefresh)
+	// Refresh re-mints from the bearer without re-contacting linkkeys, so there
+	// are no fresh claims to reconcile — pass nil and keep the cached identity.
+	return s.issueToken(ctx, id.Domain, id.UserID, id.DisplayName, nil, models.AuditActionRefresh)
 }
 
 func (s *AuthService) me(ctx context.Context, _ []byte) (any, error) {
@@ -224,8 +294,10 @@ func (s *AuthService) me(ctx context.Context, _ []byte) (any, error) {
 
 // issueToken snapshots the identity's houses+roles and mints a fresh JWT.
 // Shared by Login / Complete / Refresh / DevAuthService.DevLogin so every
-// path produces an identical token shape.
-func (s *AuthService) issueToken(ctx context.Context, domain, userID, displayName, action string) (csil.LoginResponse, error) {
+// path produces an identical token shape. claims is the linkkeys claim set for
+// this redemption (nil on refresh/dev-login); it seeds/reconciles the
+// claim-backed member fields and is otherwise ignored.
+func (s *AuthService) issueToken(ctx context.Context, domain, userID, displayName string, claims map[string]string, action string) (csil.LoginResponse, error) {
 	// Auto-provision: if this verified identity's domain is in any house's
 	// trusted_domains table and they aren't already a member there, insert
 	// a member row + grant the canonical "member" role before we snapshot
@@ -234,6 +306,12 @@ func (s *AuthService) issueToken(ctx context.Context, domain, userID, displayNam
 	// would have had before.
 	if err := autoProvisionFromTrustedDomains(ctx, s.Store, domain, userID, displayName); err != nil {
 		log.WithError(err).Warn("auth: auto-provision from trusted domains failed (continuing)")
+	}
+	// Reconcile claim-backed member fields AFTER auto-provision (so freshly
+	// created rows get seeded too) and before we snapshot. Best-effort: a
+	// failure never blocks login.
+	if err := reconcileMemberClaims(ctx, s.Store, domain, userID, claims); err != nil {
+		log.WithError(err).Warn("auth: reconcile member claims failed (continuing)")
 	}
 	houses, err := buildHouseRoles(ctx, s.Store, domain, userID)
 	if err != nil {
@@ -262,6 +340,59 @@ func (s *AuthService) issueToken(ctx context.Context, domain, userID, displayNam
 		DisplayName: strPtrCopy(displayName),
 		ExpiresAt:   csil.Timestamp(time.Unix(verified.ExpiresAt, 0).UTC().Format(time.RFC3339)),
 	}, nil
+}
+
+// reconcileMemberClaims seeds/updates the claim-backed fields on every member
+// row for this identity (an identity is a member in zero or more houses, each
+// its own row). For each field: while the stored value still equals its mirror
+// the user hasn't overridden it, so we track the released claim; once the user
+// has diverged we leave their value but keep the mirror current. A claim that
+// wasn't released leaves its columns untouched. nil/empty claims is a no-op, so
+// refresh and dev-login (which carry no fresh claims) never disturb the fields.
+func reconcileMemberClaims(ctx context.Context, st store.Store, domain, userID string, claims map[string]string) error {
+	if st == nil || len(claims) == 0 {
+		return nil
+	}
+	members, err := st.FindMembersByLinkkeysIdentity(ctx, domain, userID)
+	if err != nil {
+		return err
+	}
+	for i := range members {
+		m := &members[i]
+		changed := reconcileField(&m.DisplayName, &m.DisplayNameClaimed, claims, "display_name")
+		changed = reconcileField(&m.Email, &m.EmailClaimed, claims, "email") || changed
+		changed = reconcileField(&m.AvatarURL, &m.AvatarURLClaimed, claims, "avatar_url") || changed
+		if !changed {
+			continue
+		}
+		if err := st.UpdateMember(ctx, m); err != nil {
+			// One bad row shouldn't abort the others or the login.
+			log.WithError(err).WithField("member_id", m.MemberID).
+				Warn("auth: reconcile member claims: update failed; skipping row")
+		}
+	}
+	return nil
+}
+
+// reconcileField applies one claim to a (field, mirror) pair and reports whether
+// either changed. Tracks upstream while field == mirror (or field is empty);
+// preserves a user override (field != mirror) but always advances the mirror to
+// the latest released value. Returns false when the claim wasn't released.
+func reconcileField(field, mirror *string, claims map[string]string, claimType string) bool {
+	val, ok := claims[claimType]
+	if !ok {
+		return false
+	}
+	changed := false
+	if (*field == "" || *field == *mirror) && *field != val {
+		*field = val
+		changed = true
+	}
+	if *mirror != val {
+		*mirror = val
+		changed = true
+	}
+	return changed
 }
 
 // buildHouseRoles snapshots every house the identity belongs to. Used by

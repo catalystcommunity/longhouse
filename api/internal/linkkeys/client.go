@@ -20,15 +20,23 @@ type Client struct {
 	HTTPClient *http.Client
 }
 
-// Assertion mirrors the relevant fields of linkkeys' IdentityAssertion.
+// Assertion mirrors the relevant fields of linkkeys' IdentityAssertion. The
+// json tags carry the HTTP RP shim's responses; the cbor tags carry the
+// CSIL-RPC/TCP transport's (see tcp.go). Both use the same snake_case wire
+// names, and unknown fields (e.g. authorized_claims) are ignored on decode.
 type Assertion struct {
-	UserID      string `json:"user_id"`
-	Domain      string `json:"domain"`
-	Audience    string `json:"audience"`
-	Nonce       string `json:"nonce"`
-	IssuedAt    string `json:"issued_at"`
-	ExpiresAt   string `json:"expires_at"`
-	DisplayName string `json:"display_name,omitempty"`
+	UserID      string `json:"user_id" cbor:"user_id"`
+	Domain      string `json:"domain" cbor:"domain"`
+	Audience    string `json:"audience" cbor:"audience"`
+	Nonce       string `json:"nonce" cbor:"nonce"`
+	IssuedAt    string `json:"issued_at" cbor:"issued_at"`
+	ExpiresAt   string `json:"expires_at" cbor:"expires_at"`
+	DisplayName string `json:"display_name,omitempty" cbor:"display_name,omitempty"`
+	// AuthorizedClaims is the set of claim_types the user's consent + the IDP's
+	// policy released to us for this redemption — the negotiated grant. The
+	// claim VALUES come from FetchUserInfo; this is just which were allowed.
+	// Only the CSIL-RPC transport populates it (the HTTP shim omits it).
+	AuthorizedClaims []string `json:"authorized_claims,omitempty" cbor:"authorized_claims,omitempty"`
 }
 
 // New builds a Client. allowInvalidCerts skips TLS verification — only for

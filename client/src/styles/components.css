@@ -168,6 +168,12 @@
   color: var(--ink);
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
 }
+/* When a cached avatar image is present it fills the circle; the gradient +
+   initials below it act as the fallback while loading or on error. Theme-
+   agnostic — it's a photo, not a tokened surface. */
+.a { overflow: hidden; }
+.a .a-img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; }
+
 .a.a1 { background: linear-gradient(150deg, #cfc69e, #a8a778); color: #2d2f1d; }
 .a.a2 { background: linear-gradient(150deg, #8eb079, #2b5536); color: var(--on-accent); }
 .a.a3 { background: linear-gradient(150deg, #a3b8be, #4d7280); color: var(--on-accent); }

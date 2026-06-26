@@ -47,6 +47,8 @@ func memberToCSIL(m *models.Member) csil.Member {
 		LinkkeysDomain: m.LinkkeysDomain,
 		LinkkeysUserId: m.LinkkeysUserID,
 		DisplayName:    strPtrCopy(m.DisplayName),
+		Email:          strPtrCopy(m.Email),
+		AvatarUrl:      strPtrCopy(m.AvatarURL),
 		CreatedAt:      ts(m.CreatedAt),
 		UpdatedAt:      ts(m.UpdatedAt),
 		LastSeenAt:     tsPtr(m.LastSeenAt),

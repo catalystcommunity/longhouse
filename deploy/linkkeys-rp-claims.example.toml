@@ -1,0 +1,31 @@
+# Longhouse relying-party claim requirements.
+#
+# This is the *request* side of the linkkeys claims negotiation. It lives on the
+# LINKKEYS RP DEPLOYMENT (not in Longhouse's code) — point the linkkeys server
+# at it with the RP_CLAIMS_CONFIG env var. It drives the requested_claims of the
+# AuthRequest the RP signs, which drives the IDP's consent screen. Absent/empty
+# => the RP requests nothing (authentication only — today's behavior).
+#
+# claim_type values must match linkkeys' registry exactly (see linkkeys
+# db/claim_policy.rs): display_name, email, avatar_url are the relevant ones.
+# `datatype` is advisory metadata for the consent UI / validation.
+#
+# EVERYTHING HERE IS [[optional]] ON PURPOSE. A `required` claim aborts login
+# when the user declines it; Longhouse must "sign in as usual" and never depend
+# on a claim, so we only ever request optionally. The user grants any subset;
+# whatever comes back seeds the reconciled member fields, and nothing breaks if
+# nothing is granted.
+
+# Verified email — the one we most want, for email-based features later. Still
+# optional: a user who declines it simply logs in with no email on file.
+[[optional]]
+claim_type = "email"
+datatype   = "email"
+
+[[optional]]
+claim_type = "display_name"
+datatype   = "text"
+
+[[optional]]
+claim_type = "avatar_url"
+datatype   = "url"

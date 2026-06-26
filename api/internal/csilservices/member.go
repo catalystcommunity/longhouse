@@ -162,11 +162,15 @@ func (s *MemberService) updateMember(ctx context.Context, body []byte) (any, err
 			return nil, csilrpc.Forbidden("you may only update your own profile")
 		}
 	}
-	// Display name is the only client-mutable field in the dashboard today;
-	// keep the field list narrow on purpose so we don't accept silly things
-	// like client-supplied created_at via a generic merge.
+	// Keep the mutable field list narrow on purpose so we don't accept silly
+	// things like client-supplied created_at via a generic merge. email is
+	// deliberately absent: it's receive-only (verified-claim territory), so a
+	// client can't set it here even though the type carries it.
 	if in.DisplayName != nil {
 		existing.DisplayName = *in.DisplayName
+	}
+	if in.AvatarUrl != nil {
+		existing.AvatarURL = *in.AvatarUrl
 	}
 	if err := s.Store.UpdateMember(ctx, existing); err != nil {
 		return nil, csilrpc.Internal("internal error")
