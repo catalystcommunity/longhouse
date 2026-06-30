@@ -239,7 +239,7 @@ func accessLevelPtr(p *csil.AccessLevel, fallback string) string {
 	if p == nil {
 		return fallback
 	}
-	if s, ok := (*p).(string); ok && s != "" {
+	if s := string(*p); s != "" {
 		return s
 	}
 	return fallback
@@ -247,7 +247,7 @@ func accessLevelPtr(p *csil.AccessLevel, fallback string) string {
 
 // accessLevelVal is accessLevelPtr for a non-pointer AccessLevel.
 func accessLevelVal(v csil.AccessLevel, fallback string) string {
-	if s, ok := v.(string); ok && s != "" {
+	if s := string(v); s != "" {
 		return s
 	}
 	return fallback
@@ -255,10 +255,7 @@ func accessLevelVal(v csil.AccessLevel, fallback string) string {
 
 // granteeTypeVal extracts a grantee_type string. nil/empty → "".
 func granteeTypeVal(v csil.GranteeType) string {
-	if s, ok := v.(string); ok {
-		return s
-	}
-	return ""
+	return string(v)
 }
 
 // validAccessLevel reports whether s is one of the four known levels.

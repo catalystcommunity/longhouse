@@ -20,31 +20,27 @@ import (
 type TrustedDomainService struct{ Store store.Store }
 
 func (s *TrustedDomainService) Register(d *csilrpc.Dispatcher) {
-	d.Register("trusteddomain", "AddTrustedDomain", s.add)
-	d.Register("trusteddomain", "RemoveTrustedDomain", s.remove)
-	d.Register("trusteddomain", "ListTrustedDomains", s.list)
-	d.Register("trusteddomain", "IsDomainTrusted", s.isTrusted)
+	d.RegisterTyped("trusteddomain", "AddTrustedDomain", csilrpc.Route(s.AddTrustedDomain, csil.DecodeTrustedDomainAddTrustedDomainRequest, csil.EncodeTrustedDomainAddTrustedDomainResponse))
+	d.RegisterTyped("trusteddomain", "RemoveTrustedDomain", csilrpc.Route(s.RemoveTrustedDomain, csil.DecodeTrustedDomainRemoveTrustedDomainRequest, csil.EncodeTrustedDomainRemoveTrustedDomainResponse))
+	d.RegisterTyped("trusteddomain", "ListTrustedDomains", csilrpc.Route(s.ListTrustedDomains, csil.DecodeTrustedDomainListTrustedDomainsRequest, csil.EncodeTrustedDomainListTrustedDomainsResponse))
+	d.RegisterTyped("trusteddomain", "IsDomainTrusted", csilrpc.Route(s.IsDomainTrusted, csil.DecodeTrustedDomainIsDomainTrustedRequest, csil.EncodeTrustedDomainIsDomainTrustedResponse))
 }
 
-func (s *TrustedDomainService) add(ctx context.Context, body []byte) (any, error) {
-	var in csil.TrustedDomain
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *TrustedDomainService) AddTrustedDomain(ctx context.Context, in csil.TrustedDomain) (csil.TrustedDomain, error) {
 	domain := strings.TrimSpace(strings.ToLower(in.Domain))
 	if in.HouseId == "" || domain == "" {
-		return nil, csilrpc.BadRequest("house_id and domain are required")
+		return csil.TrustedDomain{}, csilrpc.BadRequest("house_id and domain are required")
 	}
 	_, actorMemberID, err := requireRoleForHouse(ctx, string(in.HouseId), "admin")
 	if err != nil {
-		return nil, err
+		return csil.TrustedDomain{}, err
 	}
 	td := &models.TrustedDomain{
 		HouseID: string(in.HouseId),
 		Domain:  domain,
 	}
 	if err := s.Store.CreateTrustedDomain(ctx, td); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.TrustedDomain{}, csilrpc.Internal("internal error")
 	}
 	// Append-only audit so admins can see who added what when reviewing
 	// the member log later.
@@ -60,21 +56,17 @@ func (s *TrustedDomainService) add(ctx context.Context, body []byte) (any, error
 	return trustedDomainToCSIL(td), nil
 }
 
-func (s *TrustedDomainService) remove(ctx context.Context, body []byte) (any, error) {
-	var id csil.TrustedDomainID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *TrustedDomainService) RemoveTrustedDomain(ctx context.Context, id csil.TrustedDomainID) (csil.EmptyResponse, error) {
 	existing, err := s.findByID(ctx, string(id))
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	_, actorMemberID, err := requireRoleForHouse(ctx, existing.HouseID, "admin")
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.DeleteTrustedDomain(ctx, existing.TrustedDomainID); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	_ = s.Store.RecordMemberAudit(ctx, &models.MemberAudit{
 		HouseID:         existing.HouseID,
@@ -88,11 +80,7 @@ func (s *TrustedDomainService) remove(ctx context.Context, body []byte) (any, er
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *TrustedDomainService) list(ctx context.Context, body []byte) (any, error) {
-	var houseID csil.HouseID
-	if err := csilrpc.Decode(body, &houseID); err != nil {
-		return nil, err
-	}
+func (s *TrustedDomainService) ListTrustedDomains(ctx context.Context, houseID csil.HouseID) ([]csil.TrustedDomain, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(houseID)); err != nil {
 		return nil, err
 	}
@@ -103,20 +91,16 @@ func (s *TrustedDomainService) list(ctx context.Context, body []byte) (any, erro
 	return trustedDomainsToCSIL(rows), nil
 }
 
-func (s *TrustedDomainService) isTrusted(ctx context.Context, body []byte) (any, error) {
-	var in csil.TrustedDomain
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *TrustedDomainService) IsDomainTrusted(ctx context.Context, in csil.TrustedDomain) (csil.BoolResponse, error) {
 	if in.HouseId == "" || in.Domain == "" {
-		return nil, csilrpc.BadRequest("house_id and domain are required")
+		return csil.BoolResponse{}, csilrpc.BadRequest("house_id and domain are required")
 	}
 	if _, _, err := requireMemberForHouse(ctx, string(in.HouseId)); err != nil {
-		return nil, err
+		return csil.BoolResponse{}, err
 	}
 	ok, err := s.Store.IsDomainTrusted(ctx, string(in.HouseId), strings.ToLower(in.Domain))
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.BoolResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.BoolResponse{Value: ok}, nil
 }

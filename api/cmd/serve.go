@@ -174,10 +174,6 @@ func buildHTTPHandler() (http.Handler, error) {
 	// under /api too so the browser reaches it with no proxy/gateway change.
 	mux.HandleFunc("POST "+csilrpc.RPCMountPath, d.ServeRPC)
 	mux.HandleFunc("POST /api"+csilrpc.RPCMountPath, d.ServeRPC)
-	// Legacy path-routed carrier, kept as a transition shim while clients cut
-	// over to the envelope carrier.
-	// TODO: drop /api/csil/{service}/{method} once all clients use /csil/v1/rpc.
-	mux.Handle("/api/csil/", d)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

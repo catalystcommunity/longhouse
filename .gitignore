@@ -5,7 +5,6 @@
 *.so
 *.dylib
 longhouse
-longhouse-web
 
 # Test binary, built with `go test -c`
 *.test
@@ -35,7 +34,6 @@ Thumbs.db
 
 # Build artifacts
 /api/longhouse
-/webapp/longhouse-web
 
 # Local dev runtime
 /logs/

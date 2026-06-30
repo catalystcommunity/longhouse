@@ -6,19 +6,19 @@
 
 FROM node:22-alpine AS builder
 WORKDIR /build
-COPY client/package.json client/package-lock.json* ./client/
-RUN cd client && npm ci
-COPY client/ ./client/
+COPY webapp/package.json webapp/package-lock.json* ./webapp/
+RUN cd webapp && npm ci
+COPY webapp/ ./webapp/
 # vite.config.ts reads ../version/VERSION.txt at build time so the footer
 # tracks the repo's source of truth. The build context is the repo root
 # (see Dockerfile path in longhouse-redeploy.sh), so the directory is
-# available — just needs to be copied in alongside client/.
+# available — just needs to be copied in alongside webapp/.
 COPY version/ ./version/
-RUN cd client && npm run build
+RUN cd webapp && npm run build
 
 FROM caddy:2-alpine
-COPY --from=builder /build/client/dist /usr/share/caddy
-COPY client/Caddyfile /etc/caddy/Caddyfile
+COPY --from=builder /build/webapp/dist /usr/share/caddy
+COPY webapp/Caddyfile /etc/caddy/Caddyfile
 
 # The upstream caddy image runs `setcap cap_net_bind_service=+ep` on
 # /usr/bin/caddy so it can bind 80/443 without root. That file

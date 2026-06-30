@@ -10,7 +10,6 @@ import (
 	"github.com/catalystcommunity/longhouse/api/internal/linkkeys"
 	"github.com/catalystcommunity/longhouse/api/internal/store"
 	"github.com/catalystcommunity/longhouse/api/internal/store/postgres/models"
-	"github.com/fxamacker/cbor/v2"
 )
 
 // fakeAuthStore satisfies just the two read methods issueToken touches on the
@@ -38,8 +37,8 @@ type fakeCompletePKI struct {
 	assertion *linkkeys.Assertion
 }
 
-func (fakeCompletePKI) SignRequest(string, string) (string, error)  { return "SIGNED", nil }
-func (fakeCompletePKI) DecryptToken(string) (string, error)         { return "ASSERT", nil }
+func (fakeCompletePKI) SignRequest(string, string) (string, error) { return "SIGNED", nil }
+func (fakeCompletePKI) DecryptToken(string) (string, error)        { return "ASSERT", nil }
 func (p fakeCompletePKI) VerifyAssertion(string, string) (*linkkeys.Assertion, error) {
 	return p.assertion, nil
 }
@@ -66,11 +65,7 @@ func completeSvc(t *testing.T, assertion *linkkeys.Assertion) *AuthService {
 
 func callComplete(t *testing.T, svc *AuthService) (any, error) {
 	t.Helper()
-	body, err := cbor.Marshal(csil.CompleteRequest{EncryptedToken: "ENC"})
-	if err != nil {
-		t.Fatalf("marshal request: %v", err)
-	}
-	return svc.complete(context.Background(), body)
+	return svc.Complete(context.Background(), csil.CompleteRequest{EncryptedToken: "ENC"})
 }
 
 // TestComplete_AcceptsRPDomainAudience: an assertion whose audience equals the

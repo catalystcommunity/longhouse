@@ -29,18 +29,14 @@ type CommentService struct{ Store store.Store }
 const maxCommentBody = 10000
 
 func (s *CommentService) Register(d *csilrpc.Dispatcher) {
-	d.Register("comment", "ListComments", s.listComments)
-	d.Register("comment", "GetComment", s.getComment)
-	d.Register("comment", "CreateComment", s.createComment)
-	d.Register("comment", "UpdateComment", s.updateComment)
-	d.Register("comment", "DeleteComment", s.deleteComment)
+	d.RegisterTyped("comment", "ListComments", csilrpc.Route(s.ListComments, csil.DecodeCommentListCommentsRequest, csil.EncodeCommentListCommentsResponse))
+	d.RegisterTyped("comment", "GetComment", csilrpc.Route(s.GetComment, csil.DecodeCommentGetCommentRequest, csil.EncodeCommentGetCommentResponse))
+	d.RegisterTyped("comment", "CreateComment", csilrpc.Route(s.CreateComment, csil.DecodeCommentCreateCommentRequest, csil.EncodeCommentCreateCommentResponse))
+	d.RegisterTyped("comment", "UpdateComment", csilrpc.Route(s.UpdateComment, csil.DecodeCommentUpdateCommentRequest, csil.EncodeCommentUpdateCommentResponse))
+	d.RegisterTyped("comment", "DeleteComment", csilrpc.Route(s.DeleteComment, csil.DecodeCommentDeleteCommentRequest, csil.EncodeCommentDeleteCommentResponse))
 }
 
-func (s *CommentService) listComments(ctx context.Context, body []byte) (any, error) {
-	var req csil.CommentListRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *CommentService) ListComments(ctx context.Context, req csil.CommentListRequest) ([]csil.Comment, error) {
 	targetType, err := targetTypeStr(req.TargetType)
 	if err != nil {
 		return nil, err
@@ -63,53 +59,45 @@ func (s *CommentService) listComments(ctx context.Context, body []byte) (any, er
 	return commentsToCSIL(comments), nil
 }
 
-func (s *CommentService) getComment(ctx context.Context, body []byte) (any, error) {
-	var id csil.CommentID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *CommentService) GetComment(ctx context.Context, id csil.CommentID) (csil.Comment, error) {
 	c, err := s.Store.GetCommentByID(ctx, string(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, csilrpc.NotFound("comment not found")
+			return csil.Comment{}, csilrpc.NotFound("comment not found")
 		}
-		return nil, csilrpc.Internal("internal error")
+		return csil.Comment{}, csilrpc.Internal("internal error")
 	}
 	if _, _, err := requireMemberForHouse(ctx, c.HouseID); err != nil {
-		return nil, err
+		return csil.Comment{}, err
 	}
 	return commentToCSIL(c), nil
 }
 
-func (s *CommentService) createComment(ctx context.Context, body []byte) (any, error) {
-	var in csil.Comment
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *CommentService) CreateComment(ctx context.Context, in csil.Comment) (csil.Comment, error) {
 	targetType, err := targetTypeStr(in.TargetType)
 	if err != nil {
-		return nil, err
+		return csil.Comment{}, err
 	}
 	if in.TargetId == "" {
-		return nil, csilrpc.BadRequest("target_id is required")
+		return csil.Comment{}, csilrpc.BadRequest("target_id is required")
 	}
 	bodyText := strings.TrimSpace(in.Body)
 	if bodyText == "" {
-		return nil, csilrpc.BadRequest("body is required")
+		return csil.Comment{}, csilrpc.BadRequest("body is required")
 	}
 	if len(bodyText) > maxCommentBody {
-		return nil, csilrpc.BadRequest("body is too long")
+		return csil.Comment{}, csilrpc.BadRequest("body is too long")
 	}
 	// Resolve the target itself (house, title, watchers) — the house scopes
 	// and authorizes the comment, the title/watchers feed the notification
 	// snapshot + fan-out.
 	ti, err := s.resolveTarget(ctx, targetType, in.TargetId)
 	if err != nil {
-		return nil, err
+		return csil.Comment{}, err
 	}
 	_, callerMemberID, err := requireMemberForHouse(ctx, ti.houseID)
 	if err != nil {
-		return nil, err
+		return csil.Comment{}, err
 	}
 	c := &models.Comment{
 		HouseID:    ti.houseID,
@@ -143,75 +131,67 @@ func (s *CommentService) createComment(ctx context.Context, body []byte) (any, e
 		}
 	}
 	if err := s.Store.CreateCommentWithNotifications(ctx, c, event, recipients); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Comment{}, csilrpc.Internal("internal error")
 	}
 	return commentToCSIL(c), nil
 }
 
-func (s *CommentService) updateComment(ctx context.Context, body []byte) (any, error) {
-	var in csil.Comment
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *CommentService) UpdateComment(ctx context.Context, in csil.Comment) (csil.Comment, error) {
 	if in.CommentId == "" {
-		return nil, csilrpc.BadRequest("comment_id is required")
+		return csil.Comment{}, csilrpc.BadRequest("comment_id is required")
 	}
 	bodyText := strings.TrimSpace(in.Body)
 	if bodyText == "" {
-		return nil, csilrpc.BadRequest("body is required")
+		return csil.Comment{}, csilrpc.BadRequest("body is required")
 	}
 	if len(bodyText) > maxCommentBody {
-		return nil, csilrpc.BadRequest("body is too long")
+		return csil.Comment{}, csilrpc.BadRequest("body is too long")
 	}
 	existing, err := s.Store.GetCommentByID(ctx, string(in.CommentId))
 	if err != nil {
-		return nil, csilrpc.NotFound("comment not found")
+		return csil.Comment{}, csilrpc.NotFound("comment not found")
 	}
 	_, callerMemberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.Comment{}, err
 	}
 	// Author-only: an admin may delete but not rewrite someone else's comment.
 	if callerMemberID != existing.MemberID {
-		return nil, csilrpc.Forbidden("only the author may edit a comment")
+		return csil.Comment{}, csilrpc.Forbidden("only the author may edit a comment")
 	}
 	existing.Body = bodyText
 	if err := s.Store.UpdateComment(ctx, existing); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Comment{}, csilrpc.Internal("internal error")
 	}
 	return commentToCSIL(existing), nil
 }
 
-func (s *CommentService) deleteComment(ctx context.Context, body []byte) (any, error) {
-	var id csil.CommentID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *CommentService) DeleteComment(ctx context.Context, id csil.CommentID) (csil.EmptyResponse, error) {
 	existing, err := s.Store.GetCommentByID(ctx, string(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return csil.EmptyResponse{}, nil // idempotent
 		}
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if existing.DeletedAt != nil {
 		return csil.EmptyResponse{}, nil // idempotent
 	}
 	ident, callerMemberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if callerMemberID != existing.MemberID {
 		if _, err := requireRole(ident, existing.HouseID, "admin"); err != nil {
-			return nil, csilrpc.Forbidden("only the author or a house admin may delete a comment")
+			return csil.EmptyResponse{}, csilrpc.Forbidden("only the author or a house admin may delete a comment")
 		}
 	}
 	opID, err := s.Store.NewID(ctx)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if err := s.Store.SoftDeleteComment(ctx, string(id), callerMemberID, opID); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	annotateDelete(ctx, existing.HouseID, "comment", existing.CommentID, opID, existing)
 	return csil.EmptyResponse{}, nil
@@ -318,11 +298,11 @@ func memberDisplayName(m *models.Member) string {
 	return m.MemberID
 }
 
-// targetTypeStr coerces the opaque CSIL TargetType (generated as interface{})
-// to one of the known string values, rejecting anything else.
+// targetTypeStr coerces the CSIL TargetType enum (a string-based type) to one of
+// the known string values, rejecting anything else.
 func targetTypeStr(t csil.TargetType) (string, error) {
-	s, ok := t.(string)
-	if !ok {
+	s := string(t)
+	if s == "" {
 		return "", csilrpc.BadRequest("target_type is required")
 	}
 	switch s {

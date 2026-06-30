@@ -42,19 +42,20 @@ func serveRPC(t *testing.T, d *Dispatcher, req transport.RpcRequest, bearer stri
 
 func TestServeRPC_SuccessRoundTrip(t *testing.T) {
 	d := New(nil)
-	d.RegisterPublic("widget", "GetWidget", func(_ context.Context, body []byte) (any, error) {
-		var in csil.HouseID
-		if err := Decode(body, &in); err != nil {
-			return nil, err
-		}
-		// Echo the request through to prove the payload survives tag-24 wrapping.
-		return csil.BoolResponse{Value: string(in) == "h-1"}, nil
-	})
+	// The dispatcher is payload-agnostic: a typed route hands it a variant +
+	// pre-encoded bytes. We borrow the generated HouseID/BoolResponse codecs
+	// (from the trusted-domain ops) to exercise a real round-trip under an
+	// arbitrary route name, echoing the request through to prove the payload
+	// survives tag-24 wrapping.
+	d.RegisterTypedPublic("widget", "GetWidget", Route(
+		func(_ context.Context, in csil.HouseID) (csil.BoolResponse, error) {
+			return csil.BoolResponse{Value: string(in) == "h-1"}, nil
+		},
+		csil.DecodeTrustedDomainListTrustedDomainsRequest,
+		csil.EncodeTrustedDomainIsDomainTrustedResponse,
+	))
 
-	payload, err := cbor.Marshal(csil.HouseID("h-1"))
-	if err != nil {
-		t.Fatalf("marshal payload: %v", err)
-	}
+	payload := csil.EncodeTrustedDomainListTrustedDomainsRequest(csil.HouseID("h-1"))
 	resp := serveRPC(t, d, transport.NewRpcRequest("widget", "get-widget", payload).WithID(7), "")
 
 	if !resp.Status.IsOk() {
@@ -77,11 +78,16 @@ func TestServeRPC_SuccessRoundTrip(t *testing.T) {
 
 func TestServeRPC_ApplicationErrorIsServiceErrorArm(t *testing.T) {
 	d := New(nil)
-	d.RegisterPublic("widget", "GetWidget", func(_ context.Context, _ []byte) (any, error) {
-		return nil, NotFound("no such widget")
-	})
+	d.RegisterTypedPublic("widget", "GetWidget", Route(
+		func(_ context.Context, _ csil.EmptyRequest) (csil.EmptyResponse, error) {
+			return csil.EmptyResponse{}, NotFound("no such widget")
+		},
+		csil.DecodeAuthMeRequest,
+		csil.EncodeAuthLogoutResponse,
+	))
 
-	resp := serveRPC(t, d, transport.NewRpcRequest("widget", "get-widget", []byte{}), "")
+	payload := csil.EncodeAuthMeRequest(csil.EmptyRequest{})
+	resp := serveRPC(t, d, transport.NewRpcRequest("widget", "get-widget", payload), "")
 
 	// Application errors ride at status 0 with the ServiceError variant — never a
 	// transport status.
@@ -127,9 +133,13 @@ func TestServeRPC_MalformedEnvelope(t *testing.T) {
 
 func TestServeRPC_UnauthenticatedWhenNoBearer(t *testing.T) {
 	d := New([]byte("secret"))
-	d.Register("widget", "GetWidget", func(_ context.Context, _ []byte) (any, error) {
-		return csil.EmptyResponse{}, nil
-	})
+	d.RegisterTyped("widget", "GetWidget", Route(
+		func(_ context.Context, _ csil.EmptyRequest) (csil.EmptyResponse, error) {
+			return csil.EmptyResponse{}, nil
+		},
+		csil.DecodeAuthMeRequest,
+		csil.EncodeAuthLogoutResponse,
+	))
 	resp := serveRPC(t, d, transport.NewRpcRequest("widget", "get-widget", []byte{}), "")
 	if resp.Status.Code() != transport.StatusUnauthenticated.Code() {
 		t.Fatalf("status: got %v want unauthenticated", resp.Status.Name())

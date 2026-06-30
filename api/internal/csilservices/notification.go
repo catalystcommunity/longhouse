@@ -19,17 +19,13 @@ import (
 type NotificationService struct{ Store store.Store }
 
 func (s *NotificationService) Register(d *csilrpc.Dispatcher) {
-	d.Register("notification", "ListNotifications", s.listNotifications)
-	d.Register("notification", "UnreadCount", s.unreadCount)
-	d.Register("notification", "MarkRead", s.markRead)
-	d.Register("notification", "MarkAllRead", s.markAllRead)
+	d.RegisterTyped("notification", "ListNotifications", csilrpc.Route(s.ListNotifications, csil.DecodeNotificationListNotificationsRequest, csil.EncodeNotificationListNotificationsResponse))
+	d.RegisterTyped("notification", "UnreadCount", csilrpc.Route(s.UnreadCount, csil.DecodeNotificationUnreadCountRequest, csil.EncodeNotificationUnreadCountResponse))
+	d.RegisterTyped("notification", "MarkRead", csilrpc.Route(s.MarkRead, csil.DecodeNotificationMarkReadRequest, csil.EncodeNotificationMarkReadResponse))
+	d.RegisterTyped("notification", "MarkAllRead", csilrpc.Route(s.MarkAllRead, csil.DecodeNotificationMarkAllReadRequest, csil.EncodeNotificationMarkAllReadResponse))
 }
 
-func (s *NotificationService) listNotifications(ctx context.Context, body []byte) (any, error) {
-	var req csil.NotificationListRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *NotificationService) ListNotifications(ctx context.Context, req csil.NotificationListRequest) ([]csil.Notification, error) {
 	_, memberID, err := requireMemberForHouse(ctx, string(req.HouseId))
 	if err != nil {
 		return nil, err
@@ -43,44 +39,36 @@ func (s *NotificationService) listNotifications(ctx context.Context, body []byte
 	return notificationsToCSIL(items), nil
 }
 
-func (s *NotificationService) unreadCount(ctx context.Context, body []byte) (any, error) {
-	var houseID csil.HouseID
-	if err := csilrpc.Decode(body, &houseID); err != nil {
-		return nil, err
-	}
+func (s *NotificationService) UnreadCount(ctx context.Context, houseID csil.HouseID) (csil.NotificationUnreadCount, error) {
 	_, memberID, err := requireMemberForHouse(ctx, string(houseID))
 	if err != nil {
-		return nil, err
+		return csil.NotificationUnreadCount{}, err
 	}
 	count, err := s.Store.CountUnreadNotifications(ctx, string(houseID), memberID)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.NotificationUnreadCount{}, csilrpc.Internal("internal error")
 	}
 	return csil.NotificationUnreadCount{Count: uint64(count)}, nil
 }
 
-func (s *NotificationService) markRead(ctx context.Context, body []byte) (any, error) {
-	var id csil.NotificationID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *NotificationService) MarkRead(ctx context.Context, id csil.NotificationID) (csil.Notification, error) {
 	item, err := s.Store.GetNotificationFeedItem(ctx, string(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, csilrpc.NotFound("notification not found")
+			return csil.Notification{}, csilrpc.NotFound("notification not found")
 		}
-		return nil, csilrpc.Internal("internal error")
+		return csil.Notification{}, csilrpc.Internal("internal error")
 	}
 	_, memberID, err := requireMemberForHouse(ctx, item.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.Notification{}, err
 	}
 	if item.MemberID != memberID {
-		return nil, csilrpc.Forbidden("not your notification")
+		return csil.Notification{}, csilrpc.Forbidden("not your notification")
 	}
 	if item.ReadAt == nil {
 		if err := s.Store.MarkNotificationRead(ctx, string(id), time.Now().UTC()); err != nil {
-			return nil, csilrpc.Internal("internal error")
+			return csil.Notification{}, csilrpc.Internal("internal error")
 		}
 		if updated, err := s.Store.GetNotificationFeedItem(ctx, string(id)); err == nil {
 			item = updated
@@ -89,17 +77,13 @@ func (s *NotificationService) markRead(ctx context.Context, body []byte) (any, e
 	return notificationToCSIL(item), nil
 }
 
-func (s *NotificationService) markAllRead(ctx context.Context, body []byte) (any, error) {
-	var houseID csil.HouseID
-	if err := csilrpc.Decode(body, &houseID); err != nil {
-		return nil, err
-	}
+func (s *NotificationService) MarkAllRead(ctx context.Context, houseID csil.HouseID) (csil.EmptyResponse, error) {
 	_, memberID, err := requireMemberForHouse(ctx, string(houseID))
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.MarkAllNotificationsRead(ctx, string(houseID), memberID, time.Now().UTC()); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }

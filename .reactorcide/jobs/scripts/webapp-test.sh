@@ -1,45 +1,45 @@
 #!/usr/bin/env bash
-# Build the webapp module and run its tests. Webapp has no DB dependency
-# (handler tests use a fake api.Client), so we don't need postgres.
-#
-# Run-local parity: ${REACTORCIDE_REPOROOT:-/job/src} resolves to runnerlib's
-# clone in CI and to the bind-mounted working tree under
-# `reactorcide run-local`. No git ops, no gh ops — Bucket B per
-# reactorcide/linkkeys-runlocal-migration.md.
+# Type-check + unit-test the SolidJS SPA (webapp/). No Docker, no DB — just
+# Node + the project's npm scripts. Mirrors the developer's local
+# `npm run typecheck && npm test` flow so CI catches what they'd catch.
 set -euo pipefail
 
 echo "================================================"
-echo "Longhouse Webapp Test"
+echo "Longhouse Webapp (SPA) Test"
 echo "================================================"
 
 cd "${REACTORCIDE_REPOROOT:-/job/src}"
 export HOME="${HOME:-/home/runner}"
 
-# `sudo -E` is rejected by the runner's sudoers (no preserve-env), so pass
-# nothing through env. apt-get -y is non-interactive enough on its own.
-echo "=== Installing system packages ==="
-sudo apt-get update -qq
-sudo apt-get install -y --no-install-recommends build-essential curl ca-certificates
-
-echo "=== Installing Go toolchain ==="
-GO_VERSION="${GO_VERSION:-1.23.8}"
-if ! command -v go >/dev/null || ! go version 2>/dev/null | grep -q "go${GO_VERSION}"; then
-    curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o /tmp/go.tar.gz
+# The runnerbase image may not have Node, or may have a different
+# version. Install a pinned LTS under $HOME the same way the api job
+# installs Go.
+NODE_VERSION="${NODE_VERSION:-22.11.0}"
+if ! command -v node >/dev/null || ! node --version 2>/dev/null | grep -q "v${NODE_VERSION%%.*}\."; then
+    echo "=== Installing Node ${NODE_VERSION} ==="
+    sudo apt-get update -qq
+    sudo apt-get install -y --no-install-recommends curl xz-utils ca-certificates
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz
     mkdir -p "$HOME/.local"
-    rm -rf "$HOME/.local/go"
-    tar -C "$HOME/.local" -xzf /tmp/go.tar.gz
-    rm /tmp/go.tar.gz
+    rm -rf "$HOME/.local/node"
+    tar -xJf /tmp/node.tar.xz -C "$HOME/.local"
+    mv "$HOME/.local/node-v${NODE_VERSION}-linux-x64" "$HOME/.local/node"
+    rm /tmp/node.tar.xz
 fi
-export PATH="$HOME/.local/go/bin:$HOME/go/bin:${PATH}"
-go version
+export PATH="$HOME/.local/node/bin:${PATH}"
+node --version
+npm --version
 
-echo "=== Building webapp ==="
-( cd webapp && go build ./... )
+echo "=== Installing webapp dependencies ==="
+( cd webapp && npm ci )
 
-echo "=== Running webapp tests ==="
-( cd webapp && go test ./... )
+echo "=== Typechecking ==="
+( cd webapp && npm run typecheck )
+
+echo "=== Running tests ==="
+( cd webapp && npm test )
 
 echo ""
 echo "================================================"
-echo "All webapp tests passed"
+echo "All webapp checks passed"
 echo "================================================"

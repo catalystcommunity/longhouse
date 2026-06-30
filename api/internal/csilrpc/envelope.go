@@ -62,14 +62,11 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 	}
 	id := req.ID // echoed on every response when present
 
-	// Resolve (service, op) → registered handler. The envelope carries the
-	// canonical CSIL names: a lower-case service segment matching the registry
-	// keys, and a kebab-case op; the registry is keyed by the PascalCase method.
+	// Resolve (service, op) → typed handler. The envelope carries the canonical
+	// CSIL names: a lower-case service segment matching the registry keys, and a
+	// kebab-case op; the typed registry is keyed by the PascalCase method.
 	method := methodFromOp(req.Op)
-	var handler Handler
-	if svc := d.registry[req.Service]; svc != nil {
-		handler = svc[method]
-	}
+	handler := d.typedRegistry[req.Service][method]
 	if handler == nil {
 		d.writeRPC(w, id, transport.NewRpcResponseTransportError(
 			transport.StatusUnknownServiceOrOp, "unknown service/op: "+req.Service+"/"+req.Op))
@@ -90,7 +87,9 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 		ctx, _ = audit.WithDraft(ctx)
 	}
 
-	resp, callErr := handler(ctx, req.Payload)
+	// The typed route returns the success-arm variant + the response payload
+	// already encoded by the generated codec.
+	variant, payload, callErr := handler(ctx, req.Payload)
 	if authenticated {
 		d.emitAudit(ctx, req.Service, method, callErr)
 	}
@@ -100,18 +99,11 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 		if errors.As(callErr, &serr) {
 			// Application error → the declared ServiceError output arm at status 0.
 			// Preserves the {code, message} contract the client already consumes.
-			payload, encErr := d.encMode.Marshal(csil.ServiceError{
-				Code:    uint64(serr.Code),
-				Message: serr.Message,
-			})
-			if encErr != nil {
-				log.WithFields(log.Fields{"service": req.Service, "op": req.Op}).
-					WithError(encErr).Error("csilrpc: ServiceError CBOR encode failed")
-				d.writeRPC(w, id, transport.NewRpcResponseTransportError(
-					transport.StatusInternal, "error encoding failed"))
-				return
-			}
-			d.writeRPC(w, id, transport.NewRpcResponseOk("ServiceError", payload))
+			d.writeRPC(w, id, transport.NewRpcResponseOk("ServiceError",
+				csil.EncodeServiceError(csil.ServiceError{
+					Code:    uint64(serr.Code),
+					Message: serr.Message,
+				})))
 			return
 		}
 		// Unstructured error → a real transport-level internal failure. Log the
@@ -123,20 +115,7 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Empty success is conventionally EmptyResponse — encode it explicitly so the
-	// reply always carries a value (and a variant).
-	if resp == nil {
-		resp = csil.EmptyResponse{}
-	}
-	payload, encErr := d.encMode.Marshal(resp)
-	if encErr != nil {
-		log.WithFields(log.Fields{"service": req.Service, "op": req.Op}).
-			WithError(encErr).Error("csilrpc: response CBOR encode failed")
-		d.writeRPC(w, id, transport.NewRpcResponseTransportError(
-			transport.StatusInternal, "response encoding failed"))
-		return
-	}
-	d.writeRPC(w, id, transport.NewRpcResponseOk(successVariant(resp), payload))
+	d.writeRPC(w, id, transport.NewRpcResponseOk(variant, payload))
 }
 
 // writeRPC encodes and writes a CsilRpcResponse envelope at HTTP 200. The

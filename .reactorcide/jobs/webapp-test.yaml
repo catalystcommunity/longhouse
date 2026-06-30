@@ -1,5 +1,5 @@
 name: longhouse-webapp-test
-description: "Build + run webapp module tests (no DB; webapp tests use fakes)"
+description: "Type-check + unit-test the SolidJS SPA (vitest + tsc)"
 triggers:
   events:
     - pull_request_opened
@@ -7,9 +7,13 @@ triggers:
   branches:
     - main
 paths:
-  include: ["webapp/**"]
+  # csil/** included because the SPA consumes the generated TS client
+  # (clients/typescript, @longhouse/client). A CSIL change without a regen
+  # would compile but the tests catch any consumer drift. clients/** included
+  # for the same reason — the SPA aliases the generated package's source.
+  include: ["webapp/**", "clients/**", "csil/**"]
 job:
   image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
   command: "bash /job/src/.reactorcide/jobs/scripts/webapp-test.sh"
-  timeout: 1200
+  timeout: 900
   priority: 10

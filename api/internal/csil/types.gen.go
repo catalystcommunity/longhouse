@@ -52,329 +52,329 @@ type NotificationEventID string
 type Timestamp string
 
 // TaskStatus is a type alias
-type TaskStatus interface{}
+type TaskStatus string
 
 // TargetType is a type alias
-type TargetType interface{}
+type TargetType string
 
 // AccessLevel is a type alias
-type AccessLevel interface{}
+type AccessLevel string
 
 // GranteeType is a type alias
-type GranteeType interface{}
+type GranteeType string
 
 // ResourceType is a type alias
-type ResourceType interface{}
+type ResourceType string
 
 // ProjectStatus is a type alias
-type ProjectStatus interface{}
+type ProjectStatus string
 
 // DependencyNodeType is a type alias
-type DependencyNodeType interface{}
+type DependencyNodeType string
 
 // RecurrenceFreq is a type alias
-type RecurrenceFreq interface{}
+type RecurrenceFreq string
 
 // MilestoneState is a type alias
-type MilestoneState interface{}
+type MilestoneState string
 
 // House represents a structured data type
 type House struct {
-	HouseId     HouseID   `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	Name        string    `json:"name" yaml:"name" cbor:"name"`
-	Description *string   `json:"description,omitempty" yaml:"description,omitempty" cbor:"description,omitempty"`
-	CreatedAt   Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
-	UpdatedAt   Timestamp `json:"updated_at" yaml:"updated_at" cbor:"updated_at"`
+	HouseId     HouseID   `json:"house_id" yaml:"house_id"`
+	Name        string    `json:"name" yaml:"name"`
+	Description *string   `json:"description,omitempty" yaml:"description,omitempty"`
+	CreatedAt   Timestamp `json:"created_at" yaml:"created_at"`
+	UpdatedAt   Timestamp `json:"updated_at" yaml:"updated_at"`
 }
 
 // Member represents a structured data type
 type Member struct {
-	MemberId        MemberID   `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	HouseId         HouseID    `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	LinkkeysDomain  string     `json:"linkkeys_domain" yaml:"linkkeys_domain" cbor:"linkkeys_domain"`
-	LinkkeysUserId  string     `json:"linkkeys_user_id" yaml:"linkkeys_user_id" cbor:"linkkeys_user_id"`
-	DisplayName     *string    `json:"display_name,omitempty" yaml:"display_name,omitempty" cbor:"display_name,omitempty"`
-	Email           *string    `json:"email,omitempty" yaml:"email,omitempty" cbor:"email,omitempty"`
-	AvatarUrl       *string    `json:"avatar_url,omitempty" yaml:"avatar_url,omitempty" cbor:"avatar_url,omitempty"`
-	CachedPublicKey *[]byte    `json:"cached_public_key,omitempty" yaml:"cached_public_key,omitempty" cbor:"cached_public_key,omitempty"`
-	CreatedAt       Timestamp  `json:"created_at" yaml:"created_at" cbor:"created_at"`
-	UpdatedAt       Timestamp  `json:"updated_at" yaml:"updated_at" cbor:"updated_at"`
-	LastSeenAt      *Timestamp `json:"last_seen_at,omitempty" yaml:"last_seen_at,omitempty" cbor:"last_seen_at,omitempty"`
-	DeactivatedAt   *Timestamp `json:"deactivated_at,omitempty" yaml:"deactivated_at,omitempty" cbor:"deactivated_at,omitempty"`
+	MemberId        MemberID   `json:"member_id" yaml:"member_id"`
+	HouseId         HouseID    `json:"house_id" yaml:"house_id"`
+	LinkkeysDomain  string     `json:"linkkeys_domain" yaml:"linkkeys_domain"`
+	LinkkeysUserId  string     `json:"linkkeys_user_id" yaml:"linkkeys_user_id"`
+	DisplayName     *string    `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	Email           *string    `json:"email,omitempty" yaml:"email,omitempty"`
+	AvatarUrl       *string    `json:"avatar_url,omitempty" yaml:"avatar_url,omitempty"`
+	CachedPublicKey *[]byte    `json:"cached_public_key,omitempty" yaml:"cached_public_key,omitempty"`
+	CreatedAt       Timestamp  `json:"created_at" yaml:"created_at"`
+	UpdatedAt       Timestamp  `json:"updated_at" yaml:"updated_at"`
+	LastSeenAt      *Timestamp `json:"last_seen_at,omitempty" yaml:"last_seen_at,omitempty"`
+	DeactivatedAt   *Timestamp `json:"deactivated_at,omitempty" yaml:"deactivated_at,omitempty"`
 }
 
 // TrustedDomain represents a structured data type
 type TrustedDomain struct {
-	TrustedDomainId TrustedDomainID `json:"trusted_domain_id" yaml:"trusted_domain_id" cbor:"trusted_domain_id"`
-	HouseId         HouseID         `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	Domain          string          `json:"domain" yaml:"domain" cbor:"domain"`
-	CreatedAt       Timestamp       `json:"created_at" yaml:"created_at" cbor:"created_at"`
+	TrustedDomainId TrustedDomainID `json:"trusted_domain_id" yaml:"trusted_domain_id"`
+	HouseId         HouseID         `json:"house_id" yaml:"house_id"`
+	Domain          string          `json:"domain" yaml:"domain"`
+	CreatedAt       Timestamp       `json:"created_at" yaml:"created_at"`
 }
 
 // Role represents a structured data type
 type Role struct {
-	RoleId      RoleID    `json:"role_id" yaml:"role_id" cbor:"role_id"`
-	HouseId     HouseID   `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	Name        string    `json:"name" yaml:"name" cbor:"name"`
-	Description *string   `json:"description,omitempty" yaml:"description,omitempty" cbor:"description,omitempty"`
-	CreatedAt   Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
-	UpdatedAt   Timestamp `json:"updated_at" yaml:"updated_at" cbor:"updated_at"`
+	RoleId      RoleID    `json:"role_id" yaml:"role_id"`
+	HouseId     HouseID   `json:"house_id" yaml:"house_id"`
+	Name        string    `json:"name" yaml:"name"`
+	Description *string   `json:"description,omitempty" yaml:"description,omitempty"`
+	CreatedAt   Timestamp `json:"created_at" yaml:"created_at"`
+	UpdatedAt   Timestamp `json:"updated_at" yaml:"updated_at"`
 }
 
 // MemberRole represents a structured data type
 type MemberRole struct {
-	MemberId  MemberID  `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	RoleId    RoleID    `json:"role_id" yaml:"role_id" cbor:"role_id"`
-	CreatedAt Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
+	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+	RoleId    RoleID    `json:"role_id" yaml:"role_id"`
+	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
 }
 
 // MemberAudit represents a structured data type
 type MemberAudit struct {
-	AuditId         MemberAuditID `json:"audit_id" yaml:"audit_id" cbor:"audit_id"`
-	HouseId         HouseID       `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	SubjectMemberId MemberID      `json:"subject_member_id" yaml:"subject_member_id" cbor:"subject_member_id"`
-	ActorMemberId   *MemberID     `json:"actor_member_id,omitempty" yaml:"actor_member_id,omitempty" cbor:"actor_member_id,omitempty"`
-	Action          string        `json:"action" yaml:"action" cbor:"action"`
-	TargetType      *string       `json:"target_type,omitempty" yaml:"target_type,omitempty" cbor:"target_type,omitempty"`
-	TargetId        *string       `json:"target_id,omitempty" yaml:"target_id,omitempty" cbor:"target_id,omitempty"`
-	Detail          *string       `json:"detail,omitempty" yaml:"detail,omitempty" cbor:"detail,omitempty"`
-	CreatedAt       Timestamp     `json:"created_at" yaml:"created_at" cbor:"created_at"`
+	AuditId         MemberAuditID `json:"audit_id" yaml:"audit_id"`
+	HouseId         HouseID       `json:"house_id" yaml:"house_id"`
+	SubjectMemberId MemberID      `json:"subject_member_id" yaml:"subject_member_id"`
+	ActorMemberId   *MemberID     `json:"actor_member_id,omitempty" yaml:"actor_member_id,omitempty"`
+	Action          string        `json:"action" yaml:"action"`
+	TargetType      *string       `json:"target_type,omitempty" yaml:"target_type,omitempty"`
+	TargetId        *string       `json:"target_id,omitempty" yaml:"target_id,omitempty"`
+	Detail          *string       `json:"detail,omitempty" yaml:"detail,omitempty"`
+	CreatedAt       Timestamp     `json:"created_at" yaml:"created_at"`
 }
 
 // Skill represents a structured data type
 type Skill struct {
-	SkillId     SkillID   `json:"skill_id" yaml:"skill_id" cbor:"skill_id"`
-	HouseId     HouseID   `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	Name        string    `json:"name" yaml:"name" cbor:"name"`
-	Description *string   `json:"description,omitempty" yaml:"description,omitempty" cbor:"description,omitempty"`
-	CreatedAt   Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
-	UpdatedAt   Timestamp `json:"updated_at" yaml:"updated_at" cbor:"updated_at"`
+	SkillId     SkillID   `json:"skill_id" yaml:"skill_id"`
+	HouseId     HouseID   `json:"house_id" yaml:"house_id"`
+	Name        string    `json:"name" yaml:"name"`
+	Description *string   `json:"description,omitempty" yaml:"description,omitempty"`
+	CreatedAt   Timestamp `json:"created_at" yaml:"created_at"`
+	UpdatedAt   Timestamp `json:"updated_at" yaml:"updated_at"`
 }
 
 // MemberSkill represents a structured data type
 type MemberSkill struct {
-	MemberId  MemberID  `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	SkillId   SkillID   `json:"skill_id" yaml:"skill_id" cbor:"skill_id"`
-	CreatedAt Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
+	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+	SkillId   SkillID   `json:"skill_id" yaml:"skill_id"`
+	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
 }
 
 // GroupSkill represents a structured data type
 type GroupSkill struct {
-	GroupId   GroupID   `json:"group_id" yaml:"group_id" cbor:"group_id"`
-	SkillId   SkillID   `json:"skill_id" yaml:"skill_id" cbor:"skill_id"`
-	CreatedAt Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
+	GroupId   GroupID   `json:"group_id" yaml:"group_id"`
+	SkillId   SkillID   `json:"skill_id" yaml:"skill_id"`
+	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
 }
 
 // Group represents a structured data type
 type Group struct {
-	GroupId     GroupID   `json:"group_id" yaml:"group_id" cbor:"group_id"`
-	HouseId     HouseID   `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	Name        string    `json:"name" yaml:"name" cbor:"name"`
-	Description *string   `json:"description,omitempty" yaml:"description,omitempty" cbor:"description,omitempty"`
-	CreatedAt   Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
-	UpdatedAt   Timestamp `json:"updated_at" yaml:"updated_at" cbor:"updated_at"`
+	GroupId     GroupID   `json:"group_id" yaml:"group_id"`
+	HouseId     HouseID   `json:"house_id" yaml:"house_id"`
+	Name        string    `json:"name" yaml:"name"`
+	Description *string   `json:"description,omitempty" yaml:"description,omitempty"`
+	CreatedAt   Timestamp `json:"created_at" yaml:"created_at"`
+	UpdatedAt   Timestamp `json:"updated_at" yaml:"updated_at"`
 }
 
 // GroupMember represents a structured data type
 type GroupMember struct {
-	GroupId   GroupID   `json:"group_id" yaml:"group_id" cbor:"group_id"`
-	MemberId  MemberID  `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	CreatedAt Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
+	GroupId   GroupID   `json:"group_id" yaml:"group_id"`
+	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
 }
 
 // Project represents a structured data type
 type Project struct {
-	ProjectId         ProjectID      `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	HouseId           HouseID        `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	Name              string         `json:"name" yaml:"name" cbor:"name"`
-	Description       *string        `json:"description,omitempty" yaml:"description,omitempty" cbor:"description,omitempty"`
-	Category          *string        `json:"category,omitempty" yaml:"category,omitempty" cbor:"category,omitempty"`
-	Status            *ProjectStatus `json:"status,omitempty" yaml:"status,omitempty" cbor:"status,omitempty"`
-	Visibility        *AccessLevel   `json:"visibility,omitempty" yaml:"visibility,omitempty" cbor:"visibility,omitempty"`
-	CreatedByMemberId *MemberID      `json:"created_by_member_id,omitempty" yaml:"created_by_member_id,omitempty" cbor:"created_by_member_id,omitempty"`
-	CreatedAt         Timestamp      `json:"created_at" yaml:"created_at" cbor:"created_at"`
-	UpdatedAt         Timestamp      `json:"updated_at" yaml:"updated_at" cbor:"updated_at"`
+	ProjectId         ProjectID      `json:"project_id" yaml:"project_id"`
+	HouseId           HouseID        `json:"house_id" yaml:"house_id"`
+	Name              string         `json:"name" yaml:"name"`
+	Description       *string        `json:"description,omitempty" yaml:"description,omitempty"`
+	Category          *string        `json:"category,omitempty" yaml:"category,omitempty"`
+	Status            *ProjectStatus `json:"status,omitempty" yaml:"status,omitempty"`
+	Visibility        *AccessLevel   `json:"visibility,omitempty" yaml:"visibility,omitempty"`
+	CreatedByMemberId *MemberID      `json:"created_by_member_id,omitempty" yaml:"created_by_member_id,omitempty"`
+	CreatedAt         Timestamp      `json:"created_at" yaml:"created_at"`
+	UpdatedAt         Timestamp      `json:"updated_at" yaml:"updated_at"`
 }
 
 // ProjectTask represents a structured data type
 type ProjectTask struct {
-	ProjectId ProjectID `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	TaskId    TaskID    `json:"task_id" yaml:"task_id" cbor:"task_id"`
-	Position  int64     `json:"position" yaml:"position" cbor:"position"`
-	CreatedAt Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	TaskId    TaskID    `json:"task_id" yaml:"task_id"`
+	Position  int64     `json:"position" yaml:"position"`
+	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
 }
 
 // ProjectMember represents a structured data type
 type ProjectMember struct {
-	ProjectId ProjectID `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	MemberId  MemberID  `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	CreatedAt Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
 }
 
 // ProjectOwner represents a structured data type
 type ProjectOwner struct {
-	ProjectId ProjectID `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	MemberId  MemberID  `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	CreatedAt Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+	CreatedAt Timestamp `json:"created_at" yaml:"created_at"`
 }
 
 // Milestone represents a structured data type
 type Milestone struct {
-	MilestoneId MilestoneID    `json:"milestone_id" yaml:"milestone_id" cbor:"milestone_id"`
-	ProjectId   ProjectID      `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	Label       string         `json:"label" yaml:"label" cbor:"label"`
-	WhenLabel   string         `json:"when_label" yaml:"when_label" cbor:"when_label"`
-	State       MilestoneState `json:"state" yaml:"state" cbor:"state"`
-	Position    int64          `json:"position" yaml:"position" cbor:"position"`
-	CreatedAt   Timestamp      `json:"created_at" yaml:"created_at" cbor:"created_at"`
-	UpdatedAt   Timestamp      `json:"updated_at" yaml:"updated_at" cbor:"updated_at"`
+	MilestoneId MilestoneID    `json:"milestone_id" yaml:"milestone_id"`
+	ProjectId   ProjectID      `json:"project_id" yaml:"project_id"`
+	Label       string         `json:"label" yaml:"label"`
+	WhenLabel   string         `json:"when_label" yaml:"when_label"`
+	State       MilestoneState `json:"state" yaml:"state"`
+	Position    int64          `json:"position" yaml:"position"`
+	CreatedAt   Timestamp      `json:"created_at" yaml:"created_at"`
+	UpdatedAt   Timestamp      `json:"updated_at" yaml:"updated_at"`
 }
 
 // Event represents a structured data type
 type Event struct {
-	EventId               EventID         `json:"event_id" yaml:"event_id" cbor:"event_id"`
-	HouseId               HouseID         `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	OwnerMemberId         MemberID        `json:"owner_member_id" yaml:"owner_member_id" cbor:"owner_member_id"`
-	Title                 string          `json:"title" yaml:"title" cbor:"title"`
-	Description           *string         `json:"description,omitempty" yaml:"description,omitempty" cbor:"description,omitempty"`
-	Location              *string         `json:"location,omitempty" yaml:"location,omitempty" cbor:"location,omitempty"`
-	StartsAt              *Timestamp      `json:"starts_at,omitempty" yaml:"starts_at,omitempty" cbor:"starts_at,omitempty"`
-	EndsAt                *Timestamp      `json:"ends_at,omitempty" yaml:"ends_at,omitempty" cbor:"ends_at,omitempty"`
-	AllDay                *bool           `json:"all_day,omitempty" yaml:"all_day,omitempty" cbor:"all_day,omitempty"`
-	RecurrenceFreq        *RecurrenceFreq `json:"recurrence_freq,omitempty" yaml:"recurrence_freq,omitempty" cbor:"recurrence_freq,omitempty"`
-	RecurrenceInterval    *int64          `json:"recurrence_interval,omitempty" yaml:"recurrence_interval,omitempty" cbor:"recurrence_interval,omitempty"`
-	RecurrenceByWeekday   []int64         `json:"recurrence_by_weekday,omitempty" yaml:"recurrence_by_weekday,omitempty" cbor:"recurrence_by_weekday,omitempty"`
-	RecurrenceBySetpos    *int64          `json:"recurrence_by_setpos,omitempty" yaml:"recurrence_by_setpos,omitempty" cbor:"recurrence_by_setpos,omitempty"`
-	NextRecurrenceAt      *Timestamp      `json:"next_recurrence_at,omitempty" yaml:"next_recurrence_at,omitempty" cbor:"next_recurrence_at,omitempty"`
-	RecurrenceRootEventId *EventID        `json:"recurrence_root_event_id,omitempty" yaml:"recurrence_root_event_id,omitempty" cbor:"recurrence_root_event_id,omitempty"`
-	CreatedAt             Timestamp       `json:"created_at" yaml:"created_at" cbor:"created_at"`
-	UpdatedAt             Timestamp       `json:"updated_at" yaml:"updated_at" cbor:"updated_at"`
+	EventId               EventID         `json:"event_id" yaml:"event_id"`
+	HouseId               HouseID         `json:"house_id" yaml:"house_id"`
+	OwnerMemberId         MemberID        `json:"owner_member_id" yaml:"owner_member_id"`
+	Title                 string          `json:"title" yaml:"title"`
+	Description           *string         `json:"description,omitempty" yaml:"description,omitempty"`
+	Location              *string         `json:"location,omitempty" yaml:"location,omitempty"`
+	StartsAt              *Timestamp      `json:"starts_at,omitempty" yaml:"starts_at,omitempty"`
+	EndsAt                *Timestamp      `json:"ends_at,omitempty" yaml:"ends_at,omitempty"`
+	AllDay                *bool           `json:"all_day,omitempty" yaml:"all_day,omitempty"`
+	RecurrenceFreq        *RecurrenceFreq `json:"recurrence_freq,omitempty" yaml:"recurrence_freq,omitempty"`
+	RecurrenceInterval    *int64          `json:"recurrence_interval,omitempty" yaml:"recurrence_interval,omitempty"`
+	RecurrenceByWeekday   []int64         `json:"recurrence_by_weekday,omitempty" yaml:"recurrence_by_weekday,omitempty"`
+	RecurrenceBySetpos    *int64          `json:"recurrence_by_setpos,omitempty" yaml:"recurrence_by_setpos,omitempty"`
+	NextRecurrenceAt      *Timestamp      `json:"next_recurrence_at,omitempty" yaml:"next_recurrence_at,omitempty"`
+	RecurrenceRootEventId *EventID        `json:"recurrence_root_event_id,omitempty" yaml:"recurrence_root_event_id,omitempty"`
+	CreatedAt             Timestamp       `json:"created_at" yaml:"created_at"`
+	UpdatedAt             Timestamp       `json:"updated_at" yaml:"updated_at"`
 }
 
 // Task represents a structured data type
 type Task struct {
-	TaskId               TaskID          `json:"task_id" yaml:"task_id" cbor:"task_id"`
-	HouseId              HouseID         `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	OwnerMemberId        MemberID        `json:"owner_member_id" yaml:"owner_member_id" cbor:"owner_member_id"`
-	Assignees            []MemberID      `json:"assignees,omitempty" yaml:"assignees,omitempty" cbor:"assignees,omitempty"`
-	AssignedToSkillId    *SkillID        `json:"assigned_to_skill_id,omitempty" yaml:"assigned_to_skill_id,omitempty" cbor:"assigned_to_skill_id,omitempty"`
-	ParentTaskId         *TaskID         `json:"parent_task_id,omitempty" yaml:"parent_task_id,omitempty" cbor:"parent_task_id,omitempty"`
-	Visibility           *AccessLevel    `json:"visibility,omitempty" yaml:"visibility,omitempty" cbor:"visibility,omitempty"`
-	Title                string          `json:"title" yaml:"title" cbor:"title"`
-	Description          *string         `json:"description,omitempty" yaml:"description,omitempty" cbor:"description,omitempty"`
-	Status               *TaskStatus     `json:"status,omitempty" yaml:"status,omitempty" cbor:"status,omitempty"`
-	DueAt                *Timestamp      `json:"due_at,omitempty" yaml:"due_at,omitempty" cbor:"due_at,omitempty"`
-	Tag                  *string         `json:"tag,omitempty" yaml:"tag,omitempty" cbor:"tag,omitempty"`
-	EstimateMinutes      *uint64         `json:"estimate_minutes,omitempty" yaml:"estimate_minutes,omitempty" cbor:"estimate_minutes,omitempty"`
-	RecurrenceFreq       *RecurrenceFreq `json:"recurrence_freq,omitempty" yaml:"recurrence_freq,omitempty" cbor:"recurrence_freq,omitempty"`
-	RecurrenceInterval   *int64          `json:"recurrence_interval,omitempty" yaml:"recurrence_interval,omitempty" cbor:"recurrence_interval,omitempty"`
-	RecurrenceByWeekday  []int64         `json:"recurrence_by_weekday,omitempty" yaml:"recurrence_by_weekday,omitempty" cbor:"recurrence_by_weekday,omitempty"`
-	RecurrenceBySetpos   *int64          `json:"recurrence_by_setpos,omitempty" yaml:"recurrence_by_setpos,omitempty" cbor:"recurrence_by_setpos,omitempty"`
-	NextRecurrenceAt     *Timestamp      `json:"next_recurrence_at,omitempty" yaml:"next_recurrence_at,omitempty" cbor:"next_recurrence_at,omitempty"`
-	RecurrenceRootTaskId *TaskID         `json:"recurrence_root_task_id,omitempty" yaml:"recurrence_root_task_id,omitempty" cbor:"recurrence_root_task_id,omitempty"`
-	DeletedAt            *Timestamp      `json:"deleted_at,omitempty" yaml:"deleted_at,omitempty" cbor:"deleted_at,omitempty"`
-	CreatedAt            Timestamp       `json:"created_at" yaml:"created_at" cbor:"created_at"`
-	UpdatedAt            Timestamp       `json:"updated_at" yaml:"updated_at" cbor:"updated_at"`
+	TaskId               TaskID          `json:"task_id" yaml:"task_id"`
+	HouseId              HouseID         `json:"house_id" yaml:"house_id"`
+	OwnerMemberId        MemberID        `json:"owner_member_id" yaml:"owner_member_id"`
+	Assignees            []MemberID      `json:"assignees,omitempty" yaml:"assignees,omitempty"`
+	AssignedToSkillId    *SkillID        `json:"assigned_to_skill_id,omitempty" yaml:"assigned_to_skill_id,omitempty"`
+	ParentTaskId         *TaskID         `json:"parent_task_id,omitempty" yaml:"parent_task_id,omitempty"`
+	Visibility           *AccessLevel    `json:"visibility,omitempty" yaml:"visibility,omitempty"`
+	Title                string          `json:"title" yaml:"title"`
+	Description          *string         `json:"description,omitempty" yaml:"description,omitempty"`
+	Status               *TaskStatus     `json:"status,omitempty" yaml:"status,omitempty"`
+	DueAt                *Timestamp      `json:"due_at,omitempty" yaml:"due_at,omitempty"`
+	Tag                  *string         `json:"tag,omitempty" yaml:"tag,omitempty"`
+	EstimateMinutes      *uint64         `json:"estimate_minutes,omitempty" yaml:"estimate_minutes,omitempty"`
+	RecurrenceFreq       *RecurrenceFreq `json:"recurrence_freq,omitempty" yaml:"recurrence_freq,omitempty"`
+	RecurrenceInterval   *int64          `json:"recurrence_interval,omitempty" yaml:"recurrence_interval,omitempty"`
+	RecurrenceByWeekday  []int64         `json:"recurrence_by_weekday,omitempty" yaml:"recurrence_by_weekday,omitempty"`
+	RecurrenceBySetpos   *int64          `json:"recurrence_by_setpos,omitempty" yaml:"recurrence_by_setpos,omitempty"`
+	NextRecurrenceAt     *Timestamp      `json:"next_recurrence_at,omitempty" yaml:"next_recurrence_at,omitempty"`
+	RecurrenceRootTaskId *TaskID         `json:"recurrence_root_task_id,omitempty" yaml:"recurrence_root_task_id,omitempty"`
+	DeletedAt            *Timestamp      `json:"deleted_at,omitempty" yaml:"deleted_at,omitempty"`
+	CreatedAt            Timestamp       `json:"created_at" yaml:"created_at"`
+	UpdatedAt            Timestamp       `json:"updated_at" yaml:"updated_at"`
 }
 
 // Comment represents a structured data type
 type Comment struct {
-	CommentId  CommentID  `json:"comment_id" yaml:"comment_id" cbor:"comment_id"`
-	HouseId    HouseID    `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	MemberId   MemberID   `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	TargetType TargetType `json:"target_type" yaml:"target_type" cbor:"target_type"`
-	TargetId   string     `json:"target_id" yaml:"target_id" cbor:"target_id"`
-	Body       string     `json:"body" yaml:"body" cbor:"body"`
-	CreatedAt  Timestamp  `json:"created_at" yaml:"created_at" cbor:"created_at"`
-	UpdatedAt  Timestamp  `json:"updated_at" yaml:"updated_at" cbor:"updated_at"`
+	CommentId  CommentID  `json:"comment_id" yaml:"comment_id"`
+	HouseId    HouseID    `json:"house_id" yaml:"house_id"`
+	MemberId   MemberID   `json:"member_id" yaml:"member_id"`
+	TargetType TargetType `json:"target_type" yaml:"target_type"`
+	TargetId   string     `json:"target_id" yaml:"target_id"`
+	Body       string     `json:"body" yaml:"body"`
+	CreatedAt  Timestamp  `json:"created_at" yaml:"created_at"`
+	UpdatedAt  Timestamp  `json:"updated_at" yaml:"updated_at"`
 }
 
 // Share represents a structured data type
 type Share struct {
-	ShareId        ShareID      `json:"share_id" yaml:"share_id" cbor:"share_id"`
-	HouseId        HouseID      `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	SharedBy       MemberID     `json:"shared_by" yaml:"shared_by" cbor:"shared_by"`
-	LinkkeysDomain string       `json:"linkkeys_domain" yaml:"linkkeys_domain" cbor:"linkkeys_domain"`
-	LinkkeysUserId string       `json:"linkkeys_user_id" yaml:"linkkeys_user_id" cbor:"linkkeys_user_id"`
-	ResourceType   ResourceType `json:"resource_type" yaml:"resource_type" cbor:"resource_type"`
-	ResourceId     string       `json:"resource_id" yaml:"resource_id" cbor:"resource_id"`
-	AccessLevel    *AccessLevel `json:"access_level,omitempty" yaml:"access_level,omitempty" cbor:"access_level,omitempty"`
-	CreatedAt      Timestamp    `json:"created_at" yaml:"created_at" cbor:"created_at"`
-	ExpiresAt      *Timestamp   `json:"expires_at,omitempty" yaml:"expires_at,omitempty" cbor:"expires_at,omitempty"`
+	ShareId        ShareID      `json:"share_id" yaml:"share_id"`
+	HouseId        HouseID      `json:"house_id" yaml:"house_id"`
+	SharedBy       MemberID     `json:"shared_by" yaml:"shared_by"`
+	LinkkeysDomain string       `json:"linkkeys_domain" yaml:"linkkeys_domain"`
+	LinkkeysUserId string       `json:"linkkeys_user_id" yaml:"linkkeys_user_id"`
+	ResourceType   ResourceType `json:"resource_type" yaml:"resource_type"`
+	ResourceId     string       `json:"resource_id" yaml:"resource_id"`
+	AccessLevel    *AccessLevel `json:"access_level,omitempty" yaml:"access_level,omitempty"`
+	CreatedAt      Timestamp    `json:"created_at" yaml:"created_at"`
+	ExpiresAt      *Timestamp   `json:"expires_at,omitempty" yaml:"expires_at,omitempty"`
 }
 
 // HouseSummary represents a structured data type
 type HouseSummary struct {
-	HouseId  HouseID  `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	Name     string   `json:"name" yaml:"name" cbor:"name"`
-	MemberId MemberID `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	Roles    []string `json:"roles" yaml:"roles" cbor:"roles"`
+	HouseId  HouseID  `json:"house_id" yaml:"house_id"`
+	Name     string   `json:"name" yaml:"name"`
+	MemberId MemberID `json:"member_id" yaml:"member_id"`
+	Roles    []string `json:"roles" yaml:"roles"`
 }
 
 // HouseRoles represents a structured data type
 type HouseRoles struct {
-	House  HouseID  `json:"house" yaml:"house" cbor:"house"`
-	Member MemberID `json:"member" yaml:"member" cbor:"member"`
-	Roles  []string `json:"roles" yaml:"roles" cbor:"roles"`
+	House  HouseID  `json:"house" yaml:"house"`
+	Member MemberID `json:"member" yaml:"member"`
+	Roles  []string `json:"roles" yaml:"roles"`
 }
 
 // Identity represents a structured data type
 type Identity struct {
-	Domain      string       `json:"domain" yaml:"domain" cbor:"domain"`
-	UserId      string       `json:"user_id" yaml:"user_id" cbor:"user_id"`
-	DisplayName *string      `json:"display_name,omitempty" yaml:"display_name,omitempty" cbor:"display_name,omitempty"`
-	Houses      []HouseRoles `json:"houses" yaml:"houses" cbor:"houses"`
-	Iat         int64        `json:"iat" yaml:"iat" cbor:"iat"`
-	Exp         int64        `json:"exp" yaml:"exp" cbor:"exp"`
+	Domain      string       `json:"domain" yaml:"domain"`
+	UserId      string       `json:"user_id" yaml:"user_id"`
+	DisplayName *string      `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	Houses      []HouseRoles `json:"houses" yaml:"houses"`
+	Iat         int64        `json:"iat" yaml:"iat"`
+	Exp         int64        `json:"exp" yaml:"exp"`
 }
 
 // LoginRequest represents a structured data type
 type LoginRequest struct {
-	SignedAssertion string `json:"signed_assertion" yaml:"signed_assertion" cbor:"signed_assertion"`
+	SignedAssertion string `json:"signed_assertion" yaml:"signed_assertion"`
 }
 
 // CompleteRequest represents a structured data type
 type CompleteRequest struct {
-	EncryptedToken string `json:"encrypted_token" yaml:"encrypted_token" cbor:"encrypted_token"`
+	EncryptedToken string `json:"encrypted_token" yaml:"encrypted_token"`
 }
 
 // LoginResponse represents a structured data type
 type LoginResponse struct {
-	Token       string    `json:"token" yaml:"token" cbor:"token"`
-	Domain      string    `json:"domain" yaml:"domain" cbor:"domain"`
-	UserId      string    `json:"user_id" yaml:"user_id" cbor:"user_id"`
-	DisplayName *string   `json:"display_name,omitempty" yaml:"display_name,omitempty" cbor:"display_name,omitempty"`
-	ExpiresAt   Timestamp `json:"expires_at" yaml:"expires_at" cbor:"expires_at"`
+	Token       string    `json:"token" yaml:"token"`
+	Domain      string    `json:"domain" yaml:"domain"`
+	UserId      string    `json:"user_id" yaml:"user_id"`
+	DisplayName *string   `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	ExpiresAt   Timestamp `json:"expires_at" yaml:"expires_at"`
 }
 
 // DevUserEntry represents a structured data type
 type DevUserEntry struct {
-	MemberId       MemberID `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	HouseId        HouseID  `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	HouseName      string   `json:"house_name" yaml:"house_name" cbor:"house_name"`
-	DisplayName    *string  `json:"display_name,omitempty" yaml:"display_name,omitempty" cbor:"display_name,omitempty"`
-	LinkkeysDomain *string  `json:"linkkeys_domain,omitempty" yaml:"linkkeys_domain,omitempty" cbor:"linkkeys_domain,omitempty"`
-	LinkkeysUserId *string  `json:"linkkeys_user_id,omitempty" yaml:"linkkeys_user_id,omitempty" cbor:"linkkeys_user_id,omitempty"`
-	Roles          []string `json:"roles" yaml:"roles" cbor:"roles"`
+	MemberId       MemberID `json:"member_id" yaml:"member_id"`
+	HouseId        HouseID  `json:"house_id" yaml:"house_id"`
+	HouseName      string   `json:"house_name" yaml:"house_name"`
+	DisplayName    *string  `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	LinkkeysDomain *string  `json:"linkkeys_domain,omitempty" yaml:"linkkeys_domain,omitempty"`
+	LinkkeysUserId *string  `json:"linkkeys_user_id,omitempty" yaml:"linkkeys_user_id,omitempty"`
+	Roles          []string `json:"roles" yaml:"roles"`
 }
 
 // DevUsersResponse represents a structured data type
 type DevUsersResponse struct {
-	Users []DevUserEntry `json:"users" yaml:"users" cbor:"users"`
+	Users []DevUserEntry `json:"users" yaml:"users"`
 }
 
 // DevLoginRequest represents a structured data type
 type DevLoginRequest struct {
-	MemberId MemberID `json:"member_id" yaml:"member_id" cbor:"member_id"`
+	MemberId MemberID `json:"member_id" yaml:"member_id"`
 }
 
 // MeResponse represents a structured data type
 type MeResponse struct {
-	Domain      string         `json:"domain" yaml:"domain" cbor:"domain"`
-	UserId      string         `json:"user_id" yaml:"user_id" cbor:"user_id"`
-	DisplayName *string        `json:"display_name,omitempty" yaml:"display_name,omitempty" cbor:"display_name,omitempty"`
-	ExpiresAt   Timestamp      `json:"expires_at" yaml:"expires_at" cbor:"expires_at"`
-	Houses      []HouseSummary `json:"houses" yaml:"houses" cbor:"houses"`
+	Domain      string         `json:"domain" yaml:"domain"`
+	UserId      string         `json:"user_id" yaml:"user_id"`
+	DisplayName *string        `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	ExpiresAt   Timestamp      `json:"expires_at" yaml:"expires_at"`
+	Houses      []HouseSummary `json:"houses" yaml:"houses"`
 }
 
 // EmptyRequest represents a structured data type
@@ -387,252 +387,252 @@ type EmptyResponse struct {
 
 // BoolResponse represents a structured data type
 type BoolResponse struct {
-	Value bool `json:"value" yaml:"value" cbor:"value"`
+	Value bool `json:"value" yaml:"value"`
 }
 
 // HouseListRequest represents a structured data type
 type HouseListRequest struct {
-	Limit  *uint64 `json:"limit,omitempty" yaml:"limit,omitempty" cbor:"limit,omitempty"`
-	Offset *uint64 `json:"offset,omitempty" yaml:"offset,omitempty" cbor:"offset,omitempty"`
+	Limit  *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Offset *uint64 `json:"offset,omitempty" yaml:"offset,omitempty"`
 }
 
 // HouseScopedListRequest represents a structured data type
 type HouseScopedListRequest struct {
-	HouseId HouseID `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	Limit   *uint64 `json:"limit,omitempty" yaml:"limit,omitempty" cbor:"limit,omitempty"`
-	Offset  *uint64 `json:"offset,omitempty" yaml:"offset,omitempty" cbor:"offset,omitempty"`
+	HouseId HouseID `json:"house_id" yaml:"house_id"`
+	Limit   *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Offset  *uint64 `json:"offset,omitempty" yaml:"offset,omitempty"`
 }
 
 // TaskList represents a structured data type
 type TaskList struct {
-	Tasks       []Task `json:"tasks" yaml:"tasks" cbor:"tasks"`
-	HiddenCount uint64 `json:"hidden_count" yaml:"hidden_count" cbor:"hidden_count"`
+	Tasks       []Task `json:"tasks" yaml:"tasks"`
+	HiddenCount uint64 `json:"hidden_count" yaml:"hidden_count"`
 }
 
 // ProjectList represents a structured data type
 type ProjectList struct {
-	Projects    []Project `json:"projects" yaml:"projects" cbor:"projects"`
-	HiddenCount uint64    `json:"hidden_count" yaml:"hidden_count" cbor:"hidden_count"`
+	Projects    []Project `json:"projects" yaml:"projects"`
+	HiddenCount uint64    `json:"hidden_count" yaml:"hidden_count"`
 }
 
 // MemberScopedListRequest represents a structured data type
 type MemberScopedListRequest struct {
-	HouseId  HouseID  `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	MemberId MemberID `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	Limit    *uint64  `json:"limit,omitempty" yaml:"limit,omitempty" cbor:"limit,omitempty"`
-	Offset   *uint64  `json:"offset,omitempty" yaml:"offset,omitempty" cbor:"offset,omitempty"`
+	HouseId  HouseID  `json:"house_id" yaml:"house_id"`
+	MemberId MemberID `json:"member_id" yaml:"member_id"`
+	Limit    *uint64  `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Offset   *uint64  `json:"offset,omitempty" yaml:"offset,omitempty"`
 }
 
 // ProjectScopedListRequest represents a structured data type
 type ProjectScopedListRequest struct {
-	HouseId   HouseID   `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	ProjectId ProjectID `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	Limit     *uint64   `json:"limit,omitempty" yaml:"limit,omitempty" cbor:"limit,omitempty"`
-	Offset    *uint64   `json:"offset,omitempty" yaml:"offset,omitempty" cbor:"offset,omitempty"`
+	HouseId   HouseID   `json:"house_id" yaml:"house_id"`
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	Limit     *uint64   `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Offset    *uint64   `json:"offset,omitempty" yaml:"offset,omitempty"`
 }
 
 // CommentListRequest represents a structured data type
 type CommentListRequest struct {
-	TargetType TargetType `json:"target_type" yaml:"target_type" cbor:"target_type"`
-	TargetId   string     `json:"target_id" yaml:"target_id" cbor:"target_id"`
-	Limit      *uint64    `json:"limit,omitempty" yaml:"limit,omitempty" cbor:"limit,omitempty"`
-	Offset     *uint64    `json:"offset,omitempty" yaml:"offset,omitempty" cbor:"offset,omitempty"`
+	TargetType TargetType `json:"target_type" yaml:"target_type"`
+	TargetId   string     `json:"target_id" yaml:"target_id"`
+	Limit      *uint64    `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Offset     *uint64    `json:"offset,omitempty" yaml:"offset,omitempty"`
 }
 
 // Notification represents a structured data type
 type Notification struct {
-	NotificationId NotificationID `json:"notification_id" yaml:"notification_id" cbor:"notification_id"`
-	HouseId        HouseID        `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	MemberId       MemberID       `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	Kind           string         `json:"kind" yaml:"kind" cbor:"kind"`
-	ActorMemberId  *MemberID      `json:"actor_member_id,omitempty" yaml:"actor_member_id,omitempty" cbor:"actor_member_id,omitempty"`
-	ActorName      string         `json:"actor_name" yaml:"actor_name" cbor:"actor_name"`
-	TargetType     *string        `json:"target_type,omitempty" yaml:"target_type,omitempty" cbor:"target_type,omitempty"`
-	TargetId       *string        `json:"target_id,omitempty" yaml:"target_id,omitempty" cbor:"target_id,omitempty"`
-	TargetTitle    string         `json:"target_title" yaml:"target_title" cbor:"target_title"`
-	Body           string         `json:"body" yaml:"body" cbor:"body"`
-	Read           bool           `json:"read" yaml:"read" cbor:"read"`
-	ReadAt         *Timestamp     `json:"read_at,omitempty" yaml:"read_at,omitempty" cbor:"read_at,omitempty"`
-	CreatedAt      Timestamp      `json:"created_at" yaml:"created_at" cbor:"created_at"`
+	NotificationId NotificationID `json:"notification_id" yaml:"notification_id"`
+	HouseId        HouseID        `json:"house_id" yaml:"house_id"`
+	MemberId       MemberID       `json:"member_id" yaml:"member_id"`
+	Kind           string         `json:"kind" yaml:"kind"`
+	ActorMemberId  *MemberID      `json:"actor_member_id,omitempty" yaml:"actor_member_id,omitempty"`
+	ActorName      string         `json:"actor_name" yaml:"actor_name"`
+	TargetType     *string        `json:"target_type,omitempty" yaml:"target_type,omitempty"`
+	TargetId       *string        `json:"target_id,omitempty" yaml:"target_id,omitempty"`
+	TargetTitle    string         `json:"target_title" yaml:"target_title"`
+	Body           string         `json:"body" yaml:"body"`
+	Read           bool           `json:"read" yaml:"read"`
+	ReadAt         *Timestamp     `json:"read_at,omitempty" yaml:"read_at,omitempty"`
+	CreatedAt      Timestamp      `json:"created_at" yaml:"created_at"`
 }
 
 // NotificationListRequest represents a structured data type
 type NotificationListRequest struct {
-	HouseId    HouseID `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	UnreadOnly *bool   `json:"unread_only,omitempty" yaml:"unread_only,omitempty" cbor:"unread_only,omitempty"`
-	Limit      *uint64 `json:"limit,omitempty" yaml:"limit,omitempty" cbor:"limit,omitempty"`
-	Offset     *uint64 `json:"offset,omitempty" yaml:"offset,omitempty" cbor:"offset,omitempty"`
+	HouseId    HouseID `json:"house_id" yaml:"house_id"`
+	UnreadOnly *bool   `json:"unread_only,omitempty" yaml:"unread_only,omitempty"`
+	Limit      *uint64 `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Offset     *uint64 `json:"offset,omitempty" yaml:"offset,omitempty"`
 }
 
 // NotificationUnreadCount represents a structured data type
 type NotificationUnreadCount struct {
-	Count uint64 `json:"count" yaml:"count" cbor:"count"`
+	Count uint64 `json:"count" yaml:"count"`
 }
 
 // ShareAccessRequest represents a structured data type
 type ShareAccessRequest struct {
-	LinkkeysDomain string       `json:"linkkeys_domain" yaml:"linkkeys_domain" cbor:"linkkeys_domain"`
-	LinkkeysUserId string       `json:"linkkeys_user_id" yaml:"linkkeys_user_id" cbor:"linkkeys_user_id"`
-	ResourceType   ResourceType `json:"resource_type" yaml:"resource_type" cbor:"resource_type"`
-	ResourceId     string       `json:"resource_id" yaml:"resource_id" cbor:"resource_id"`
+	LinkkeysDomain string       `json:"linkkeys_domain" yaml:"linkkeys_domain"`
+	LinkkeysUserId string       `json:"linkkeys_user_id" yaml:"linkkeys_user_id"`
+	ResourceType   ResourceType `json:"resource_type" yaml:"resource_type"`
+	ResourceId     string       `json:"resource_id" yaml:"resource_id"`
 }
 
 // ResourceRef represents a structured data type
 type ResourceRef struct {
-	ResourceType ResourceType `json:"resource_type" yaml:"resource_type" cbor:"resource_type"`
-	ResourceId   string       `json:"resource_id" yaml:"resource_id" cbor:"resource_id"`
+	ResourceType ResourceType `json:"resource_type" yaml:"resource_type"`
+	ResourceId   string       `json:"resource_id" yaml:"resource_id"`
 }
 
 // MemberRoleRef represents a structured data type
 type MemberRoleRef struct {
-	MemberId MemberID `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	RoleId   RoleID   `json:"role_id" yaml:"role_id" cbor:"role_id"`
+	MemberId MemberID `json:"member_id" yaml:"member_id"`
+	RoleId   RoleID   `json:"role_id" yaml:"role_id"`
 }
 
 // MemberSkillRef represents a structured data type
 type MemberSkillRef struct {
-	MemberId MemberID `json:"member_id" yaml:"member_id" cbor:"member_id"`
-	SkillId  SkillID  `json:"skill_id" yaml:"skill_id" cbor:"skill_id"`
+	MemberId MemberID `json:"member_id" yaml:"member_id"`
+	SkillId  SkillID  `json:"skill_id" yaml:"skill_id"`
 }
 
 // GroupSkillRef represents a structured data type
 type GroupSkillRef struct {
-	GroupId GroupID `json:"group_id" yaml:"group_id" cbor:"group_id"`
-	SkillId SkillID `json:"skill_id" yaml:"skill_id" cbor:"skill_id"`
+	GroupId GroupID `json:"group_id" yaml:"group_id"`
+	SkillId SkillID `json:"skill_id" yaml:"skill_id"`
 }
 
 // GroupMemberRef represents a structured data type
 type GroupMemberRef struct {
-	GroupId  GroupID  `json:"group_id" yaml:"group_id" cbor:"group_id"`
-	MemberId MemberID `json:"member_id" yaml:"member_id" cbor:"member_id"`
+	GroupId  GroupID  `json:"group_id" yaml:"group_id"`
+	MemberId MemberID `json:"member_id" yaml:"member_id"`
 }
 
 // ProjectTaskRef represents a structured data type
 type ProjectTaskRef struct {
-	ProjectId ProjectID `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	TaskId    TaskID    `json:"task_id" yaml:"task_id" cbor:"task_id"`
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	TaskId    TaskID    `json:"task_id" yaml:"task_id"`
 }
 
 // ProjectTaskOrderRequest represents a structured data type
 type ProjectTaskOrderRequest struct {
-	ProjectId ProjectID `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	TaskId    TaskID    `json:"task_id" yaml:"task_id" cbor:"task_id"`
-	Position  int64     `json:"position" yaml:"position" cbor:"position"`
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	TaskId    TaskID    `json:"task_id" yaml:"task_id"`
+	Position  int64     `json:"position" yaml:"position"`
 }
 
 // ProjectMemberRef represents a structured data type
 type ProjectMemberRef struct {
-	ProjectId ProjectID `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	MemberId  MemberID  `json:"member_id" yaml:"member_id" cbor:"member_id"`
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
 }
 
 // ProjectOwnerRef represents a structured data type
 type ProjectOwnerRef struct {
-	ProjectId ProjectID `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	MemberId  MemberID  `json:"member_id" yaml:"member_id" cbor:"member_id"`
+	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
+	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
 }
 
 // DependencyRef represents a structured data type
 type DependencyRef struct {
-	DependentType  DependencyNodeType `json:"dependent_type" yaml:"dependent_type" cbor:"dependent_type"`
-	DependentId    string             `json:"dependent_id" yaml:"dependent_id" cbor:"dependent_id"`
-	DependencyType DependencyNodeType `json:"dependency_type" yaml:"dependency_type" cbor:"dependency_type"`
-	DependencyId   string             `json:"dependency_id" yaml:"dependency_id" cbor:"dependency_id"`
+	DependentType  DependencyNodeType `json:"dependent_type" yaml:"dependent_type"`
+	DependentId    string             `json:"dependent_id" yaml:"dependent_id"`
+	DependencyType DependencyNodeType `json:"dependency_type" yaml:"dependency_type"`
+	DependencyId   string             `json:"dependency_id" yaml:"dependency_id"`
 }
 
 // DependencyTarget represents a structured data type
 type DependencyTarget struct {
-	Type DependencyNodeType `json:"type" yaml:"type" cbor:"type"`
-	Id   string             `json:"id" yaml:"id" cbor:"id"`
+	Type DependencyNodeType `json:"type" yaml:"type"`
+	Id   string             `json:"id" yaml:"id"`
 }
 
 // DependencyNode represents a structured data type
 type DependencyNode struct {
-	Type   DependencyNodeType `json:"type" yaml:"type" cbor:"type"`
-	Id     string             `json:"id" yaml:"id" cbor:"id"`
-	Title  string             `json:"title" yaml:"title" cbor:"title"`
-	Status *string            `json:"status,omitempty" yaml:"status,omitempty" cbor:"status,omitempty"`
+	Type   DependencyNodeType `json:"type" yaml:"type"`
+	Id     string             `json:"id" yaml:"id"`
+	Title  string             `json:"title" yaml:"title"`
+	Status *string            `json:"status,omitempty" yaml:"status,omitempty"`
 }
 
 // DependencyGraph represents a structured data type
 type DependencyGraph struct {
-	Dependencies []DependencyNode `json:"dependencies" yaml:"dependencies" cbor:"dependencies"`
-	Dependents   []DependencyNode `json:"dependents" yaml:"dependents" cbor:"dependents"`
+	Dependencies []DependencyNode `json:"dependencies" yaml:"dependencies"`
+	Dependents   []DependencyNode `json:"dependents" yaml:"dependents"`
 }
 
 // Grant represents a structured data type
 type Grant struct {
-	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type" cbor:"grantee_type"`
-	GranteeId   string      `json:"grantee_id" yaml:"grantee_id" cbor:"grantee_id"`
-	AccessLevel AccessLevel `json:"access_level" yaml:"access_level" cbor:"access_level"`
+	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type"`
+	GranteeId   string      `json:"grantee_id" yaml:"grantee_id"`
+	AccessLevel AccessLevel `json:"access_level" yaml:"access_level"`
 }
 
 // TaskGrantRef represents a structured data type
 type TaskGrantRef struct {
-	TaskId      TaskID      `json:"task_id" yaml:"task_id" cbor:"task_id"`
-	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type" cbor:"grantee_type"`
-	GranteeId   string      `json:"grantee_id" yaml:"grantee_id" cbor:"grantee_id"`
+	TaskId      TaskID      `json:"task_id" yaml:"task_id"`
+	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type"`
+	GranteeId   string      `json:"grantee_id" yaml:"grantee_id"`
 }
 
 // PutTaskGrantRequest represents a structured data type
 type PutTaskGrantRequest struct {
-	TaskId      TaskID      `json:"task_id" yaml:"task_id" cbor:"task_id"`
-	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type" cbor:"grantee_type"`
-	GranteeId   string      `json:"grantee_id" yaml:"grantee_id" cbor:"grantee_id"`
-	AccessLevel AccessLevel `json:"access_level" yaml:"access_level" cbor:"access_level"`
+	TaskId      TaskID      `json:"task_id" yaml:"task_id"`
+	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type"`
+	GranteeId   string      `json:"grantee_id" yaml:"grantee_id"`
+	AccessLevel AccessLevel `json:"access_level" yaml:"access_level"`
 }
 
 // SetTaskVisibilityRequest represents a structured data type
 type SetTaskVisibilityRequest struct {
-	TaskId     TaskID      `json:"task_id" yaml:"task_id" cbor:"task_id"`
-	Visibility AccessLevel `json:"visibility" yaml:"visibility" cbor:"visibility"`
+	TaskId     TaskID      `json:"task_id" yaml:"task_id"`
+	Visibility AccessLevel `json:"visibility" yaml:"visibility"`
 }
 
 // ProjectGrantRef represents a structured data type
 type ProjectGrantRef struct {
-	ProjectId   ProjectID   `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type" cbor:"grantee_type"`
-	GranteeId   string      `json:"grantee_id" yaml:"grantee_id" cbor:"grantee_id"`
+	ProjectId   ProjectID   `json:"project_id" yaml:"project_id"`
+	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type"`
+	GranteeId   string      `json:"grantee_id" yaml:"grantee_id"`
 }
 
 // PutProjectGrantRequest represents a structured data type
 type PutProjectGrantRequest struct {
-	ProjectId   ProjectID   `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type" cbor:"grantee_type"`
-	GranteeId   string      `json:"grantee_id" yaml:"grantee_id" cbor:"grantee_id"`
-	AccessLevel AccessLevel `json:"access_level" yaml:"access_level" cbor:"access_level"`
+	ProjectId   ProjectID   `json:"project_id" yaml:"project_id"`
+	GranteeType GranteeType `json:"grantee_type" yaml:"grantee_type"`
+	GranteeId   string      `json:"grantee_id" yaml:"grantee_id"`
+	AccessLevel AccessLevel `json:"access_level" yaml:"access_level"`
 }
 
 // SetProjectVisibilityRequest represents a structured data type
 type SetProjectVisibilityRequest struct {
-	ProjectId  ProjectID   `json:"project_id" yaml:"project_id" cbor:"project_id"`
-	Visibility AccessLevel `json:"visibility" yaml:"visibility" cbor:"visibility"`
+	ProjectId  ProjectID   `json:"project_id" yaml:"project_id"`
+	Visibility AccessLevel `json:"visibility" yaml:"visibility"`
 }
 
 // EffectiveSettings represents a structured data type
 type EffectiveSettings struct {
-	BugReportsEnabled        *bool        `json:"bug_reports_enabled,omitempty" yaml:"bug_reports_enabled,omitempty" cbor:"bug_reports_enabled,omitempty"`
-	BugReportsProjectId      *ProjectID   `json:"bug_reports_project_id,omitempty" yaml:"bug_reports_project_id,omitempty" cbor:"bug_reports_project_id,omitempty"`
-	DefaultProjectVisibility *AccessLevel `json:"default_project_visibility,omitempty" yaml:"default_project_visibility,omitempty" cbor:"default_project_visibility,omitempty"`
+	BugReportsEnabled        *bool        `json:"bug_reports_enabled,omitempty" yaml:"bug_reports_enabled,omitempty"`
+	BugReportsProjectId      *ProjectID   `json:"bug_reports_project_id,omitempty" yaml:"bug_reports_project_id,omitempty"`
+	DefaultProjectVisibility *AccessLevel `json:"default_project_visibility,omitempty" yaml:"default_project_visibility,omitempty"`
 }
 
 // UpdateSettingsRequest represents a structured data type
 type UpdateSettingsRequest struct {
-	HouseId  HouseID           `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	Settings EffectiveSettings `json:"settings" yaml:"settings" cbor:"settings"`
+	HouseId  HouseID           `json:"house_id" yaml:"house_id"`
+	Settings EffectiveSettings `json:"settings" yaml:"settings"`
 }
 
 // BugReportRequest represents a structured data type
 type BugReportRequest struct {
-	HouseId     HouseID `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	Title       string  `json:"title" yaml:"title" cbor:"title"`
-	Description *string `json:"description,omitempty" yaml:"description,omitempty" cbor:"description,omitempty"`
+	HouseId     HouseID `json:"house_id" yaml:"house_id"`
+	Title       string  `json:"title" yaml:"title"`
+	Description *string `json:"description,omitempty" yaml:"description,omitempty"`
 }
 
 // ServiceError represents a structured data type
 type ServiceError struct {
-	Code    uint64 `json:"code" yaml:"code" cbor:"code"`
-	Message string `json:"message" yaml:"message" cbor:"message"`
+	Code    uint64 `json:"code" yaml:"code"`
+	Message string `json:"message" yaml:"message"`
 }
 
 // AuditID is a type alias
@@ -640,69 +640,69 @@ type AuditID string
 
 // AuditEntry represents a structured data type
 type AuditEntry struct {
-	AuditId       AuditID   `json:"audit_id" yaml:"audit_id" cbor:"audit_id"`
-	HouseId       *HouseID  `json:"house_id,omitempty" yaml:"house_id,omitempty" cbor:"house_id,omitempty"`
-	ActorMemberId *MemberID `json:"actor_member_id,omitempty" yaml:"actor_member_id,omitempty" cbor:"actor_member_id,omitempty"`
-	ActorDomain   string    `json:"actor_domain" yaml:"actor_domain" cbor:"actor_domain"`
-	ActorUserId   string    `json:"actor_user_id" yaml:"actor_user_id" cbor:"actor_user_id"`
-	ServiceName   string    `json:"service_name" yaml:"service_name" cbor:"service_name"`
-	Method        string    `json:"method" yaml:"method" cbor:"method"`
-	Action        string    `json:"action" yaml:"action" cbor:"action"`
-	ResourceType  *string   `json:"resource_type,omitempty" yaml:"resource_type,omitempty" cbor:"resource_type,omitempty"`
-	ResourceId    *string   `json:"resource_id,omitempty" yaml:"resource_id,omitempty" cbor:"resource_id,omitempty"`
-	Outcome       string    `json:"outcome" yaml:"outcome" cbor:"outcome"`
-	Before        *string   `json:"before,omitempty" yaml:"before,omitempty" cbor:"before,omitempty"`
-	After         *string   `json:"after,omitempty" yaml:"after,omitempty" cbor:"after,omitempty"`
-	Detail        *string   `json:"detail,omitempty" yaml:"detail,omitempty" cbor:"detail,omitempty"`
-	CreatedAt     Timestamp `json:"created_at" yaml:"created_at" cbor:"created_at"`
+	AuditId       AuditID   `json:"audit_id" yaml:"audit_id"`
+	HouseId       *HouseID  `json:"house_id,omitempty" yaml:"house_id,omitempty"`
+	ActorMemberId *MemberID `json:"actor_member_id,omitempty" yaml:"actor_member_id,omitempty"`
+	ActorDomain   string    `json:"actor_domain" yaml:"actor_domain"`
+	ActorUserId   string    `json:"actor_user_id" yaml:"actor_user_id"`
+	ServiceName   string    `json:"service_name" yaml:"service_name"`
+	Method        string    `json:"method" yaml:"method"`
+	Action        string    `json:"action" yaml:"action"`
+	ResourceType  *string   `json:"resource_type,omitempty" yaml:"resource_type,omitempty"`
+	ResourceId    *string   `json:"resource_id,omitempty" yaml:"resource_id,omitempty"`
+	Outcome       string    `json:"outcome" yaml:"outcome"`
+	Before        *string   `json:"before,omitempty" yaml:"before,omitempty"`
+	After         *string   `json:"after,omitempty" yaml:"after,omitempty"`
+	Detail        *string   `json:"detail,omitempty" yaml:"detail,omitempty"`
+	CreatedAt     Timestamp `json:"created_at" yaml:"created_at"`
 }
 
 // AuditQuery represents a structured data type
 type AuditQuery struct {
-	HouseId       HouseID    `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	ActorMemberId *MemberID  `json:"actor_member_id,omitempty" yaml:"actor_member_id,omitempty" cbor:"actor_member_id,omitempty"`
-	ResourceType  *string    `json:"resource_type,omitempty" yaml:"resource_type,omitempty" cbor:"resource_type,omitempty"`
-	Action        *string    `json:"action,omitempty" yaml:"action,omitempty" cbor:"action,omitempty"`
-	Since         *Timestamp `json:"since,omitempty" yaml:"since,omitempty" cbor:"since,omitempty"`
-	Until         *Timestamp `json:"until,omitempty" yaml:"until,omitempty" cbor:"until,omitempty"`
-	Cursor        *string    `json:"cursor,omitempty" yaml:"cursor,omitempty" cbor:"cursor,omitempty"`
-	Limit         *uint64    `json:"limit,omitempty" yaml:"limit,omitempty" cbor:"limit,omitempty"`
+	HouseId       HouseID    `json:"house_id" yaml:"house_id"`
+	ActorMemberId *MemberID  `json:"actor_member_id,omitempty" yaml:"actor_member_id,omitempty"`
+	ResourceType  *string    `json:"resource_type,omitempty" yaml:"resource_type,omitempty"`
+	Action        *string    `json:"action,omitempty" yaml:"action,omitempty"`
+	Since         *Timestamp `json:"since,omitempty" yaml:"since,omitempty"`
+	Until         *Timestamp `json:"until,omitempty" yaml:"until,omitempty"`
+	Cursor        *string    `json:"cursor,omitempty" yaml:"cursor,omitempty"`
+	Limit         *uint64    `json:"limit,omitempty" yaml:"limit,omitempty"`
 }
 
 // AuditPage represents a structured data type
 type AuditPage struct {
-	Entries    []AuditEntry `json:"entries" yaml:"entries" cbor:"entries"`
-	NextCursor *string      `json:"next_cursor,omitempty" yaml:"next_cursor,omitempty" cbor:"next_cursor,omitempty"`
+	Entries    []AuditEntry `json:"entries" yaml:"entries"`
+	NextCursor *string      `json:"next_cursor,omitempty" yaml:"next_cursor,omitempty"`
 }
 
 // TrashItem represents a structured data type
 type TrashItem struct {
-	ResourceType      string    `json:"resource_type" yaml:"resource_type" cbor:"resource_type"`
-	ResourceId        string    `json:"resource_id" yaml:"resource_id" cbor:"resource_id"`
-	HouseId           HouseID   `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	Title             *string   `json:"title,omitempty" yaml:"title,omitempty" cbor:"title,omitempty"`
-	DeletedAt         Timestamp `json:"deleted_at" yaml:"deleted_at" cbor:"deleted_at"`
-	DeletedByMemberId *MemberID `json:"deleted_by_member_id,omitempty" yaml:"deleted_by_member_id,omitempty" cbor:"deleted_by_member_id,omitempty"`
-	DeletedOpId       string    `json:"deleted_op_id" yaml:"deleted_op_id" cbor:"deleted_op_id"`
+	ResourceType      string    `json:"resource_type" yaml:"resource_type"`
+	ResourceId        string    `json:"resource_id" yaml:"resource_id"`
+	HouseId           HouseID   `json:"house_id" yaml:"house_id"`
+	Title             *string   `json:"title,omitempty" yaml:"title,omitempty"`
+	DeletedAt         Timestamp `json:"deleted_at" yaml:"deleted_at"`
+	DeletedByMemberId *MemberID `json:"deleted_by_member_id,omitempty" yaml:"deleted_by_member_id,omitempty"`
+	DeletedOpId       string    `json:"deleted_op_id" yaml:"deleted_op_id"`
 }
 
 // TrashPage represents a structured data type
 type TrashPage struct {
-	Items      []TrashItem `json:"items" yaml:"items" cbor:"items"`
-	NextCursor *string     `json:"next_cursor,omitempty" yaml:"next_cursor,omitempty" cbor:"next_cursor,omitempty"`
+	Items      []TrashItem `json:"items" yaml:"items"`
+	NextCursor *string     `json:"next_cursor,omitempty" yaml:"next_cursor,omitempty"`
 }
 
 // RestoreRequest represents a structured data type
 type RestoreRequest struct {
-	HouseId      HouseID `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	DeletedOpId  *string `json:"deleted_op_id,omitempty" yaml:"deleted_op_id,omitempty" cbor:"deleted_op_id,omitempty"`
-	ResourceType *string `json:"resource_type,omitempty" yaml:"resource_type,omitempty" cbor:"resource_type,omitempty"`
-	ResourceId   *string `json:"resource_id,omitempty" yaml:"resource_id,omitempty" cbor:"resource_id,omitempty"`
+	HouseId      HouseID `json:"house_id" yaml:"house_id"`
+	DeletedOpId  *string `json:"deleted_op_id,omitempty" yaml:"deleted_op_id,omitempty"`
+	ResourceType *string `json:"resource_type,omitempty" yaml:"resource_type,omitempty"`
+	ResourceId   *string `json:"resource_id,omitempty" yaml:"resource_id,omitempty"`
 }
 
 // PurgeRequest represents a structured data type
 type PurgeRequest struct {
-	HouseId      HouseID `json:"house_id" yaml:"house_id" cbor:"house_id"`
-	ResourceType string  `json:"resource_type" yaml:"resource_type" cbor:"resource_type"`
-	ResourceId   string  `json:"resource_id" yaml:"resource_id" cbor:"resource_id"`
+	HouseId      HouseID `json:"house_id" yaml:"house_id"`
+	ResourceType string  `json:"resource_type" yaml:"resource_type"`
+	ResourceId   string  `json:"resource_id" yaml:"resource_id"`
 }

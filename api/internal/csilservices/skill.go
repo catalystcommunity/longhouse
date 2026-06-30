@@ -16,28 +16,24 @@ import (
 type SkillService struct{ Store store.Store }
 
 func (s *SkillService) Register(d *csilrpc.Dispatcher) {
-	d.Register("skill", "CreateSkill", s.createSkill)
-	d.Register("skill", "UpdateSkill", s.updateSkill)
-	d.Register("skill", "DeleteSkill", s.deleteSkill)
-	d.Register("skill", "ListSkills", s.listSkills)
-	d.Register("skill", "AddMemberSkill", s.addMemberSkill)
-	d.Register("skill", "RemoveMemberSkill", s.removeMemberSkill)
-	d.Register("skill", "ListMemberSkills", s.listMemberSkills)
-	d.Register("skill", "AddGroupSkill", s.addGroupSkill)
-	d.Register("skill", "RemoveGroupSkill", s.removeGroupSkill)
-	d.Register("skill", "ListGroupSkills", s.listGroupSkills)
+	d.RegisterTyped("skill", "CreateSkill", csilrpc.Route(s.CreateSkill, csil.DecodeSkillCreateSkillRequest, csil.EncodeSkillCreateSkillResponse))
+	d.RegisterTyped("skill", "UpdateSkill", csilrpc.Route(s.UpdateSkill, csil.DecodeSkillUpdateSkillRequest, csil.EncodeSkillUpdateSkillResponse))
+	d.RegisterTyped("skill", "DeleteSkill", csilrpc.Route(s.DeleteSkill, csil.DecodeSkillDeleteSkillRequest, csil.EncodeSkillDeleteSkillResponse))
+	d.RegisterTyped("skill", "ListSkills", csilrpc.Route(s.ListSkills, csil.DecodeSkillListSkillsRequest, csil.EncodeSkillListSkillsResponse))
+	d.RegisterTyped("skill", "AddMemberSkill", csilrpc.Route(s.AddMemberSkill, csil.DecodeSkillAddMemberSkillRequest, csil.EncodeSkillAddMemberSkillResponse))
+	d.RegisterTyped("skill", "RemoveMemberSkill", csilrpc.Route(s.RemoveMemberSkill, csil.DecodeSkillRemoveMemberSkillRequest, csil.EncodeSkillRemoveMemberSkillResponse))
+	d.RegisterTyped("skill", "ListMemberSkills", csilrpc.Route(s.ListMemberSkills, csil.DecodeSkillListMemberSkillsRequest, csil.EncodeSkillListMemberSkillsResponse))
+	d.RegisterTyped("skill", "AddGroupSkill", csilrpc.Route(s.AddGroupSkill, csil.DecodeSkillAddGroupSkillRequest, csil.EncodeSkillAddGroupSkillResponse))
+	d.RegisterTyped("skill", "RemoveGroupSkill", csilrpc.Route(s.RemoveGroupSkill, csil.DecodeSkillRemoveGroupSkillRequest, csil.EncodeSkillRemoveGroupSkillResponse))
+	d.RegisterTyped("skill", "ListGroupSkills", csilrpc.Route(s.ListGroupSkills, csil.DecodeSkillListGroupSkillsRequest, csil.EncodeSkillListGroupSkillsResponse))
 }
 
-func (s *SkillService) createSkill(ctx context.Context, body []byte) (any, error) {
-	var in csil.Skill
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *SkillService) CreateSkill(ctx context.Context, in csil.Skill) (csil.Skill, error) {
 	if in.HouseId == "" || in.Name == "" {
-		return nil, csilrpc.BadRequest("house_id and name are required")
+		return csil.Skill{}, csilrpc.BadRequest("house_id and name are required")
 	}
 	if _, _, err := requireRoleForHouse(ctx, string(in.HouseId), "admin"); err != nil {
-		return nil, err
+		return csil.Skill{}, err
 	}
 	sk := &models.Skill{
 		HouseID:     string(in.HouseId),
@@ -45,25 +41,21 @@ func (s *SkillService) createSkill(ctx context.Context, body []byte) (any, error
 		Description: derefStr(in.Description),
 	}
 	if err := s.Store.CreateSkill(ctx, sk); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Skill{}, csilrpc.Internal("internal error")
 	}
 	return skillToCSIL(sk), nil
 }
 
-func (s *SkillService) updateSkill(ctx context.Context, body []byte) (any, error) {
-	var in csil.Skill
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *SkillService) UpdateSkill(ctx context.Context, in csil.Skill) (csil.Skill, error) {
 	if in.SkillId == "" {
-		return nil, csilrpc.BadRequest("skill_id is required")
+		return csil.Skill{}, csilrpc.BadRequest("skill_id is required")
 	}
 	existing, err := s.Store.GetSkillByID(ctx, string(in.SkillId))
 	if err != nil {
-		return nil, csilrpc.NotFound("skill not found")
+		return csil.Skill{}, csilrpc.NotFound("skill not found")
 	}
 	if _, _, err := requireRoleForHouse(ctx, existing.HouseID, "admin"); err != nil {
-		return nil, err
+		return csil.Skill{}, err
 	}
 	if in.Name != "" {
 		existing.Name = in.Name
@@ -72,40 +64,32 @@ func (s *SkillService) updateSkill(ctx context.Context, body []byte) (any, error
 		existing.Description = *in.Description
 	}
 	if err := s.Store.UpdateSkill(ctx, existing); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Skill{}, csilrpc.Internal("internal error")
 	}
 	return skillToCSIL(existing), nil
 }
 
-func (s *SkillService) deleteSkill(ctx context.Context, body []byte) (any, error) {
-	var id csil.SkillID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *SkillService) DeleteSkill(ctx context.Context, id csil.SkillID) (csil.EmptyResponse, error) {
 	existing, err := s.Store.GetSkillByID(ctx, string(id))
 	if err != nil || existing.DeletedAt != nil {
-		return nil, csilrpc.NotFound("skill not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("skill not found")
 	}
 	_, callerMemberID, err := requireRoleForHouse(ctx, existing.HouseID, "admin")
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	opID, err := s.Store.NewID(ctx)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if err := s.Store.SoftDeleteSkill(ctx, existing.SkillID, callerMemberID, opID); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	annotateDelete(ctx, existing.HouseID, "skill", existing.SkillID, opID, existing)
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *SkillService) listSkills(ctx context.Context, body []byte) (any, error) {
-	var req csil.HouseScopedListRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *SkillService) ListSkills(ctx context.Context, req csil.HouseScopedListRequest) ([]csil.Skill, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}
@@ -117,39 +101,27 @@ func (s *SkillService) listSkills(ctx context.Context, body []byte) (any, error)
 	return skillsToCSIL(rows), nil
 }
 
-func (s *SkillService) addMemberSkill(ctx context.Context, body []byte) (any, error) {
-	var ref csil.MemberSkillRef
-	if err := csilrpc.Decode(body, &ref); err != nil {
-		return nil, err
-	}
+func (s *SkillService) AddMemberSkill(ctx context.Context, ref csil.MemberSkillRef) (csil.EmptyResponse, error) {
 	if err := s.memberMutationAuthz(ctx, string(ref.MemberId)); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.AssignSkill(ctx, string(ref.MemberId), string(ref.SkillId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *SkillService) removeMemberSkill(ctx context.Context, body []byte) (any, error) {
-	var ref csil.MemberSkillRef
-	if err := csilrpc.Decode(body, &ref); err != nil {
-		return nil, err
-	}
+func (s *SkillService) RemoveMemberSkill(ctx context.Context, ref csil.MemberSkillRef) (csil.EmptyResponse, error) {
 	if err := s.memberMutationAuthz(ctx, string(ref.MemberId)); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.UnassignSkill(ctx, string(ref.MemberId), string(ref.SkillId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *SkillService) listMemberSkills(ctx context.Context, body []byte) (any, error) {
-	var req csil.MemberScopedListRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *SkillService) ListMemberSkills(ctx context.Context, req csil.MemberScopedListRequest) ([]csil.Skill, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}
@@ -160,39 +132,27 @@ func (s *SkillService) listMemberSkills(ctx context.Context, body []byte) (any, 
 	return skillsToCSIL(rows), nil
 }
 
-func (s *SkillService) addGroupSkill(ctx context.Context, body []byte) (any, error) {
-	var ref csil.GroupSkillRef
-	if err := csilrpc.Decode(body, &ref); err != nil {
-		return nil, err
-	}
+func (s *SkillService) AddGroupSkill(ctx context.Context, ref csil.GroupSkillRef) (csil.EmptyResponse, error) {
 	if err := s.groupMutationAuthz(ctx, string(ref.GroupId)); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.AssignGroupSkill(ctx, string(ref.GroupId), string(ref.SkillId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *SkillService) removeGroupSkill(ctx context.Context, body []byte) (any, error) {
-	var ref csil.GroupSkillRef
-	if err := csilrpc.Decode(body, &ref); err != nil {
-		return nil, err
-	}
+func (s *SkillService) RemoveGroupSkill(ctx context.Context, ref csil.GroupSkillRef) (csil.EmptyResponse, error) {
 	if err := s.groupMutationAuthz(ctx, string(ref.GroupId)); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.UnassignGroupSkill(ctx, string(ref.GroupId), string(ref.SkillId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *SkillService) listGroupSkills(ctx context.Context, body []byte) (any, error) {
-	var id csil.GroupID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *SkillService) ListGroupSkills(ctx context.Context, id csil.GroupID) ([]csil.Skill, error) {
 	g, err := s.Store.GetGroupByID(ctx, string(id))
 	if err != nil {
 		return nil, csilrpc.NotFound("group not found")

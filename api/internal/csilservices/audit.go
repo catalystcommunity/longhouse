@@ -20,19 +20,15 @@ type AuditService struct {
 }
 
 func (s *AuditService) Register(d *csilrpc.Dispatcher) {
-	d.Register("audit", "QueryAudit", s.queryAudit)
+	d.RegisterTyped("audit", "QueryAudit", csilrpc.Route(s.QueryAudit, csil.DecodeAuditQueryAuditRequest, csil.EncodeAuditQueryAuditResponse))
 }
 
-func (s *AuditService) queryAudit(ctx context.Context, body []byte) (any, error) {
-	var q csil.AuditQuery
-	if err := csilrpc.Decode(body, &q); err != nil {
-		return nil, err
-	}
+func (s *AuditService) QueryAudit(ctx context.Context, q csil.AuditQuery) (csil.AuditPage, error) {
 	if q.HouseId == "" {
-		return nil, csilrpc.BadRequest("house_id is required")
+		return csil.AuditPage{}, csilrpc.BadRequest("house_id is required")
 	}
 	if _, _, err := requireRoleForHouse(ctx, string(q.HouseId), models.RoleAdmin); err != nil {
-		return nil, err
+		return csil.AuditPage{}, err
 	}
 
 	f := models.AuditFilter{
@@ -67,7 +63,7 @@ func (s *AuditService) queryAudit(ctx context.Context, body []byte) (any, error)
 
 	rows, err := s.Store.ListAuditEntries(ctx, string(q.HouseId), f)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.AuditPage{}, csilrpc.Internal("internal error")
 	}
 	entries := make([]csil.AuditEntry, 0, len(rows))
 	for i := range rows {

@@ -18,19 +18,15 @@ import (
 type EventService struct{ Store store.Store }
 
 func (s *EventService) Register(d *csilrpc.Dispatcher) {
-	d.Register("event", "ListEvents", s.listEvents)
-	d.Register("event", "GetEvent", s.getEvent)
-	d.Register("event", "CreateEvent", s.createEvent)
-	d.Register("event", "UpdateEvent", s.updateEvent)
-	d.Register("event", "DeleteEvent", s.deleteEvent)
-	d.Register("event", "DeleteEventAndFuture", s.deleteEventAndFuture)
+	d.RegisterTyped("event", "ListEvents", csilrpc.Route(s.ListEvents, csil.DecodeEventListEventsRequest, csil.EncodeEventListEventsResponse))
+	d.RegisterTyped("event", "GetEvent", csilrpc.Route(s.GetEvent, csil.DecodeEventGetEventRequest, csil.EncodeEventGetEventResponse))
+	d.RegisterTyped("event", "CreateEvent", csilrpc.Route(s.CreateEvent, csil.DecodeEventCreateEventRequest, csil.EncodeEventCreateEventResponse))
+	d.RegisterTyped("event", "UpdateEvent", csilrpc.Route(s.UpdateEvent, csil.DecodeEventUpdateEventRequest, csil.EncodeEventUpdateEventResponse))
+	d.RegisterTyped("event", "DeleteEvent", csilrpc.Route(s.DeleteEvent, csil.DecodeEventDeleteEventRequest, csil.EncodeEventDeleteEventResponse))
+	d.RegisterTyped("event", "DeleteEventAndFuture", csilrpc.Route(s.DeleteEventAndFuture, csil.DecodeEventDeleteEventAndFutureRequest, csil.EncodeEventDeleteEventAndFutureResponse))
 }
 
-func (s *EventService) listEvents(ctx context.Context, body []byte) (any, error) {
-	var req csil.HouseScopedListRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *EventService) ListEvents(ctx context.Context, req csil.HouseScopedListRequest) ([]csil.Event, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}
@@ -42,38 +38,30 @@ func (s *EventService) listEvents(ctx context.Context, body []byte) (any, error)
 	return eventsToCSIL(rows), nil
 }
 
-func (s *EventService) getEvent(ctx context.Context, body []byte) (any, error) {
-	var id csil.EventID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *EventService) GetEvent(ctx context.Context, id csil.EventID) (csil.Event, error) {
 	e, err := s.Store.GetEventByID(ctx, string(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, csilrpc.NotFound("event not found")
+			return csil.Event{}, csilrpc.NotFound("event not found")
 		}
-		return nil, csilrpc.Internal("internal error")
+		return csil.Event{}, csilrpc.Internal("internal error")
 	}
 	if e.DeletedAt != nil {
-		return nil, csilrpc.NotFound("event not found")
+		return csil.Event{}, csilrpc.NotFound("event not found")
 	}
 	if _, _, err := requireMemberForHouse(ctx, e.HouseID); err != nil {
-		return nil, err
+		return csil.Event{}, err
 	}
 	return eventToCSIL(e), nil
 }
 
-func (s *EventService) createEvent(ctx context.Context, body []byte) (any, error) {
-	var in csil.Event
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *EventService) CreateEvent(ctx context.Context, in csil.Event) (csil.Event, error) {
 	if in.HouseId == "" || in.Title == "" {
-		return nil, csilrpc.BadRequest("house_id and title are required")
+		return csil.Event{}, csilrpc.BadRequest("house_id and title are required")
 	}
 	_, callerMemberID, err := requireMemberForHouse(ctx, string(in.HouseId))
 	if err != nil {
-		return nil, err
+		return csil.Event{}, err
 	}
 	owner := callerMemberID
 	if in.OwnerMemberId != "" {
@@ -91,7 +79,7 @@ func (s *EventService) createEvent(ctx context.Context, body []byte) (any, error
 		RecurrenceInterval: 1,
 	}
 	if in.RecurrenceFreq != nil {
-		if f, ok := (*in.RecurrenceFreq).(string); ok && f != "" {
+		if f := string(*in.RecurrenceFreq); f != "" {
 			e.RecurrenceFreq = &f
 		}
 	}
@@ -117,30 +105,26 @@ func (s *EventService) createEvent(ctx context.Context, body []byte) (any, error
 		e.NextRecurrenceAt = &t
 	}
 	if err := s.Store.CreateEvent(ctx, e); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Event{}, csilrpc.Internal("internal error")
 	}
 	return eventToCSIL(e), nil
 }
 
-func (s *EventService) updateEvent(ctx context.Context, body []byte) (any, error) {
-	var in csil.Event
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *EventService) UpdateEvent(ctx context.Context, in csil.Event) (csil.Event, error) {
 	if in.EventId == "" {
-		return nil, csilrpc.BadRequest("event_id is required")
+		return csil.Event{}, csilrpc.BadRequest("event_id is required")
 	}
 	existing, err := s.Store.GetEventByID(ctx, string(in.EventId))
 	if err != nil {
-		return nil, csilrpc.NotFound("event not found")
+		return csil.Event{}, csilrpc.NotFound("event not found")
 	}
 	id, callerMemberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.Event{}, err
 	}
 	if callerMemberID != existing.OwnerMemberID {
 		if _, err := requireRole(id, existing.HouseID, "admin"); err != nil {
-			return nil, csilrpc.Forbidden("only the event owner or a house admin may edit this event")
+			return csil.Event{}, csilrpc.Forbidden("only the event owner or a house admin may edit this event")
 		}
 	}
 	if in.Title != "" {
@@ -163,18 +147,17 @@ func (s *EventService) updateEvent(ctx context.Context, body []byte) (any, error
 	// was just turned on; clear it if recurrence was just turned off.
 	wasRecurring := existing.RecurrenceFreq != nil
 	if in.RecurrenceFreq != nil {
-		if f, ok := (*in.RecurrenceFreq).(string); ok {
-			if f == "" {
-				existing.RecurrenceFreq = nil
-				existing.NextRecurrenceAt = nil
-				existing.RecurrenceByWeekday = nil
-				existing.RecurrenceBySetpos = nil
-			} else {
-				existing.RecurrenceFreq = &f
-				if !wasRecurring && existing.StartsAt != nil {
-					t := *existing.StartsAt
-					existing.NextRecurrenceAt = &t
-				}
+		f := string(*in.RecurrenceFreq)
+		if f == "" {
+			existing.RecurrenceFreq = nil
+			existing.NextRecurrenceAt = nil
+			existing.RecurrenceByWeekday = nil
+			existing.RecurrenceBySetpos = nil
+		} else {
+			existing.RecurrenceFreq = &f
+			if !wasRecurring && existing.StartsAt != nil {
+				t := *existing.StartsAt
+				existing.NextRecurrenceAt = &t
 			}
 		}
 	}
@@ -203,35 +186,31 @@ func (s *EventService) updateEvent(ctx context.Context, body []byte) (any, error
 		}
 	}
 	if err := s.Store.UpdateEvent(ctx, existing); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Event{}, csilrpc.Internal("internal error")
 	}
 	return eventToCSIL(existing), nil
 }
 
-func (s *EventService) deleteEvent(ctx context.Context, body []byte) (any, error) {
-	var id csil.EventID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *EventService) DeleteEvent(ctx context.Context, id csil.EventID) (csil.EmptyResponse, error) {
 	existing, err := s.Store.GetEventByID(ctx, string(id))
 	if err != nil || existing.DeletedAt != nil {
-		return nil, csilrpc.NotFound("event not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("event not found")
 	}
 	ident, callerMemberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if callerMemberID != existing.OwnerMemberID {
 		if _, err := requireRole(ident, existing.HouseID, "admin"); err != nil {
-			return nil, csilrpc.Forbidden("only the event owner or a house admin may delete this event")
+			return csil.EmptyResponse{}, csilrpc.Forbidden("only the event owner or a house admin may delete this event")
 		}
 	}
 	opID, err := s.Store.NewID(ctx)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if err := s.Store.SoftDeleteEvent(ctx, existing.EventID, callerMemberID, opID); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	annotateDelete(ctx, existing.HouseID, "event", existing.EventID, opID, existing)
 	return csil.EmptyResponse{}, nil
@@ -244,27 +223,23 @@ func (s *EventService) deleteEvent(ctx context.Context, body []byte) (any, error
 //   - If the target is a child (recurrence_root_event_id set), delete that
 //     child and every later child (starts_at >=), then strip recurrence
 //     from the root so the spawner won't repopulate them.
-func (s *EventService) deleteEventAndFuture(ctx context.Context, body []byte) (any, error) {
-	var id csil.EventID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *EventService) DeleteEventAndFuture(ctx context.Context, id csil.EventID) (csil.EmptyResponse, error) {
 	existing, err := s.Store.GetEventByID(ctx, string(id))
 	if err != nil || existing.DeletedAt != nil {
-		return nil, csilrpc.NotFound("event not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("event not found")
 	}
 	ident, callerMemberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if callerMemberID != existing.OwnerMemberID {
 		if _, err := requireRole(ident, existing.HouseID, "admin"); err != nil {
-			return nil, csilrpc.Forbidden("only the event owner or a house admin may delete this series")
+			return csil.EmptyResponse{}, csilrpc.Forbidden("only the event owner or a house admin may delete this series")
 		}
 	}
 	opID, err := s.Store.NewID(ctx)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if existing.RecurrenceRootEventID == nil {
 		// Root row — soft-delete the whole series (root + every child) under
@@ -272,7 +247,7 @@ func (s *EventService) deleteEventAndFuture(ctx context.Context, body []byte) (a
 		// to mute recurrence_freq; restore is a clean un-delete that resumes
 		// spawning.
 		if err := s.Store.SoftDeleteEventSeries(ctx, existing.EventID, callerMemberID, opID); err != nil {
-			return nil, csilrpc.Internal("internal error")
+			return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 		}
 		annotateDeleteWithDetail(ctx, existing.HouseID, "event", existing.EventID, opID, existing,
 			map[string]any{"mode": "series"})
@@ -283,11 +258,11 @@ func (s *EventService) deleteEventAndFuture(ctx context.Context, body []byte) (a
 	// recurrence on restore is layered in once the audit before-snapshot
 	// exists; the soft-deleted children themselves restore via their opID.)
 	if existing.StartsAt == nil {
-		return nil, csilrpc.BadRequest("event has no starts_at; cannot delete this-and-future")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("event has no starts_at; cannot delete this-and-future")
 	}
 	rootID := *existing.RecurrenceRootEventID
 	if err := s.Store.SoftDeleteEventsAfter(ctx, rootID, *existing.StartsAt, callerMemberID, opID); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	var priorFreq *string
 	var priorNext *time.Time
@@ -298,7 +273,7 @@ func (s *EventService) deleteEventAndFuture(ctx context.Context, body []byte) (a
 		root.RecurrenceFreq = nil
 		root.NextRecurrenceAt = nil
 		if err := s.Store.UpdateEvent(ctx, root); err != nil {
-			return nil, csilrpc.Internal("internal error")
+			return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 		}
 	}
 	// Record enough to re-arm the root's recurrence on restore (the soft-delete

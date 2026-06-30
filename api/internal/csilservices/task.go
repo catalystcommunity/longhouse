@@ -20,30 +20,26 @@ import (
 type TaskService struct{ Store store.Store }
 
 func (s *TaskService) Register(d *csilrpc.Dispatcher) {
-	d.Register("task", "ListTasks", s.listTasks)
-	d.Register("task", "GetTask", s.getTask)
-	d.Register("task", "CreateTask", s.createTask)
-	d.Register("task", "UpdateTask", s.updateTask)
-	d.Register("task", "DeleteTask", s.deleteTask)
-	d.Register("task", "SetTaskVisibility", s.setTaskVisibility)
-	d.Register("task", "ListTaskGrants", s.listTaskGrants)
-	d.Register("task", "PutTaskGrant", s.putTaskGrant)
-	d.Register("task", "DeleteTaskGrant", s.deleteTaskGrant)
+	d.RegisterTyped("task", "ListTasks", csilrpc.Route(s.ListTasks, csil.DecodeTaskListTasksRequest, csil.EncodeTaskListTasksResponse))
+	d.RegisterTyped("task", "GetTask", csilrpc.Route(s.GetTask, csil.DecodeTaskGetTaskRequest, csil.EncodeTaskGetTaskResponse))
+	d.RegisterTyped("task", "CreateTask", csilrpc.Route(s.CreateTask, csil.DecodeTaskCreateTaskRequest, csil.EncodeTaskCreateTaskResponse))
+	d.RegisterTyped("task", "UpdateTask", csilrpc.Route(s.UpdateTask, csil.DecodeTaskUpdateTaskRequest, csil.EncodeTaskUpdateTaskResponse))
+	d.RegisterTyped("task", "DeleteTask", csilrpc.Route(s.DeleteTask, csil.DecodeTaskDeleteTaskRequest, csil.EncodeTaskDeleteTaskResponse))
+	d.RegisterTyped("task", "SetTaskVisibility", csilrpc.Route(s.SetTaskVisibility, csil.DecodeTaskSetTaskVisibilityRequest, csil.EncodeTaskSetTaskVisibilityResponse))
+	d.RegisterTyped("task", "ListTaskGrants", csilrpc.Route(s.ListTaskGrants, csil.DecodeTaskListTaskGrantsRequest, csil.EncodeTaskListTaskGrantsResponse))
+	d.RegisterTyped("task", "PutTaskGrant", csilrpc.Route(s.PutTaskGrant, csil.DecodeTaskPutTaskGrantRequest, csil.EncodeTaskPutTaskGrantResponse))
+	d.RegisterTyped("task", "DeleteTaskGrant", csilrpc.Route(s.DeleteTaskGrant, csil.DecodeTaskDeleteTaskGrantRequest, csil.EncodeTaskDeleteTaskGrantResponse))
 }
 
-func (s *TaskService) listTasks(ctx context.Context, body []byte) (any, error) {
-	var req csil.HouseScopedListRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *TaskService) ListTasks(ctx context.Context, req csil.HouseScopedListRequest) (csil.TaskList, error) {
 	id, memberID, err := requireMemberForHouse(ctx, string(req.HouseId))
 	if err != nil {
-		return nil, err
+		return csil.TaskList{}, err
 	}
 	limit, offset := normalizePaging(req.Limit, req.Offset)
 	tasks, err := s.Store.ListTasksByHouse(ctx, string(req.HouseId), limit, offset)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.TaskList{}, csilrpc.Internal("internal error")
 	}
 	// Resolve effective access per task and filter to what the caller may
 	// read. hidden_count reports how many rows in this page were withheld —
@@ -63,46 +59,38 @@ func (s *TaskService) listTasks(ctx context.Context, body []byte) (any, error) {
 	return csil.TaskList{Tasks: out, HiddenCount: hidden}, nil
 }
 
-func (s *TaskService) getTask(ctx context.Context, body []byte) (any, error) {
-	var id csil.TaskID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *TaskService) GetTask(ctx context.Context, id csil.TaskID) (csil.Task, error) {
 	t, err := s.Store.GetTaskByID(ctx, string(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, csilrpc.NotFound("task not found")
+			return csil.Task{}, csilrpc.NotFound("task not found")
 		}
-		return nil, csilrpc.Internal("internal error")
+		return csil.Task{}, csilrpc.Internal("internal error")
 	}
 	ident, memberID, err := requireMemberForHouse(ctx, t.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.Task{}, err
 	}
 	pol := newPolicy(s.Store)
 	g := pol.granteeFor(ctx, ident, t.HouseID, memberID)
 	if !canRead(pol.taskAccess(ctx, t, g)) {
 		// Don't leak existence of a task the caller can't see.
-		return nil, csilrpc.NotFound("task not found")
+		return csil.Task{}, csilrpc.NotFound("task not found")
 	}
 	assignees, _ := s.Store.ListTaskAssignees(ctx, t.TaskID)
 	return taskToCSIL(t, assignees), nil
 }
 
-func (s *TaskService) createTask(ctx context.Context, body []byte) (any, error) {
-	var in csil.Task
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *TaskService) CreateTask(ctx context.Context, in csil.Task) (csil.Task, error) {
 	if in.HouseId == "" {
-		return nil, csilrpc.BadRequest("house_id is required")
+		return csil.Task{}, csilrpc.BadRequest("house_id is required")
 	}
 	if in.Title == "" {
-		return nil, csilrpc.BadRequest("title is required")
+		return csil.Task{}, csilrpc.BadRequest("title is required")
 	}
 	_, callerMemberID, err := requireMemberForHouse(ctx, string(in.HouseId))
 	if err != nil {
-		return nil, err
+		return csil.Task{}, err
 	}
 	owner := callerMemberID
 	if in.OwnerMemberId != "" {
@@ -151,7 +139,7 @@ func (s *TaskService) createTask(ctx context.Context, body []byte) (any, error) 
 	// due_at when set, otherwise leave nil and the root is dormant until
 	// edited.
 	if in.RecurrenceFreq != nil {
-		if f, ok := (*in.RecurrenceFreq).(string); ok && f != "" {
+		if f := string(*in.RecurrenceFreq); f != "" {
 			t.RecurrenceFreq = &f
 		}
 	}
@@ -176,7 +164,7 @@ func (s *TaskService) createTask(ctx context.Context, body []byte) (any, error) 
 		t.NextRecurrenceAt = &anchor
 	}
 	if err := s.Store.CreateTask(ctx, t); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Task{}, csilrpc.Internal("internal error")
 	}
 	// Default-assignee policy at create time:
 	//   * Assignees omitted from the request (nil slice on the wire) →
@@ -202,7 +190,7 @@ func (s *TaskService) createTask(ctx context.Context, body []byte) (any, error) 
 				continue
 			}
 			if err := s.Store.AddTaskAssignee(ctx, t.TaskID, string(mid)); err != nil {
-				return nil, csilrpc.Internal("could not attach assignee")
+				return csil.Task{}, csilrpc.Internal("could not attach assignee")
 			}
 		}
 	}
@@ -210,21 +198,17 @@ func (s *TaskService) createTask(ctx context.Context, body []byte) (any, error) 
 	return taskToCSIL(t, assignees), nil
 }
 
-func (s *TaskService) updateTask(ctx context.Context, body []byte) (any, error) {
-	var in csil.Task
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *TaskService) UpdateTask(ctx context.Context, in csil.Task) (csil.Task, error) {
 	if in.TaskId == "" {
-		return nil, csilrpc.BadRequest("task_id is required")
+		return csil.Task{}, csilrpc.BadRequest("task_id is required")
 	}
 	existing, err := s.Store.GetTaskByID(ctx, string(in.TaskId))
 	if err != nil {
-		return nil, csilrpc.NotFound("task not found")
+		return csil.Task{}, csilrpc.NotFound("task not found")
 	}
 	ident, memberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.Task{}, err
 	}
 	// Content edits require `edit`. Visibility and grants are governance and
 	// are changed only via set-task-visibility / *-task-grant (full). An
@@ -232,7 +216,7 @@ func (s *TaskService) updateTask(ctx context.Context, body []byte) (any, error) 
 	pol := newPolicy(s.Store)
 	g := pol.granteeFor(ctx, ident, existing.HouseID, memberID)
 	if !canEdit(pol.taskAccess(ctx, existing, g)) {
-		return nil, csilrpc.Forbidden("you need edit access to change this task")
+		return csil.Task{}, csilrpc.Forbidden("you need edit access to change this task")
 	}
 	if in.Title != "" {
 		existing.Title = in.Title
@@ -255,18 +239,17 @@ func (s *TaskService) updateTask(ctx context.Context, body []byte) (any, error) 
 	// else specifies it).
 	wasRecurring := existing.RecurrenceFreq != nil
 	if in.RecurrenceFreq != nil {
-		if f, ok := (*in.RecurrenceFreq).(string); ok {
-			if f == "" {
-				existing.RecurrenceFreq = nil
-				existing.NextRecurrenceAt = nil
-				existing.RecurrenceByWeekday = nil
-				existing.RecurrenceBySetpos = nil
-			} else {
-				existing.RecurrenceFreq = &f
-				if !wasRecurring && existing.NextRecurrenceAt == nil && existing.DueAt != nil {
-					anchor := *existing.DueAt
-					existing.NextRecurrenceAt = &anchor
-				}
+		f := string(*in.RecurrenceFreq)
+		if f == "" {
+			existing.RecurrenceFreq = nil
+			existing.NextRecurrenceAt = nil
+			existing.RecurrenceByWeekday = nil
+			existing.RecurrenceBySetpos = nil
+		} else {
+			existing.RecurrenceFreq = &f
+			if !wasRecurring && existing.NextRecurrenceAt == nil && existing.DueAt != nil {
+				anchor := *existing.DueAt
+				existing.NextRecurrenceAt = &anchor
 			}
 		}
 	}
@@ -296,7 +279,7 @@ func (s *TaskService) updateTask(ctx context.Context, body []byte) (any, error) 
 		existing.NextRecurrenceAt = tsToTimePtr(in.NextRecurrenceAt)
 	}
 	if err := s.Store.UpdateTask(ctx, existing); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Task{}, csilrpc.Internal("internal error")
 	}
 	// Replace the assignees set if the caller provided one. A nil slice
 	// means "don't touch"; an empty slice means "clear all assignees".
@@ -331,34 +314,30 @@ func (s *TaskService) updateTask(ctx context.Context, body []byte) (any, error) 
 // deleteTask soft-deletes (sets deleted_at). Hard-deletes are intentionally
 // not exposed — see the historical handler comment for context. The
 // recurrence worker reads `deleted_at IS NULL` to skip soft-deleted rows.
-func (s *TaskService) deleteTask(ctx context.Context, body []byte) (any, error) {
-	var id csil.TaskID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *TaskService) DeleteTask(ctx context.Context, id csil.TaskID) (csil.EmptyResponse, error) {
 	existing, err := s.Store.GetTaskByID(ctx, string(id))
 	if err != nil {
-		return nil, csilrpc.NotFound("task not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("task not found")
 	}
 	ident, memberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	// Delete is governance — requires full (owner/admin resolve to full).
 	pol := newPolicy(s.Store)
 	g := pol.granteeFor(ctx, ident, existing.HouseID, memberID)
 	if !canFull(pol.taskAccess(ctx, existing, g)) {
-		return nil, csilrpc.Forbidden("you need full access to delete this task")
+		return csil.EmptyResponse{}, csilrpc.Forbidden("you need full access to delete this task")
 	}
 	if existing.DeletedAt != nil {
 		return csil.EmptyResponse{}, nil // idempotent
 	}
 	opID, err := s.Store.NewID(ctx)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if err := s.Store.SoftDeleteTask(ctx, existing.TaskID, memberID, opID); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	annotateDelete(ctx, existing.HouseID, "task", existing.TaskID, opID, existing)
 	return csil.EmptyResponse{}, nil
@@ -367,47 +346,43 @@ func (s *TaskService) deleteTask(ctx context.Context, body []byte) (any, error) 
 // setTaskVisibility changes the task's house-at-large visibility. Requires
 // full, and the requested level is bounded by the umbrella guardrail (a task
 // can't be more visible than the MIN of its containers). See docs/rbac.md.
-func (s *TaskService) setTaskVisibility(ctx context.Context, body []byte) (any, error) {
-	var in csil.SetTaskVisibilityRequest
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *TaskService) SetTaskVisibility(ctx context.Context, in csil.SetTaskVisibilityRequest) (csil.Task, error) {
 	if in.TaskId == "" {
-		return nil, csilrpc.BadRequest("task_id is required")
+		return csil.Task{}, csilrpc.BadRequest("task_id is required")
 	}
 	want := accessLevelVal(in.Visibility, "")
 	if !validAccessLevel(want) {
-		return nil, csilrpc.BadRequest("invalid visibility")
+		return csil.Task{}, csilrpc.BadRequest("invalid visibility")
 	}
 	existing, err := s.Store.GetTaskByID(ctx, string(in.TaskId))
 	if err != nil {
-		return nil, csilrpc.NotFound("task not found")
+		return csil.Task{}, csilrpc.NotFound("task not found")
 	}
 	ident, memberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.Task{}, err
 	}
 	pol := newPolicy(s.Store)
 	g := pol.granteeFor(ctx, ident, existing.HouseID, memberID)
 	if !canFull(pol.taskAccess(ctx, existing, g)) {
-		return nil, csilrpc.Forbidden("you need full access to change visibility")
+		return csil.Task{}, csilrpc.Forbidden("you need full access to change visibility")
 	}
 	// A free-floating task (no parent, no projects) is pinned to read: it can
 	// be neither raised above read nor made private. Privacy requires a
 	// containing project. See docs/rbac.md.
 	if pol.isFreeFloating(ctx, existing) {
 		if want != models.AccessRead {
-			return nil, csilrpc.BadRequest("a task with no project or parent must stay read; add it to a project to change visibility")
+			return csil.Task{}, csilrpc.BadRequest("a task with no project or parent must stay read; add it to a project to change visibility")
 		}
 	} else {
 		ceil := pol.maxAllowedTaskVisibility(ctx, existing)
 		if models.AccessRank(want) > models.AccessRank(ceil) {
-			return nil, csilrpc.BadRequest("visibility cannot exceed the task's least-visible project or parent (" + ceil + ")")
+			return csil.Task{}, csilrpc.BadRequest("visibility cannot exceed the task's least-visible project or parent (" + ceil + ")")
 		}
 	}
 	existing.Visibility = want
 	if err := s.Store.UpdateTask(ctx, existing); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Task{}, csilrpc.Internal("internal error")
 	}
 	assignees, _ := s.Store.ListTaskAssignees(ctx, existing.TaskID)
 	return taskToCSIL(existing, assignees), nil
@@ -415,11 +390,7 @@ func (s *TaskService) setTaskVisibility(ctx context.Context, body []byte) (any, 
 
 // listTaskGrants returns the task's explicit grants. Viewing the access list
 // is governance — requires full.
-func (s *TaskService) listTaskGrants(ctx context.Context, body []byte) (any, error) {
-	var id csil.TaskID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *TaskService) ListTaskGrants(ctx context.Context, id csil.TaskID) ([]csil.Grant, error) {
 	t, _, err := s.requireTaskFull(ctx, string(id))
 	if err != nil {
 		return nil, err
@@ -432,52 +403,44 @@ func (s *TaskService) listTaskGrants(ctx context.Context, body []byte) (any, err
 }
 
 // putTaskGrant adds or updates a (grantee, level) grant on the task.
-func (s *TaskService) putTaskGrant(ctx context.Context, body []byte) (any, error) {
-	var in csil.PutTaskGrantRequest
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *TaskService) PutTaskGrant(ctx context.Context, in csil.PutTaskGrantRequest) (csil.EmptyResponse, error) {
 	gt := granteeTypeVal(in.GranteeType)
 	if gt != models.GranteeMember && gt != models.GranteeGroup {
-		return nil, csilrpc.BadRequest("invalid grantee_type")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("invalid grantee_type")
 	}
 	if in.GranteeId == "" {
-		return nil, csilrpc.BadRequest("grantee_id is required")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("grantee_id is required")
 	}
 	level := accessLevelVal(in.AccessLevel, "")
 	if !validAccessLevel(level) {
-		return nil, csilrpc.BadRequest("invalid access_level")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("invalid access_level")
 	}
 	t, _, err := s.requireTaskFull(ctx, string(in.TaskId))
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	grant := &models.TaskGrant{
 		TaskID: t.TaskID, HouseID: t.HouseID,
 		GranteeType: gt, GranteeID: in.GranteeId, AccessLevel: level,
 	}
 	if err := s.Store.PutTaskGrant(ctx, grant); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
 // deleteTaskGrant removes a grant from the task.
-func (s *TaskService) deleteTaskGrant(ctx context.Context, body []byte) (any, error) {
-	var in csil.TaskGrantRef
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *TaskService) DeleteTaskGrant(ctx context.Context, in csil.TaskGrantRef) (csil.EmptyResponse, error) {
 	gt := granteeTypeVal(in.GranteeType)
 	if gt == "" || in.GranteeId == "" {
-		return nil, csilrpc.BadRequest("grantee_type and grantee_id are required")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("grantee_type and grantee_id are required")
 	}
 	t, _, err := s.requireTaskFull(ctx, string(in.TaskId))
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.DeleteTaskGrant(ctx, t.TaskID, gt, in.GranteeId); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
@@ -516,12 +479,10 @@ func derefTaskStatus(p *csil.TaskStatus, fallback string) string {
 	if p == nil {
 		return fallback
 	}
-	switch v := (*p).(type) {
-	case string:
-		return v
-	default:
-		return fallback
+	if s := string(*p); s != "" {
+		return s
 	}
+	return fallback
 }
 
 func tsToTimePtr(p *csil.Timestamp) *time.Time {

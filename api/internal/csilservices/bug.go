@@ -28,34 +28,30 @@ type BugService struct{ Store store.Store }
 const bugProjectName = "Longhouse Bug Fixes from Users"
 
 func (s *BugService) Register(d *csilrpc.Dispatcher) {
-	d.Register("bug", "ReportBug", s.reportBug)
+	d.RegisterTyped("bug", "ReportBug", csilrpc.Route(s.ReportBug, csil.DecodeBugReportBugRequest, csil.EncodeBugReportBugResponse))
 }
 
-func (s *BugService) reportBug(ctx context.Context, body []byte) (any, error) {
-	var req csil.BugReportRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *BugService) ReportBug(ctx context.Context, req csil.BugReportRequest) (csil.Task, error) {
 	if req.HouseId == "" {
-		return nil, csilrpc.BadRequest("house_id is required")
+		return csil.Task{}, csilrpc.BadRequest("house_id is required")
 	}
 	if strings.TrimSpace(req.Title) == "" {
-		return nil, csilrpc.BadRequest("title is required")
+		return csil.Task{}, csilrpc.BadRequest("title is required")
 	}
 	identity, callerMemberID, err := requireMemberForHouse(ctx, string(req.HouseId))
 	if err != nil {
-		return nil, err
+		return csil.Task{}, err
 	}
 
 	// Gate on the per-house feature flag. Server-side re-check so a client
 	// on a different house can't bypass the UI hide.
 	if !s.bugReportsEnabled(ctx, string(req.HouseId)) {
-		return nil, csilrpc.Forbidden("bug reports are not enabled for this house")
+		return csil.Task{}, csilrpc.Forbidden("bug reports are not enabled for this house")
 	}
 
 	project, err := s.resolveTargetProject(ctx, string(req.HouseId), callerMemberID)
 	if err != nil {
-		return nil, err
+		return csil.Task{}, err
 	}
 
 	// Pick a task owner: first ProjectOwner by display_name (the store
@@ -81,10 +77,10 @@ func (s *BugService) reportBug(ctx context.Context, body []byte) (any, error) {
 		Tag:           &bugTag,
 	}
 	if err := s.Store.CreateTask(ctx, task); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Task{}, csilrpc.Internal("internal error")
 	}
 	if err := s.Store.AddProjectTask(ctx, project.ProjectID, task.TaskID, nextProjectTaskPosition(ctx, s.Store, project.ProjectID)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Task{}, csilrpc.Internal("internal error")
 	}
 	// Assign the picked owner so it shows on the task card too — matches
 	// how regular TaskService.CreateTask defaults assignees when none are

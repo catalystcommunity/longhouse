@@ -1,5 +1,5 @@
 name: longhouse-build-test
-description: "Build and test the Go API and webapp modules"
+description: "Build and test the Go API module"
 job:
   image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
   source:
@@ -24,13 +24,6 @@ job:
     go build ./...
 
     echo "=== Testing API ==="
-    go test ./...
-
-    echo "=== Building Webapp ==="
-    cd ../webapp
-    go build ./...
-
-    echo "=== Testing Webapp ==="
     go test ./...
 
     echo "=== All builds and tests passed ==="

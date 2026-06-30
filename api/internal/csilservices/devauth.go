@@ -24,15 +24,15 @@ type DevAuthService struct {
 }
 
 func (s *DevAuthService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterPublic("devauth", "ListDevUsers", s.listDevUsers)
-	d.RegisterPublic("devauth", "DevLogin", s.devLogin)
+	d.RegisterTypedPublic("devauth", "ListDevUsers", csilrpc.Route(s.ListDevUsers, csil.DecodeDevAuthListDevUsersRequest, csil.EncodeDevAuthListDevUsersResponse))
+	d.RegisterTypedPublic("devauth", "DevLogin", csilrpc.Route(s.DevLogin, csil.DecodeDevAuthDevLoginRequest, csil.EncodeDevAuthDevLoginResponse))
 }
 
-func (s *DevAuthService) listDevUsers(ctx context.Context, _ []byte) (any, error) {
+func (s *DevAuthService) ListDevUsers(ctx context.Context, _ csil.EmptyRequest) (csil.DevUsersResponse, error) {
 	houses, err := s.Auth.Store.ListHouses(ctx, 1000, 0)
 	if err != nil {
 		log.WithError(err).Error("devauth.ListDevUsers: list houses failed")
-		return nil, csilrpc.Internal("internal error")
+		return csil.DevUsersResponse{}, csilrpc.Internal("internal error")
 	}
 	out := []csil.DevUserEntry{}
 	for _, h := range houses {
@@ -61,25 +61,21 @@ func (s *DevAuthService) listDevUsers(ctx context.Context, _ []byte) (any, error
 	return csil.DevUsersResponse{Users: out}, nil
 }
 
-func (s *DevAuthService) devLogin(ctx context.Context, body []byte) (any, error) {
+func (s *DevAuthService) DevLogin(ctx context.Context, req csil.DevLoginRequest) (csil.LoginResponse, error) {
 	if s.Auth.JWTSecret == nil {
-		return nil, csilrpc.Internal("dev-auth not configured")
-	}
-	var req csil.DevLoginRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
+		return csil.LoginResponse{}, csilrpc.Internal("dev-auth not configured")
 	}
 	if req.MemberId == "" {
-		return nil, csilrpc.BadRequest("member_id is required")
+		return csil.LoginResponse{}, csilrpc.BadRequest("member_id is required")
 	}
 	member, err := s.Auth.Store.GetMemberByID(ctx, string(req.MemberId))
 	if err != nil || member == nil {
-		return nil, csilrpc.BadRequest("member not found")
+		return csil.LoginResponse{}, csilrpc.BadRequest("member not found")
 	}
 	// Dev login bypasses linkkeys entirely, so there are no claims to reconcile.
 	resp, err := s.Auth.issueToken(ctx, member.LinkkeysDomain, member.LinkkeysUserID, member.DisplayName, nil, models.AuditActionDevLogin)
 	if err != nil {
-		return nil, err
+		return csil.LoginResponse{}, err
 	}
 	log.WithFields(log.Fields{
 		"env":              s.Env,

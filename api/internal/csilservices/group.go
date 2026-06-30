@@ -18,25 +18,21 @@ import (
 type GroupService struct{ Store store.Store }
 
 func (s *GroupService) Register(d *csilrpc.Dispatcher) {
-	d.Register("group", "CreateGroup", s.createGroup)
-	d.Register("group", "UpdateGroup", s.updateGroup)
-	d.Register("group", "DeleteGroup", s.deleteGroup)
-	d.Register("group", "ListGroups", s.listGroups)
-	d.Register("group", "AddGroupMember", s.addGroupMember)
-	d.Register("group", "RemoveGroupMember", s.removeGroupMember)
-	d.Register("group", "ListGroupMembers", s.listGroupMembers)
+	d.RegisterTyped("group", "CreateGroup", csilrpc.Route(s.CreateGroup, csil.DecodeGroupCreateGroupRequest, csil.EncodeGroupCreateGroupResponse))
+	d.RegisterTyped("group", "UpdateGroup", csilrpc.Route(s.UpdateGroup, csil.DecodeGroupUpdateGroupRequest, csil.EncodeGroupUpdateGroupResponse))
+	d.RegisterTyped("group", "DeleteGroup", csilrpc.Route(s.DeleteGroup, csil.DecodeGroupDeleteGroupRequest, csil.EncodeGroupDeleteGroupResponse))
+	d.RegisterTyped("group", "ListGroups", csilrpc.Route(s.ListGroups, csil.DecodeGroupListGroupsRequest, csil.EncodeGroupListGroupsResponse))
+	d.RegisterTyped("group", "AddGroupMember", csilrpc.Route(s.AddGroupMember, csil.DecodeGroupAddGroupMemberRequest, csil.EncodeGroupAddGroupMemberResponse))
+	d.RegisterTyped("group", "RemoveGroupMember", csilrpc.Route(s.RemoveGroupMember, csil.DecodeGroupRemoveGroupMemberRequest, csil.EncodeGroupRemoveGroupMemberResponse))
+	d.RegisterTyped("group", "ListGroupMembers", csilrpc.Route(s.ListGroupMembers, csil.DecodeGroupListGroupMembersRequest, csil.EncodeGroupListGroupMembersResponse))
 }
 
-func (s *GroupService) createGroup(ctx context.Context, body []byte) (any, error) {
-	var in csil.Group
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *GroupService) CreateGroup(ctx context.Context, in csil.Group) (csil.Group, error) {
 	if in.HouseId == "" || in.Name == "" {
-		return nil, csilrpc.BadRequest("house_id and name are required")
+		return csil.Group{}, csilrpc.BadRequest("house_id and name are required")
 	}
 	if _, _, err := requireRoleForHouse(ctx, string(in.HouseId), "admin"); err != nil {
-		return nil, err
+		return csil.Group{}, err
 	}
 	g := &models.Group{
 		HouseID:     string(in.HouseId),
@@ -44,25 +40,21 @@ func (s *GroupService) createGroup(ctx context.Context, body []byte) (any, error
 		Description: derefStr(in.Description),
 	}
 	if err := s.Store.CreateGroup(ctx, g); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Group{}, csilrpc.Internal("internal error")
 	}
 	return groupToCSIL(g), nil
 }
 
-func (s *GroupService) updateGroup(ctx context.Context, body []byte) (any, error) {
-	var in csil.Group
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *GroupService) UpdateGroup(ctx context.Context, in csil.Group) (csil.Group, error) {
 	if in.GroupId == "" {
-		return nil, csilrpc.BadRequest("group_id is required")
+		return csil.Group{}, csilrpc.BadRequest("group_id is required")
 	}
 	existing, err := s.Store.GetGroupByID(ctx, string(in.GroupId))
 	if err != nil {
-		return nil, csilrpc.NotFound("group not found")
+		return csil.Group{}, csilrpc.NotFound("group not found")
 	}
 	if _, _, err := requireRoleForHouse(ctx, existing.HouseID, "admin"); err != nil {
-		return nil, err
+		return csil.Group{}, err
 	}
 	if in.Name != "" {
 		existing.Name = in.Name
@@ -71,40 +63,32 @@ func (s *GroupService) updateGroup(ctx context.Context, body []byte) (any, error
 		existing.Description = *in.Description
 	}
 	if err := s.Store.UpdateGroup(ctx, existing); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Group{}, csilrpc.Internal("internal error")
 	}
 	return groupToCSIL(existing), nil
 }
 
-func (s *GroupService) deleteGroup(ctx context.Context, body []byte) (any, error) {
-	var id csil.GroupID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *GroupService) DeleteGroup(ctx context.Context, id csil.GroupID) (csil.EmptyResponse, error) {
 	existing, err := s.Store.GetGroupByID(ctx, string(id))
 	if err != nil || existing.DeletedAt != nil {
-		return nil, csilrpc.NotFound("group not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("group not found")
 	}
 	_, callerMemberID, err := requireRoleForHouse(ctx, existing.HouseID, "admin")
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	opID, err := s.Store.NewID(ctx)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if err := s.Store.SoftDeleteGroup(ctx, existing.GroupID, callerMemberID, opID); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	annotateDelete(ctx, existing.HouseID, "group", existing.GroupID, opID, existing)
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *GroupService) listGroups(ctx context.Context, body []byte) (any, error) {
-	var req csil.HouseScopedListRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *GroupService) ListGroups(ctx context.Context, req csil.HouseScopedListRequest) ([]csil.Group, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}
@@ -116,43 +100,31 @@ func (s *GroupService) listGroups(ctx context.Context, body []byte) (any, error)
 	return groupsToCSIL(rows), nil
 }
 
-func (s *GroupService) addGroupMember(ctx context.Context, body []byte) (any, error) {
-	var ref csil.GroupMemberRef
-	if err := csilrpc.Decode(body, &ref); err != nil {
-		return nil, err
-	}
+func (s *GroupService) AddGroupMember(ctx context.Context, ref csil.GroupMemberRef) (csil.EmptyResponse, error) {
 	if err := s.adminAuthzGroup(ctx, string(ref.GroupId)); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.AddGroupMember(ctx, string(ref.GroupId), string(ref.MemberId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *GroupService) removeGroupMember(ctx context.Context, body []byte) (any, error) {
-	var ref csil.GroupMemberRef
-	if err := csilrpc.Decode(body, &ref); err != nil {
-		return nil, err
-	}
+func (s *GroupService) RemoveGroupMember(ctx context.Context, ref csil.GroupMemberRef) (csil.EmptyResponse, error) {
 	if err := s.adminAuthzGroup(ctx, string(ref.GroupId)); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.RemoveGroupMember(ctx, string(ref.GroupId), string(ref.MemberId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-// listGroupMembers's CSIL request is MemberScopedListRequest, but only
+// ListGroupMembers's CSIL request is MemberScopedListRequest, but only
 // the group_id-equivalent is meaningful here. We accept either shape via
 // the existing decoder; the house_id field is ignored (the group's own
 // house gates the authz).
-func (s *GroupService) listGroupMembers(ctx context.Context, body []byte) (any, error) {
-	var req csil.MemberScopedListRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *GroupService) ListGroupMembers(ctx context.Context, req csil.MemberScopedListRequest) ([]csil.Member, error) {
 	// In this service the "member id" slot carries the group id (the CSIL
 	// signature is shared with the per-member listings on other services).
 	groupID := string(req.MemberId)

@@ -23,50 +23,42 @@ const (
 )
 
 func (s *SettingsService) Register(d *csilrpc.Dispatcher) {
-	d.Register("settings", "GetSettings", s.getSettings)
-	d.Register("settings", "UpdateSettings", s.updateSettings)
+	d.RegisterTyped("settings", "GetSettings", csilrpc.Route(s.GetSettings, csil.DecodeSettingsGetSettingsRequest, csil.EncodeSettingsGetSettingsResponse))
+	d.RegisterTyped("settings", "UpdateSettings", csilrpc.Route(s.UpdateSettings, csil.DecodeSettingsUpdateSettingsRequest, csil.EncodeSettingsUpdateSettingsResponse))
 }
 
-// getSettings returns the merged effective settings for a house: defaults
+// GetSettings returns the merged effective settings for a house: defaults
 // filled in for any key not present in house_settings. Any member of the
 // house may read — settings drive client UI so every authenticated member
 // needs the merged dictionary.
-func (s *SettingsService) getSettings(ctx context.Context, body []byte) (any, error) {
-	var houseID csil.HouseID
-	if err := csilrpc.Decode(body, &houseID); err != nil {
-		return nil, err
-	}
+func (s *SettingsService) GetSettings(ctx context.Context, houseID csil.HouseID) (csil.EffectiveSettings, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(houseID)); err != nil {
-		return nil, err
+		return csil.EffectiveSettings{}, err
 	}
 	return s.loadEffective(ctx, string(houseID))
 }
 
-// updateSettings applies a partial update. Only fields present in the
+// UpdateSettings applies a partial update. Only fields present in the
 // inbound EffectiveSettings (non-nil) are written. Every house-layer key
 // requires the admin role on house_id; the per-key check is centralized
 // here so callers can't bypass it by stuffing a field into the partial.
-func (s *SettingsService) updateSettings(ctx context.Context, body []byte) (any, error) {
-	var req csil.UpdateSettingsRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *SettingsService) UpdateSettings(ctx context.Context, req csil.UpdateSettingsRequest) (csil.EffectiveSettings, error) {
 	if req.HouseId == "" {
-		return nil, csilrpc.BadRequest("house_id is required")
+		return csil.EffectiveSettings{}, csilrpc.BadRequest("house_id is required")
 	}
 	_, memberID, err := requireRoleForHouse(ctx, string(req.HouseId), "admin")
 	if err != nil {
-		return nil, err
+		return csil.EffectiveSettings{}, err
 	}
 
 	if req.Settings.BugReportsEnabled != nil {
 		if err := s.writeKey(ctx, string(req.HouseId), settingBugReportsEnabled, *req.Settings.BugReportsEnabled, memberID); err != nil {
-			return nil, err
+			return csil.EffectiveSettings{}, err
 		}
 	}
 	if req.Settings.BugReportsProjectId != nil {
 		if err := s.writeKey(ctx, string(req.HouseId), settingBugReportsProjectID, string(*req.Settings.BugReportsProjectId), memberID); err != nil {
-			return nil, err
+			return csil.EffectiveSettings{}, err
 		}
 	}
 	return s.loadEffective(ctx, string(req.HouseId))

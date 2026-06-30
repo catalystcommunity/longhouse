@@ -18,9 +18,9 @@ import (
 type DependencyService struct{ Store store.Store }
 
 func (s *DependencyService) Register(d *csilrpc.Dispatcher) {
-	d.Register("dependency", "AddDependency", s.addDependency)
-	d.Register("dependency", "RemoveDependency", s.removeDependency)
-	d.Register("dependency", "GetDependencies", s.getDependencies)
+	d.RegisterTyped("dependency", "AddDependency", csilrpc.Route(s.AddDependency, csil.DecodeDependencyAddDependencyRequest, csil.EncodeDependencyAddDependencyResponse))
+	d.RegisterTyped("dependency", "RemoveDependency", csilrpc.Route(s.RemoveDependency, csil.DecodeDependencyRemoveDependencyRequest, csil.EncodeDependencyRemoveDependencyResponse))
+	d.RegisterTyped("dependency", "GetDependencies", csilrpc.Route(s.GetDependencies, csil.DecodeDependencyGetDependenciesRequest, csil.EncodeDependencyGetDependenciesResponse))
 }
 
 // depNode is a resolved edge endpoint: exactly one of task/proj is set.
@@ -56,7 +56,7 @@ func (n depNode) access(ctx context.Context, pol *policy, g grantee) string {
 // toCSIL builds the wire node, enriching title/status from the underlying
 // row (neither lives on the edge — these are the API-only fields).
 func (n depNode) toCSIL() csil.DependencyNode {
-	out := csil.DependencyNode{Type: n.nodeType, Id: n.id()}
+	out := csil.DependencyNode{Type: csil.DependencyNodeType(n.nodeType), Id: n.id()}
 	if n.task != nil {
 		out.Title = n.task.Title
 		if n.task.Status != "" {
@@ -97,59 +97,55 @@ func (s *DependencyService) loadNode(ctx context.Context, nodeType, nodeID strin
 // addDependency records that `dependent` depends on `dependency`. Requires
 // edit on the dependent and read on the dependency; both ends must be in the
 // same house; self-edges and cycle-creating edges are rejected.
-func (s *DependencyService) addDependency(ctx context.Context, body []byte) (any, error) {
-	var in csil.DependencyRef
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *DependencyService) AddDependency(ctx context.Context, in csil.DependencyRef) (csil.EmptyResponse, error) {
 	depType, depID, onType, onID, err := decodeRef(in)
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if depType == onType && depID == onID {
-		return nil, csilrpc.BadRequest("a work item cannot depend on itself")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("a work item cannot depend on itself")
 	}
 
 	dependent, err := s.loadNode(ctx, depType, depID)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if dependent == nil {
-		return nil, csilrpc.NotFound("dependent not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("dependent not found")
 	}
 	dependency, err := s.loadNode(ctx, onType, onID)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if dependency == nil {
-		return nil, csilrpc.NotFound("dependency not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("dependency not found")
 	}
 	if dependent.houseID() != dependency.houseID() {
-		return nil, csilrpc.BadRequest("both work items must belong to the same house")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("both work items must belong to the same house")
 	}
 
 	ident, memberID, err := requireMemberForHouse(ctx, dependent.houseID())
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	pol := newPolicy(s.Store)
 	g := pol.granteeFor(ctx, ident, dependent.houseID(), memberID)
 	if !canEdit(dependent.access(ctx, pol, g)) {
-		return nil, csilrpc.Forbidden("you need edit access to the dependent work item")
+		return csil.EmptyResponse{}, csilrpc.Forbidden("you need edit access to the dependent work item")
 	}
 	if !canRead(dependency.access(ctx, pol, g)) {
 		// Don't confirm the existence of a dependency the caller can't see.
-		return nil, csilrpc.NotFound("dependency not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("dependency not found")
 	}
 
 	// Cycle check (in the DB): if a path already runs from the dependency back
 	// to the dependent, adding dependent->dependency would close a loop.
 	cycles, err := s.Store.DependencyPathExists(ctx, onType, onID, depType, depID)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if cycles {
-		return nil, csilrpc.Conflict("that dependency would create a cycle")
+		return csil.EmptyResponse{}, csilrpc.Conflict("that dependency would create a cycle")
 	}
 
 	row := &models.Dependency{
@@ -160,39 +156,35 @@ func (s *DependencyService) addDependency(ctx context.Context, body []byte) (any
 		DependencyID:   onID,
 	}
 	if err := s.Store.AddDependency(ctx, row); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
 // removeDependency drops the edge. Requires edit on the dependent.
-func (s *DependencyService) removeDependency(ctx context.Context, body []byte) (any, error) {
-	var in csil.DependencyRef
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *DependencyService) RemoveDependency(ctx context.Context, in csil.DependencyRef) (csil.EmptyResponse, error) {
 	depType, depID, onType, onID, err := decodeRef(in)
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	dependent, err := s.loadNode(ctx, depType, depID)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if dependent == nil {
-		return nil, csilrpc.NotFound("dependent not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("dependent not found")
 	}
 	ident, memberID, err := requireMemberForHouse(ctx, dependent.houseID())
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	pol := newPolicy(s.Store)
 	g := pol.granteeFor(ctx, ident, dependent.houseID(), memberID)
 	if !canEdit(dependent.access(ctx, pol, g)) {
-		return nil, csilrpc.Forbidden("you need edit access to the dependent work item")
+		return csil.EmptyResponse{}, csilrpc.Forbidden("you need edit access to the dependent work item")
 	}
 	if err := s.Store.RemoveDependency(ctx, depType, depID, onType, onID); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
@@ -200,40 +192,36 @@ func (s *DependencyService) removeDependency(ctx context.Context, body []byte) (
 // getDependencies returns both directions for one target. Requires read on
 // the target; nodes the caller can't read (or that have gone away) are
 // silently omitted from both lists.
-func (s *DependencyService) getDependencies(ctx context.Context, body []byte) (any, error) {
-	var in csil.DependencyTarget
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *DependencyService) GetDependencies(ctx context.Context, in csil.DependencyTarget) (csil.DependencyGraph, error) {
 	nodeType := nodeTypeVal(in.Type)
 	if !models.ValidDependencyNodeType(nodeType) || in.Id == "" {
-		return nil, csilrpc.BadRequest("type and id are required")
+		return csil.DependencyGraph{}, csilrpc.BadRequest("type and id are required")
 	}
 
 	target, err := s.loadNode(ctx, nodeType, in.Id)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.DependencyGraph{}, csilrpc.Internal("internal error")
 	}
 	if target == nil {
-		return nil, csilrpc.NotFound("work item not found")
+		return csil.DependencyGraph{}, csilrpc.NotFound("work item not found")
 	}
 	ident, memberID, err := requireMemberForHouse(ctx, target.houseID())
 	if err != nil {
-		return nil, err
+		return csil.DependencyGraph{}, err
 	}
 	pol := newPolicy(s.Store)
 	g := pol.granteeFor(ctx, ident, target.houseID(), memberID)
 	if !canRead(target.access(ctx, pol, g)) {
-		return nil, csilrpc.NotFound("work item not found")
+		return csil.DependencyGraph{}, csilrpc.NotFound("work item not found")
 	}
 
 	forward, err := s.Store.ListDependencies(ctx, nodeType, in.Id)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.DependencyGraph{}, csilrpc.Internal("internal error")
 	}
 	reverse, err := s.Store.ListDependents(ctx, nodeType, in.Id)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.DependencyGraph{}, csilrpc.Internal("internal error")
 	}
 
 	out := csil.DependencyGraph{
@@ -299,11 +287,8 @@ func decodeRef(in csil.DependencyRef) (depType, depID, onType, onID string, err 
 	return depType, depID, onType, onID, nil
 }
 
-// nodeTypeVal teases the string out of the CSIL DependencyNodeType enum alias
-// (generated as interface{}). nil/empty/non-string → "".
+// nodeTypeVal returns the string value of the CSIL DependencyNodeType enum
+// (a string-based type).
 func nodeTypeVal(v csil.DependencyNodeType) string {
-	if s, ok := v.(string); ok {
-		return s
-	}
-	return ""
+	return string(v)
 }
