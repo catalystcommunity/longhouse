@@ -285,8 +285,5 @@ func accString(p *csil.AccessLevel) string {
 	if p == nil {
 		return ""
 	}
-	if s, ok := (*p).(string); ok {
-		return s
-	}
-	return ""
+	return string(*p)
 }

@@ -24,31 +24,27 @@ import (
 type HouseService struct{ Store store.Store }
 
 func (s *HouseService) Register(d *csilrpc.Dispatcher) {
-	d.Register("house", "CreateHouse", s.createHouse)
-	d.Register("house", "GetHouse", s.getHouse)
-	d.Register("house", "UpdateHouse", s.updateHouse)
-	d.Register("house", "DeleteHouse", s.deleteHouse)
-	d.Register("house", "ListHouses", s.listHouses)
+	d.RegisterTyped("house", "CreateHouse", csilrpc.Route(s.CreateHouse, csil.DecodeHouseCreateHouseRequest, csil.EncodeHouseCreateHouseResponse))
+	d.RegisterTyped("house", "GetHouse", csilrpc.Route(s.GetHouse, csil.DecodeHouseGetHouseRequest, csil.EncodeHouseGetHouseResponse))
+	d.RegisterTyped("house", "UpdateHouse", csilrpc.Route(s.UpdateHouse, csil.DecodeHouseUpdateHouseRequest, csil.EncodeHouseUpdateHouseResponse))
+	d.RegisterTyped("house", "DeleteHouse", csilrpc.Route(s.DeleteHouse, csil.DecodeHouseDeleteHouseRequest, csil.EncodeHouseDeleteHouseResponse))
+	d.RegisterTyped("house", "ListHouses", csilrpc.Route(s.ListHouses, csil.DecodeHouseListHousesRequest, csil.EncodeHouseListHousesResponse))
 }
 
-func (s *HouseService) createHouse(ctx context.Context, body []byte) (any, error) {
-	var in csil.House
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *HouseService) CreateHouse(ctx context.Context, in csil.House) (csil.House, error) {
 	id, err := requireIdentity(ctx)
 	if err != nil {
-		return nil, err
+		return csil.House{}, err
 	}
 	if in.Name == "" {
-		return nil, csilrpc.BadRequest("name is required")
+		return csil.House{}, csilrpc.BadRequest("name is required")
 	}
 	h := &models.House{
 		Name:        in.Name,
 		Description: derefStr(in.Description),
 	}
 	if err := s.Store.CreateHouse(ctx, h); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.House{}, csilrpc.Internal("internal error")
 	}
 	// Seed the canonical roles + register the caller as admin so the new
 	// house is immediately usable on next token refresh. Failures here
@@ -56,11 +52,11 @@ func (s *HouseService) createHouse(ctx context.Context, body []byte) (any, error
 	// 500; the caller can retry / clean up manually.
 	adminRole := &models.Role{HouseID: h.HouseID, Name: models.RoleAdmin, Description: "Full administrative access"}
 	if err := s.Store.CreateRole(ctx, adminRole); err != nil {
-		return nil, csilrpc.Internal("could not create admin role")
+		return csil.House{}, csilrpc.Internal("could not create admin role")
 	}
 	memberRole := &models.Role{HouseID: h.HouseID, Name: models.RoleMember, Description: "Standard member"}
 	if err := s.Store.CreateRole(ctx, memberRole); err != nil {
-		return nil, csilrpc.Internal("could not create member role")
+		return csil.House{}, csilrpc.Internal("could not create member role")
 	}
 	member := &models.Member{
 		HouseID:        h.HouseID,
@@ -69,48 +65,40 @@ func (s *HouseService) createHouse(ctx context.Context, body []byte) (any, error
 		DisplayName:    id.DisplayName,
 	}
 	if err := s.Store.CreateMember(ctx, member); err != nil {
-		return nil, csilrpc.Internal("could not create founder member")
+		return csil.House{}, csilrpc.Internal("could not create founder member")
 	}
 	for _, r := range []*models.Role{adminRole, memberRole} {
 		if err := s.Store.AssignRole(ctx, member.MemberID, r.RoleID); err != nil {
-			return nil, csilrpc.Internal("could not assign founder role")
+			return csil.House{}, csilrpc.Internal("could not assign founder role")
 		}
 	}
 	return houseToCSIL(h), nil
 }
 
-func (s *HouseService) getHouse(ctx context.Context, body []byte) (any, error) {
-	var id csil.HouseID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *HouseService) GetHouse(ctx context.Context, id csil.HouseID) (csil.House, error) {
 	h, err := s.Store.GetHouseByID(ctx, string(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, csilrpc.NotFound("house not found")
+			return csil.House{}, csilrpc.NotFound("house not found")
 		}
-		return nil, csilrpc.Internal("internal error")
+		return csil.House{}, csilrpc.Internal("internal error")
 	}
 	if _, _, err := requireMemberForHouse(ctx, h.HouseID); err != nil {
-		return nil, err
+		return csil.House{}, err
 	}
 	return houseToCSIL(h), nil
 }
 
-func (s *HouseService) updateHouse(ctx context.Context, body []byte) (any, error) {
-	var in csil.House
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *HouseService) UpdateHouse(ctx context.Context, in csil.House) (csil.House, error) {
 	if in.HouseId == "" {
-		return nil, csilrpc.BadRequest("house_id is required")
+		return csil.House{}, csilrpc.BadRequest("house_id is required")
 	}
 	existing, err := s.Store.GetHouseByID(ctx, string(in.HouseId))
 	if err != nil {
-		return nil, csilrpc.NotFound("house not found")
+		return csil.House{}, csilrpc.NotFound("house not found")
 	}
 	if _, _, err := requireRoleForHouse(ctx, existing.HouseID, "admin"); err != nil {
-		return nil, err
+		return csil.House{}, err
 	}
 	if in.Name != "" {
 		existing.Name = in.Name
@@ -119,25 +107,21 @@ func (s *HouseService) updateHouse(ctx context.Context, body []byte) (any, error
 		existing.Description = *in.Description
 	}
 	if err := s.Store.UpdateHouse(ctx, existing); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.House{}, csilrpc.Internal("internal error")
 	}
 	return houseToCSIL(existing), nil
 }
 
-func (s *HouseService) deleteHouse(ctx context.Context, body []byte) (any, error) {
-	var id csil.HouseID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *HouseService) DeleteHouse(ctx context.Context, id csil.HouseID) (csil.EmptyResponse, error) {
 	existing, err := s.Store.GetHouseByID(ctx, string(id))
 	if err != nil {
-		return nil, csilrpc.NotFound("house not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("house not found")
 	}
 	if _, _, err := requireRoleForHouse(ctx, existing.HouseID, "admin"); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.DeleteHouse(ctx, existing.HouseID); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
@@ -145,7 +129,7 @@ func (s *HouseService) deleteHouse(ctx context.Context, body []byte) (any, error
 // listHouses returns the houses the caller belongs to. The CSIL signature
 // takes HouseListRequest{limit, offset} but we ignore those here — the
 // identity's houses list is small (single-digit in practice).
-func (s *HouseService) listHouses(ctx context.Context, body []byte) (any, error) {
+func (s *HouseService) ListHouses(ctx context.Context, _ csil.HouseListRequest) ([]csil.House, error) {
 	id, err := requireIdentity(ctx)
 	if err != nil {
 		return nil, err

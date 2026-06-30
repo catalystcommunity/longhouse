@@ -1,0 +1,4 @@
+[package]
+name = "longhouse-client"
+version = "0.13.0"
+edition = "2021"

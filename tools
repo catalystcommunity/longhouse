@@ -8,15 +8,12 @@ usage() {
 Usage: ./tools <command>
 
 Commands:
-  build           Build all Go binaries
+  build           Build Go binaries (the API server)
   build-api       Build the API server
-  build-web       Build the web UI server
   test            Run all tests
   test-api        Run API tests
-  test-web        Run webapp tests
   run-api         Run the API server locally (sources .env.dev if present)
-  run-web         Run the web UI locally
-  run-client      Run the SPA dev server (vite on :5173)
+  run-web         Run the SPA dev server (vite on :5173, from webapp/)
   dev             Boot postgres + api + vite together in one terminal
                   (postgres in docker, api+vite as logged background jobs)
   dev-down        Stop the dev stack (postgres container + background jobs)
@@ -58,16 +55,8 @@ build_api() {
     echo "Built: api/longhouse"
 }
 
-build_web() {
-    echo "Building web UI..."
-    cd "$SCRIPT_DIR/webapp"
-    go build -o longhouse-web .
-    echo "Built: webapp/longhouse-web"
-}
-
 build() {
     build_api
-    build_web
 }
 
 test_api() {
@@ -76,15 +65,8 @@ test_api() {
     go test ./...
 }
 
-test_web() {
-    echo "Testing webapp..."
-    cd "$SCRIPT_DIR/webapp"
-    go test ./...
-}
-
 run_tests() {
     test_api
-    test_web
 }
 
 run_api() {
@@ -93,13 +75,10 @@ run_api() {
     go run . serve "$@"
 }
 
+# run_web runs the SolidJS SPA (webapp/) dev server. The web tier is the SPA
+# now; there is no longer a Go web binary.
 run_web() {
     cd "$SCRIPT_DIR/webapp"
-    go run . serve "$@"
-}
-
-run_client() {
-    cd "$SCRIPT_DIR/client"
     npm run dev -- "$@"
 }
 
@@ -175,7 +154,7 @@ dev() {
     echo $! > "$SCRIPT_DIR/logs/api.pid"
 
     echo "▶ vite → http://localhost:5173               (logs: logs/vite.log)"
-    ( cd "$SCRIPT_DIR/client" && exec npm run dev ) >"$SCRIPT_DIR/logs/vite.log" 2>&1 &
+    ( cd "$SCRIPT_DIR/webapp" && exec npm run dev ) >"$SCRIPT_DIR/logs/vite.log" 2>&1 &
     echo $! > "$SCRIPT_DIR/logs/vite.pid"
 
     set +m
@@ -244,20 +223,16 @@ docker_build() {
 clean() {
     echo "Cleaning build artifacts..."
     rm -f "$SCRIPT_DIR/api/longhouse"
-    rm -f "$SCRIPT_DIR/webapp/longhouse-web"
     echo "Done"
 }
 
 case "${1:-}" in
     build)        build ;;
     build-api)    build_api ;;
-    build-web)    build_web ;;
     test)         run_tests ;;
     test-api)     test_api ;;
-    test-web)     test_web ;;
     run-api)      shift; run_api "$@" ;;
     run-web)      shift; run_web "$@" ;;
-    run-client)   shift; run_client "$@" ;;
     dev)          dev ;;
     dev-down)     dev_down ;;
     docker-build) docker_build ;;

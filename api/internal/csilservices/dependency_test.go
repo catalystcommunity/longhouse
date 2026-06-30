@@ -151,9 +151,9 @@ func ctxAs(houseID, member string, roles ...string) context.Context {
 
 func ref(dt, di, ct, ci string) csil.DependencyRef {
 	return csil.DependencyRef{
-		DependentType:  dt,
+		DependentType:  csil.DependencyNodeType(dt),
 		DependentId:    di,
-		DependencyType: ct,
+		DependencyType: csil.DependencyNodeType(ct),
 		DependencyId:   ci,
 	}
 }
@@ -189,16 +189,16 @@ func TestAddAndGetDependency(t *testing.T) {
 	ctx := ctxAs(h1, "me", "member")
 
 	// A depends on B.
-	if _, err := svc.addDependency(ctx, enc(t, ref("task", "a", "task", "b"))); err != nil {
+	if _, err := svc.AddDependency(ctx, ref("task", "a", "task", "b")); err != nil {
 		t.Fatalf("add: %v", err)
 	}
 
 	// Forward view of A: depends on B; nothing depends on A.
-	out, err := svc.getDependencies(ctx, enc(t, csil.DependencyTarget{Type: "task", Id: "a"}))
+	out, err := svc.GetDependencies(ctx, csil.DependencyTarget{Type: "task", Id: "a"})
 	if err != nil {
 		t.Fatalf("get a: %v", err)
 	}
-	g := out.(csil.DependencyGraph)
+	g := out
 	if !nodeIDs(g.Dependencies)["b"] || len(g.Dependencies) != 1 {
 		t.Fatalf("A.dependencies = %+v, want [b]", g.Dependencies)
 	}
@@ -210,11 +210,11 @@ func TestAddAndGetDependency(t *testing.T) {
 	}
 
 	// Reverse view of B: A depends on B.
-	out, err = svc.getDependencies(ctx, enc(t, csil.DependencyTarget{Type: "task", Id: "b"}))
+	out, err = svc.GetDependencies(ctx, csil.DependencyTarget{Type: "task", Id: "b"})
 	if err != nil {
 		t.Fatalf("get b: %v", err)
 	}
-	g = out.(csil.DependencyGraph)
+	g = out
 	if !nodeIDs(g.Dependents)["a"] || len(g.Dependents) != 1 {
 		t.Fatalf("B.dependents = %+v, want [a]", g.Dependents)
 	}
@@ -230,9 +230,9 @@ func TestAddDependencyIsIdempotent(t *testing.T) {
 	}}
 	svc := &DependencyService{Store: fs}
 	ctx := ctxAs(h1, "me", "member")
-	body := enc(t, ref("task", "a", "task", "b"))
+	body := ref("task", "a", "task", "b")
 	for i := 0; i < 2; i++ {
-		if _, err := svc.addDependency(ctx, body); err != nil {
+		if _, err := svc.AddDependency(ctx, body); err != nil {
 			t.Fatalf("add %d: %v", i, err)
 		}
 	}
@@ -247,7 +247,7 @@ func TestSelfDependencyRejected(t *testing.T) {
 	}}
 	svc := &DependencyService{Store: fs}
 	ctx := ctxAs(h1, "me", "member")
-	_, err := svc.addDependency(ctx, enc(t, ref("task", "a", "task", "a")))
+	_, err := svc.AddDependency(ctx, ref("task", "a", "task", "a"))
 	if errCode(err) != 400 {
 		t.Fatalf("self-dep: got %v (code %d), want 400", err, errCode(err))
 	}
@@ -262,13 +262,13 @@ func TestCycleRejected(t *testing.T) {
 	svc := &DependencyService{Store: fs}
 	ctx := ctxAs(h1, "me", "member")
 	// A->B->C, then C->A would close a loop.
-	if _, err := svc.addDependency(ctx, enc(t, ref("task", "a", "task", "b"))); err != nil {
+	if _, err := svc.AddDependency(ctx, ref("task", "a", "task", "b")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.addDependency(ctx, enc(t, ref("task", "b", "task", "c"))); err != nil {
+	if _, err := svc.AddDependency(ctx, ref("task", "b", "task", "c")); err != nil {
 		t.Fatal(err)
 	}
-	_, err := svc.addDependency(ctx, enc(t, ref("task", "c", "task", "a")))
+	_, err := svc.AddDependency(ctx, ref("task", "c", "task", "a"))
 	if errCode(err) != 409 {
 		t.Fatalf("cycle: got %v (code %d), want 409", err, errCode(err))
 	}
@@ -282,7 +282,7 @@ func TestAddRequiresEditOnDependent(t *testing.T) {
 	}}
 	svc := &DependencyService{Store: fs}
 	ctx := ctxAs(h1, "me", "member")
-	_, err := svc.addDependency(ctx, enc(t, ref("task", "a", "task", "b")))
+	_, err := svc.AddDependency(ctx, ref("task", "a", "task", "b"))
 	if errCode(err) != 403 {
 		t.Fatalf("edit-gate: got %v (code %d), want 403", err, errCode(err))
 	}
@@ -296,7 +296,7 @@ func TestAddRequiresReadOnDependency(t *testing.T) {
 	}}
 	svc := &DependencyService{Store: fs}
 	ctx := ctxAs(h1, "me", "member")
-	_, err := svc.addDependency(ctx, enc(t, ref("task", "a", "task", "b")))
+	_, err := svc.AddDependency(ctx, ref("task", "a", "task", "b"))
 	// Unreadable dependency is reported as not-found (don't leak existence).
 	if errCode(err) != 404 {
 		t.Fatalf("read-gate: got %v (code %d), want 404", err, errCode(err))
@@ -310,7 +310,7 @@ func TestCrossHouseRejected(t *testing.T) {
 	}}
 	svc := &DependencyService{Store: fs}
 	ctx := ctxAs(h1, "me", "member")
-	_, err := svc.addDependency(ctx, enc(t, ref("task", "a", "task", "b")))
+	_, err := svc.AddDependency(ctx, ref("task", "a", "task", "b"))
 	if errCode(err) != 400 {
 		t.Fatalf("cross-house: got %v (code %d), want 400", err, errCode(err))
 	}
@@ -329,11 +329,11 @@ func TestGetFiltersUnreadableNodes(t *testing.T) {
 	}
 	svc := &DependencyService{Store: fs}
 	ctx := ctxAs(h1, "me", "member")
-	out, err := svc.getDependencies(ctx, enc(t, csil.DependencyTarget{Type: "task", Id: "a"}))
+	out, err := svc.GetDependencies(ctx, csil.DependencyTarget{Type: "task", Id: "a"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	g := out.(csil.DependencyGraph)
+	g := out
 	ids := nodeIDs(g.Dependencies)
 	if ids["secret"] {
 		t.Fatalf("unreadable node leaked: %+v", g.Dependencies)
@@ -353,7 +353,7 @@ func TestRemoveDependency(t *testing.T) {
 	}
 	svc := &DependencyService{Store: fs}
 	ctx := ctxAs(h1, "me", "member")
-	if _, err := svc.removeDependency(ctx, enc(t, ref("task", "a", "task", "b"))); err != nil {
+	if _, err := svc.RemoveDependency(ctx, ref("task", "a", "task", "b")); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
 	if len(fs.edges) != 0 {
@@ -373,14 +373,14 @@ func TestMixedTaskProjectEdge(t *testing.T) {
 	}
 	svc := &DependencyService{Store: fs}
 	ctx := ctxAs(h1, "me", "member")
-	if _, err := svc.addDependency(ctx, enc(t, ref("task", "a", "project", "p"))); err != nil {
+	if _, err := svc.AddDependency(ctx, ref("task", "a", "project", "p")); err != nil {
 		t.Fatalf("add mixed: %v", err)
 	}
-	out, err := svc.getDependencies(ctx, enc(t, csil.DependencyTarget{Type: "task", Id: "a"}))
+	out, err := svc.GetDependencies(ctx, csil.DependencyTarget{Type: "task", Id: "a"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	g := out.(csil.DependencyGraph)
+	g := out
 	if len(g.Dependencies) != 1 || g.Dependencies[0].Id != "p" || g.Dependencies[0].Title != "Proj" {
 		t.Fatalf("mixed dependency = %+v, want project p", g.Dependencies)
 	}

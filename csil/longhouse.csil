@@ -950,7 +950,12 @@ service ProjectService {
     list-milestones: ProjectID -> [* Milestone] / ServiceError,
     create-milestone: Milestone -> Milestone / ServiceError,
     update-milestone: Milestone -> Milestone / ServiceError,
-    delete-milestone: MilestoneID -> EmptyResponse / ServiceError
+    delete-milestone: MilestoneID -> EmptyResponse / ServiceError,
+
+    set-project-visibility: SetProjectVisibilityRequest -> Project / ServiceError,
+    list-project-grants: ProjectID -> [* Grant] / ServiceError,
+    put-project-grant: PutProjectGrantRequest -> EmptyResponse / ServiceError,
+    delete-project-grant: ProjectGrantRef -> EmptyResponse / ServiceError
 }
 
 service EventService {

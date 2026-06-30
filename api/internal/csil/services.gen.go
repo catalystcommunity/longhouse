@@ -107,6 +107,10 @@ type ProjectService interface {
 	CreateMilestone(ctx context.Context, req Milestone) (Milestone, error)
 	UpdateMilestone(ctx context.Context, req Milestone) (Milestone, error)
 	DeleteMilestone(ctx context.Context, req MilestoneID) (EmptyResponse, error)
+	SetProjectVisibility(ctx context.Context, req SetProjectVisibilityRequest) (Project, error)
+	ListProjectGrants(ctx context.Context, req ProjectID) ([]Grant, error)
+	PutProjectGrant(ctx context.Context, req PutProjectGrantRequest) (EmptyResponse, error)
+	DeleteProjectGrant(ctx context.Context, req ProjectGrantRef) (EmptyResponse, error)
 }
 
 // EventService defines the service interface

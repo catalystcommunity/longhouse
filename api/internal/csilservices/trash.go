@@ -18,21 +18,17 @@ type TrashService struct {
 }
 
 func (s *TrashService) Register(d *csilrpc.Dispatcher) {
-	d.Register("trash", "ListTrash", s.listTrash)
-	d.Register("trash", "Restore", s.restore)
-	d.Register("trash", "Purge", s.purge)
+	d.RegisterTyped("trash", "ListTrash", csilrpc.Route(s.ListTrash, csil.DecodeTrashListTrashRequest, csil.EncodeTrashListTrashResponse))
+	d.RegisterTyped("trash", "Restore", csilrpc.Route(s.Restore, csil.DecodeTrashRestoreRequest, csil.EncodeTrashRestoreResponse))
+	d.RegisterTyped("trash", "Purge", csilrpc.Route(s.Purge, csil.DecodeTrashPurgeRequest, csil.EncodeTrashPurgeResponse))
 }
 
-func (s *TrashService) listTrash(ctx context.Context, body []byte) (any, error) {
-	var req csil.HouseScopedListRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *TrashService) ListTrash(ctx context.Context, req csil.HouseScopedListRequest) (csil.TrashPage, error) {
 	if req.HouseId == "" {
-		return nil, csilrpc.BadRequest("house_id is required")
+		return csil.TrashPage{}, csilrpc.BadRequest("house_id is required")
 	}
 	if _, _, err := requireRoleForHouse(ctx, string(req.HouseId), models.RoleAdmin); err != nil {
-		return nil, err
+		return csil.TrashPage{}, err
 	}
 	limit, offset := 100, 0
 	if req.Limit != nil {
@@ -43,7 +39,7 @@ func (s *TrashService) listTrash(ctx context.Context, body []byte) (any, error) 
 	}
 	rows, err := s.Store.ListTrash(ctx, string(req.HouseId), limit, offset)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.TrashPage{}, csilrpc.Internal("internal error")
 	}
 	items := make([]csil.TrashItem, 0, len(rows))
 	for i := range rows {
@@ -52,16 +48,12 @@ func (s *TrashService) listTrash(ctx context.Context, body []byte) (any, error) 
 	return csil.TrashPage{Items: items}, nil
 }
 
-func (s *TrashService) restore(ctx context.Context, body []byte) (any, error) {
-	var req csil.RestoreRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *TrashService) Restore(ctx context.Context, req csil.RestoreRequest) (csil.EmptyResponse, error) {
 	if req.HouseId == "" {
-		return nil, csilrpc.BadRequest("house_id is required")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("house_id is required")
 	}
 	if _, _, err := requireRoleForHouse(ctx, string(req.HouseId), models.RoleAdmin); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 
 	opID := ""
@@ -74,24 +66,24 @@ func (s *TrashService) restore(ctx context.Context, body []byte) (any, error) {
 		// Confirm the item lives in the caller's house before resolving its op.
 		house, err := s.Store.ResourceHouseID(ctx, resType, resID)
 		if err != nil {
-			return nil, csilrpc.BadRequest("unknown resource type")
+			return csil.EmptyResponse{}, csilrpc.BadRequest("unknown resource type")
 		}
 		if house == "" {
-			return nil, csilrpc.NotFound("item not found in trash")
+			return csil.EmptyResponse{}, csilrpc.NotFound("item not found in trash")
 		}
 		if house != string(req.HouseId) {
-			return nil, csilrpc.Forbidden("item belongs to another house")
+			return csil.EmptyResponse{}, csilrpc.Forbidden("item belongs to another house")
 		}
 		op, err := s.Store.FindDeletedOpID(ctx, resType, resID)
 		if err != nil {
-			return nil, csilrpc.Internal("internal error")
+			return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 		}
 		if op == "" {
-			return nil, csilrpc.NotFound("item not found in trash")
+			return csil.EmptyResponse{}, csilrpc.NotFound("item not found in trash")
 		}
 		opID = op
 	default:
-		return nil, csilrpc.BadRequest("provide deleted_op_id, or resource_type and resource_id")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("provide deleted_op_id, or resource_type and resource_id")
 	}
 
 	// A delete op touches exactly one entity type; restoring across all tables
@@ -105,7 +97,7 @@ func (s *TrashService) restore(ctx context.Context, body []byte) (any, error) {
 	}
 	for _, restore := range restorers {
 		if err := restore(ctx, opID); err != nil {
-			return nil, csilrpc.Internal("internal error")
+			return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 		}
 	}
 	s.reArmEventSeries(ctx, string(req.HouseId), opID)
@@ -146,29 +138,25 @@ func (s *TrashService) reArmEventSeries(ctx context.Context, houseID, opID strin
 	_ = s.Store.UpdateEvent(ctx, root)
 }
 
-func (s *TrashService) purge(ctx context.Context, body []byte) (any, error) {
-	var req csil.PurgeRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *TrashService) Purge(ctx context.Context, req csil.PurgeRequest) (csil.EmptyResponse, error) {
 	if req.HouseId == "" || req.ResourceType == "" || req.ResourceId == "" {
-		return nil, csilrpc.BadRequest("house_id, resource_type and resource_id are required")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("house_id, resource_type and resource_id are required")
 	}
 	if _, _, err := requireRoleForHouse(ctx, string(req.HouseId), models.RoleAdmin); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	house, err := s.Store.ResourceHouseID(ctx, req.ResourceType, req.ResourceId)
 	if err != nil {
-		return nil, csilrpc.BadRequest("unknown resource type")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("unknown resource type")
 	}
 	if house == "" {
-		return nil, csilrpc.NotFound("item not found in trash")
+		return csil.EmptyResponse{}, csilrpc.NotFound("item not found in trash")
 	}
 	if house != string(req.HouseId) {
-		return nil, csilrpc.Forbidden("item belongs to another house")
+		return csil.EmptyResponse{}, csilrpc.Forbidden("item belongs to another house")
 	}
 	if err := s.Store.PurgeResource(ctx, req.ResourceType, req.ResourceId); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	annotateAudit(ctx, string(req.HouseId), models.AuditActionPurge, req.ResourceType, req.ResourceId, nil)
 	return csil.EmptyResponse{}, nil

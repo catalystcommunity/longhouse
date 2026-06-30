@@ -19,46 +19,42 @@ import (
 type ProjectService struct{ Store store.Store }
 
 func (s *ProjectService) Register(d *csilrpc.Dispatcher) {
-	d.Register("project", "ListProjects", s.listProjects)
-	d.Register("project", "GetProject", s.getProject)
-	d.Register("project", "CreateProject", s.createProject)
-	d.Register("project", "UpdateProject", s.updateProject)
-	d.Register("project", "DeleteProject", s.deleteProject)
-	d.Register("project", "ListProjectTasks", s.listProjectTasks)
-	d.Register("project", "AddProjectTask", s.addProjectTask)
-	d.Register("project", "RemoveProjectTask", s.removeProjectTask)
-	d.Register("project", "SetProjectTaskPosition", s.setProjectTaskPosition)
-	d.Register("project", "ListProjectMembers", s.listProjectMembers)
-	d.Register("project", "AddProjectMember", s.addProjectMember)
-	d.Register("project", "RemoveProjectMember", s.removeProjectMember)
-	d.Register("project", "ListProjectOwners", s.listProjectOwners)
-	d.Register("project", "AddProjectOwner", s.addProjectOwner)
-	d.Register("project", "RemoveProjectOwner", s.removeProjectOwner)
-	d.Register("project", "ListMilestones", s.listMilestones)
-	d.Register("project", "CreateMilestone", s.createMilestone)
-	d.Register("project", "UpdateMilestone", s.updateMilestone)
-	d.Register("project", "DeleteMilestone", s.deleteMilestone)
-	d.Register("project", "SetProjectVisibility", s.setProjectVisibility)
-	d.Register("project", "ListProjectGrants", s.listProjectGrants)
-	d.Register("project", "PutProjectGrant", s.putProjectGrant)
-	d.Register("project", "DeleteProjectGrant", s.deleteProjectGrant)
+	d.RegisterTyped("project", "ListProjects", csilrpc.Route(s.ListProjects, csil.DecodeProjectListProjectsRequest, csil.EncodeProjectListProjectsResponse))
+	d.RegisterTyped("project", "GetProject", csilrpc.Route(s.GetProject, csil.DecodeProjectGetProjectRequest, csil.EncodeProjectGetProjectResponse))
+	d.RegisterTyped("project", "CreateProject", csilrpc.Route(s.CreateProject, csil.DecodeProjectCreateProjectRequest, csil.EncodeProjectCreateProjectResponse))
+	d.RegisterTyped("project", "UpdateProject", csilrpc.Route(s.UpdateProject, csil.DecodeProjectUpdateProjectRequest, csil.EncodeProjectUpdateProjectResponse))
+	d.RegisterTyped("project", "DeleteProject", csilrpc.Route(s.DeleteProject, csil.DecodeProjectDeleteProjectRequest, csil.EncodeProjectDeleteProjectResponse))
+	d.RegisterTyped("project", "ListProjectTasks", csilrpc.Route(s.ListProjectTasks, csil.DecodeProjectListProjectTasksRequest, csil.EncodeProjectListProjectTasksResponse))
+	d.RegisterTyped("project", "AddProjectTask", csilrpc.Route(s.AddProjectTask, csil.DecodeProjectAddProjectTaskRequest, csil.EncodeProjectAddProjectTaskResponse))
+	d.RegisterTyped("project", "RemoveProjectTask", csilrpc.Route(s.RemoveProjectTask, csil.DecodeProjectRemoveProjectTaskRequest, csil.EncodeProjectRemoveProjectTaskResponse))
+	d.RegisterTyped("project", "SetProjectTaskPosition", csilrpc.Route(s.SetProjectTaskPosition, csil.DecodeProjectSetProjectTaskPositionRequest, csil.EncodeProjectSetProjectTaskPositionResponse))
+	d.RegisterTyped("project", "ListProjectMembers", csilrpc.Route(s.ListProjectMembers, csil.DecodeProjectListProjectMembersRequest, csil.EncodeProjectListProjectMembersResponse))
+	d.RegisterTyped("project", "AddProjectMember", csilrpc.Route(s.AddProjectMember, csil.DecodeProjectAddProjectMemberRequest, csil.EncodeProjectAddProjectMemberResponse))
+	d.RegisterTyped("project", "RemoveProjectMember", csilrpc.Route(s.RemoveProjectMember, csil.DecodeProjectRemoveProjectMemberRequest, csil.EncodeProjectRemoveProjectMemberResponse))
+	d.RegisterTyped("project", "ListProjectOwners", csilrpc.Route(s.ListProjectOwners, csil.DecodeProjectListProjectOwnersRequest, csil.EncodeProjectListProjectOwnersResponse))
+	d.RegisterTyped("project", "AddProjectOwner", csilrpc.Route(s.AddProjectOwner, csil.DecodeProjectAddProjectOwnerRequest, csil.EncodeProjectAddProjectOwnerResponse))
+	d.RegisterTyped("project", "RemoveProjectOwner", csilrpc.Route(s.RemoveProjectOwner, csil.DecodeProjectRemoveProjectOwnerRequest, csil.EncodeProjectRemoveProjectOwnerResponse))
+	d.RegisterTyped("project", "ListMilestones", csilrpc.Route(s.ListMilestones, csil.DecodeProjectListMilestonesRequest, csil.EncodeProjectListMilestonesResponse))
+	d.RegisterTyped("project", "CreateMilestone", csilrpc.Route(s.CreateMilestone, csil.DecodeProjectCreateMilestoneRequest, csil.EncodeProjectCreateMilestoneResponse))
+	d.RegisterTyped("project", "UpdateMilestone", csilrpc.Route(s.UpdateMilestone, csil.DecodeProjectUpdateMilestoneRequest, csil.EncodeProjectUpdateMilestoneResponse))
+	d.RegisterTyped("project", "DeleteMilestone", csilrpc.Route(s.DeleteMilestone, csil.DecodeProjectDeleteMilestoneRequest, csil.EncodeProjectDeleteMilestoneResponse))
+	d.RegisterTyped("project", "SetProjectVisibility", csilrpc.Route(s.SetProjectVisibility, csil.DecodeProjectSetProjectVisibilityRequest, csil.EncodeProjectSetProjectVisibilityResponse))
+	d.RegisterTyped("project", "ListProjectGrants", csilrpc.Route(s.ListProjectGrants, csil.DecodeProjectListProjectGrantsRequest, csil.EncodeProjectListProjectGrantsResponse))
+	d.RegisterTyped("project", "PutProjectGrant", csilrpc.Route(s.PutProjectGrant, csil.DecodeProjectPutProjectGrantRequest, csil.EncodeProjectPutProjectGrantResponse))
+	d.RegisterTyped("project", "DeleteProjectGrant", csilrpc.Route(s.DeleteProjectGrant, csil.DecodeProjectDeleteProjectGrantRequest, csil.EncodeProjectDeleteProjectGrantResponse))
 }
 
 // ---- project ----------------------------------------------------------
 
-func (s *ProjectService) listProjects(ctx context.Context, body []byte) (any, error) {
-	var req csil.HouseScopedListRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) ListProjects(ctx context.Context, req csil.HouseScopedListRequest) (csil.ProjectList, error) {
 	ident, memberID, err := requireMemberForHouse(ctx, string(req.HouseId))
 	if err != nil {
-		return nil, err
+		return csil.ProjectList{}, err
 	}
 	limit, offset := normalizePaging(req.Limit, req.Offset)
 	rows, err := s.Store.ListProjectsByHouse(ctx, string(req.HouseId), limit, offset)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.ProjectList{}, csilrpc.Internal("internal error")
 	}
 	// Filter to projects the caller may read; report the withheld count so a
 	// private project's existence isn't itself concealed. See docs/rbac.md.
@@ -76,44 +72,36 @@ func (s *ProjectService) listProjects(ctx context.Context, body []byte) (any, er
 	return csil.ProjectList{Projects: out, HiddenCount: hidden}, nil
 }
 
-func (s *ProjectService) getProject(ctx context.Context, body []byte) (any, error) {
-	var id csil.ProjectID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) GetProject(ctx context.Context, id csil.ProjectID) (csil.Project, error) {
 	p, err := s.Store.GetProjectByID(ctx, string(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, csilrpc.NotFound("project not found")
+			return csil.Project{}, csilrpc.NotFound("project not found")
 		}
-		return nil, csilrpc.Internal("internal error")
+		return csil.Project{}, csilrpc.Internal("internal error")
 	}
 	if p.DeletedAt != nil {
-		return nil, csilrpc.NotFound("project not found")
+		return csil.Project{}, csilrpc.NotFound("project not found")
 	}
 	ident, memberID, err := requireMemberForHouse(ctx, p.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.Project{}, err
 	}
 	pol := newPolicy(s.Store)
 	g := pol.granteeFor(ctx, ident, p.HouseID, memberID)
 	if !canRead(pol.projectAccess(ctx, p, g)) {
-		return nil, csilrpc.NotFound("project not found")
+		return csil.Project{}, csilrpc.NotFound("project not found")
 	}
 	return projectToCSIL(p), nil
 }
 
-func (s *ProjectService) createProject(ctx context.Context, body []byte) (any, error) {
-	var in csil.Project
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) CreateProject(ctx context.Context, in csil.Project) (csil.Project, error) {
 	if in.HouseId == "" || in.Name == "" {
-		return nil, csilrpc.BadRequest("house_id and name are required")
+		return csil.Project{}, csilrpc.BadRequest("house_id and name are required")
 	}
 	_, callerMemberID, err := requireMemberForHouse(ctx, string(in.HouseId))
 	if err != nil {
-		return nil, err
+		return csil.Project{}, err
 	}
 	// Visibility: honor an explicit request, else stamp the house default
 	// (default_project_visibility, falling back to read). See docs/rbac.md.
@@ -132,7 +120,7 @@ func (s *ProjectService) createProject(ctx context.Context, body []byte) (any, e
 		CreatedByMemberID: &creator,
 	}
 	if err := s.Store.CreateProject(ctx, p); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Project{}, csilrpc.Internal("internal error")
 	}
 	// Seed the creator as an owner (full) grant so they retain governance even
 	// if they later drop the creator fallback (e.g. reassigned).
@@ -153,23 +141,19 @@ func (s *ProjectService) defaultProjectVisibility(ctx context.Context, houseID s
 	return v
 }
 
-func (s *ProjectService) updateProject(ctx context.Context, body []byte) (any, error) {
-	var in csil.Project
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) UpdateProject(ctx context.Context, in csil.Project) (csil.Project, error) {
 	if in.ProjectId == "" {
-		return nil, csilrpc.BadRequest("project_id is required")
+		return csil.Project{}, csilrpc.BadRequest("project_id is required")
 	}
 	existing, err := s.Store.GetProjectByID(ctx, string(in.ProjectId))
 	if err != nil {
-		return nil, csilrpc.NotFound("project not found")
+		return csil.Project{}, csilrpc.NotFound("project not found")
 	}
 	// Content edits require `edit`. Visibility/grants/created_by are
 	// governance — managed via the dedicated ops (full). An inbound
 	// Visibility / CreatedByMemberId here is ignored. See docs/rbac.md §7.
 	if _, _, err := s.requireProjectAccess(ctx, existing, models.AccessEdit); err != nil {
-		return nil, err
+		return csil.Project{}, err
 	}
 	if in.Name != "" {
 		existing.Name = in.Name
@@ -182,33 +166,29 @@ func (s *ProjectService) updateProject(ctx context.Context, body []byte) (any, e
 		existing.Status = derefProjectStatus(in.Status, existing.Status)
 	}
 	if err := s.Store.UpdateProject(ctx, existing); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Project{}, csilrpc.Internal("internal error")
 	}
 	return projectToCSIL(existing), nil
 }
 
-func (s *ProjectService) deleteProject(ctx context.Context, body []byte) (any, error) {
-	var id csil.ProjectID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) DeleteProject(ctx context.Context, id csil.ProjectID) (csil.EmptyResponse, error) {
 	p, err := s.Store.GetProjectByID(ctx, string(id))
 	if err != nil || p.DeletedAt != nil {
-		return nil, csilrpc.NotFound("project not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("project not found")
 	}
 	// Delete is governance — requires full.
 	_, g, err := s.requireProjectAccess(ctx, p, models.AccessFull)
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	// Soft delete into the trash: a configurable-retention purge worker
 	// removes it for good later; an admin can restore it until then.
 	opID, err := s.Store.NewID(ctx)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if err := s.Store.SoftDeleteProject(ctx, p.ProjectID, g.memberID, opID); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	annotateDelete(ctx, p.HouseID, "project", p.ProjectID, opID, p)
 	return csil.EmptyResponse{}, nil
@@ -216,19 +196,15 @@ func (s *ProjectService) deleteProject(ctx context.Context, body []byte) (any, e
 
 // ---- project tasks ----------------------------------------------------
 
-func (s *ProjectService) listProjectTasks(ctx context.Context, body []byte) (any, error) {
-	var req csil.ProjectScopedListRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) ListProjectTasks(ctx context.Context, req csil.ProjectScopedListRequest) (csil.TaskList, error) {
 	ident, memberID, err := requireMemberForHouse(ctx, string(req.HouseId))
 	if err != nil {
-		return nil, err
+		return csil.TaskList{}, err
 	}
 	limit, offset := normalizePaging(req.Limit, req.Offset)
 	tasks, err := s.Store.ListProjectTasks(ctx, string(req.ProjectId), limit, offset)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.TaskList{}, csilrpc.Internal("internal error")
 	}
 	// Even within a project, a task may carry tighter visibility — resolve
 	// each and filter, reporting the withheld count. See docs/rbac.md.
@@ -247,160 +223,128 @@ func (s *ProjectService) listProjectTasks(ctx context.Context, body []byte) (any
 	return csil.TaskList{Tasks: out, HiddenCount: hidden}, nil
 }
 
-func (s *ProjectService) addProjectTask(ctx context.Context, body []byte) (any, error) {
-	var req csil.ProjectTaskOrderRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) AddProjectTask(ctx context.Context, req csil.ProjectTaskOrderRequest) (csil.EmptyResponse, error) {
 	if err := s.authzProject(ctx, string(req.ProjectId), models.AccessEdit); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.AddProjectTask(ctx, string(req.ProjectId), string(req.TaskId), int(req.Position)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *ProjectService) removeProjectTask(ctx context.Context, body []byte) (any, error) {
-	var req csil.ProjectTaskRef
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) RemoveProjectTask(ctx context.Context, req csil.ProjectTaskRef) (csil.EmptyResponse, error) {
 	if err := s.authzProject(ctx, string(req.ProjectId), models.AccessEdit); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.RemoveProjectTask(ctx, string(req.ProjectId), string(req.TaskId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-// setProjectTaskPosition reorders a project_tasks row. Implemented as a
+// SetProjectTaskPosition reorders a project_tasks row. Implemented as a
 // remove+add since the schema's PK is (project_id, task_id) and we don't
 // have a dedicated update method on the store.
-func (s *ProjectService) setProjectTaskPosition(ctx context.Context, body []byte) (any, error) {
-	var req csil.ProjectTaskOrderRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) SetProjectTaskPosition(ctx context.Context, req csil.ProjectTaskOrderRequest) (csil.EmptyResponse, error) {
 	if err := s.authzProject(ctx, string(req.ProjectId), models.AccessEdit); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.RemoveProjectTask(ctx, string(req.ProjectId), string(req.TaskId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if err := s.Store.AddProjectTask(ctx, string(req.ProjectId), string(req.TaskId), int(req.Position)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
 // ---- members / owners -------------------------------------------------
 
-func (s *ProjectService) listProjectMembers(ctx context.Context, body []byte) (any, error) {
-	id, err := s.requireProjectViewer(ctx, body)
+func (s *ProjectService) ListProjectMembers(ctx context.Context, id csil.ProjectID) ([]csil.Member, error) {
+	pid, err := s.requireProjectViewer(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.Store.ListProjectMembers(ctx, id)
+	rows, err := s.Store.ListProjectMembers(ctx, pid)
 	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
 	return membersToCSIL(rows), nil
 }
 
-func (s *ProjectService) listProjectOwners(ctx context.Context, body []byte) (any, error) {
-	id, err := s.requireProjectViewer(ctx, body)
+func (s *ProjectService) ListProjectOwners(ctx context.Context, id csil.ProjectID) ([]csil.Member, error) {
+	pid, err := s.requireProjectViewer(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.Store.ListProjectOwners(ctx, id)
+	rows, err := s.Store.ListProjectOwners(ctx, pid)
 	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
 	return membersToCSIL(rows), nil
 }
 
-func (s *ProjectService) addProjectMember(ctx context.Context, body []byte) (any, error) {
-	var ref csil.ProjectMemberRef
-	if err := csilrpc.Decode(body, &ref); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) AddProjectMember(ctx context.Context, ref csil.ProjectMemberRef) (csil.EmptyResponse, error) {
 	if err := s.authzProject(ctx, string(ref.ProjectId), models.AccessEdit); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.AddProjectMember(ctx, string(ref.ProjectId), string(ref.MemberId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *ProjectService) removeProjectMember(ctx context.Context, body []byte) (any, error) {
-	var ref csil.ProjectMemberRef
-	if err := csilrpc.Decode(body, &ref); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) RemoveProjectMember(ctx context.Context, ref csil.ProjectMemberRef) (csil.EmptyResponse, error) {
 	if err := s.authzProject(ctx, string(ref.ProjectId), models.AccessEdit); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.RemoveProjectMember(ctx, string(ref.ProjectId), string(ref.MemberId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *ProjectService) addProjectOwner(ctx context.Context, body []byte) (any, error) {
-	var ref csil.ProjectOwnerRef
-	if err := csilrpc.Decode(body, &ref); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) AddProjectOwner(ctx context.Context, ref csil.ProjectOwnerRef) (csil.EmptyResponse, error) {
 	if err := s.authzProject(ctx, string(ref.ProjectId), models.AccessEdit); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.AddProjectOwner(ctx, string(ref.ProjectId), string(ref.MemberId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *ProjectService) removeProjectOwner(ctx context.Context, body []byte) (any, error) {
-	var ref csil.ProjectOwnerRef
-	if err := csilrpc.Decode(body, &ref); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) RemoveProjectOwner(ctx context.Context, ref csil.ProjectOwnerRef) (csil.EmptyResponse, error) {
 	if err := s.authzProject(ctx, string(ref.ProjectId), models.AccessEdit); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.RemoveProjectOwner(ctx, string(ref.ProjectId), string(ref.MemberId)); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
 // ---- milestones -------------------------------------------------------
 
-func (s *ProjectService) listMilestones(ctx context.Context, body []byte) (any, error) {
-	id, err := s.requireProjectViewer(ctx, body)
+func (s *ProjectService) ListMilestones(ctx context.Context, id csil.ProjectID) ([]csil.Milestone, error) {
+	pid, err := s.requireProjectViewer(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.Store.ListMilestonesByProject(ctx, id)
+	rows, err := s.Store.ListMilestonesByProject(ctx, pid)
 	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
 	return milestonesToCSIL(rows), nil
 }
 
-func (s *ProjectService) createMilestone(ctx context.Context, body []byte) (any, error) {
-	var in csil.Milestone
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) CreateMilestone(ctx context.Context, in csil.Milestone) (csil.Milestone, error) {
 	if in.ProjectId == "" || in.Label == "" {
-		return nil, csilrpc.BadRequest("project_id and label are required")
+		return csil.Milestone{}, csilrpc.BadRequest("project_id and label are required")
 	}
 	if err := s.authzProject(ctx, string(in.ProjectId), models.AccessEdit); err != nil {
-		return nil, err
+		return csil.Milestone{}, err
 	}
 	m := &models.Milestone{
 		ProjectID: string(in.ProjectId),
@@ -410,25 +354,21 @@ func (s *ProjectService) createMilestone(ctx context.Context, body []byte) (any,
 		Position:  int(in.Position),
 	}
 	if err := s.Store.CreateMilestone(ctx, m); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Milestone{}, csilrpc.Internal("internal error")
 	}
 	return milestoneToCSIL(m), nil
 }
 
-func (s *ProjectService) updateMilestone(ctx context.Context, body []byte) (any, error) {
-	var in csil.Milestone
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) UpdateMilestone(ctx context.Context, in csil.Milestone) (csil.Milestone, error) {
 	if in.MilestoneId == "" {
-		return nil, csilrpc.BadRequest("milestone_id is required")
+		return csil.Milestone{}, csilrpc.BadRequest("milestone_id is required")
 	}
 	existing, err := s.Store.GetMilestoneByID(ctx, string(in.MilestoneId))
 	if err != nil {
-		return nil, csilrpc.NotFound("milestone not found")
+		return csil.Milestone{}, csilrpc.NotFound("milestone not found")
 	}
 	if err := s.authzProject(ctx, existing.ProjectID, models.AccessEdit); err != nil {
-		return nil, err
+		return csil.Milestone{}, err
 	}
 	if in.Label != "" {
 		existing.Label = in.Label
@@ -443,39 +383,35 @@ func (s *ProjectService) updateMilestone(ctx context.Context, body []byte) (any,
 		existing.Position = int(in.Position)
 	}
 	if err := s.Store.UpdateMilestone(ctx, existing); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Milestone{}, csilrpc.Internal("internal error")
 	}
 	return milestoneToCSIL(existing), nil
 }
 
-func (s *ProjectService) deleteMilestone(ctx context.Context, body []byte) (any, error) {
-	var id csil.MilestoneID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) DeleteMilestone(ctx context.Context, id csil.MilestoneID) (csil.EmptyResponse, error) {
 	existing, err := s.Store.GetMilestoneByID(ctx, string(id))
 	if err != nil || existing.DeletedAt != nil {
-		return nil, csilrpc.NotFound("milestone not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("milestone not found")
 	}
 	if err := s.authzProject(ctx, existing.ProjectID, models.AccessEdit); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	// Resolve the caller's member id in the project's house to stamp
 	// deleted_by_member_id (milestones carry project_id, not house_id).
 	p, err := s.Store.GetProjectByID(ctx, existing.ProjectID)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	_, callerMemberID, err := requireMemberForHouse(ctx, p.HouseID)
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	opID, err := s.Store.NewID(ctx)
 	if err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	if err := s.Store.SoftDeleteMilestone(ctx, existing.MilestoneID, callerMemberID, opID); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	annotateDelete(ctx, p.HouseID, "milestone", existing.MilestoneID, opID, existing)
 	return csil.EmptyResponse{}, nil
@@ -483,15 +419,11 @@ func (s *ProjectService) deleteMilestone(ctx context.Context, body []byte) (any,
 
 // ---- helpers ----------------------------------------------------------
 
-// requireProjectViewer decodes a project id from the body and returns it
-// after confirming the caller has read access to the project's house.
-// Used by listMembers/listOwners/listMilestones, which all take ProjectID
-// as their entire request.
-func (s *ProjectService) requireProjectViewer(ctx context.Context, body []byte) (string, error) {
-	var pid csil.ProjectID
-	if err := csilrpc.Decode(body, &pid); err != nil {
-		return "", err
-	}
+// requireProjectViewer takes a project id and returns it after confirming
+// the caller has read access to the project's house. Used by
+// listMembers/listOwners/listMilestones, which all take ProjectID as their
+// entire request.
+func (s *ProjectService) requireProjectViewer(ctx context.Context, pid csil.ProjectID) (string, error) {
 	p, err := s.Store.GetProjectByID(ctx, string(pid))
 	if err != nil {
 		return "", csilrpc.NotFound("project not found")
@@ -537,38 +469,30 @@ func (s *ProjectService) authzProject(ctx context.Context, projectID, need strin
 
 // setProjectVisibility changes the project's house-at-large visibility.
 // Requires full. Projects have no container, so there is no umbrella ceiling.
-func (s *ProjectService) setProjectVisibility(ctx context.Context, body []byte) (any, error) {
-	var in csil.SetProjectVisibilityRequest
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) SetProjectVisibility(ctx context.Context, in csil.SetProjectVisibilityRequest) (csil.Project, error) {
 	if in.ProjectId == "" {
-		return nil, csilrpc.BadRequest("project_id is required")
+		return csil.Project{}, csilrpc.BadRequest("project_id is required")
 	}
 	want := accessLevelVal(in.Visibility, "")
 	if !validAccessLevel(want) {
-		return nil, csilrpc.BadRequest("invalid visibility")
+		return csil.Project{}, csilrpc.BadRequest("invalid visibility")
 	}
 	p, err := s.Store.GetProjectByID(ctx, string(in.ProjectId))
 	if err != nil {
-		return nil, csilrpc.NotFound("project not found")
+		return csil.Project{}, csilrpc.NotFound("project not found")
 	}
 	if _, _, err := s.requireProjectAccess(ctx, p, models.AccessFull); err != nil {
-		return nil, err
+		return csil.Project{}, err
 	}
 	p.Visibility = want
 	if err := s.Store.UpdateProject(ctx, p); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.Project{}, csilrpc.Internal("internal error")
 	}
 	return projectToCSIL(p), nil
 }
 
-// listProjectGrants returns the project's explicit grants (governance — full).
-func (s *ProjectService) listProjectGrants(ctx context.Context, body []byte) (any, error) {
-	var id csil.ProjectID
-	if err := csilrpc.Decode(body, &id); err != nil {
-		return nil, err
-	}
+// ListProjectGrants returns the project's explicit grants (governance — full).
+func (s *ProjectService) ListProjectGrants(ctx context.Context, id csil.ProjectID) ([]csil.Grant, error) {
 	p, err := s.Store.GetProjectByID(ctx, string(id))
 	if err != nil {
 		return nil, csilrpc.NotFound("project not found")
@@ -583,57 +507,49 @@ func (s *ProjectService) listProjectGrants(ctx context.Context, body []byte) (an
 	return projectGrantsToCSIL(grants), nil
 }
 
-func (s *ProjectService) putProjectGrant(ctx context.Context, body []byte) (any, error) {
-	var in csil.PutProjectGrantRequest
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) PutProjectGrant(ctx context.Context, in csil.PutProjectGrantRequest) (csil.EmptyResponse, error) {
 	gt := granteeTypeVal(in.GranteeType)
 	if gt != models.GranteeMember && gt != models.GranteeGroup {
-		return nil, csilrpc.BadRequest("invalid grantee_type")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("invalid grantee_type")
 	}
 	if in.GranteeId == "" {
-		return nil, csilrpc.BadRequest("grantee_id is required")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("grantee_id is required")
 	}
 	level := accessLevelVal(in.AccessLevel, "")
 	if !validAccessLevel(level) {
-		return nil, csilrpc.BadRequest("invalid access_level")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("invalid access_level")
 	}
 	p, err := s.Store.GetProjectByID(ctx, string(in.ProjectId))
 	if err != nil {
-		return nil, csilrpc.NotFound("project not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("project not found")
 	}
 	if _, _, err := s.requireProjectAccess(ctx, p, models.AccessFull); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	grant := &models.ProjectGrant{
 		ProjectID: p.ProjectID, HouseID: p.HouseID,
 		GranteeType: gt, GranteeID: in.GranteeId, AccessLevel: level,
 	}
 	if err := s.Store.PutProjectGrant(ctx, grant); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *ProjectService) deleteProjectGrant(ctx context.Context, body []byte) (any, error) {
-	var in csil.ProjectGrantRef
-	if err := csilrpc.Decode(body, &in); err != nil {
-		return nil, err
-	}
+func (s *ProjectService) DeleteProjectGrant(ctx context.Context, in csil.ProjectGrantRef) (csil.EmptyResponse, error) {
 	gt := granteeTypeVal(in.GranteeType)
 	if gt == "" || in.GranteeId == "" {
-		return nil, csilrpc.BadRequest("grantee_type and grantee_id are required")
+		return csil.EmptyResponse{}, csilrpc.BadRequest("grantee_type and grantee_id are required")
 	}
 	p, err := s.Store.GetProjectByID(ctx, string(in.ProjectId))
 	if err != nil {
-		return nil, csilrpc.NotFound("project not found")
+		return csil.EmptyResponse{}, csilrpc.NotFound("project not found")
 	}
 	if _, _, err := s.requireProjectAccess(ctx, p, models.AccessFull); err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.DeleteProjectGrant(ctx, p.ProjectID, gt, in.GranteeId); err != nil {
-		return nil, csilrpc.Internal("internal error")
+		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil
 }
@@ -655,20 +571,17 @@ func derefProjectStatus(p *csil.ProjectStatus, fallback string) string {
 	if p == nil {
 		return fallback
 	}
-	switch v := (*p).(type) {
-	case string:
-		return v
-	default:
-		return fallback
+	if s := string(*p); s != "" {
+		return s
 	}
+	return fallback
 }
 
-// milestoneStateString teases the underlying string out of the CSIL
-// enum alias (which generates as `interface{}`). Returns fallback for
-// nil/unrecognized values so the caller can't accidentally write an
+// milestoneStateString returns the underlying string of the CSIL MilestoneState
+// enum, or fallback for an empty value so the caller can't accidentally write an
 // empty state to the DB enum column.
 func milestoneStateString(v csil.MilestoneState, fallback string) string {
-	if s, ok := v.(string); ok && s != "" {
+	if s := string(v); s != "" {
 		return s
 	}
 	return fallback

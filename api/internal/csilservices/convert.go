@@ -161,10 +161,10 @@ func projectToCSIL(p *models.Project) csil.Project {
 		UpdatedAt:   ts(p.UpdatedAt),
 	}
 	if p.Status != "" {
-		var s csil.ProjectStatus = p.Status
+		s := csil.ProjectStatus(p.Status)
 		out.Status = &s
 	}
-	var vis csil.AccessLevel = visibilityOf(p.Visibility)
+	vis := csil.AccessLevel(visibilityOf(p.Visibility))
 	out.Visibility = &vis
 	if p.CreatedByMemberID != nil && *p.CreatedByMemberID != "" {
 		v := csil.MemberID(*p.CreatedByMemberID)
@@ -220,7 +220,7 @@ func eventToCSIL(e *models.Event) csil.Event {
 		UpdatedAt:        ts(e.UpdatedAt),
 	}
 	if e.RecurrenceFreq != nil {
-		var v csil.RecurrenceFreq = *e.RecurrenceFreq
+		v := csil.RecurrenceFreq(*e.RecurrenceFreq)
 		out.RecurrenceFreq = &v
 	}
 	if e.RecurrenceInterval > 0 {
@@ -288,7 +288,7 @@ func taskToCSIL(t *models.Task, assignees []models.Member) csil.Task {
 		out.RecurrenceRootTaskId = &v
 	}
 	if t.RecurrenceFreq != nil {
-		var v csil.RecurrenceFreq = *t.RecurrenceFreq
+		v := csil.RecurrenceFreq(*t.RecurrenceFreq)
 		out.RecurrenceFreq = &v
 	}
 	if t.RecurrenceInterval > 0 {
@@ -308,10 +308,10 @@ func taskToCSIL(t *models.Task, assignees []models.Member) csil.Task {
 	}
 	out.NextRecurrenceAt = tsPtr(t.NextRecurrenceAt)
 	if t.Status != "" {
-		var s csil.TaskStatus = t.Status
+		s := csil.TaskStatus(t.Status)
 		out.Status = &s
 	}
-	var vis csil.AccessLevel = visibilityOf(t.Visibility)
+	vis := csil.AccessLevel(visibilityOf(t.Visibility))
 	out.Visibility = &vis
 	if len(assignees) > 0 {
 		ids := make([]csil.MemberID, len(assignees))
@@ -423,7 +423,7 @@ func shareToCSIL(s *models.Share) csil.Share {
 		ExpiresAt:      tsPtr(s.ExpiresAt),
 	}
 	if s.AccessLevel != "" {
-		var v csil.AccessLevel = s.AccessLevel
+		v := csil.AccessLevel(s.AccessLevel)
 		out.AccessLevel = &v
 	}
 	return out

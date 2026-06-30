@@ -1,0 +1,3 @@
+(library
+ (name longhouse_client)
+ (public_name longhouse_client))

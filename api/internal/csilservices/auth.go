@@ -118,21 +118,21 @@ func resolveDisplayName(claims map[string]string, a *linkkeys.Assertion) string 
 }
 
 func (s *AuthService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterPublic("auth", "Login", s.login)
-	d.RegisterPublic("auth", "Complete", s.complete)
-	d.Register("auth", "Refresh", s.refresh)
-	d.Register("auth", "Logout", s.logout)
-	d.Register("auth", "Me", s.me)
+	d.RegisterTypedPublic("auth", "Login", csilrpc.Route(s.Login, csil.DecodeAuthLoginRequest, csil.EncodeAuthLoginResponse))
+	d.RegisterTypedPublic("auth", "Complete", csilrpc.Route(s.Complete, csil.DecodeAuthCompleteRequest, csil.EncodeAuthCompleteResponse))
+	d.RegisterTyped("auth", "Refresh", csilrpc.Route(s.Refresh, csil.DecodeAuthRefreshRequest, csil.EncodeAuthRefreshResponse))
+	d.RegisterTyped("auth", "Logout", csilrpc.Route(s.Logout, csil.DecodeAuthLogoutRequest, csil.EncodeAuthLogoutResponse))
+	d.RegisterTyped("auth", "Me", csilrpc.Route(s.Me, csil.DecodeAuthMeRequest, csil.EncodeAuthMeResponse))
 }
 
 // logout records a logout security event for the bearer's identity. Tokens are
 // stateless (HMAC, no server-side revocation list), so this is an audit marker
 // — not a revocation; the bearer remains valid until its exp. Recorded per
 // house so each house admin sees their members' logouts.
-func (s *AuthService) logout(ctx context.Context, _ []byte) (any, error) {
+func (s *AuthService) Logout(ctx context.Context, _ csil.EmptyRequest) (csil.EmptyResponse, error) {
 	id, err := requireIdentity(ctx)
 	if err != nil {
-		return nil, err
+		return csil.EmptyResponse{}, err
 	}
 	s.recordSecurityEvent(ctx, models.AuditActionLogout, id.Domain, id.UserID, id.Houses, nil)
 	return csil.EmptyResponse{}, nil
@@ -185,86 +185,78 @@ func (s *AuthService) recordOne(ctx context.Context, e *models.AuditEntry) {
 	}
 }
 
-func (s *AuthService) login(ctx context.Context, body []byte) (any, error) {
+func (s *AuthService) Login(ctx context.Context, req csil.LoginRequest) (csil.LoginResponse, error) {
 	if s.PKI == nil || s.JWTSecret == nil {
-		return nil, csilrpc.Internal("auth not configured")
-	}
-	var req csil.LoginRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
+		return csil.LoginResponse{}, csilrpc.Internal("auth not configured")
 	}
 	if req.SignedAssertion == "" {
-		return nil, csilrpc.BadRequest("signed_assertion is required")
+		return csil.LoginResponse{}, csilrpc.BadRequest("signed_assertion is required")
 	}
 	assertion, err := s.PKI.VerifyAssertion(req.SignedAssertion, s.IDPDomain)
 	if err != nil {
 		log.WithError(err).Info("auth.Login: assertion verification failed")
 		s.recordSecurityFailure(ctx, "", "", "login: assertion verification failed")
-		return nil, csilrpc.Unauthorized("assertion verification failed")
+		return csil.LoginResponse{}, csilrpc.Unauthorized("assertion verification failed")
 	}
 	claims := s.fetchClaims(req.SignedAssertion, assertion)
 	display := resolveDisplayName(claims, assertion)
 	return s.issueToken(ctx, assertion.Domain, assertion.UserID, display, claims, models.AuditActionLogin)
 }
 
-func (s *AuthService) complete(ctx context.Context, body []byte) (any, error) {
+func (s *AuthService) Complete(ctx context.Context, req csil.CompleteRequest) (csil.LoginResponse, error) {
 	if s.PKI == nil || s.JWTSecret == nil {
-		return nil, csilrpc.Internal("auth not configured")
-	}
-	var req csil.CompleteRequest
-	if err := csilrpc.Decode(body, &req); err != nil {
-		return nil, err
+		return csil.LoginResponse{}, csilrpc.Internal("auth not configured")
 	}
 	if req.EncryptedToken == "" {
-		return nil, csilrpc.BadRequest("encrypted_token is required")
+		return csil.LoginResponse{}, csilrpc.BadRequest("encrypted_token is required")
 	}
 	signed, err := s.PKI.DecryptToken(req.EncryptedToken)
 	if err != nil {
 		log.WithError(err).Error("auth.Complete: RP decrypt-token failed")
 		s.recordSecurityFailure(ctx, "", "", "complete: token decrypt failed")
-		return nil, csilrpc.NewError(502, "could not decrypt token")
+		return csil.LoginResponse{}, csilrpc.NewError(502, "could not decrypt token")
 	}
 	assertion, err := s.PKI.VerifyAssertion(signed, s.IDPDomain)
 	if err != nil {
 		log.WithError(err).Info("auth.Complete: assertion verification failed")
 		s.recordSecurityFailure(ctx, "", "", "complete: assertion verification failed")
-		return nil, csilrpc.Unauthorized("assertion verification failed")
+		return csil.LoginResponse{}, csilrpc.Unauthorized("assertion verification failed")
 	}
 	if err := auth.VerifyNonce(s.JWTSecret, assertion.Nonce); err != nil {
 		log.WithError(err).Info("auth.Complete: nonce rejected")
 		s.recordSecurityFailure(ctx, assertion.Domain, assertion.UserID, "complete: nonce invalid or expired")
-		return nil, csilrpc.Unauthorized("login nonce invalid or expired")
+		return csil.LoginResponse{}, csilrpc.Unauthorized("login nonce invalid or expired")
 	}
 	if assertion.Domain != s.IDPDomain {
 		s.recordSecurityFailure(ctx, assertion.Domain, assertion.UserID, "complete: assertion from unexpected domain")
-		return nil, csilrpc.Unauthorized("assertion from unexpected domain")
+		return csil.LoginResponse{}, csilrpc.Unauthorized("assertion from unexpected domain")
 	}
 	// The audience binds the assertion to our RP domain (NOT the callback
 	// URL — linkkeys changed that contract). Tolerate an empty audience for
 	// back-compat with older IDPs that don't set it.
 	if assertion.Audience != "" && s.RPDomain != "" && assertion.Audience != s.RPDomain {
 		s.recordSecurityFailure(ctx, assertion.Domain, assertion.UserID, "complete: assertion audience mismatch")
-		return nil, csilrpc.Unauthorized("assertion audience mismatch")
+		return csil.LoginResponse{}, csilrpc.Unauthorized("assertion audience mismatch")
 	}
 	claims := s.fetchClaims(signed, assertion)
 	display := resolveDisplayName(claims, assertion)
 	return s.issueToken(ctx, assertion.Domain, assertion.UserID, display, claims, models.AuditActionLogin)
 }
 
-func (s *AuthService) refresh(ctx context.Context, _ []byte) (any, error) {
+func (s *AuthService) Refresh(ctx context.Context, _ csil.EmptyRequest) (csil.LoginResponse, error) {
 	id, err := requireIdentity(ctx)
 	if err != nil {
-		return nil, err
+		return csil.LoginResponse{}, err
 	}
 	// Refresh re-mints from the bearer without re-contacting linkkeys, so there
 	// are no fresh claims to reconcile — pass nil and keep the cached identity.
 	return s.issueToken(ctx, id.Domain, id.UserID, id.DisplayName, nil, models.AuditActionRefresh)
 }
 
-func (s *AuthService) me(ctx context.Context, _ []byte) (any, error) {
+func (s *AuthService) Me(ctx context.Context, _ csil.EmptyRequest) (csil.MeResponse, error) {
 	id, err := requireIdentity(ctx)
 	if err != nil {
-		return nil, err
+		return csil.MeResponse{}, err
 	}
 	houses := make([]csil.HouseSummary, 0, len(id.Houses))
 	for _, h := range id.Houses {

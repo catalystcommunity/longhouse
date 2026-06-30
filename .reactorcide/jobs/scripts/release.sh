@@ -99,19 +99,18 @@ fi
 # -------------------------------------------------------------------
 # 4. Build the release binaries
 # -------------------------------------------------------------------
+# Only the API ships as a binary. The web tier is the SolidJS SPA (webapp/),
+# released as a container image by the web-build-and-deploy job, not a tarball.
 echo "=== Building longhouse binaries ==="
 
 cd api
 go build -o /tmp/longhouse .
-cd ../webapp
-go build -o /tmp/longhouse-web .
 cd ..
 
 RELEASE_DIR="/tmp/release"
 mkdir -p "${RELEASE_DIR}"
 
 tar -czf "${RELEASE_DIR}/longhouse-api-${VERSION}-linux-amd64.tar.gz" -C /tmp longhouse
-tar -czf "${RELEASE_DIR}/longhouse-web-${VERSION}-linux-amd64.tar.gz" -C /tmp longhouse-web
 
 # -------------------------------------------------------------------
 # 5. Install gh CLI and create GitHub release

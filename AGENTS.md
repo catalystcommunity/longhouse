@@ -6,16 +6,31 @@ membership model.
 
 ## Architecture
 
-- **api/**: Go API server. Single HTTP entry point at
-  `POST /api/csil/{service}/{method}` with CBOR request/response. One
-  extra non-RPC route: `GET /api/v1/auth/start` (302 redirect to linkkeys
-  for the browser flow) and `GET /api/health` for k8s probes. No REST.
-- **client/**: SolidJS + Vite SPA. Talks to the api through the generated
-  typescript-client (`client/src/api/client.gen.ts`) using a CBOR
-  transport (`client/src/transport/csilrpc.ts`).
+- **api/**: Go API server. Single HTTP entry point — the CSIL-RPC v1 carrier at
+  `POST /api/csil/v1/rpc` (self-routing CBOR envelope; the path is not semantic).
+  Each op dispatches through a generated typed service interface
+  (`api/internal/csil`, e.g. `TaskService`) via a small `csilrpc.Route[Req,Resp]`
+  adapter backed by the generated per-op codec; the dispatcher (`csilrpc`) adds
+  only bearer auth, audit, and the `ServiceError` arm. Service implementations
+  live in `api/internal/csilservices`. Two extra non-RPC routes: `GET
+  /api/v1/auth/start` (302 to linkkeys for the browser flow) and `GET
+  /api/health` for k8s probes. No REST.
+- **webapp/**: SolidJS + Vite SPA (the web frontend). Talks to the api through
+  the generated client package `@longhouse/client` (the async client surface),
+  wired in `webapp/src/data/clients.ts`, over a CBOR CSIL-RPC carrier
+  (`webapp/src/transport/csilrpc.ts`). The carrier is a "dumb byte seam":
+  the generated codec owns payload (de)serialization, the carrier owns only
+  the envelope + `fetch` + auth. (Built into a static image by `Dockerfile.web`.)
+- **clients/**: generated client libraries, one self-contained package per
+  language, under `clients/<lang>/`. The SPA consumes `clients/typescript`
+  (`@longhouse/client`) via a Vite/tsconfig path alias to its source. Generated
+  by `clients/regenerate.sh` (don't hand-edit). Each package is dependency-free
+  — the generated `codec.gen.*` owns the wire, so there is no separate transport
+  library to vendor or pin.
 - **csil/**: CSIL service definitions and types (`longhouse.csil`),
-  source of truth for both the Go server stubs and the TypeScript client.
-  Run `./csil/regenerate.sh` after any spec change.
+  source of truth for the Go server stubs AND every clients/ language.
+  Run `./csil/regenerate.sh` after any spec change (it regenerates the Go
+  server, then delegates to `clients/regenerate.sh` for all clients).
 - **coredb/**: Embedded SQL migrations module (goose).
 - **helm_chart/**: Kubernetes Helm chart with Gateway API HTTPRoutes
   (api + web; the api also rides under `/api/*` on the web hostname so
@@ -127,14 +142,24 @@ dev-auth and recurrence-worker knobs.
 
 ## Conventions
 
-- **CSIL-first.** The spec drives both server stubs and client. Don't
-  hand-modify generated files; edit `csil/longhouse.csil` and rerun
-  `./csil/regenerate.sh`.
-- **CSIL-RPC wire format.** `application/cbor` in both directions.
-  Server fields are snake_case (Go JSON tags); the SPA's transport
-  auto-bridges camel↔snake so generated typescript-client classes see
-  the camelCase types they were promised. Errors are CBOR-encoded
-  `ServiceError { code, message }` with the matching HTTP status.
+- **CSIL-first.** The spec drives the Go server stubs and every clients/
+  language. Don't hand-modify generated files; edit `csil/longhouse.csil` and
+  rerun `./csil/regenerate.sh`. `csilgen` is a required **system tool** (like
+  docker/gofmt) — install it from its repo if missing (the regenerate scripts
+  print the command). Consumer-side needs from csilgen are filed as markdown
+  in `csilgen/docs/csilgen-requests/`. Status: all 14 generators emit; **13
+  compile** (typescript, go, rust, python, ruby, elixir, csharp, dart, ocaml,
+  zig, c, java, kotlin — verified via the `catalyst-tools` toolchains). Only
+  **swift** is unverified, purely for lack of a local `swiftc` (it's a system
+  install). `clients/regenerate.sh` keeps a `KNOWN_BROKEN` hook (currently
+  empty) for any generator that stops emitting.
+- **CSIL-RPC wire format.** `application/cbor` in both directions. Server
+  fields are snake_case (Go JSON tags); the generated `codec.gen.*` emits those
+  snake_case keys directly and maps them back to the camelCase generated types,
+  so there is no camel↔snake bridging in the carrier anymore. The carrier moves
+  only the envelope (`service`/kebab-`op`/tag-24 payload) + `fetch` + auth.
+  Errors are CBOR-encoded `ServiceError { code, message }` with the matching
+  HTTP status.
 - **Authorization is resource-based**, not URL-based. Each CSIL method
   looks up the resource → reads its `house_id` → checks the bearer's
   identity has the required role in that house. There is no `/houses/{id}/...`
