@@ -1,5 +1,5 @@
 name: longhouse-webapp-test
-description: "Type-check + unit-test the SolidJS SPA (vitest + tsc)"
+description: "Type-check + unit-test the SolidJS SPA in webapp/ (vitest + tsc)"
 triggers:
   events:
     - pull_request_opened

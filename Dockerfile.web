@@ -14,6 +14,10 @@ COPY webapp/ ./webapp/
 # (see Dockerfile path in longhouse-redeploy.sh), so the directory is
 # available — just needs to be copied in alongside webapp/.
 COPY version/ ./version/
+# The SPA consumes the generated TS client (@longhouse/client) via a path
+# alias to ../clients/typescript (see webapp/{vite,tsconfig}). That sibling
+# package must be in the build context for `tsc`/`vite build` to resolve it.
+COPY clients/typescript/ ./clients/typescript/
 RUN cd webapp && npm run build
 
 FROM caddy:2-alpine
