@@ -4,12 +4,15 @@ image:
   web:
     repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-web
 
-# External RP — reusing linkkeys.todandlorna.com (which has
-# ENABLE_RP_ENDPOINTS=true). No sidecar in this pod. apiKey is injected
-# at deploy time by deploy.sh from the LINKKEYS_PKI_API_KEY env var
-# (sourced from reactorcide secret tnl/longhouse:linkkeys_api_key).
+# External RP — reusing linkkeys.todandlorna.com. No sidecar in this pod.
+# apiKey is injected at deploy time by deploy.sh from the
+# LINKKEYS_PKI_API_KEY env var (sourced from reactorcide secret
+# tnl/longhouse:linkkeys_api_key).
 linkkeysRp:
   enabled: false
+  # Current linkkeys exposes the RP helper surface over CSIL-RPC/TCP; the old
+  # /v1alpha/* JSON RP endpoints are gone.
+  transport: "tcp"
   url: "https://linkkeys.todandlorna.com"
 
 imagePullSecrets:
