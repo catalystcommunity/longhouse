@@ -4,24 +4,22 @@ image:
   web:
     repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-web
 
-# External RP — the catalystsquad linkkeys instance, which has
-# ENABLE_RP_ENDPOINTS=true. No sidecar in this pod. apiKey is injected
-# at deploy time by deploy.sh from the LINKKEYS_PKI_API_KEY env var
-# (sourced from reactorcide secret catalystsquad/longhouse:linkkeys_api_key).
+# External RP — the catalystsquad linkkeys instance. No sidecar in this pod.
+# apiKey is injected at deploy time by deploy.sh from the LINKKEYS_PKI_API_KEY
+# env var (sourced from reactorcide secret catalystsquad/longhouse:linkkeys_api_key).
 #
-# This URL is the *server-side* sign-request endpoint the api calls; it
-# is never handed to the browser (the browser uses the public
-# server.linkkeysIdpUrl below). Note the http:// scheme — unlike the tnl
-# env, which uses https://linkkeys.todandlorna.com: catalystsquad.com is
-# Cloudflare-proxied, and in-cluster DNS resolves linkkeys.catalystsquad.com
-# to the contour gateway LB (10.16.0.30), which only serves the HTTP (:80)
-# listener for this host — TLS is terminated externally at Cloudflare/Caddy.
-# So an https:// call hits :443 and gets connection-refused (→ /auth/start
-# 502s), while http:// routes through contour to the linkkeys Service and
-# works. The request stays inside the cluster, so the api key is not
-# exposed publicly.
+# The `url` is retained for older HTTP-transport deploys; with transport=tcp,
+# Longhouse discovers the CSIL-RPC endpoint and fingerprints from linkkeys DNS.
+# The browser still uses the public server.linkkeysIdpUrl below.
 linkkeysRp:
   enabled: false
+  # Current linkkeys exposes the RP helper surface over CSIL-RPC/TCP; the old
+  # /v1alpha/* JSON RP endpoints are gone.
+  transport: "tcp"
+  # Cluster DNS currently does not resolve _linkkeys_apis.catalystsquad.com from
+  # the Longhouse pod, so pin the in-cluster TCP service and public fingerprints.
+  tcpAddr: "linkkeys-catalystsquad.linkkeys-catalystsquad.svc.cluster.local:4987"
+  tcpFingerprints: "c20dadc7bea8ecf47c2d2f43ff78004c5bad28d5f56874c142ddd76c888aaf06,50d7df1ea0298a90d38ed5d7c366172944d7bbed56d9fbd3e9a6e23e39ed7360,63a01719e9df06d7f33b206d301382c610703fc72dd0b54ed11e15faea3c3b80"
   url: "http://linkkeys.catalystsquad.com"
 
 imagePullSecrets:
