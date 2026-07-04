@@ -1,6 +1,6 @@
 module github.com/catalystcommunity/longhouse/api
 
-go 1.23.4
+go 1.26.4
 
 require (
 	github.com/catalystcommunity/longhouse/coredb v0.0.0-00010101000000-000000000000

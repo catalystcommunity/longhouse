@@ -14,13 +14,13 @@ job:
   command: |
     set -e
     export HOME="${HOME:-/tmp/home}"
-    mkdir -p "$HOME/.local"
-
-    # Install Go toolchain
-    curl -fsSL https://go.dev/dl/go1.23.8.linux-amd64.tar.gz -o /tmp/go.tar.gz
-    tar -C "$HOME/.local" -xzf /tmp/go.tar.gz
-    rm /tmp/go.tar.gz
-    export PATH="$HOME/.local/go/bin:$HOME/go/bin:$PATH"
+    export GOROOT="/usr/local/go"
+    export GOPATH="$HOME/go"
+    export GOMODCACHE="$GOPATH/pkg/mod"
+    export GOCACHE="$HOME/.cache/go-build"
+    mkdir -p "$GOMODCACHE" "$GOCACHE"
+    export PATH="$GOROOT/bin:$GOPATH/bin:$PATH"
+    go version
 
     cd /job/src
     # release.sh handles git remote auth itself, gated on
