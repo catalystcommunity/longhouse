@@ -103,6 +103,17 @@ fi
 # released as a container image by the web-build-and-deploy job, not a tarball.
 echo "=== Building longhouse binaries ==="
 
+export HOME="${HOME:-/tmp/home}"
+if [ -x /usr/local/go/bin/go ]; then
+  export GOROOT="/usr/local/go"
+  export PATH="${GOROOT}/bin:${PATH}"
+fi
+export GOPATH="${GOPATH:-${HOME}/go}"
+export GOMODCACHE="${GOMODCACHE:-${GOPATH}/pkg/mod}"
+export GOCACHE="${GOCACHE:-${HOME}/.cache/go-build}"
+mkdir -p "${GOMODCACHE}" "${GOCACHE}"
+go version
+
 cd api
 go build -o /tmp/longhouse .
 cd ..
