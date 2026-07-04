@@ -24,16 +24,13 @@ echo "=== Installing system packages ==="
 sudo apt-get update -qq
 sudo apt-get install -y --no-install-recommends postgresql postgresql-client build-essential curl ca-certificates
 
-echo "=== Installing Go toolchain ==="
-GO_VERSION="${GO_VERSION:-1.23.8}"
-if ! command -v go >/dev/null || ! go version 2>/dev/null | grep -q "go${GO_VERSION}"; then
-    curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o /tmp/go.tar.gz
-    mkdir -p "$HOME/.local"
-    rm -rf "$HOME/.local/go"
-    tar -C "$HOME/.local" -xzf /tmp/go.tar.gz
-    rm /tmp/go.tar.gz
-fi
-export PATH="$HOME/.local/go/bin:$HOME/go/bin:${PATH}"
+echo "=== Go (runnerbase built-in) ==="
+export GOROOT="/usr/local/go"
+export GOPATH="$HOME/go"
+export GOMODCACHE="$GOPATH/pkg/mod"
+export GOCACHE="$HOME/.cache/go-build"
+mkdir -p "$GOMODCACHE" "$GOCACHE"
+export PATH="$GOROOT/bin:$GOPATH/bin:${PATH}"
 go version
 
 # postgres binaries live at /usr/lib/postgresql/<version>/bin on Debian.
