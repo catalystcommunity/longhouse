@@ -95,34 +95,25 @@ if [[ -n "${DOCKER_HOST:-}" ]]; then
     echo "Image pushed successfully"
 else
     if ! command -v buildctl &> /dev/null; then
-        echo "Installing buildkit..."
+        echo "Installing buildctl..."
         BUILDKIT_VERSION=0.17.3
         curl -fsSL "https://github.com/moby/buildkit/releases/download/v${BUILDKIT_VERSION}/buildkit-v${BUILDKIT_VERSION}.linux-amd64.tar.gz" -o /tmp/buildkit.tar.gz
-        tar -xzf /tmp/buildkit.tar.gz --strip-components=1 -C "$LOCAL_BIN"
+        tar -xzf /tmp/buildkit.tar.gz --strip-components=1 -C "$LOCAL_BIN" bin/buildctl
         rm /tmp/buildkit.tar.gz
     fi
 
-    export XDG_RUNTIME_DIR=/tmp/run-root
-    mkdir -p "$XDG_RUNTIME_DIR"
-
-    echo "Starting buildkitd..."
-    buildkitd \
-        --oci-worker=true \
-        --containerd-worker=false \
-        --root="$HOME/.local/share/buildkit" \
-        --addr="unix://$XDG_RUNTIME_DIR/buildkit/buildkitd.sock" &
-    BUILDKITD_PID=$!
-    trap "kill $BUILDKITD_PID 2>/dev/null || true; wait 2>/dev/null || true" EXIT
-
+    echo "Waiting for builder sidecar..."
     for i in $(seq 1 30); do
-        if buildctl --addr="unix://$XDG_RUNTIME_DIR/buildkit/buildkitd.sock" debug info >/dev/null 2>&1; then
-            echo "buildkitd is ready"
+        if buildctl debug info >/dev/null 2>&1; then
+            echo "builder sidecar is ready"
             break
+        fi
+        if [[ $i -eq 30 ]]; then
+            echo "ERROR: builder sidecar not ready after 30 seconds"
+            exit 1
         fi
         sleep 1
     done
-
-    export BUILDKIT_HOST="unix://$XDG_RUNTIME_DIR/buildkit/buildkitd.sock"
 
     echo "Building and pushing to internal registry..."
     buildctl build \
