@@ -9,7 +9,10 @@ job:
   command: |
     set -e
     export HOME="${HOME:-/tmp/home}"
-    mkdir -p "$HOME/.local"
+    export GOPATH="$HOME/go"
+    export GOMODCACHE="$GOPATH/pkg/mod"
+    export GOCACHE="$HOME/.cache/go-build"
+    mkdir -p "$HOME/.local" "$GOMODCACHE" "$GOCACHE"
 
     # Install Go toolchain
     curl -fsSL https://go.dev/dl/go1.23.8.linux-amd64.tar.gz -o /tmp/go.tar.gz

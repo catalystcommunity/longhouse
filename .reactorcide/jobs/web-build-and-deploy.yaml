@@ -12,7 +12,7 @@ job:
   command: "bash /job/src/.reactorcide/jobs/scripts/web-build-and-deploy.sh"
   timeout: 1200
   capabilities:
-    - docker
+    - builder
 environment:
   REGISTRY_INTERNAL: "containers.catalystsquad.com"
   REGISTRY_INTERNAL_PATH: "public/catalystcommunity/longhouse-web"
