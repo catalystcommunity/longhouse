@@ -472,6 +472,16 @@ final class EventClient {
     return (CsilCbor.decode(csilResp) as List).map((csilE) => Event.fromCborValue(csilE)).cast<Event>().toList();
   }
 
+  CalendarView getCalendarView(HouseId request) {
+    final csilResp = transport.call('event', 'GetCalendarView', CsilCbor.encodeValue(request));
+    return CalendarView.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  CalendarView setCalendarView(CalendarView request) {
+    final csilResp = transport.call('event', 'SetCalendarView', request.toCbor());
+    return CalendarView.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
 }
 
 /// A typed, transport-agnostic client for the TaskService service. The client owns

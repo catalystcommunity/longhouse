@@ -473,6 +473,16 @@ final class EventAsyncClient {
     return (CsilCbor.decode(csilResp) as List).map((csilE) => Event.fromCborValue(csilE)).cast<Event>().toList();
   }
 
+  Future<CalendarView> getCalendarView(HouseId request) async {
+    final csilResp = await transport.call('event', 'GetCalendarView', CsilCbor.encodeValue(request));
+    return CalendarView.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<CalendarView> setCalendarView(CalendarView request) async {
+    final csilResp = await transport.call('event', 'SetCalendarView', request.toCbor());
+    return CalendarView.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
 }
 
 /// A typed, transport-agnostic client for the TaskService service. The client owns

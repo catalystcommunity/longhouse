@@ -13,7 +13,7 @@ shared repository — then depend on it alongside the transport library:
 
 ```kotlin
 dependencies {
-    implementation("com.catalystcommunity.longhouse.client:longhouse-client:0.13.0")
+    implementation("com.catalystcommunity.longhouse.client:longhouse-client:0.14.2")
     implementation("community.catalyst.csilgen:csilgen-transport:0.1.0")
 }
 ```

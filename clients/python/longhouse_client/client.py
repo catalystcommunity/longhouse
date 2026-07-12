@@ -379,6 +379,14 @@ class EventClient:
         """list-events"""
         return decode_event_list_events_response(self._transport.call("event", "ListEvents", req.to_cbor()))
 
+    def get_calendar_view(self, req: HouseId) -> CalendarView:
+        """get-calendar-view"""
+        return CalendarView.from_cbor(self._transport.call("event", "GetCalendarView", encode_event_get_calendar_view_request(req)))
+
+    def set_calendar_view(self, req: CalendarView) -> CalendarView:
+        """set-calendar-view"""
+        return CalendarView.from_cbor(self._transport.call("event", "SetCalendarView", req.to_cbor()))
+
 class TaskClient:
     """Typed client for the TaskService service."""
     def __init__(self, transport: Transport):

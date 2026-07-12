@@ -1,14 +1,14 @@
-import { For, Show, createEffect, createMemo, createResource, createSignal } from "solid-js";
+import { For, Show, createEffect, createMemo, createResource, createSignal, onCleanup, onMount } from "solid-js";
 import { useSearchParams } from "@solidjs/router";
-import { ChevronLeft, ChevronRight, Plus } from "~/components/Icons";
+import { ChevronLeft, ChevronRight, People, Plus } from "~/components/Icons";
 import { AuthGate } from "~/components/AuthGate";
 import { DateTimePicker } from "~/components/DateTimePicker";
 import { RecurrenceFields, recurrenceLabel, toRecurrence, type RecurrenceFreq } from "~/components/RecurrenceFields";
-import { eventClient } from "~/data/clients";
-import { eventTone, timeLabel, ymdLocal } from "~/lib/derive";
-import { useCurrentHouseId } from "~/stores/auth";
+import { eventClient, memberClient } from "~/data/clients";
+import { displayName, eventTone, timeLabel, ymdLocal } from "~/lib/derive";
+import { currentMemberId, useCurrentHouseId } from "~/stores/auth";
 import { buildCells, groupSingleByDate, placeSpans } from "~/lib/month";
-import type { Event as ApiEvent } from "@longhouse/client";
+import type { CalendarSubscription, Event as ApiEvent } from "@longhouse/client";
 
 const WEEKDAYS_MON_FIRST = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
@@ -33,6 +33,60 @@ export const CalendarPage = () => {
     () => houseId(),
     async (h) => eventClient.listEvents({ houseId: h }),
   );
+  const [members] = createResource(
+    () => houseId(),
+    async (h) => memberClient.listMembers({ houseId: h }),
+  );
+
+  // Calendar sharing — like any calendar app, you see your own calendar by
+  // default and opt other people's calendars in. Your view (which members
+  // you've ADDED, and which of those are ENABLED) is persisted server-side per
+  // member, so it follows you across devices and survives logout. A subject's
+  // events render only when you've both added them AND left them enabled. Each
+  // member's events keep their own owner-derived color, so overlaid calendars
+  // read as distinct from yours.
+  const me = () => currentMemberId();
+  const [savedView] = createResource(
+    () => houseId(),
+    async (h) => (await eventClient.getCalendarView(h)).subscriptions ?? [],
+  );
+  // Local, optimistic copy of the roster; seeded from the server view, and
+  // written straight back to the server on every edit.
+  const [subs, setSubs] = createSignal<CalendarSubscription[]>([]);
+  createEffect(() => setSubs(savedView() ?? []));
+
+  const persist = (next: CalendarSubscription[]) => {
+    setSubs(next);
+    const h = houseId();
+    const viewer = me();
+    if (!h || !viewer) return;
+    // Fire-and-forget: the local signal already reflects the change; a reload
+    // re-reads the server truth if the write ever fails.
+    void eventClient
+      .setCalendarView({ houseId: h, viewerMemberId: viewer, subscriptions: next })
+      .catch(() => { /* best-effort */ });
+  };
+  const addSubject = (memberId: string) => {
+    if (subs().some((s) => s.subjectMemberId === memberId)) return;
+    persist([...subs(), { subjectMemberId: memberId, enabled: true }]);
+  };
+  const setEnabled = (memberId: string, enabled: boolean) =>
+    persist(subs().map((s) => (s.subjectMemberId === memberId ? { ...s, enabled } : s)));
+  const removeSubject = (memberId: string) =>
+    persist(subs().filter((s) => s.subjectMemberId !== memberId));
+
+  const enabledCount = () => subs().filter((s) => s.enabled).length;
+  const [peopleOpen, setPeopleOpen] = createSignal(false);
+
+  // The set of member ids whose calendars are visible: always me, plus any
+  // subscription that is currently enabled.
+  const visibleOwnerIds = createMemo(() => {
+    const ids = new Set<string>();
+    const mine = me();
+    if (mine) ids.add(mine);
+    for (const s of subs()) if (s.enabled) ids.add(s.subjectMemberId);
+    return ids;
+  });
 
   // Composer state. `{ mode: "create" }` opens a blank form; with optional
   // `start`/`end` ISO strings to pre-fill the time range (cell-click or
@@ -86,7 +140,13 @@ export const CalendarPage = () => {
   // worker spawns real Event rows for each occurrence up to a 2-year
   // horizon, so there's nothing to expand client-side. We still tag
   // children with the 🔁 indicator so users know they're part of a series.
-  const visibleEvents = createMemo(() => allEvents() ?? []);
+  // Filtered to the calendars the viewer has chosen to see (their own plus
+  // any explicitly added members) — you don't see everyone's calendar by
+  // default. Past events are kept: the calendar is where you go to find them.
+  const visibleEvents = createMemo(() => {
+    const owners = visibleOwnerIds();
+    return (allEvents() ?? []).filter((e) => owners.has(e.ownerMemberId));
+  });
 
   return (
     <AuthGate>
@@ -109,17 +169,45 @@ export const CalendarPage = () => {
         )}
       </Show>
 
-      <section class="cal reveal d1">
+      <section class="cal reveal d1" data-honor="false">
         <div class="cal-hd">
           <div class="cal-title">
             <h3 class="cal-month">{viewTitle(view(), anchor())}</h3>
-            <span class="cal-sub">{(allEvents() ?? []).length} events in this house</span>
+            <span class="cal-sub">
+              {visibleEvents().length} shown
+              <Show when={enabledCount() > 0}>
+                {" "}· you + {enabledCount()} {enabledCount() === 1 ? "calendar" : "calendars"}
+              </Show>
+            </span>
           </div>
           <div class="cal-controls">
             <div class="cal-nav">
               <button class="icon-btn" onClick={goPrev} aria-label="Previous"><ChevronLeft /></button>
               <button class="icon-btn today" onClick={goToday} aria-label="Today">Today</button>
               <button class="icon-btn" onClick={goNext} aria-label="Next"><ChevronRight /></button>
+            </div>
+            <div style="position:relative">
+              <button
+                class="btn-quiet"
+                onClick={() => setPeopleOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={peopleOpen() ? "true" : "false"}
+                title="Choose whose calendars to show"
+              >
+                <People /> People
+                <Show when={enabledCount() > 0}> · {enabledCount()}</Show>
+              </button>
+              <Show when={peopleOpen()}>
+                <PeoplePicker
+                  members={members() ?? []}
+                  meId={me()}
+                  subs={subs()}
+                  onAdd={addSubject}
+                  onSetEnabled={setEnabled}
+                  onRemove={removeSubject}
+                  onClose={() => setPeopleOpen(false)}
+                />
+              </Show>
             </div>
             <div class="seg" role="tablist" style="display:inline-flex;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden">
               <For each={[
@@ -166,6 +254,134 @@ export const CalendarPage = () => {
         </Show>
       </section>
     </AuthGate>
+  );
+};
+
+// ─── People picker (whose calendars to show) ──────────────────────────
+//
+// Two tiers, like a normal calendar app's "Other calendars":
+//   • "You" — always shown, non-removable baseline.
+//   • Your roster — members you've ADDED. Each has a checkbox (ENABLED = shown)
+//     and an × (remove from roster). A subject's events appear only when added
+//     AND enabled, so unchecking hides without forgetting the choice.
+//   • "Add someone" — a select of house members not yet in your roster.
+// The color swatch mirrors the event tone so the legend maps onto the calendar.
+
+const TONE_VAR: Record<string, string> = {
+  ocean: "var(--ocean-1)",
+  grass: "var(--grass-3)",
+  sky: "var(--sky-3)",
+  heather: "var(--heather)",
+  moss: "var(--moss)",
+};
+
+type PickerMember = { memberId: string; displayName?: string; handle?: string; email?: string; linkkeysUserId?: string };
+
+const PeoplePicker = (props: {
+  members: PickerMember[];
+  meId?: string | null;
+  subs: CalendarSubscription[];
+  onAdd: (memberId: string) => void;
+  onSetEnabled: (memberId: string, enabled: boolean) => void;
+  onRemove: (memberId: string) => void;
+  onClose: () => void;
+}) => {
+  let wrap: HTMLDivElement | undefined;
+  const onDocClick = (e: MouseEvent) => {
+    if (wrap && !wrap.contains(e.target as Node)) props.onClose();
+  };
+  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") props.onClose(); };
+  onMount(() => {
+    // Defer so the opening click doesn't immediately close the panel.
+    setTimeout(() => document.addEventListener("click", onDocClick), 0);
+    document.addEventListener("keydown", onKey);
+  });
+  onCleanup(() => {
+    document.removeEventListener("click", onDocClick);
+    document.removeEventListener("keydown", onKey);
+  });
+
+  const byId = () => {
+    const map = new Map<string, PickerMember>();
+    for (const m of props.members) map.set(m.memberId, m);
+    return map;
+  };
+  const swatch = (memberId: string) => TONE_VAR[eventTone(memberId)] ?? "var(--grass-3)";
+  // House members not yet in the roster (and not me) — the "add" candidates.
+  const candidates = () => {
+    const inRoster = new Set(props.subs.map((s) => s.subjectMemberId));
+    return props.members.filter((m) => m.memberId !== props.meId && !inRoster.has(m.memberId));
+  };
+  const nameFor = (id: string) => {
+    const m = byId().get(id);
+    return m ? displayName(m) : id;
+  };
+
+  return (
+    <div
+      ref={wrap}
+      role="menu"
+      aria-label="Calendars to show"
+      style="position:absolute;top:calc(100% + 6px);right:0;min-width:250px;max-height:360px;overflow-y:auto;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--shadow-cloud);padding:6px;z-index:60"
+    >
+      <div style="padding:6px 10px;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-mute)">
+        Calendars
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:14px;color:var(--ink)">
+        <span style={`width:10px;height:10px;border-radius:3px;flex-shrink:0;background:${props.meId ? swatch(props.meId) : "var(--grass-3)"}`} />
+        <span style="flex:1">You</span>
+        <span style="font-size:11px;color:var(--ink-mute)">always shown</span>
+      </div>
+
+      <Show when={props.subs.length > 0}>
+        <For each={props.subs}>
+          {(s) => (
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:14px;color:var(--ink);border-radius:var(--r-sm,6px)">
+              <input
+                type="checkbox"
+                checked={s.enabled}
+                onChange={(e) => props.onSetEnabled(s.subjectMemberId, e.currentTarget.checked)}
+                title={s.enabled ? "Enabled — showing on your calendar" : "Added but hidden"}
+                style="cursor:pointer"
+              />
+              <span style={`width:10px;height:10px;border-radius:3px;flex-shrink:0;background:${swatch(s.subjectMemberId)};opacity:${s.enabled ? "1" : "0.35"}`} />
+              <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{nameFor(s.subjectMemberId)}</span>
+              <button
+                type="button"
+                onClick={() => props.onRemove(s.subjectMemberId)}
+                title="Remove from your calendars"
+                style="background:transparent;border:0;color:var(--ink-mute);cursor:pointer;font-size:15px;line-height:1;padding:0 2px"
+              >×</button>
+            </div>
+          )}
+        </For>
+      </Show>
+
+      <div style="border-top:1px solid var(--line);margin:6px 4px 0;padding-top:8px">
+        <Show
+          when={candidates().length > 0}
+          fallback={
+            <div style="padding:4px 6px;font-size:12px;color:var(--ink-mute)">
+              {props.members.filter((m) => m.memberId !== props.meId).length === 0
+                ? "No other members yet."
+                : "Everyone's added."}
+            </div>
+          }
+        >
+          <label style="display:flex;flex-direction:column;gap:4px;padding:0 6px">
+            <span style="font-size:11px;color:var(--ink-mute)">Add a calendar</span>
+            <select
+              value=""
+              onChange={(e) => { const v = e.currentTarget.value; if (v) props.onAdd(v); e.currentTarget.value = ""; }}
+              style="padding:6px 8px;border:1px solid var(--line);border-radius:var(--r-sm,6px);background:var(--paper);font-size:13px;cursor:pointer"
+            >
+              <option value="">+ add someone…</option>
+              <For each={candidates()}>{(m) => <option value={m.memberId}>{displayName(m)}</option>}</For>
+            </select>
+          </label>
+        </Show>
+      </div>
+    </div>
   );
 };
 

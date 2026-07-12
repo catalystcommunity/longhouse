@@ -426,6 +426,16 @@ class EventServiceHandlers(ABC):
         """list-events"""
         ...
 
+    @abstractmethod
+    def get_calendar_view(self, req: HouseId, ctx: dict) -> Union[CalendarView, ServiceError]:
+        """get-calendar-view"""
+        ...
+
+    @abstractmethod
+    def set_calendar_view(self, req: CalendarView, ctx: dict) -> Union[CalendarView, ServiceError]:
+        """set-calendar-view"""
+        ...
+
 class TaskServiceHandlers(ABC):
     """Server-side handlers for TaskService service operations."""
 

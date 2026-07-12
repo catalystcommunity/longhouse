@@ -938,6 +938,28 @@ pub const EventClient = struct {
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
+
+    /// Invoke event/GetCalendarView with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn get_calendar_view(self: EventClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *types.CalendarView) anyerror!void {
+        const csil_reqb = try codec.encode_HouseID(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "event", "GetCalendarView", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_CalendarView(alloc, csil_respb, out);
+    }
+
+    /// Invoke event/SetCalendarView with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn set_calendar_view(self: EventClient, alloc: std.mem.Allocator, req: *const types.CalendarView, out: *types.CalendarView) anyerror!void {
+        const csil_reqb = try codec.encode_CalendarView(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "event", "SetCalendarView", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_CalendarView(alloc, csil_respb, out);
+    }
 };
 
 /// TaskClient is a typed client for the TaskService service over a CsilgenTransport.

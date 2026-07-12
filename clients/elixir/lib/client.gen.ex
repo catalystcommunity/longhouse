@@ -691,6 +691,18 @@ defmodule Csilgen.Generated.EventClient do
     decode_list_events_response(resp)
   end
 
+  @spec get_calendar_view(t(), Csilgen.Generated.HouseID.t()) :: Csilgen.Generated.CalendarView.t()
+  def get_calendar_view(%__MODULE__{transport: transport}, req) do
+    resp = Csilgen.Generated.Transport.call(transport, "event", "GetCalendarView", encode_get_calendar_view_request(req))
+    Csilgen.Generated.CalendarView.from_cbor(resp)
+  end
+
+  @spec set_calendar_view(t(), Csilgen.Generated.CalendarView.t()) :: Csilgen.Generated.CalendarView.t()
+  def set_calendar_view(%__MODULE__{transport: transport}, req) do
+    resp = Csilgen.Generated.Transport.call(transport, "event", "SetCalendarView", Csilgen.Generated.CalendarView.to_cbor(req))
+    Csilgen.Generated.CalendarView.from_cbor(resp)
+  end
+
   defp encode_get_event_request(req), do: Csilgen.Generated.Cbor.encode({:text, req})
 
   defp encode_delete_event_request(req), do: Csilgen.Generated.Cbor.encode({:text, req})
@@ -701,6 +713,8 @@ defmodule Csilgen.Generated.EventClient do
     csil_root = Csilgen.Generated.Cbor.decode(csil_bytes)
     (case csil_root do {:array, csil_xs} -> Enum.map(csil_xs, fn csil_e -> Csilgen.Generated.Event.from_cbor_value(csil_e) end) end)
   end
+
+  defp encode_get_calendar_view_request(req), do: Csilgen.Generated.Cbor.encode({:text, req})
 end
 
 defmodule Csilgen.Generated.TaskClient do

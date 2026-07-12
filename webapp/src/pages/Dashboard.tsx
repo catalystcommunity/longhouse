@@ -14,6 +14,7 @@ import {
   eventTone,
   initial,
   isTaskClosed,
+  memberHandle,
   memberStatus,
   memberSwatch,
   partOfDayGreeting,
@@ -58,13 +59,70 @@ export const Dashboard = () => {
     async (h) => (await projectClient.listProjects({ houseId: h })).projects,
   );
 
+  // "My view" scoping. A task is mine when I own it, I'm assigned to it, or it
+  // lives in a project I own or belong to — never house-wide, even for admins.
+  // The project membership + task-membership fan-out is resolved here (tolerant
+  // of per-project failures) and cached in a Set of task ids.
+  const [myProjectTaskIds] = createResource(
+    () => {
+      const h = houseId();
+      const me = currentMemberId();
+      const ps = projects();
+      if (!h || !me || !ps) return null;
+      return { h, me, projects: ps };
+    },
+    async ({ h, me, projects: ps }) => {
+      // Projects I own (created_by fallback) plus any where I'm an explicit
+      // owner or member.
+      const mine = new Set<string>(
+        ps.filter((p) => p.createdByMemberId === me).map((p) => p.projectId),
+      );
+      await Promise.all(
+        ps.map(async (p) => {
+          try {
+            const [pm, po] = await Promise.all([
+              projectClient.listProjectMembers(p.projectId),
+              projectClient.listProjectOwners(p.projectId),
+            ]);
+            if (pm.some((m) => m.memberId === me) || po.some((m) => m.memberId === me)) {
+              mine.add(p.projectId);
+            }
+          } catch { /* one project's grants failing shouldn't drop the rest */ }
+        }),
+      );
+      const taskIds = new Set<string>();
+      await Promise.all(
+        Array.from(mine).map(async (pid) => {
+          try {
+            const res = await projectClient.listProjectTasks({ houseId: h, projectId: pid });
+            for (const t of res.tasks) taskIds.add(t.taskId);
+          } catch { /* tolerate */ }
+        }),
+      );
+      return taskIds;
+    },
+  );
+
   const memberById = createMemo(() => {
     const map = new Map<string, Member>();
     for (const m of members() ?? []) map.set(m.memberId, m);
     return map;
   });
 
-  const tasksOpen = createMemo(() => (tasks() ?? []).filter((t) => !t.deletedAt && !isTaskClosed(t)));
+  // Every task the dashboard shows is filtered through this "mine" predicate.
+  const myTasks = createMemo(() => {
+    const me = currentMemberId();
+    if (!me) return [] as Task[];
+    const projTaskIds = myProjectTaskIds() ?? new Set<string>();
+    return (tasks() ?? []).filter(
+      (t) =>
+        t.ownerMemberId === me ||
+        (t.assignees ?? []).includes(me) ||
+        projTaskIds.has(t.taskId),
+    );
+  });
+
+  const tasksOpen = createMemo(() => myTasks().filter((t) => !t.deletedAt && !isTaskClosed(t)));
   // Dashboard task buckets, in display order. Overdue and today come first
   // (action items), then anything due this week, then undated work the
   // member should still see ("things I just need to get done"), then later
@@ -77,7 +135,7 @@ export const Dashboard = () => {
   // Recently completed — newest 5 by updated_at, so the dashboard always
   // shows what was just finished. status === "done" only (cancelled gets
   // its own bucket if we ever surface one).
-  const tasksRecent  = createMemo(() => (tasks() ?? [])
+  const tasksRecent  = createMemo(() => myTasks()
     .filter((t) => !t.deletedAt && t.status === "done")
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
     .slice(0, 5));
@@ -86,15 +144,21 @@ export const Dashboard = () => {
     () => (members() ?? []).filter((m) => memberStatus(m) === "active").length,
   );
 
-  // Next event = the earliest event whose end is in the future (or has no
-  // end and starts in the future). Falls back to undefined when there are
-  // no future events.
-  const nextEvent = createMemo(() => {
+  // Upcoming events only — anything whose end (or start, if no end) is still
+  // in the future. Past events never surface in dashboard lists/counts; they
+  // remain findable on the calendar.
+  const upcomingEvents = createMemo(() => {
     const now = Date.now();
-    const futures = (events() ?? []).filter((e) => {
+    return (events() ?? []).filter((e) => {
       const ref = e.endsAt ?? e.startsAt;
       return ref ? Date.parse(ref) >= now : false;
     });
+  });
+
+  // Next event = the earliest upcoming event. Falls back to undefined when
+  // there are no future events.
+  const nextEvent = createMemo(() => {
+    const futures = [...upcomingEvents()];
     futures.sort((a, b) => {
       const ka = Date.parse(a.startsAt ?? a.endsAt ?? "");
       const kb = Date.parse(b.startsAt ?? b.endsAt ?? "");
@@ -104,7 +168,7 @@ export const Dashboard = () => {
   });
 
   const taskFootEstimate = createMemo(() => {
-    const ts = tasks() ?? [];
+    const ts = myTasks();
     const done = ts.filter((t) => t.status === "done").length;
     const remaining = ts.filter((t) => !t.deletedAt && !isTaskClosed(t));
     const minutes = remaining.reduce((acc, t) => acc + (t.estimateMinutes ?? 0), 0);
@@ -125,14 +189,14 @@ export const Dashboard = () => {
           </h1>
           <p class="greet-sub">
             You have <b>{tasksToday().length} {tasksToday().length === 1 ? "task" : "tasks"} due today</b>{" "}
-            and {nextEventCopy(events()?.length ?? 0)}.{" "}
+            and {nextEventCopy(upcomingEvents().length)}.{" "}
             {activeMembers()} {activeMembers() === 1 ? "member is" : "members are"} active right now.
           </p>
           <div class="hero-stats">
-            <Stat n={tasksToday().length} label="tasks due" />
-            <Stat n={(events() ?? []).length} label="events" />
-            <Stat n={activeMembers()} label="active members" />
-            <Stat n={(projects() ?? []).length} label="projects" />
+            <Stat n={tasksToday().length} label="tasks due" onClick={() => navigate("/tasks")} />
+            <Stat n={upcomingEvents().length} label="upcoming events" onClick={() => navigate("/calendar")} />
+            <Stat n={activeMembers()} label="active members" onClick={() => navigate("/members")} />
+            <Stat n={(projects() ?? []).length} label="projects" onClick={() => navigate("/projects")} />
           </div>
         </div>
       </section>
@@ -266,7 +330,9 @@ export const Dashboard = () => {
                     <span class={`a lg ${memberSwatch(m.memberId)}`}>{initial(m)}</span>
                     <div>
                       <div class="who-name">{displayName(m)}</div>
-                      <div class="doing">{m.linkkeysUserId}@{m.linkkeysDomain}</div>
+                      <Show when={memberHandle(m)}>
+                        {(h) => <div class="doing">{h()}</div>}
+                      </Show>
                     </div>
                   </div>
                 )}
@@ -291,11 +357,16 @@ const EmptyTasks = () => (
   </div>
 );
 
-const Stat = (props: { n: number; label: string }) => (
-  <div class="stat">
+const Stat = (props: { n: number; label: string; onClick?: () => void }) => (
+  <button
+    type="button"
+    class="stat"
+    onClick={props.onClick}
+    aria-label={`${props.n} ${props.label} — open`}
+  >
     <span class="n">{props.n}</span>
     <span class="lbl">{props.label}</span>
-  </div>
+  </button>
 );
 
 const TaskRow = (props: {

@@ -96,6 +96,31 @@ class CsilCbor {
     return r.value;
   }
 
+  static T expectLiteral<T>(Object? actual, Object? expected, T value) {
+    if (!_valueEquals(actual, expected)) {
+      throw ArgumentError('CsilCbor: literal mismatch');
+    }
+    return value;
+  }
+
+  static bool _valueEquals(Object? a, Object? b) {
+    if (a is Uint8List && b is Uint8List) {
+      if (a.length != b.length) return false;
+      for (var i = 0; i < a.length; i++) {
+        if (a[i] != b[i]) return false;
+      }
+      return true;
+    }
+    if (a is List && b is List) {
+      if (a.length != b.length) return false;
+      for (var i = 0; i < a.length; i++) {
+        if (!_valueEquals(a[i], b[i])) return false;
+      }
+      return true;
+    }
+    return a == b;
+  }
+
   static _CsilRead _readArg(Uint8List b, int pos, int low) {
     if (low < 24) return _CsilRead(low, pos + 1);
     if (low == 24) return _CsilRead(b[pos + 1], pos + 2);

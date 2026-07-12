@@ -146,6 +146,8 @@ typedef struct EffectiveSettings EffectiveSettings;
 typedef struct UpdateSettingsRequest UpdateSettingsRequest;
 typedef struct BugReportRequest BugReportRequest;
 typedef struct ServiceError ServiceError;
+typedef struct CalendarSubscription CalendarSubscription;
+typedef struct CalendarView CalendarView;
 typedef struct AuditEntry AuditEntry;
 typedef struct AuditQuery AuditQuery;
 typedef struct AuditPage AuditPage;
@@ -323,6 +325,7 @@ typedef struct Member {
     char *display_name;
     char *email;
     char *avatar_url;
+    char *handle;
     CsilBytes *cached_public_key;
     Timestamp created_at;
     Timestamp updated_at;
@@ -788,6 +791,20 @@ typedef struct BugReportRequest {
     char *title;
     char *description;
 } BugReportRequest;
+
+/* CalendarSubscription is a structured data type. */
+typedef struct CalendarSubscription {
+    MemberID subject_member_id;
+    bool enabled;
+} CalendarSubscription;
+
+/* CalendarView is a structured data type. */
+typedef struct CalendarView {
+    HouseID house_id;
+    MemberID viewer_member_id;
+    CalendarSubscription *subscriptions;
+    size_t subscriptions_count;
+} CalendarView;
 
 /* AuditEntry is a structured data type. */
 typedef struct AuditEntry {

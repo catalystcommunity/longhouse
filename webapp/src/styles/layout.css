@@ -48,6 +48,12 @@
   box-shadow: var(--shadow-low), 0 0 0 1px rgba(0,0,0,0.1);
 }
 .brand .mark svg { width: 20px; height: 20px; }
+/* Home is now reached via the brand (the standalone "Dashboard" nav entry
+   was removed as redundant), so the brand doubles as the Home tab: give the
+   mark an accent ring when the home route is active. */
+.brand.active .mark {
+  box-shadow: var(--shadow-low), 0 0 0 2px var(--accent), 0 0 0 4px color-mix(in oklab, var(--accent) 30%, transparent);
+}
 
 .nav {
   display: flex; align-items: center; gap: 4px;

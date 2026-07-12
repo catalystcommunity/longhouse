@@ -487,6 +487,16 @@ public struct EventAsyncClient {
         return try decodeEventListEventsResponse(csilResp)
     }
 
+    public func getCalendarView(_ request: HouseId) async throws -> CalendarView {
+        let csilResp = try await transport.call(service: "event", op: "GetCalendarView", request: encodeEventGetCalendarViewRequest(request))
+        return try CalendarView.fromCbor(csilResp)
+    }
+
+    public func setCalendarView(_ request: CalendarView) async throws -> CalendarView {
+        let csilResp = try await transport.call(service: "event", op: "SetCalendarView", request: request.toCbor())
+        return try CalendarView.fromCbor(csilResp)
+    }
+
 }
 
 /// TaskAsyncClient is a typed client for the TaskService service. The client owns

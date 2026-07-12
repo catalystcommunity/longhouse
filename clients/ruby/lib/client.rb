@@ -457,6 +457,16 @@ class EventClient
   def list_events(req)
     @transport.call("event", "ListEvents", req.to_cbor)
   end
+
+  # get-calendar-view: -> CalendarView
+  def get_calendar_view(req)
+    CalendarView.from_cbor(@transport.call("event", "GetCalendarView", req.to_cbor))
+  end
+
+  # set-calendar-view: -> CalendarView
+  def set_calendar_view(req)
+    CalendarView.from_cbor(@transport.call("event", "SetCalendarView", req.to_cbor))
+  end
 end
 
 # Typed client for the TaskService service.

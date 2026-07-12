@@ -154,6 +154,7 @@ pub struct Member {
     pub display_name: Option<String>,
     pub email: Option<String>,
     pub avatar_url: Option<String>,
+    pub handle: Option<String>,
     pub cached_public_key: Option<Vec<u8>>,
     pub created_at: Timestamp,
     pub updated_at: Timestamp,
@@ -556,12 +557,10 @@ pub struct MeResponse {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct EmptyRequest {
-}
+pub struct EmptyRequest {}
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct EmptyResponse {
-}
+pub struct EmptyResponse {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BoolResponse {
@@ -842,6 +841,19 @@ pub struct ServiceError {
     pub message: String,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct CalendarSubscription {
+    pub subject_member_id: MemberID,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CalendarView {
+    pub house_id: HouseID,
+    pub viewer_member_id: MemberID,
+    pub subscriptions: Option<Vec<CalendarSubscription>>,
+}
+
 pub type AuditID = String;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -913,4 +925,3 @@ pub struct PurgeRequest {
     pub resource_type: String,
     pub resource_id: String,
 }
-

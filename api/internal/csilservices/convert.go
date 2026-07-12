@@ -49,6 +49,7 @@ func memberToCSIL(m *models.Member) csil.Member {
 		DisplayName:    strPtrCopy(m.DisplayName),
 		Email:          strPtrCopy(m.Email),
 		AvatarUrl:      strPtrCopy(m.AvatarURL),
+		Handle:         strPtrCopy(m.Handle),
 		CreatedAt:      ts(m.CreatedAt),
 		UpdatedAt:      ts(m.UpdatedAt),
 		LastSeenAt:     tsPtr(m.LastSeenAt),
@@ -251,6 +252,25 @@ func eventsToCSIL(rs []models.Event) []csil.Event {
 		out = append(out, eventToCSIL(&rs[i]))
 	}
 	return out
+}
+
+// calendarViewToCSIL builds the wire view for a viewer. v may be nil (viewer
+// never saved a view) → an empty subscription list.
+func calendarViewToCSIL(houseID, viewerMemberID string, v *models.MemberCalendarView) csil.CalendarView {
+	subs := []csil.CalendarSubscription{}
+	if v != nil {
+		for _, sub := range v.Subscriptions {
+			subs = append(subs, csil.CalendarSubscription{
+				SubjectMemberId: csil.MemberID(sub.SubjectMemberID),
+				Enabled:         sub.Enabled,
+			})
+		}
+	}
+	return csil.CalendarView{
+		HouseId:        csil.HouseID(houseID),
+		ViewerMemberId: csil.MemberID(viewerMemberID),
+		Subscriptions:  subs,
+	}
 }
 
 // ---- Task --------------------------------------------------------------

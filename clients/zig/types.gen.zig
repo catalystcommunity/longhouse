@@ -301,6 +301,7 @@ pub const Member = struct {
     display_name: ?[]const u8 = null,
     email: ?[]const u8 = null,
     avatar_url: ?[]const u8 = null,
+    handle: ?[]const u8 = null,
     cached_public_key: ?[]const u8 = null,
     created_at: Timestamp,
     updated_at: Timestamp,
@@ -758,6 +759,19 @@ pub const BugReportRequest = struct {
     house_id: HouseID,
     title: []const u8,
     description: ?[]const u8 = null,
+};
+
+/// CalendarSubscription is a structured data type.
+pub const CalendarSubscription = struct {
+    subject_member_id: MemberID,
+    enabled: bool,
+};
+
+/// CalendarView is a structured data type.
+pub const CalendarView = struct {
+    house_id: HouseID,
+    viewer_member_id: MemberID,
+    subscriptions: ?[]CalendarSubscription = null,
 };
 
 /// AuditEntry is a structured data type.

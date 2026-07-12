@@ -158,6 +158,7 @@ public struct Member: Equatable, Sendable {
     public let email: String?
     /// wire key: avatar_url
     public let avatarUrl: String?
+    public let handle: String?
     /// wire key: cached_public_key
     public let cachedPublicKey: [UInt8]?
     /// wire key: created_at
@@ -169,7 +170,7 @@ public struct Member: Equatable, Sendable {
     /// wire key: deactivated_at
     public let deactivatedAt: Timestamp?
 
-    public init(memberId: MemberId, houseId: HouseId, linkkeysDomain: String, linkkeysUserId: String, displayName: String? = nil, email: String? = nil, avatarUrl: String? = nil, cachedPublicKey: [UInt8]? = nil, createdAt: Timestamp, updatedAt: Timestamp, lastSeenAt: Timestamp? = nil, deactivatedAt: Timestamp? = nil) {
+    public init(memberId: MemberId, houseId: HouseId, linkkeysDomain: String, linkkeysUserId: String, displayName: String? = nil, email: String? = nil, avatarUrl: String? = nil, handle: String? = nil, cachedPublicKey: [UInt8]? = nil, createdAt: Timestamp, updatedAt: Timestamp, lastSeenAt: Timestamp? = nil, deactivatedAt: Timestamp? = nil) {
         self.memberId = memberId
         self.houseId = houseId
         self.linkkeysDomain = linkkeysDomain
@@ -177,6 +178,7 @@ public struct Member: Equatable, Sendable {
         self.displayName = displayName
         self.email = email
         self.avatarUrl = avatarUrl
+        self.handle = handle
         self.cachedPublicKey = cachedPublicKey
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -193,6 +195,7 @@ public struct Member: Equatable, Sendable {
         "displayName": "display_name",
         "email": "email",
         "avatarUrl": "avatar_url",
+        "handle": "handle",
         "cachedPublicKey": "cached_public_key",
         "createdAt": "created_at",
         "updatedAt": "updated_at",
@@ -2000,6 +2003,46 @@ public struct ServiceError: Equatable, Sendable {
     public static let wireKeys: [String: String] = [
         "code": "code",
         "message": "message"
+    ]
+}
+
+/// CalendarSubscription is a generated CSIL record type.
+public struct CalendarSubscription: Equatable, Sendable {
+    /// wire key: subject_member_id
+    public let subjectMemberId: MemberId
+    public let enabled: Bool
+
+    public init(subjectMemberId: MemberId, enabled: Bool) {
+        self.subjectMemberId = subjectMemberId
+        self.enabled = enabled
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "subjectMemberId": "subject_member_id",
+        "enabled": "enabled"
+    ]
+}
+
+/// CalendarView is a generated CSIL record type.
+public struct CalendarView: Equatable, Sendable {
+    /// wire key: house_id
+    public let houseId: HouseId
+    /// wire key: viewer_member_id
+    public let viewerMemberId: MemberId
+    public let subscriptions: [CalendarSubscription]?
+
+    public init(houseId: HouseId, viewerMemberId: MemberId, subscriptions: [CalendarSubscription]? = nil) {
+        self.houseId = houseId
+        self.viewerMemberId = viewerMemberId
+        self.subscriptions = subscriptions
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "houseId": "house_id",
+        "viewerMemberId": "viewer_member_id",
+        "subscriptions": "subscriptions"
     ]
 }
 

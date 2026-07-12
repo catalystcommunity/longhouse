@@ -80,6 +80,15 @@ Member = {
     ;; GET /api/v1/avatars/{member}.
     ? avatar_url: text,
 
+    ;; handle is the member's human-readable linkkeys handle (e.g. "todpunk"),
+    ;; seeded/reconciled from a verified linkkeys `handle` claim. The RP
+    ;; requests it as a REQUIRED claim at sign-in, so new sign-ins always carry
+    ;; it; existing members pick it up on their next full sign-in. Receive-only:
+    ;; verification territory, so clients display it (as @handle, in place of
+    ;; the raw linkkeys UUID) but never set it.
+    @receive-only
+    ? handle: text,
+
     ? cached_public_key: bytes,
 
     @receive-only
@@ -958,6 +967,28 @@ service ProjectService {
     delete-project-grant: ProjectGrantRef -> EmptyResponse / ServiceError
 }
 
+;; ---- Calendar view (per-member) ---------------------------------------
+;; A member's personal calendar view: which OTHER members' calendars they've
+;; added, and which of those added calendars are currently enabled (shown).
+;; Persisted per viewer so the choice follows them across devices and logins.
+;; Purely a display preference — events are already house-readable; this only
+;; filters which owners' events the calendar renders. To see a subject's events
+;; the viewer must have BOTH added them (a subscription row) AND enabled it.
+CalendarSubscription = {
+    subject_member_id: MemberID,
+    enabled: bool
+}
+CalendarView = {
+    house_id: HouseID,
+
+    ;; The viewer this view belongs to — the caller. Server-derived from the
+    ;; bearer's membership in house_id; a client-sent value is ignored.
+    @receive-only
+    viewer_member_id: MemberID,
+
+    ? subscriptions: [* CalendarSubscription]
+}
+
 service EventService {
     create-event: Event -> Event / ServiceError,
     get-event: EventID -> Event / ServiceError,
@@ -971,7 +1002,13 @@ service EventService {
     ;;     root's recurrence_freq + next_recurrence_at so the spawner
     ;;     stops respawning into the now-empty future.
     delete-event-and-future: EventID -> EmptyResponse / ServiceError,
-    list-events: HouseScopedListRequest -> [* Event] / ServiceError
+    list-events: HouseScopedListRequest -> [* Event] / ServiceError,
+
+    ;; Per-member calendar view (whose calendars I've added + enabled).
+    ;; get returns the caller's saved view for the house (empty if never set);
+    ;; set replaces the caller's subscription list wholesale.
+    get-calendar-view: HouseID -> CalendarView / ServiceError,
+    set-calendar-view: CalendarView -> CalendarView / ServiceError
 }
 
 service TaskService {

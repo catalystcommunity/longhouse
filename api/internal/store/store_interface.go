@@ -206,6 +206,11 @@ type Store interface {
 	PurgeEventsDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	ListEventsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Event, error)
 
+	// Per-member calendar view (whose calendars a viewer has added + enabled).
+	// GetCalendarView returns nil (no error) when the viewer has never saved one.
+	GetCalendarView(ctx context.Context, viewerMemberID string) (*models.MemberCalendarView, error)
+	UpsertCalendarView(ctx context.Context, view *models.MemberCalendarView) error
+
 	// Recurrence-spawn helpers — the worker reads ListDueRecurringEvents
 	// to find roots that need a fresh child, LatestRecurrenceChildOfEvent
 	// to know where it left off, and DeleteEventsAfter to honor the

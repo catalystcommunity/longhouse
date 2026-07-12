@@ -4,6 +4,13 @@
 html, body { margin: 0; padding: 0; }
 html { background: var(--surface); }
 
+/* Never let the page itself grow a horizontal scrollbar: no menu or normal
+   element should flow wider than the viewport. Anything that genuinely needs
+   to scroll sideways (e.g. the calendar time-grid) owns its own
+   `overflow-x: auto` container, so clipping here only catches accidental
+   layout overflow, never intentional scroll regions. */
+html, body { max-width: 100%; overflow-x: hidden; }
+
 body {
   font-family: var(--sans);
   font-feature-settings: "ss01", "cv11";

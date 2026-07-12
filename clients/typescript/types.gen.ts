@@ -68,6 +68,7 @@ export interface Member {
   displayName?: string;
   email?: string;
   avatarUrl?: string;
+  handle?: string;
   cachedPublicKey?: Uint8Array;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -539,6 +540,17 @@ export interface BugReportRequest {
 export interface ServiceError {
   code: number;
   message: string;
+}
+
+export interface CalendarSubscription {
+  subjectMemberId: MemberID;
+  enabled: boolean;
+}
+
+export interface CalendarView {
+  houseId: HouseID;
+  viewerMemberId: MemberID;
+  subscriptions?: CalendarSubscription[];
 }
 
 export type AuditID = string;

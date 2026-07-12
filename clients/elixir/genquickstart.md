@@ -12,7 +12,7 @@ raw UDP unchanged.
 # TODO: publish longhouse_client to Hex, then add it (and the transport lib) to deps:
 def deps do
   [
-    {:longhouse_client, "~> 0.13.0"},
+    {:longhouse_client, "~> 0.14.2"},
     # not yet published — vendor or git for now:
     {:csilgen_transport, github: "catalystcommunity/csilgen", sparse: "transports/elixir"}
   ]

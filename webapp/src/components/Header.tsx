@@ -7,7 +7,6 @@ import { BugReportButton } from "./BugReportButton";
 import { NotificationBell } from "./NotificationBell";
 
 const NAV = [
-  { href: "/",         label: "Dashboard" },
   { href: "/tasks",    label: "Tasks" },
   { href: "/calendar", label: "Events" },
   { href: "/projects", label: "Projects" },
@@ -81,7 +80,11 @@ export const Header = () => {
 
   return (
     <header class="head reveal">
-      <A href="/" class="brand">
+      <A
+        href="/"
+        class={`brand ${loc.pathname === "/" ? "active" : ""}`}
+        aria-current={loc.pathname === "/" ? "page" : undefined}
+      >
         <span class="mark" aria-hidden="true"><LonghouseMark /></span>
         Longhouse
       </A>

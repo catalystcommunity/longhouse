@@ -186,7 +186,7 @@ defmodule Csilgen.Generated.Member do
   @moduledoc "Generated struct for the Member type."
 
   @enforce_keys [:member_id, :house_id, :linkkeys_domain, :linkkeys_user_id, :created_at, :updated_at]
-  defstruct [:member_id, :house_id, :linkkeys_domain, :linkkeys_user_id, :display_name, :email, :avatar_url, :cached_public_key, :created_at, :updated_at, :last_seen_at, :deactivated_at]
+  defstruct [:member_id, :house_id, :linkkeys_domain, :linkkeys_user_id, :display_name, :email, :avatar_url, :handle, :cached_public_key, :created_at, :updated_at, :last_seen_at, :deactivated_at]
 
   @type t :: %__MODULE__{
           member_id: Csilgen.Generated.MemberID.t(),
@@ -196,6 +196,7 @@ defmodule Csilgen.Generated.Member do
           display_name: String.t() | nil,
           email: String.t() | nil,
           avatar_url: String.t() | nil,
+          handle: String.t() | nil,
           cached_public_key: binary() | nil,
           created_at: Csilgen.Generated.Timestamp.t(),
           updated_at: Csilgen.Generated.Timestamp.t(),
@@ -203,7 +204,7 @@ defmodule Csilgen.Generated.Member do
           deactivated_at: Csilgen.Generated.Timestamp.t() | nil
         }
 
-  @wire_keys [member_id: "member_id", house_id: "house_id", linkkeys_domain: "linkkeys_domain", linkkeys_user_id: "linkkeys_user_id", display_name: "display_name", email: "email", avatar_url: "avatar_url", cached_public_key: "cached_public_key", created_at: "created_at", updated_at: "updated_at", last_seen_at: "last_seen_at", deactivated_at: "deactivated_at"]
+  @wire_keys [member_id: "member_id", house_id: "house_id", linkkeys_domain: "linkkeys_domain", linkkeys_user_id: "linkkeys_user_id", display_name: "display_name", email: "email", avatar_url: "avatar_url", handle: "handle", cached_public_key: "cached_public_key", created_at: "created_at", updated_at: "updated_at", last_seen_at: "last_seen_at", deactivated_at: "deactivated_at"]
   @doc "Maps struct field atoms to their verbatim CBOR wire keys."
   @spec wire_keys() :: keyword()
   def wire_keys, do: @wire_keys
@@ -215,6 +216,7 @@ defmodule Csilgen.Generated.Member do
      Enum.reject(
        [
          (if is_nil(v.email), do: nil, else: {{:text, "email"}, {:text, v.email}}),
+         (if is_nil(v.handle), do: nil, else: {{:text, "handle"}, {:text, v.handle}}),
          {{:text, "house_id"}, {:text, v.house_id}},
          {{:text, "member_id"}, {:text, v.member_id}},
          (if is_nil(v.avatar_url), do: nil, else: {{:text, "avatar_url"}, {:text, v.avatar_url}}),
@@ -237,6 +239,7 @@ defmodule Csilgen.Generated.Member do
     csil_fields = Map.new(csil_kvs)
     %__MODULE__{
       email: (case Map.get(csil_fields, {:text, "email"}) do nil -> nil; csil_v -> Csilgen.Generated.Cbor.to_text(csil_v) end),
+      handle: (case Map.get(csil_fields, {:text, "handle"}) do nil -> nil; csil_v -> Csilgen.Generated.Cbor.to_text(csil_v) end),
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
       member_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "member_id"})),
       avatar_url: (case Map.get(csil_fields, {:text, "avatar_url"}) do nil -> nil; csil_v -> Csilgen.Generated.Cbor.to_text(csil_v) end),
@@ -3816,6 +3819,105 @@ defmodule Csilgen.Generated.ServiceError do
     %__MODULE__{
       code: Csilgen.Generated.Cbor.to_int(Map.fetch!(csil_fields, {:text, "code"})),
       message: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "message"})),
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
+defmodule Csilgen.Generated.CalendarSubscription do
+  @moduledoc "Generated struct for the CalendarSubscription type."
+
+  @enforce_keys [:subject_member_id, :enabled]
+  defstruct [:subject_member_id, :enabled]
+
+  @type t :: %__MODULE__{
+          subject_member_id: Csilgen.Generated.MemberID.t(),
+          enabled: boolean()
+        }
+
+  @wire_keys [subject_member_id: "subject_member_id", enabled: "enabled"]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         {{:text, "enabled"}, {:bool, v.enabled}},
+         {{:text, "subject_member_id"}, {:text, v.subject_member_id}},
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+    %__MODULE__{
+      enabled: Csilgen.Generated.Cbor.to_bool(Map.fetch!(csil_fields, {:text, "enabled"})),
+      subject_member_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "subject_member_id"})),
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
+defmodule Csilgen.Generated.CalendarView do
+  @moduledoc "Generated struct for the CalendarView type."
+
+  @enforce_keys [:house_id, :viewer_member_id]
+  defstruct [:house_id, :viewer_member_id, :subscriptions]
+
+  @type t :: %__MODULE__{
+          house_id: Csilgen.Generated.HouseID.t(),
+          viewer_member_id: Csilgen.Generated.MemberID.t(),
+          subscriptions: [Csilgen.Generated.CalendarSubscription.t()] | nil
+        }
+
+  @wire_keys [house_id: "house_id", viewer_member_id: "viewer_member_id", subscriptions: "subscriptions"]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         {{:text, "house_id"}, {:text, v.house_id}},
+         (if is_nil(v.subscriptions), do: nil, else: {{:text, "subscriptions"}, {:array, Enum.map(v.subscriptions, fn csil_e -> Csilgen.Generated.CalendarSubscription.to_cbor_value(csil_e) end)}}),
+         {{:text, "viewer_member_id"}, {:text, v.viewer_member_id}},
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+    %__MODULE__{
+      house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
+      subscriptions: (case Map.get(csil_fields, {:text, "subscriptions"}) do nil -> nil; csil_v -> (case csil_v do {:array, csil_xs} -> Enum.map(csil_xs, fn csil_e -> Csilgen.Generated.CalendarSubscription.from_cbor_value(csil_e) end) end) end),
+      viewer_member_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "viewer_member_id"})),
     }
   end
 

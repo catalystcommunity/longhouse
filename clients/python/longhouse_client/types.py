@@ -110,6 +110,7 @@ class Member:
     display_name: Optional[str] = None
     email: Optional[str] = None
     avatar_url: Optional[str] = None
+    handle: Optional[str] = None
     cached_public_key: Optional[bytes] = None
     last_seen_at: Optional[Timestamp] = None
     deactivated_at: Optional[Timestamp] = None
@@ -133,7 +134,7 @@ class Member:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Member':
         """Create instance from dictionary."""
-        return cls(member_id=data.get('member_id'), house_id=data.get('house_id'), linkkeys_domain=data.get('linkkeys_domain'), linkkeys_user_id=data.get('linkkeys_user_id'), display_name=data.get('display_name'), email=data.get('email'), avatar_url=data.get('avatar_url'), cached_public_key=data.get('cached_public_key'), created_at=data.get('created_at'), updated_at=data.get('updated_at'), last_seen_at=data.get('last_seen_at'), deactivated_at=data.get('deactivated_at'))
+        return cls(member_id=data.get('member_id'), house_id=data.get('house_id'), linkkeys_domain=data.get('linkkeys_domain'), linkkeys_user_id=data.get('linkkeys_user_id'), display_name=data.get('display_name'), email=data.get('email'), avatar_url=data.get('avatar_url'), handle=data.get('handle'), cached_public_key=data.get('cached_public_key'), created_at=data.get('created_at'), updated_at=data.get('updated_at'), last_seen_at=data.get('last_seen_at'), deactivated_at=data.get('deactivated_at'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2385,6 +2386,63 @@ class ServiceError:
 
     @classmethod
     def from_json(cls, json_str: str) -> 'ServiceError':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class CalendarSubscription:
+    subject_member_id: MemberId
+    enabled: bool
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'subject_member_id') and self.subject_member_id is not None:
+            result['subject_member_id'] = self.subject_member_id
+        if hasattr(self, 'enabled') and self.enabled is not None:
+            result['enabled'] = self.enabled
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CalendarSubscription':
+        """Create instance from dictionary."""
+        return cls(subject_member_id=data.get('subject_member_id'), enabled=data.get('enabled'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CalendarSubscription':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class CalendarView:
+    house_id: HouseId
+    viewer_member_id: MemberId
+    subscriptions: Optional[List[CalendarSubscription]] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'house_id') and self.house_id is not None:
+            result['house_id'] = self.house_id
+        if hasattr(self, 'subscriptions') and self.subscriptions is not None:
+            result['subscriptions'] = self.subscriptions
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CalendarView':
+        """Create instance from dictionary."""
+        return cls(house_id=data.get('house_id'), viewer_member_id=data.get('viewer_member_id'), subscriptions=data.get('subscriptions'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CalendarView':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

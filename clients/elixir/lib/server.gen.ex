@@ -133,6 +133,8 @@ defmodule Csilgen.Generated.EventServer do
   @callback delete_event(req :: Csilgen.Generated.EventID.t(), ctx :: map()) :: {:ok, Csilgen.Generated.EmptyResponse.t()} | {:error, Csilgen.Generated.ServiceError.t()}
   @callback delete_event_and_future(req :: Csilgen.Generated.EventID.t(), ctx :: map()) :: {:ok, Csilgen.Generated.EmptyResponse.t()} | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_events(req :: Csilgen.Generated.HouseScopedListRequest.t(), ctx :: map()) :: {:ok, [Csilgen.Generated.Event.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback get_calendar_view(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) :: {:ok, Csilgen.Generated.CalendarView.t()} | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback set_calendar_view(req :: Csilgen.Generated.CalendarView.t(), ctx :: map()) :: {:ok, Csilgen.Generated.CalendarView.t()} | {:error, Csilgen.Generated.ServiceError.t()}
 
 end
 

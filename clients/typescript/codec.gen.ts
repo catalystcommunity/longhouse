@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AccessLevel, AuditEntry, AuditID, AuditPage, AuditQuery, BoolResponse, BugReportRequest, Comment, CommentID, CommentListRequest, CompleteRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, ResourceRef, ResourceType, RestoreRequest, Role, RoleID, ServiceError, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskStatus, Timestamp, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import type { AccessLevel, AuditEntry, AuditID, AuditPage, AuditQuery, BoolResponse, BugReportRequest, CalendarSubscription, CalendarView, Comment, CommentID, CommentListRequest, CompleteRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, ResourceRef, ResourceType, RestoreRequest, Role, RoleID, ServiceError, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskStatus, Timestamp, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -321,6 +321,7 @@ export function fromHouseCbor(bytes: Uint8Array): House {
 export function toMemberCborValue(v: Member): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   if (v.email !== undefined) csilMap.set("email", v.email);
+  if (v.handle !== undefined) csilMap.set("handle", v.handle);
   csilMap.set("house_id", v.houseId);
   csilMap.set("member_id", v.memberId);
   if (v.avatarUrl !== undefined) csilMap.set("avatar_url", v.avatarUrl);
@@ -344,6 +345,7 @@ export function fromMemberCborValue(value: CborValue): Member {
     displayName: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "display_name")),
     email: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "email")),
     avatarUrl: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "avatar_url")),
+    handle: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "handle")),
     cachedPublicKey: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBytes(csilV))(mapGet(value, "cached_public_key")),
     createdAt: asString(requireKey(value, "created_at")),
     updatedAt: asString(requireKey(value, "updated_at")),
@@ -2082,6 +2084,52 @@ export function toServiceErrorCbor(v: ServiceError): Uint8Array {
 
 export function fromServiceErrorCbor(bytes: Uint8Array): ServiceError {
   return fromServiceErrorCborValue(decode(bytes));
+}
+
+export function toCalendarSubscriptionCborValue(v: CalendarSubscription): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("enabled", v.enabled);
+  csilMap.set("subject_member_id", v.subjectMemberId);
+  return csilMap;
+}
+
+export function fromCalendarSubscriptionCborValue(value: CborValue): CalendarSubscription {
+  return {
+    subjectMemberId: asString(requireKey(value, "subject_member_id")),
+    enabled: asBool(requireKey(value, "enabled")),
+  };
+}
+
+export function toCalendarSubscriptionCbor(v: CalendarSubscription): Uint8Array {
+  return encodeValue(toCalendarSubscriptionCborValue(v));
+}
+
+export function fromCalendarSubscriptionCbor(bytes: Uint8Array): CalendarSubscription {
+  return fromCalendarSubscriptionCborValue(decode(bytes));
+}
+
+export function toCalendarViewCborValue(v: CalendarView): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("house_id", v.houseId);
+  if (v.subscriptions !== undefined) csilMap.set("subscriptions", v.subscriptions.map((csilE): CborValue => toCalendarSubscriptionCborValue(csilE)));
+  csilMap.set("viewer_member_id", v.viewerMemberId);
+  return csilMap;
+}
+
+export function fromCalendarViewCborValue(value: CborValue): CalendarView {
+  return {
+    houseId: asString(requireKey(value, "house_id")),
+    viewerMemberId: asString(requireKey(value, "viewer_member_id")),
+    subscriptions: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => fromCalendarSubscriptionCborValue(csilE)))(mapGet(value, "subscriptions")),
+  };
+}
+
+export function toCalendarViewCbor(v: CalendarView): Uint8Array {
+  return encodeValue(toCalendarViewCborValue(v));
+}
+
+export function fromCalendarViewCbor(bytes: Uint8Array): CalendarView {
+  return fromCalendarViewCborValue(decode(bytes));
 }
 
 export function toAuditEntryCborValue(v: AuditEntry): CborValue {

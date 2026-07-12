@@ -498,6 +498,16 @@ public struct EventClient {
         return try decodeEventListEventsResponse(csilResp)
     }
 
+    public func getCalendarView(_ request: HouseId) throws -> CalendarView {
+        let csilResp = try transport.call(service: "event", op: "GetCalendarView", request: encodeEventGetCalendarViewRequest(request))
+        return try CalendarView.fromCbor(csilResp)
+    }
+
+    public func setCalendarView(_ request: CalendarView) throws -> CalendarView {
+        let csilResp = try transport.call(service: "event", op: "SetCalendarView", request: request.toCbor())
+        return try CalendarView.fromCbor(csilResp)
+    }
+
 }
 
 /// TaskClient is a typed client for the TaskService service. The client owns

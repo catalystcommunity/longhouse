@@ -476,6 +476,18 @@ module Event_service = struct
     match c.call ~service:"event" ~op:"ListEvents" ~payload:(Codec.encode_house_scoped_list_request_bytes req) with
     | Ok payload -> Ok (decode_response payload)
     | Error _ as e -> e
+
+  let get_calendar_view (c : client)
+      ~(encode_request : house_id -> bytes)
+      (req : house_id) : (calendar_view, string) result =
+    match c.call ~service:"event" ~op:"GetCalendarView" ~payload:(encode_request req) with
+    | Ok payload -> Ok (Codec.decode_calendar_view_bytes payload)
+    | Error _ as e -> e
+
+  let set_calendar_view (c : client) (req : calendar_view) : (calendar_view, string) result =
+    match c.call ~service:"event" ~op:"SetCalendarView" ~payload:(Codec.encode_calendar_view_bytes req) with
+    | Ok payload -> Ok (Codec.decode_calendar_view_bytes payload)
+    | Error _ as e -> e
 end
 
 module Task_service = struct

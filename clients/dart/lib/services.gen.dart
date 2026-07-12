@@ -136,6 +136,8 @@ abstract interface class EventServiceHandler {
   EmptyResponse deleteEvent(EventId request);
   EmptyResponse deleteEventAndFuture(EventId request);
   List<Event> listEvents(HouseScopedListRequest request);
+  CalendarView getCalendarView(HouseId request);
+  CalendarView setCalendarView(CalendarView request);
 }
 
 /// The TaskService service contract. A host `implements` this; the router

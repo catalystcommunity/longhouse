@@ -122,6 +122,8 @@ public protocol EventService {
     func deleteEvent(_ request: EventId) throws -> EmptyResponse
     func deleteEventAndFuture(_ request: EventId) throws -> EmptyResponse
     func listEvents(_ request: HouseScopedListRequest) throws -> [Event]
+    func getCalendarView(_ request: HouseId) throws -> CalendarView
+    func setCalendarView(_ request: CalendarView) throws -> CalendarView
 }
 
 /// TaskService is the server-side handler seam.

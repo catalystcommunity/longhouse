@@ -7,14 +7,16 @@
 # => the RP requests nothing (authentication only — today's behavior).
 #
 # claim_type values must match linkkeys' registry exactly (see linkkeys
-# db/claim_policy.rs): display_name, email, avatar_url are the relevant ones.
-# `datatype` is advisory metadata for the consent UI / validation.
+# db/claim_policy.rs): display_name, email, avatar_url, handle are the relevant
+# ones. `datatype` is advisory metadata for the consent UI / validation.
 #
-# EVERYTHING HERE IS [[optional]] ON PURPOSE. A `required` claim aborts login
-# when the user declines it; Longhouse must "sign in as usual" and never depend
-# on a claim, so we only ever request optionally. The user grants any subset;
-# whatever comes back seeds the reconciled member fields, and nothing breaks if
-# nothing is granted.
+# MOST claims here are [[optional]] ON PURPOSE. A `required` claim aborts login
+# when the user declines it; for those claims Longhouse "signs in as usual" and
+# never depends on them — the user grants any subset, whatever comes back seeds
+# the reconciled member fields, and nothing breaks if nothing is granted.
+#
+# The ONE exception is `handle` (see below), which is [[required]] by product
+# decision: it's treated as core identity, so declining it refuses sign-in.
 
 # Verified email — the one we most want, for email-based features later. Still
 # optional: a user who declines it simply logs in with no email on file.
@@ -29,3 +31,19 @@ datatype   = "text"
 [[optional]]
 claim_type = "avatar_url"
 datatype   = "url"
+
+# handle — the member's human-readable linkkeys handle (e.g. "todpunk"). The SPA
+# shows @handle in place of the raw linkkeys UUID (Active members, the Members
+# list). Requested here so new sign-ins release it; existing members pick it up
+# on their next full sign-in (a re-login re-runs consent and reconciliation —
+# Refresh cannot re-fetch claims because it never re-contacts linkkeys).
+#
+# handle is REQUIRED — a deliberate product decision. Unlike the optional claims
+# above, this is the one exception to the "everything optional" banner: a user
+# who declines the handle consent is refused sign-in. handle is treated as core
+# identity for Longhouse (it's how people are named to each other), so releasing
+# it is a condition of access. The app side stays resilient regardless (a member
+# with no handle yet falls back to their linkkeys id in the UI).
+[[required]]
+claim_type = "handle"
+datatype   = "text"

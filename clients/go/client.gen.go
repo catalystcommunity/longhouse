@@ -815,6 +815,24 @@ func (c *EventClient) ListEvents(ctx context.Context, req HouseScopedListRequest
 	return DecodeEventListEventsResponse(csilResp)
 }
 
+func (c *EventClient) GetCalendarView(ctx context.Context, req HouseID) (CalendarView, error) {
+	var csilZero CalendarView
+	csilResp, csilErr := c.transport.Call(ctx, "event", "GetCalendarView", EncodeEventGetCalendarViewRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCalendarView(csilResp)
+}
+
+func (c *EventClient) SetCalendarView(ctx context.Context, req CalendarView) (CalendarView, error) {
+	var csilZero CalendarView
+	csilResp, csilErr := c.transport.Call(ctx, "event", "SetCalendarView", EncodeCalendarView(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCalendarView(csilResp)
+}
+
 // TaskClient is a typed client for the TaskService service. The client owns
 // (de)serialization via the generated codec; the transport only moves bytes.
 type TaskClient struct {

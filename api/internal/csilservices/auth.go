@@ -354,6 +354,7 @@ func reconcileMemberClaims(ctx context.Context, st store.Store, domain, userID s
 		changed := reconcileField(&m.DisplayName, &m.DisplayNameClaimed, claims, "display_name")
 		changed = reconcileField(&m.Email, &m.EmailClaimed, claims, "email") || changed
 		changed = reconcileField(&m.AvatarURL, &m.AvatarURLClaimed, claims, "avatar_url") || changed
+		changed = reconcileField(&m.Handle, &m.HandleClaimed, claims, "handle") || changed
 		if !changed {
 			continue
 		}

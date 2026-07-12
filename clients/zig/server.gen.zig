@@ -127,6 +127,8 @@ pub const EventHandlers = struct {
     delete_event: *const fn (ctx: *anyopaque, req: *const types.EventID, resp: *types.EmptyResponse) anyerror!void,
     delete_event_and_future: *const fn (ctx: *anyopaque, req: *const types.EventID, resp: *types.EmptyResponse) anyerror!void,
     list_events: *const fn (ctx: *anyopaque, req: *const types.HouseScopedListRequest, resp: *[]types.Event) anyerror!void,
+    get_calendar_view: *const fn (ctx: *anyopaque, req: *const types.HouseID, resp: *types.CalendarView) anyerror!void,
+    set_calendar_view: *const fn (ctx: *anyopaque, req: *const types.CalendarView, resp: *types.CalendarView) anyerror!void,
 };
 
 /// TaskHandlers is the host's implementation of the TaskService service.

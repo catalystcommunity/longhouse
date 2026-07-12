@@ -77,6 +77,7 @@ func TestReconcileMemberClaims_AcrossHousesAndOverride(t *testing.T) {
 		"display_name": "Ada",
 		"email":        "ada@example.com",
 		"avatar_url":   "https://idp/ada.png",
+		"handle":       "ada",
 	}
 	if err := reconcileMemberClaims(context.Background(), st, "d", "u", claims); err != nil {
 		t.Fatalf("reconcileMemberClaims: %v", err)
@@ -91,6 +92,9 @@ func TestReconcileMemberClaims_AcrossHousesAndOverride(t *testing.T) {
 	a := byID["mA"]
 	if a.DisplayName != "Ada" || a.Email != "ada@example.com" || a.AvatarURL != "https://idp/ada.png" {
 		t.Fatalf("house A not seeded from claims: %+v", a)
+	}
+	if a.Handle != "ada" || a.HandleClaimed != "ada" {
+		t.Fatalf("house A handle not seeded from claim: handle=%q claimed=%q", a.Handle, a.HandleClaimed)
 	}
 	if a.DisplayNameClaimed != "Ada" || a.EmailClaimed != "ada@example.com" {
 		t.Fatalf("house A mirrors not set: %+v", a)
