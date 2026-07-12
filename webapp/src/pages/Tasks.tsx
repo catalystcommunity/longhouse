@@ -7,6 +7,7 @@ import { RecurrenceFields, recurrenceLabel, toRecurrence, type RecurrenceFreq } 
 import { TaskDetailEditor } from "~/components/TaskDetailEditor";
 import { memberClient, taskClient } from "~/data/clients";
 import { displayName, dueLabel, initial, isTaskClosed, memberSwatch, taskGroup, toAvatar } from "~/lib/derive";
+import { normalizeTaskCreate } from "~/lib/taskCreate";
 import { currentMemberId, useCurrentHouseId } from "~/stores/auth";
 import type { Member, Task } from "@longhouse/client";
 
@@ -213,7 +214,7 @@ const TaskComposer = (props: {
       };
       if (parentId()) body.parentTaskId = parentId();
       if (assignees() !== null) body.assignees = assignees();
-      await taskClient.createTask(body);
+      await taskClient.createTask(normalizeTaskCreate(body));
       batch(() => {
         setTitle("");
         setTag("");
@@ -625,7 +626,7 @@ const SubtaskComposer = (props: {
         parentTaskId: props.parent.taskId,
       };
       if (assignees() !== null) body.assignees = assignees();
-      const created = await taskClient.createTask(body);
+      const created = await taskClient.createTask(normalizeTaskCreate(body));
       if (props.afterCreate) await props.afterCreate(created.taskId);
       await props.onCreated();
     } catch (e2) { setErr(e2 instanceof Error ? e2.message : String(e2)); }
