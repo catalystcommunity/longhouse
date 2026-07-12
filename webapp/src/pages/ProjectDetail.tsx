@@ -10,6 +10,7 @@ import { CommentsSection } from "~/components/CommentsSection";
 import { DependenciesSection } from "~/components/DependenciesSection";
 import { memberClient, projectClient, taskClient } from "~/data/clients";
 import { displayName, dueLabel, initial, isTaskClosed, memberSwatch, toAvatar } from "~/lib/derive";
+import { normalizeTaskCreate } from "~/lib/taskCreate";
 import { hasRole } from "~/stores/auth";
 import type { Member, Milestone, Project, Task } from "@longhouse/client";
 
@@ -544,7 +545,7 @@ const ProjectTaskComposer = (props: {
       // skips its default-to-caller rule (the project should hand the
       // work out later, not auto-pin it to whoever happened to click +).
       const dueIso = due() || undefined;
-      const created = await taskClient.createTask({
+      const created = await taskClient.createTask(normalizeTaskCreate({
         houseId: props.project.houseId,
         ownerMemberId: "",
         title: title().trim(),
@@ -553,7 +554,7 @@ const ProjectTaskComposer = (props: {
         estimateMinutes: estimate() ? Number(estimate()) : undefined,
         assignees: [],
         ...toRecurrence(recFreq(), recInterval(), recNextAt(), recByWeekday(), recBySetpos(), dueIso),
-      } as any);
+      } as any));
       // Then attach it to the project at the end of the list.
       await projectClient.addProjectTask({
         projectId: props.project.projectId,
@@ -894,7 +895,7 @@ const ProjectSubtaskComposer = (props: {
         parentTaskId: props.parent.taskId,
       };
       if (assignees() !== null) body.assignees = assignees();
-      const created = await taskClient.createTask(body);
+      const created = await taskClient.createTask(normalizeTaskCreate(body));
       // Also attach the new subtask to the same project so it shows up
       // here. The api keeps subtasks and project-tasks as independent
       // relations; from the user's POV "+ subtask on a project task"
