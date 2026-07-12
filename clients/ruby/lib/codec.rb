@@ -193,6 +193,7 @@ class Member
   def csil_to_tree
     csil_map = {}
     csil_map["email"] = email unless email.nil?
+    csil_map["handle"] = handle unless handle.nil?
     csil_map["house_id"] = house_id
     csil_map["member_id"] = member_id
     csil_map["avatar_url"] = avatar_url unless avatar_url.nil?
@@ -220,6 +221,7 @@ class Member
       display_name: (node.key?("display_name") ? node["display_name"] : nil),
       email: (node.key?("email") ? node["email"] : nil),
       avatar_url: (node.key?("avatar_url") ? node["avatar_url"] : nil),
+      handle: (node.key?("handle") ? node["handle"] : nil),
       cached_public_key: (node.key?("cached_public_key") ? node["cached_public_key"] : nil),
       created_at: node["created_at"],
       updated_at: node["updated_at"],
@@ -2211,6 +2213,60 @@ class ServiceError
     new(
       code: node["code"],
       message: node["message"]
+    )
+  end
+end
+
+# CBOR codec for CalendarSubscription: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class CalendarSubscription
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["enabled"] = enabled
+    csil_map["subject_member_id"] = subject_member_id
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      subject_member_id: node["subject_member_id"],
+      enabled: node["enabled"]
+    )
+  end
+end
+
+# CBOR codec for CalendarView: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class CalendarView
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["house_id"] = house_id
+    csil_map["subscriptions"] = (subscriptions).map { |csil_e| (csil_e).csil_to_tree } unless subscriptions.nil?
+    csil_map["viewer_member_id"] = viewer_member_id
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      house_id: node["house_id"],
+      viewer_member_id: node["viewer_member_id"],
+      subscriptions: (node.key?("subscriptions") ? (node["subscriptions"]).map { |csil_e| CalendarSubscription.csil_from_tree(csil_e) } : nil)
     )
   end
 end

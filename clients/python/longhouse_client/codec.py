@@ -219,6 +219,9 @@ def _encode_member_value(v: "Member") -> Dict[Any, Any]:
     csil_x = v.email
     if csil_x is not None:
         csil_m["email"] = csil_x
+    csil_x = v.handle
+    if csil_x is not None:
+        csil_m["handle"] = csil_x
     csil_m["house_id"] = v.house_id
     csil_m["member_id"] = v.member_id
     csil_x = v.avatar_url
@@ -251,6 +254,7 @@ def _decode_member_value(tree: Any) -> "Member":
         display_name=(None if tree.get("display_name") is None else tree["display_name"]),
         email=(None if tree.get("email") is None else tree["email"]),
         avatar_url=(None if tree.get("avatar_url") is None else tree["avatar_url"]),
+        handle=(None if tree.get("handle") is None else tree["handle"]),
         cached_public_key=(None if tree.get("cached_public_key") is None else tree["cached_public_key"]),
         created_at=tree["created_at"],
         updated_at=tree["updated_at"],
@@ -2262,6 +2266,58 @@ def _service_error_from_cbor(data: bytes) -> "ServiceError":
 ServiceError.to_cbor = _service_error_to_cbor
 ServiceError.from_cbor = staticmethod(_service_error_from_cbor)
 
+def _encode_calendar_subscription_value(v: "CalendarSubscription") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["enabled"] = v.enabled
+    csil_m["subject_member_id"] = v.subject_member_id
+    return csil_m
+
+def _decode_calendar_subscription_value(tree: Any) -> "CalendarSubscription":
+    return CalendarSubscription(
+        subject_member_id=tree["subject_member_id"],
+        enabled=tree["enabled"],
+    )
+
+
+def _calendar_subscription_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_calendar_subscription_value(self))
+
+
+def _calendar_subscription_from_cbor(data: bytes) -> "CalendarSubscription":
+    return _decode_calendar_subscription_value(cbor_decode(data))
+
+
+CalendarSubscription.to_cbor = _calendar_subscription_to_cbor
+CalendarSubscription.from_cbor = staticmethod(_calendar_subscription_from_cbor)
+
+def _encode_calendar_view_value(v: "CalendarView") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["house_id"] = v.house_id
+    csil_x = v.subscriptions
+    if csil_x is not None:
+        csil_m["subscriptions"] = [_encode_calendar_subscription_value(csil_e) for csil_e in csil_x]
+    csil_m["viewer_member_id"] = v.viewer_member_id
+    return csil_m
+
+def _decode_calendar_view_value(tree: Any) -> "CalendarView":
+    return CalendarView(
+        house_id=tree["house_id"],
+        viewer_member_id=tree["viewer_member_id"],
+        subscriptions=(None if tree.get("subscriptions") is None else [_decode_calendar_subscription_value(csil_e) for csil_e in tree["subscriptions"]]),
+    )
+
+
+def _calendar_view_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_calendar_view_value(self))
+
+
+def _calendar_view_from_cbor(data: bytes) -> "CalendarView":
+    return _decode_calendar_view_value(cbor_decode(data))
+
+
+CalendarView.to_cbor = _calendar_view_to_cbor
+CalendarView.from_cbor = staticmethod(_calendar_view_from_cbor)
+
 def _encode_audit_entry_value(v: "AuditEntry") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_x = v.after
@@ -2848,6 +2904,15 @@ def encode_event_list_events_response(csil_value) -> bytes:
 def decode_event_list_events_response(data: bytes):
     csil_tree = cbor_decode(data)
     return [_decode_event_value(csil_e) for csil_e in csil_tree]
+
+
+def encode_event_get_calendar_view_request(csil_value) -> bytes:
+    return cbor_encode(csil_value)
+
+
+def decode_event_get_calendar_view_request(data: bytes):
+    csil_tree = cbor_decode(data)
+    return csil_tree
 
 
 def encode_task_get_task_request(csil_value) -> bytes:

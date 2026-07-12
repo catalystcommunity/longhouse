@@ -235,6 +235,10 @@ public sealed class EventClient(ICsilTransport transport)
         Codec.Decode<EmptyResponse>(transport.Call("event", "DeleteEventAndFuture", Codec.EncodeEventDeleteEventAndFutureRequest(eventID)));
     public System.Collections.Generic.List<Event> ListEvents(HouseScopedListRequest houseScopedListRequest) =>
         Codec.DecodeEventListEventsResponse(transport.Call("event", "ListEvents", Codec.Encode(houseScopedListRequest)));
+    public CalendarView GetCalendarView(HouseID houseID) =>
+        Codec.Decode<CalendarView>(transport.Call("event", "GetCalendarView", Codec.EncodeEventGetCalendarViewRequest(houseID)));
+    public CalendarView SetCalendarView(CalendarView calendarView) =>
+        Codec.Decode<CalendarView>(transport.Call("event", "SetCalendarView", Codec.Encode(calendarView)));
 }
 
 /// <summary>Typed RPC client for the TaskService service. The client owns

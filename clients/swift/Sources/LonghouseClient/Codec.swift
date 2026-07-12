@@ -179,6 +179,28 @@ public enum CsilCbor {
         return x
     }
 
+    public static func expectLiteral<T>(_ actual: CsilCborValue, _ expected: CsilCborValue, _ value: T) throws -> T {
+        guard valueEquals(actual, expected) else { throw CsilCborError.typeMismatch }
+        return value
+    }
+
+    static func valueEquals(_ a: CsilCborValue, _ b: CsilCborValue) -> Bool {
+        switch (a, b) {
+        case (.uint(let x), .uint(let y)): return x == y
+        case (.int(let x), .int(let y)): return x == y
+        case (.bool(let x), .bool(let y)): return x == y
+        case (.float(let x), .float(let y)): return x == y
+        case (.null, .null): return true
+        case (.text(let x), .text(let y)): return x == y
+        case (.bytes(let x), .bytes(let y)): return x == y
+        case (.array(let x), .array(let y)):
+            guard x.count == y.count else { return false }
+            return zip(x, y).allSatisfy { valueEquals($0, $1) }
+        default:
+            return false
+        }
+    }
+
     public static func asI64(_ v: CsilCborValue) throws -> Int64 {
         switch v {
         case .uint(let n):
@@ -271,6 +293,7 @@ public extension Member {
     func toCborValue() -> CsilCborValue {
         var csilEntries: [(CsilCborValue, CsilCborValue)] = []
         if let csilV = self.email { csilEntries.append(("email", .text(csilV))) }
+        if let csilV = self.handle { csilEntries.append(("handle", .text(csilV))) }
         csilEntries.append(("house_id", .text(self.houseId)))
         csilEntries.append(("member_id", .text(self.memberId)))
         if let csilV = self.avatarUrl { csilEntries.append(("avatar_url", .text(csilV))) }
@@ -294,12 +317,13 @@ public extension Member {
         let displayName: String? = if let csilV = CsilCbor.mapGet(cborValue, "display_name") { try CsilCbor.asText(csilV) } else { nil }
         let email: String? = if let csilV = CsilCbor.mapGet(cborValue, "email") { try CsilCbor.asText(csilV) } else { nil }
         let avatarUrl: String? = if let csilV = CsilCbor.mapGet(cborValue, "avatar_url") { try CsilCbor.asText(csilV) } else { nil }
+        let handle: String? = if let csilV = CsilCbor.mapGet(cborValue, "handle") { try CsilCbor.asText(csilV) } else { nil }
         let cachedPublicKey: [UInt8]? = if let csilV = CsilCbor.mapGet(cborValue, "cached_public_key") { try CsilCbor.asBytes(csilV) } else { nil }
         let createdAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "created_at")))
         let updatedAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "updated_at")))
         let lastSeenAt: Timestamp? = if let csilV = CsilCbor.mapGet(cborValue, "last_seen_at") { try CsilCbor.asText(csilV) } else { nil }
         let deactivatedAt: Timestamp? = if let csilV = CsilCbor.mapGet(cborValue, "deactivated_at") { try CsilCbor.asText(csilV) } else { nil }
-        self.init(memberId: memberId, houseId: houseId, linkkeysDomain: linkkeysDomain, linkkeysUserId: linkkeysUserId, displayName: displayName, email: email, avatarUrl: avatarUrl, cachedPublicKey: cachedPublicKey, createdAt: createdAt, updatedAt: updatedAt, lastSeenAt: lastSeenAt, deactivatedAt: deactivatedAt)
+        self.init(memberId: memberId, houseId: houseId, linkkeysDomain: linkkeysDomain, linkkeysUserId: linkkeysUserId, displayName: displayName, email: email, avatarUrl: avatarUrl, handle: handle, cachedPublicKey: cachedPublicKey, createdAt: createdAt, updatedAt: updatedAt, lastSeenAt: lastSeenAt, deactivatedAt: deactivatedAt)
     }
 
     /// Encode this record to canonical CSIL CBOR bytes.
@@ -2099,6 +2123,54 @@ public extension ServiceError {
     static func fromCbor(_ bytes: [UInt8]) throws -> ServiceError { try ServiceError(cborValue: CsilCbor.decode(bytes)) }
 }
 
+public extension CalendarSubscription {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append(("enabled", .bool(self.enabled)))
+        csilEntries.append(("subject_member_id", .text(self.subjectMemberId)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let subjectMemberId = try CsilCbor.asText((try CsilCbor.require(cborValue, "subject_member_id")))
+        let enabled = try CsilCbor.asBool((try CsilCbor.require(cborValue, "enabled")))
+        self.init(subjectMemberId: subjectMemberId, enabled: enabled)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> CalendarSubscription { try CalendarSubscription(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension CalendarView {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append(("house_id", .text(self.houseId)))
+        if let csilV = self.subscriptions { csilEntries.append(("subscriptions", CsilCborValue.array(csilV.map { $0.toCborValue() }))) }
+        csilEntries.append(("viewer_member_id", .text(self.viewerMemberId)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let houseId = try CsilCbor.asText((try CsilCbor.require(cborValue, "house_id")))
+        let viewerMemberId = try CsilCbor.asText((try CsilCbor.require(cborValue, "viewer_member_id")))
+        let subscriptions: [CalendarSubscription]? = if let csilV = CsilCbor.mapGet(cborValue, "subscriptions") { try CsilCbor.asArray(csilV).map { try CalendarSubscription(cborValue: $0) } } else { nil }
+        self.init(houseId: houseId, viewerMemberId: viewerMemberId, subscriptions: subscriptions)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> CalendarView { try CalendarView(cborValue: CsilCbor.decode(bytes)) }
+}
+
 public extension AuditEntry {
     /// The CBOR value tree for this record (deep, canonical key order).
     func toCborValue() -> CsilCborValue {
@@ -2708,6 +2780,17 @@ public func encodeEventListEventsResponse(_ value: [Event]) -> [UInt8] {
 public func decodeEventListEventsResponse(_ bytes: [UInt8]) throws -> [Event] {
     let csilRoot = try CsilCbor.decode(bytes)
     return try CsilCbor.asArray(csilRoot).map { try Event(cborValue: $0) }
+}
+
+/// Encode the EventGetCalendarViewRequest payload to canonical CSIL CBOR bytes.
+public func encodeEventGetCalendarViewRequest(_ value: HouseId) -> [UInt8] {
+    CsilCbor.encode(.text(value))
+}
+
+/// Decode canonical CSIL CBOR bytes into the EventGetCalendarViewRequest payload.
+public func decodeEventGetCalendarViewRequest(_ bytes: [UInt8]) throws -> HouseId {
+    let csilRoot = try CsilCbor.decode(bytes)
+    return try CsilCbor.asText(csilRoot)
 }
 
 /// Encode the TaskGetTaskRequest payload to canonical CSIL CBOR bytes.

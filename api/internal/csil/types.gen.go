@@ -96,6 +96,7 @@ type Member struct {
 	DisplayName     *string    `json:"display_name,omitempty" yaml:"display_name,omitempty"`
 	Email           *string    `json:"email,omitempty" yaml:"email,omitempty"`
 	AvatarUrl       *string    `json:"avatar_url,omitempty" yaml:"avatar_url,omitempty"`
+	Handle          *string    `json:"handle,omitempty" yaml:"handle,omitempty"`
 	CachedPublicKey *[]byte    `json:"cached_public_key,omitempty" yaml:"cached_public_key,omitempty"`
 	CreatedAt       Timestamp  `json:"created_at" yaml:"created_at"`
 	UpdatedAt       Timestamp  `json:"updated_at" yaml:"updated_at"`
@@ -633,6 +634,19 @@ type BugReportRequest struct {
 type ServiceError struct {
 	Code    uint64 `json:"code" yaml:"code"`
 	Message string `json:"message" yaml:"message"`
+}
+
+// CalendarSubscription represents a structured data type
+type CalendarSubscription struct {
+	SubjectMemberId MemberID `json:"subject_member_id" yaml:"subject_member_id"`
+	Enabled         bool     `json:"enabled" yaml:"enabled"`
+}
+
+// CalendarView represents a structured data type
+type CalendarView struct {
+	HouseId        HouseID                `json:"house_id" yaml:"house_id"`
+	ViewerMemberId MemberID               `json:"viewer_member_id" yaml:"viewer_member_id"`
+	Subscriptions  []CalendarSubscription `json:"subscriptions,omitempty" yaml:"subscriptions,omitempty"`
 }
 
 // AuditID is a type alias

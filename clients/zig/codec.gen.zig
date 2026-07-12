@@ -592,6 +592,7 @@ fn dec_House(alloc: std.mem.Allocator, m: Value, out: *types.House) CodecError!v
 fn enc_Member(out: *std.ArrayList(u8), v: *const types.Member) CodecError!void {
     var csil_n: usize = 6;
     if (v.email != null) csil_n += 1;
+    if (v.handle != null) csil_n += 1;
     if (v.avatar_url != null) csil_n += 1;
     if (v.display_name != null) csil_n += 1;
     if (v.last_seen_at != null) csil_n += 1;
@@ -600,6 +601,10 @@ fn enc_Member(out: *std.ArrayList(u8), v: *const types.Member) CodecError!void {
     try w_map_head(out, csil_n);
     if (v.email) |csil_x| {
         try w_text(out, "email");
+        try w_text(out, csil_x);
+    }
+    if (v.handle) |csil_x| {
+        try w_text(out, "handle");
         try w_text(out, csil_x);
     }
     try w_text(out, "house_id");
@@ -644,6 +649,13 @@ fn dec_Member(alloc: std.mem.Allocator, m: Value, out: *types.Member) CodecError
             out.email = try as_text(csil_fv);
         } else {
             out.email = null;
+        }
+    }
+    {
+        if (mget(m, "handle")) |csil_fv| {
+            out.handle = try as_text(csil_fv);
+        } else {
+            out.handle = null;
         }
     }
     {
@@ -3429,6 +3441,68 @@ fn dec_ServiceError(alloc: std.mem.Allocator, m: Value, out: *types.ServiceError
     }
 }
 
+fn enc_CalendarSubscription(out: *std.ArrayList(u8), v: *const types.CalendarSubscription) CodecError!void {
+    try w_map_head(out, 2);
+    try w_text(out, "enabled");
+    try w_bool(out, v.enabled);
+    try w_text(out, "subject_member_id");
+    try w_text(out, v.subject_member_id);
+}
+
+fn dec_CalendarSubscription(alloc: std.mem.Allocator, m: Value, out: *types.CalendarSubscription) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "enabled");
+        out.enabled = try as_bool(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "subject_member_id");
+        out.subject_member_id = try as_text(csil_fv);
+    }
+}
+
+fn enc_CalendarView(out: *std.ArrayList(u8), v: *const types.CalendarView) CodecError!void {
+    var csil_n: usize = 2;
+    if (v.subscriptions != null) csil_n += 1;
+    try w_map_head(out, csil_n);
+    try w_text(out, "house_id");
+    try w_text(out, v.house_id);
+    if (v.subscriptions) |csil_arr| {
+        try w_text(out, "subscriptions");
+        try w_array_head(out, csil_arr.len);
+        for (csil_arr) |csil_it| {
+            try enc_CalendarSubscription(out, &(csil_it));
+        }
+    }
+    try w_text(out, "viewer_member_id");
+    try w_text(out, v.viewer_member_id);
+}
+
+fn dec_CalendarView(alloc: std.mem.Allocator, m: Value, out: *types.CalendarView) CodecError!void {
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "house_id");
+        out.house_id = try as_text(csil_fv);
+    }
+    {
+        if (mget(m, "subscriptions")) |csil_fv| {
+            if (csil_fv != .array) return error.WrongType;
+            const csil_tmp = try alloc.alloc(types.CalendarSubscription, csil_fv.array.len);
+            for (csil_fv.array, 0..) |csil_it, csil_i| {
+                try dec_CalendarSubscription(alloc, csil_it, &(csil_tmp[csil_i]));
+            }
+            out.subscriptions = csil_tmp;
+        } else {
+            out.subscriptions = null;
+        }
+    }
+    {
+        const csil_fv = try req(m, "viewer_member_id");
+        out.viewer_member_id = try as_text(csil_fv);
+    }
+}
+
 fn enc_AuditEntry(out: *std.ArrayList(u8), v: *const types.AuditEntry) CodecError!void {
     var csil_n: usize = 8;
     if (v.after != null) csil_n += 1;
@@ -5112,6 +5186,38 @@ pub fn encode_ServiceError(alloc: std.mem.Allocator, v: *const types.ServiceErro
 pub fn decode_ServiceError(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ServiceError) CodecError!void {
     const root = try decode(alloc, bytes);
     try dec_ServiceError(alloc, root, out);
+}
+
+/// Encode a CalendarSubscription to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CalendarSubscription(alloc: std.mem.Allocator, v: *const types.CalendarSubscription) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CalendarSubscription(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CalendarSubscription. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CalendarSubscription(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CalendarSubscription) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CalendarSubscription(alloc, root, out);
+}
+
+/// Encode a CalendarView to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CalendarView(alloc: std.mem.Allocator, v: *const types.CalendarView) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CalendarView(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CalendarView. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CalendarView(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CalendarView) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CalendarView(alloc, root, out);
 }
 
 /// Encode a AuditEntry to CBOR. The returned slice is owned by the caller

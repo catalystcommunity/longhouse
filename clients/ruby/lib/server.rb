@@ -420,6 +420,16 @@ class EventHandlers
   def list_events(req)
     raise NotImplementedError, "EventHandlers#list_events"
   end
+
+  # get-calendar-view
+  def get_calendar_view(req)
+    raise NotImplementedError, "EventHandlers#get_calendar_view"
+  end
+
+  # set-calendar-view
+  def set_calendar_view(req)
+    raise NotImplementedError, "EventHandlers#set_calendar_view"
+  end
 end
 
 # Server-side handlers for the TaskService service. Subclass and override each

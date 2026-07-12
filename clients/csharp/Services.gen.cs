@@ -129,6 +129,8 @@ public interface IEventService
     EmptyResponse DeleteEvent(EventID eventID);
     EmptyResponse DeleteEventAndFuture(EventID eventID);
     System.Collections.Generic.List<Event> ListEvents(HouseScopedListRequest houseScopedListRequest);
+    CalendarView GetCalendarView(HouseID houseID);
+    CalendarView SetCalendarView(CalendarView calendarView);
 }
 
 /// <summary>Server handler interface for the TaskService service.</summary>

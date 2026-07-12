@@ -146,6 +146,7 @@ final class Member {
   final String? displayName;
   final String? email;
   final String? avatarUrl;
+  final String? handle;
   final Uint8List? cachedPublicKey;
   final Timestamp createdAt;
   final Timestamp updatedAt;
@@ -160,6 +161,7 @@ final class Member {
     this.displayName,
     this.email,
     this.avatarUrl,
+    this.handle,
     this.cachedPublicKey,
     required this.createdAt,
     required this.updatedAt,
@@ -187,6 +189,7 @@ final class Member {
       displayName: map['display_name'] as String?,
       email: map['email'] as String?,
       avatarUrl: map['avatar_url'] as String?,
+      handle: map['handle'] as String?,
       cachedPublicKey: map['cached_public_key'] as Uint8List?,
       createdAt: map['created_at'] as Timestamp,
       updatedAt: map['updated_at'] as Timestamp,
@@ -205,6 +208,7 @@ final class Member {
         displayName == other.displayName &&
         email == other.email &&
         avatarUrl == other.avatarUrl &&
+        handle == other.handle &&
         _bytesEqual(cachedPublicKey, other.cachedPublicKey) &&
         createdAt == other.createdAt &&
         updatedAt == other.updatedAt &&
@@ -213,7 +217,7 @@ final class Member {
   }
 
   @override
-  int get hashCode => Object.hashAll([memberId, houseId, linkkeysDomain, linkkeysUserId, displayName, email, avatarUrl, cachedPublicKey == null ? null : Object.hashAll(cachedPublicKey!), createdAt, updatedAt, lastSeenAt, deactivatedAt]);
+  int get hashCode => Object.hashAll([memberId, houseId, linkkeysDomain, linkkeysUserId, displayName, email, avatarUrl, handle, cachedPublicKey == null ? null : Object.hashAll(cachedPublicKey!), createdAt, updatedAt, lastSeenAt, deactivatedAt]);
 
   static bool _bytesEqual(Uint8List? a, Uint8List? b) {
     if (a == null || b == null) return a == b;
@@ -247,6 +251,7 @@ final class Member {
       displayName: map['display_name'] == null ? null : map['display_name'] as String,
       email: map['email'] == null ? null : map['email'] as String,
       avatarUrl: map['avatar_url'] == null ? null : map['avatar_url'] as String,
+      handle: map['handle'] == null ? null : map['handle'] as String,
       cachedPublicKey: map['cached_public_key'] == null ? null : map['cached_public_key'] as Uint8List,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
@@ -5047,6 +5052,127 @@ final class ServiceError {
   /// Decode a CSIL CBOR byte payload into this record.
   factory ServiceError.fromCbor(List<int> bytes) =>
       ServiceError.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class CalendarSubscription {
+  final MemberId subjectMemberId;
+  final bool enabled;
+
+  const CalendarSubscription({
+    required this.subjectMemberId,
+    required this.enabled,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['subject_member_id'] = subjectMemberId;
+    map['enabled'] = enabled;
+    return map;
+  }
+
+  factory CalendarSubscription.fromMap(Map<String, Object?> map) {
+    return CalendarSubscription(
+      subjectMemberId: map['subject_member_id'] as MemberId,
+      enabled: map['enabled'] as bool,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CalendarSubscription) return false;
+    return subjectMemberId == other.subjectMemberId &&
+        enabled == other.enabled;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([subjectMemberId, enabled]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['subject_member_id'] = subjectMemberId;
+    map['enabled'] = enabled;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory CalendarSubscription.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return CalendarSubscription(
+      subjectMemberId: map['subject_member_id'] as String,
+      enabled: map['enabled'] as bool,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory CalendarSubscription.fromCbor(List<int> bytes) =>
+      CalendarSubscription.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class CalendarView {
+  final HouseId houseId;
+  final MemberId viewerMemberId;
+  final List<CalendarSubscription>? subscriptions;
+
+  const CalendarView({
+    required this.houseId,
+    required this.viewerMemberId,
+    this.subscriptions,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    if (subscriptions != null) map['subscriptions'] = subscriptions;
+    return map;
+  }
+
+  factory CalendarView.fromMap(Map<String, Object?> map) {
+    return CalendarView(
+      houseId: map['house_id'] as HouseId,
+      viewerMemberId: map['viewer_member_id'] as MemberId,
+      subscriptions: map['subscriptions'] as List<CalendarSubscription>?,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CalendarView) return false;
+    return houseId == other.houseId &&
+        viewerMemberId == other.viewerMemberId &&
+        subscriptions == other.subscriptions;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([houseId, viewerMemberId, subscriptions]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    if (subscriptions != null) map['subscriptions'] = subscriptions!.map((csilE) => csilE.toCborValue()).toList();
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory CalendarView.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return CalendarView(
+      houseId: map['house_id'] as String,
+      viewerMemberId: map['viewer_member_id'] as String,
+      subscriptions: map['subscriptions'] == null ? null : (map['subscriptions'] as List).map((csilE) => CalendarSubscription.fromCborValue(csilE)).cast<CalendarSubscription>().toList(),
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory CalendarView.fromCbor(List<int> bytes) =>
+      CalendarView.fromCborValue(CsilCbor.decode(bytes));
 }
 
 typedef AuditId = String;

@@ -15,6 +15,20 @@ import type { Member, Task, Event as ApiEvent } from "@longhouse/client";
 export const displayName = (m: { displayName?: string; linkkeysUserId?: string; memberId?: string }): string =>
   m.displayName?.trim() || m.linkkeysUserId || m.memberId || "?";
 
+/** The member's public handle for display, e.g. "@todpunk". Prefers the
+ *  verified linkkeys `handle` claim; falls back to the email local-part when
+ *  no handle has been released yet. Never returns the raw linkkeys UUID (that
+ *  isn't a handle) — callers get `undefined` and can render nothing instead. */
+export const memberHandle = (
+  m: { handle?: string; email?: string },
+): string | undefined => {
+  const h = m.handle?.trim();
+  if (h) return h.startsWith("@") ? h : `@${h}`;
+  const email = m.email?.trim();
+  if (email && email.includes("@")) return `@${email.split("@")[0]}`;
+  return undefined;
+};
+
 /** Single-letter initial for an avatar bubble. */
 export const initial = (m: { displayName?: string; linkkeysUserId?: string; memberId?: string }): string => {
   const name = displayName(m);

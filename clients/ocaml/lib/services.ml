@@ -332,6 +332,10 @@ module Event_service = struct
     delete_event_and_future : bytes -> outcome;
     (* request payload decodes to: house_scoped_list_request *)
     list_events : bytes -> outcome;
+    (* request payload decodes to: house_id *)
+    get_calendar_view : bytes -> outcome;
+    (* request payload decodes to: calendar_view *)
+    set_calendar_view : bytes -> outcome;
   }
 
   (* Verbose router: dispatch one request by operation name to its handler
@@ -344,6 +348,8 @@ module Event_service = struct
     | "DeleteEvent" -> h.delete_event payload
     | "DeleteEventAndFuture" -> h.delete_event_and_future payload
     | "ListEvents" -> h.list_events payload
+    | "GetCalendarView" -> h.get_calendar_view payload
+    | "SetCalendarView" -> h.set_calendar_view payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 

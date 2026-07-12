@@ -224,6 +224,10 @@ public sealed class EventAsyncClient(ICsilAsyncTransport transport)
         Codec.Decode<EmptyResponse>(await transport.Call("event", "DeleteEventAndFuture", Codec.EncodeEventDeleteEventAndFutureRequest(eventID)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Event>> ListEventsAsync(HouseScopedListRequest houseScopedListRequest) =>
         Codec.DecodeEventListEventsResponse(await transport.Call("event", "ListEvents", Codec.Encode(houseScopedListRequest)));
+    public async System.Threading.Tasks.Task<CalendarView> GetCalendarViewAsync(HouseID houseID) =>
+        Codec.Decode<CalendarView>(await transport.Call("event", "GetCalendarView", Codec.EncodeEventGetCalendarViewRequest(houseID)));
+    public async System.Threading.Tasks.Task<CalendarView> SetCalendarViewAsync(CalendarView calendarView) =>
+        Codec.Decode<CalendarView>(await transport.Call("event", "SetCalendarView", Codec.Encode(calendarView)));
 }
 
 /// <summary>Typed RPC client for the TaskService service. The client owns

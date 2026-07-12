@@ -912,6 +912,32 @@ func (s *PostgresStore) ListEventsByHouse(ctx context.Context, houseID string, l
 	return events, nil
 }
 
+// GetCalendarView returns the viewer's saved calendar view, or (nil, nil) when
+// they've never saved one (the caller treats that as "empty view").
+func (s *PostgresStore) GetCalendarView(ctx context.Context, viewerMemberID string) (*models.MemberCalendarView, error) {
+	var v models.MemberCalendarView
+	err := db.WithContext(ctx).Where("viewer_member_id = ?", viewerMemberID).First(&v).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+// UpsertCalendarView replaces the viewer's subscription list wholesale (the SPA
+// owns the roster and sends the full set on every change).
+func (s *PostgresStore) UpsertCalendarView(ctx context.Context, view *models.MemberCalendarView) error {
+	if view.Subscriptions == nil {
+		view.Subscriptions = []models.CalendarSubscription{}
+	}
+	return db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "viewer_member_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"house_id", "subscriptions", "updated_at"}),
+	}).Create(view).Error
+}
+
 // Event-recurrence spawning. Roots: rows that have recurrence_freq set AND
 // a next_recurrence_at <= now. Children: rows with recurrence_root_event_id
 // set. The worker fetches roots, asks for the latest child to know where

@@ -24,6 +24,63 @@ func (s *EventService) Register(d *csilrpc.Dispatcher) {
 	d.RegisterTyped("event", "UpdateEvent", csilrpc.Route(s.UpdateEvent, csil.DecodeEventUpdateEventRequest, csil.EncodeEventUpdateEventResponse))
 	d.RegisterTyped("event", "DeleteEvent", csilrpc.Route(s.DeleteEvent, csil.DecodeEventDeleteEventRequest, csil.EncodeEventDeleteEventResponse))
 	d.RegisterTyped("event", "DeleteEventAndFuture", csilrpc.Route(s.DeleteEventAndFuture, csil.DecodeEventDeleteEventAndFutureRequest, csil.EncodeEventDeleteEventAndFutureResponse))
+	d.RegisterTyped("event", "GetCalendarView", csilrpc.Route(s.GetCalendarView, csil.DecodeEventGetCalendarViewRequest, csil.EncodeEventGetCalendarViewResponse))
+	d.RegisterTyped("event", "SetCalendarView", csilrpc.Route(s.SetCalendarView, csil.DecodeEventSetCalendarViewRequest, csil.EncodeEventSetCalendarViewResponse))
+}
+
+// GetCalendarView returns the caller's saved calendar view for a house (which
+// other members' calendars they've added + enabled). Empty when never set.
+func (s *EventService) GetCalendarView(ctx context.Context, houseID csil.HouseID) (csil.CalendarView, error) {
+	_, viewerMemberID, err := requireMemberForHouse(ctx, string(houseID))
+	if err != nil {
+		return csil.CalendarView{}, err
+	}
+	v, err := s.Store.GetCalendarView(ctx, viewerMemberID)
+	if err != nil {
+		return csil.CalendarView{}, csilrpc.Internal("internal error")
+	}
+	return calendarViewToCSIL(string(houseID), viewerMemberID, v), nil
+}
+
+// SetCalendarView replaces the caller's subscription list for a house. The
+// viewer is always the caller (bearer-derived); any client-sent
+// viewer_member_id is ignored. Subjects are recorded as-is — this is a display
+// preference, not an access grant, so no per-subject read check is needed
+// (events are already house-readable).
+func (s *EventService) SetCalendarView(ctx context.Context, in csil.CalendarView) (csil.CalendarView, error) {
+	if in.HouseId == "" {
+		return csil.CalendarView{}, csilrpc.BadRequest("house_id is required")
+	}
+	_, viewerMemberID, err := requireMemberForHouse(ctx, string(in.HouseId))
+	if err != nil {
+		return csil.CalendarView{}, err
+	}
+	// De-dupe by subject (last one wins) and drop self / empty ids — a viewer
+	// never subscribes to their own calendar (it's always shown) and empty ids
+	// are noise.
+	seen := make(map[string]int, len(in.Subscriptions))
+	subs := make([]models.CalendarSubscription, 0, len(in.Subscriptions))
+	for _, sub := range in.Subscriptions {
+		sid := string(sub.SubjectMemberId)
+		if sid == "" || sid == viewerMemberID {
+			continue
+		}
+		if idx, ok := seen[sid]; ok {
+			subs[idx].Enabled = sub.Enabled
+			continue
+		}
+		seen[sid] = len(subs)
+		subs = append(subs, models.CalendarSubscription{SubjectMemberID: sid, Enabled: sub.Enabled})
+	}
+	view := &models.MemberCalendarView{
+		ViewerMemberID: viewerMemberID,
+		HouseID:        string(in.HouseId),
+		Subscriptions:  subs,
+	}
+	if err := s.Store.UpsertCalendarView(ctx, view); err != nil {
+		return csil.CalendarView{}, csilrpc.Internal("internal error")
+	}
+	return calendarViewToCSIL(string(in.HouseId), viewerMemberID, view), nil
 }
 
 func (s *EventService) ListEvents(ctx context.Context, req csil.HouseScopedListRequest) ([]csil.Event, error) {

@@ -2,7 +2,7 @@ import { For, Show, createMemo, createResource, createSignal } from "solid-js";
 import { A } from "@solidjs/router";
 import { AuthGate } from "~/components/AuthGate";
 import { memberClient, roleClient, skillClient } from "~/data/clients";
-import { displayName, initial, lastSeenLabel, memberStatus, memberSwatch } from "~/lib/derive";
+import { displayName, initial, lastSeenLabel, memberHandle, memberStatus, memberSwatch } from "~/lib/derive";
 import { currentMemberId, hasRole, useCurrentHouseId } from "~/stores/auth";
 import { loadHouses } from "~/lib/session";
 import type { Member, Role, Skill } from "@longhouse/client";
@@ -246,7 +246,8 @@ const MemberRow = (props: {
               </Show>
             </div>
             <div class="doing">
-              {props.member.linkkeysUserId}@{props.member.linkkeysDomain}
+              {memberHandle(props.member) ??
+                `${props.member.linkkeysUserId}@${props.member.linkkeysDomain}`}
             </div>
           </Show>
         </div>

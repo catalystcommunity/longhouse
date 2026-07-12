@@ -7,7 +7,7 @@
 
     <groupId>com.catalystcommunity.longhouse.client</groupId>
     <artifactId>longhouse-client</artifactId>
-    <version>0.13.0</version>
+    <version>0.14.2</version>
     <packaging>jar</packaging>
 
     <properties>

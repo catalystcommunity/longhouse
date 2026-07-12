@@ -121,6 +121,8 @@ type EventService interface {
 	DeleteEvent(ctx context.Context, req EventID) (EmptyResponse, error)
 	DeleteEventAndFuture(ctx context.Context, req EventID) (EmptyResponse, error)
 	ListEvents(ctx context.Context, req HouseScopedListRequest) ([]Event, error)
+	GetCalendarView(ctx context.Context, req HouseID) (CalendarView, error)
+	SetCalendarView(ctx context.Context, req CalendarView) (CalendarView, error)
 }
 
 // TaskService defines the service interface

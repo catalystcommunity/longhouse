@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { AuditPage, AuditQuery, BoolResponse, BugReportRequest, Comment, CommentID, CommentListRequest, CompleteRequest, DependencyGraph, DependencyRef, DependencyTarget, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Grant, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectGrantRef, ProjectID, ProjectList, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, ResourceRef, RestoreRequest, Role, RoleID, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskGrantRef, TaskID, TaskList, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
-import { asArray, decode, encodeValue, fromAuditPageCbor, fromBoolResponseCbor, fromCommentCbor, fromCommentCborValue, fromDependencyGraphCbor, fromDevUsersResponseCbor, fromEffectiveSettingsCbor, fromEmptyResponseCbor, fromEventCbor, fromEventCborValue, fromGrantCborValue, fromGroupCbor, fromGroupCborValue, fromHouseCbor, fromHouseCborValue, fromLoginResponseCbor, fromMeResponseCbor, fromMemberAuditCborValue, fromMemberCbor, fromMemberCborValue, fromMilestoneCbor, fromMilestoneCborValue, fromNotificationCbor, fromNotificationCborValue, fromNotificationUnreadCountCbor, fromProjectCbor, fromProjectListCbor, fromRoleCbor, fromRoleCborValue, fromShareCbor, fromShareCborValue, fromSkillCbor, fromSkillCborValue, fromTaskCbor, fromTaskListCbor, fromTrashPageCbor, fromTrustedDomainCbor, fromTrustedDomainCborValue, toAuditQueryCbor, toBugReportRequestCbor, toCommentCbor, toCommentListRequestCbor, toCompleteRequestCbor, toDependencyRefCbor, toDependencyTargetCbor, toDevLoginRequestCbor, toEmptyRequestCbor, toEventCbor, toGroupCbor, toGroupMemberRefCbor, toGroupSkillRefCbor, toHouseCbor, toHouseListRequestCbor, toHouseScopedListRequestCbor, toLoginRequestCbor, toMemberCbor, toMemberRoleRefCbor, toMemberScopedListRequestCbor, toMemberSkillRefCbor, toMilestoneCbor, toNotificationListRequestCbor, toProjectCbor, toProjectGrantRefCbor, toProjectMemberRefCbor, toProjectOwnerRefCbor, toProjectScopedListRequestCbor, toProjectTaskOrderRequestCbor, toProjectTaskRefCbor, toPurgeRequestCbor, toPutProjectGrantRequestCbor, toPutTaskGrantRequestCbor, toResourceRefCbor, toRestoreRequestCbor, toRoleCbor, toSetProjectVisibilityRequestCbor, toSetTaskVisibilityRequestCbor, toShareAccessRequestCbor, toShareCbor, toSkillCbor, toTaskCbor, toTaskGrantRefCbor, toTrustedDomainCbor, toUpdateSettingsRequestCbor } from "./codec.gen";
+import type { AuditPage, AuditQuery, BoolResponse, BugReportRequest, CalendarView, Comment, CommentID, CommentListRequest, CompleteRequest, DependencyGraph, DependencyRef, DependencyTarget, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Grant, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectGrantRef, ProjectID, ProjectList, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, ResourceRef, RestoreRequest, Role, RoleID, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskGrantRef, TaskID, TaskList, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import { asArray, decode, encodeValue, fromAuditPageCbor, fromBoolResponseCbor, fromCalendarViewCbor, fromCommentCbor, fromCommentCborValue, fromDependencyGraphCbor, fromDevUsersResponseCbor, fromEffectiveSettingsCbor, fromEmptyResponseCbor, fromEventCbor, fromEventCborValue, fromGrantCborValue, fromGroupCbor, fromGroupCborValue, fromHouseCbor, fromHouseCborValue, fromLoginResponseCbor, fromMeResponseCbor, fromMemberAuditCborValue, fromMemberCbor, fromMemberCborValue, fromMilestoneCbor, fromMilestoneCborValue, fromNotificationCbor, fromNotificationCborValue, fromNotificationUnreadCountCbor, fromProjectCbor, fromProjectListCbor, fromRoleCbor, fromRoleCborValue, fromShareCbor, fromShareCborValue, fromSkillCbor, fromSkillCborValue, fromTaskCbor, fromTaskListCbor, fromTrashPageCbor, fromTrustedDomainCbor, fromTrustedDomainCborValue, toAuditQueryCbor, toBugReportRequestCbor, toCalendarViewCbor, toCommentCbor, toCommentListRequestCbor, toCompleteRequestCbor, toDependencyRefCbor, toDependencyTargetCbor, toDevLoginRequestCbor, toEmptyRequestCbor, toEventCbor, toGroupCbor, toGroupMemberRefCbor, toGroupSkillRefCbor, toHouseCbor, toHouseListRequestCbor, toHouseScopedListRequestCbor, toLoginRequestCbor, toMemberCbor, toMemberRoleRefCbor, toMemberScopedListRequestCbor, toMemberSkillRefCbor, toMilestoneCbor, toNotificationListRequestCbor, toProjectCbor, toProjectGrantRefCbor, toProjectMemberRefCbor, toProjectOwnerRefCbor, toProjectScopedListRequestCbor, toProjectTaskOrderRequestCbor, toProjectTaskRefCbor, toPurgeRequestCbor, toPutProjectGrantRequestCbor, toPutTaskGrantRequestCbor, toResourceRefCbor, toRestoreRequestCbor, toRoleCbor, toSetProjectVisibilityRequestCbor, toSetTaskVisibilityRequestCbor, toShareAccessRequestCbor, toShareCbor, toSkillCbor, toTaskCbor, toTaskGrantRefCbor, toTrustedDomainCbor, toUpdateSettingsRequestCbor } from "./codec.gen";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -241,6 +241,24 @@ export class EventClient {
   listEvents(req: HouseScopedListRequest): Event[] {
     const csilResp = this.t.call("event", "ListEvents", toHouseScopedListRequestCbor(req));
     return asArray(decode(csilResp)).map((csilE) => fromEventCborValue(csilE));
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  getCalendarView(req: HouseID): CalendarView {
+    const csilResp = this.t.call("event", "GetCalendarView", encodeValue(req));
+    return fromCalendarViewCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  setCalendarView(req: CalendarView): CalendarView {
+    const csilResp = this.t.call("event", "SetCalendarView", toCalendarViewCbor(req));
+    return fromCalendarViewCbor(csilResp);
   }
 }
 

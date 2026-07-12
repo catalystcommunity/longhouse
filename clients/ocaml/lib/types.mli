@@ -44,6 +44,7 @@ and member = {
   display_name : string option;
   email : string option;
   avatar_url : string option;
+  handle : string option;
   cached_public_key : bytes option;
   created_at : timestamp;
   updated_at : timestamp;
@@ -447,6 +448,14 @@ and bug_report_request = {
 }
 
 and service_error = { code : int64; message : string }
+and calendar_subscription = { subject_member_id : member_id; enabled : bool }
+
+and calendar_view = {
+  house_id : house_id;
+  viewer_member_id : member_id;
+  subscriptions : calendar_subscription list option;
+}
+
 and audit_id = string
 
 and audit_entry = {

@@ -14,12 +14,18 @@ type Member struct {
 	// user set nothing.
 	Email     string `gorm:"column:email;not null;default:''" json:"email,omitempty"`
 	AvatarURL string `gorm:"column:avatar_url;not null;default:''" json:"avatar_url,omitempty"`
+	// Handle is the member's human-readable linkkeys handle (e.g. "todpunk"),
+	// seeded/reconciled from a verified linkkeys `handle` claim. Receive-only on
+	// the wire — the UI displays it (as @handle, in place of the raw linkkeys
+	// UUID) but never sets it. Empty until a claim is released.
+	Handle string `gorm:"column:handle;not null;default:''" json:"handle,omitempty"`
 	// *Claimed columns mirror the last value linkkeys released for each field,
 	// so reconciliation can tell "still tracking upstream" from "user overrode".
 	// Internal bookkeeping — never serialized out.
 	DisplayNameClaimed string `gorm:"column:display_name_claimed;not null;default:''" json:"-"`
 	EmailClaimed       string `gorm:"column:email_claimed;not null;default:''" json:"-"`
 	AvatarURLClaimed   string `gorm:"column:avatar_url_claimed;not null;default:''" json:"-"`
+	HandleClaimed      string `gorm:"column:handle_claimed;not null;default:''" json:"-"`
 	CachedPubKey       []byte `gorm:"column:cached_public_key" json:"cached_public_key,omitempty"`
 	// Deactivated members keep their record + owned content but are denied
 	// future login (buildHouseRoles skips a deactivated membership). Not the

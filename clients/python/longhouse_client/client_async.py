@@ -379,6 +379,14 @@ class EventAsyncClient:
         """list-events"""
         return decode_event_list_events_response(await self._transport.call("event", "ListEvents", req.to_cbor()))
 
+    async def get_calendar_view(self, req: HouseId) -> CalendarView:
+        """get-calendar-view"""
+        return CalendarView.from_cbor(await self._transport.call("event", "GetCalendarView", encode_event_get_calendar_view_request(req)))
+
+    async def set_calendar_view(self, req: CalendarView) -> CalendarView:
+        """set-calendar-view"""
+        return CalendarView.from_cbor(await self._transport.call("event", "SetCalendarView", req.to_cbor()))
+
 class TaskAsyncClient:
     """Typed client for the TaskService service."""
     def __init__(self, transport: AsyncTransport):

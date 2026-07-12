@@ -52,6 +52,7 @@ and encode_member (v : member) : Cbor.t =
        (fun x -> x)
        [
          (match v.email with Some csil_x -> Some (Cbor.Text "email", (Cbor.Text csil_x)) | None -> None);
+         (match v.handle with Some csil_x -> Some (Cbor.Text "handle", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
          Some (Cbor.Text "member_id", (Cbor.Text v.member_id));
          (match v.avatar_url with Some csil_x -> Some (Cbor.Text "avatar_url", (Cbor.Text csil_x)) | None -> None);
@@ -785,6 +786,25 @@ and encode_service_error (v : service_error) : Cbor.t =
          Some (Cbor.Text "message", (Cbor.Text v.message));
        ])
 
+and encode_calendar_subscription (v : calendar_subscription) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "enabled", (Cbor.Bool v.enabled));
+         Some (Cbor.Text "subject_member_id", (Cbor.Text v.subject_member_id));
+       ])
+
+and encode_calendar_view (v : calendar_view) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
+         (match v.subscriptions with Some csil_x -> Some (Cbor.Text "subscriptions", (Cbor.Array (List.map (fun csil_e -> (encode_calendar_subscription csil_e)) csil_x))) | None -> None);
+         Some (Cbor.Text "viewer_member_id", (Cbor.Text v.viewer_member_id));
+       ])
+
 and encode_audit_entry (v : audit_entry) : Cbor.t =
   Cbor.Map
     (List.filter_map
@@ -929,6 +949,7 @@ and decode_member (csil_c : Cbor.t) : member =
       ignore csil_req;
       {
         email = (match csil_field "email" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        handle = (match csil_field "handle" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         house_id = (Cbor.to_text (csil_req "house_id"));
         member_id = (Cbor.to_text (csil_req "member_id"));
         avatar_url = (match csil_field "avatar_url" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
@@ -1985,6 +2006,35 @@ and decode_service_error (csil_c : Cbor.t) : service_error =
       }
   | _ -> failwith "csilgen: expected map for service_error"
 
+and decode_calendar_subscription (csil_c : Cbor.t) : calendar_subscription =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        enabled = (Cbor.to_bool (csil_req "enabled"));
+        subject_member_id = (Cbor.to_text (csil_req "subject_member_id"));
+      }
+  | _ -> failwith "csilgen: expected map for calendar_subscription"
+
+and decode_calendar_view (csil_c : Cbor.t) : calendar_view =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        house_id = (Cbor.to_text (csil_req "house_id"));
+        subscriptions = (match csil_field "subscriptions" with Some csil_v -> Some (match csil_v with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_calendar_subscription csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | None -> None);
+        viewer_member_id = (Cbor.to_text (csil_req "viewer_member_id"));
+      }
+  | _ -> failwith "csilgen: expected map for calendar_view"
+
 and decode_audit_entry (csil_c : Cbor.t) : audit_entry =
   match csil_c with
   | Cbor.Map csil_kvs ->
@@ -2417,6 +2467,14 @@ let decode_bug_report_request_bytes (b : bytes) : bug_report_request =
 let encode_service_error_bytes (v : service_error) : bytes = Cbor.encode (encode_service_error v)
 let decode_service_error_bytes (b : bytes) : service_error =
   match Cbor.decode b with Ok c -> decode_service_error c | Error e -> failwith e
+
+let encode_calendar_subscription_bytes (v : calendar_subscription) : bytes = Cbor.encode (encode_calendar_subscription v)
+let decode_calendar_subscription_bytes (b : bytes) : calendar_subscription =
+  match Cbor.decode b with Ok c -> decode_calendar_subscription c | Error e -> failwith e
+
+let encode_calendar_view_bytes (v : calendar_view) : bytes = Cbor.encode (encode_calendar_view v)
+let decode_calendar_view_bytes (b : bytes) : calendar_view =
+  match Cbor.decode b with Ok c -> decode_calendar_view c | Error e -> failwith e
 
 let encode_audit_entry_bytes (v : audit_entry) : bytes = Cbor.encode (encode_audit_entry v)
 let decode_audit_entry_bytes (b : bytes) : audit_entry =

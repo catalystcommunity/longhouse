@@ -255,6 +255,26 @@ public static partial class Cbor
     public static CborValue Require(CborValue v, string key) =>
         MapGet(v, key) ?? throw new CborException($"missing field '{key}'");
 
+    public static T ExpectLiteral<T>(CborValue actual, CborValue expected, T value)
+    {
+        if (!ValueEquals(actual, expected))
+            throw new CborException("literal mismatch");
+        return value;
+    }
+
+    static bool ValueEquals(CborValue actual, CborValue expected) => (actual, expected) switch
+    {
+        (CborValue.Uint a, CborValue.Uint b) => a.Value == b.Value,
+        (CborValue.Int a, CborValue.Int b) => a.Value == b.Value,
+        (CborValue.Bool a, CborValue.Bool b) => a.Value == b.Value,
+        (CborValue.Float a, CborValue.Float b) => a.Value == b.Value,
+        (CborValue.Null, CborValue.Null) => true,
+        (CborValue.Text a, CborValue.Text b) => a.Value == b.Value,
+        (CborValue.Bytes a, CborValue.Bytes b) => a.Value.AsSpan().SequenceEqual(b.Value),
+        (CborValue.Array a, CborValue.Array b) => a.Items.Count == b.Items.Count && a.Items.Zip(b.Items).All(p => ValueEquals(p.First, p.Second)),
+        _ => false,
+    };
+
     public static long AsI64(CborValue v) => v switch
     {
         CborValue.Uint x when x.Value <= long.MaxValue => (long)x.Value,
@@ -383,6 +403,8 @@ public static class Codec
         UpdateSettingsRequest csilTyped => UpdateSettingsRequestToCborValue(csilTyped),
         BugReportRequest csilTyped => BugReportRequestToCborValue(csilTyped),
         ServiceError csilTyped => ServiceErrorToCborValue(csilTyped),
+        CalendarSubscription csilTyped => CalendarSubscriptionToCborValue(csilTyped),
+        CalendarView csilTyped => CalendarViewToCborValue(csilTyped),
         AuditEntry csilTyped => AuditEntryToCborValue(csilTyped),
         AuditQuery csilTyped => AuditQueryToCborValue(csilTyped),
         AuditPage csilTyped => AuditPageToCborValue(csilTyped),
@@ -472,6 +494,8 @@ public static class Codec
         if (csilType == typeof(UpdateSettingsRequest)) return UpdateSettingsRequestFromCborValue(value);
         if (csilType == typeof(BugReportRequest)) return BugReportRequestFromCborValue(value);
         if (csilType == typeof(ServiceError)) return ServiceErrorFromCborValue(value);
+        if (csilType == typeof(CalendarSubscription)) return CalendarSubscriptionFromCborValue(value);
+        if (csilType == typeof(CalendarView)) return CalendarViewFromCborValue(value);
         if (csilType == typeof(AuditEntry)) return AuditEntryFromCborValue(value);
         if (csilType == typeof(AuditQuery)) return AuditQueryFromCborValue(value);
         if (csilType == typeof(AuditPage)) return AuditPageFromCborValue(value);
@@ -689,31 +713,35 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("email"), new CborValue.Text(csilV0)));
         }
+        if (value.Handle is { } csilV1)
+        {
+            csilEntries.Add((new CborValue.Text("handle"), new CborValue.Text(csilV1)));
+        }
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
         csilEntries.Add((new CborValue.Text("member_id"), new CborValue.Text(value.MemberId)));
-        if (value.AvatarUrl is { } csilV3)
+        if (value.AvatarUrl is { } csilV4)
         {
-            csilEntries.Add((new CborValue.Text("avatar_url"), new CborValue.Text(csilV3)));
+            csilEntries.Add((new CborValue.Text("avatar_url"), new CborValue.Text(csilV4)));
         }
         csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
         csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
-        if (value.DisplayName is { } csilV6)
+        if (value.DisplayName is { } csilV7)
         {
-            csilEntries.Add((new CborValue.Text("display_name"), new CborValue.Text(csilV6)));
+            csilEntries.Add((new CborValue.Text("display_name"), new CborValue.Text(csilV7)));
         }
-        if (value.LastSeenAt is { } csilV7)
+        if (value.LastSeenAt is { } csilV8)
         {
-            csilEntries.Add((new CborValue.Text("last_seen_at"), new CborValue.Text(csilV7)));
+            csilEntries.Add((new CborValue.Text("last_seen_at"), new CborValue.Text(csilV8)));
         }
-        if (value.DeactivatedAt is { } csilV8)
+        if (value.DeactivatedAt is { } csilV9)
         {
-            csilEntries.Add((new CborValue.Text("deactivated_at"), new CborValue.Text(csilV8)));
+            csilEntries.Add((new CborValue.Text("deactivated_at"), new CborValue.Text(csilV9)));
         }
         csilEntries.Add((new CborValue.Text("linkkeys_domain"), new CborValue.Text(value.LinkkeysDomain)));
         csilEntries.Add((new CborValue.Text("linkkeys_user_id"), new CborValue.Text(value.LinkkeysUserId)));
-        if (value.CachedPublicKey is { } csilV11)
+        if (value.CachedPublicKey is { } csilV12)
         {
-            csilEntries.Add((new CborValue.Text("cached_public_key"), new CborValue.Bytes(csilV11)));
+            csilEntries.Add((new CborValue.Text("cached_public_key"), new CborValue.Bytes(csilV12)));
         }
         return new CborValue.Map(csilEntries);
     }
@@ -728,11 +756,12 @@ public static class Codec
         string? csilField4 = Cbor.MapGet(value, "display_name") is { } csilRaw4 ? Cbor.AsText(csilRaw4) : null;
         string? csilField5 = Cbor.MapGet(value, "email") is { } csilRaw5 ? Cbor.AsText(csilRaw5) : null;
         string? csilField6 = Cbor.MapGet(value, "avatar_url") is { } csilRaw6 ? Cbor.AsText(csilRaw6) : null;
-        byte[]? csilField7 = Cbor.MapGet(value, "cached_public_key") is { } csilRaw7 ? Cbor.AsBytes(csilRaw7) : null;
-        var csilField8 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField9 = Cbor.AsText(Cbor.Require(value, "updated_at"));
-        Timestamp? csilField10 = Cbor.MapGet(value, "last_seen_at") is { } csilRaw10 ? Cbor.AsText(csilRaw10) : null;
-        Timestamp? csilField11 = Cbor.MapGet(value, "deactivated_at") is { } csilRaw11 ? Cbor.AsText(csilRaw11) : null;
+        string? csilField7 = Cbor.MapGet(value, "handle") is { } csilRaw7 ? Cbor.AsText(csilRaw7) : null;
+        byte[]? csilField8 = Cbor.MapGet(value, "cached_public_key") is { } csilRaw8 ? Cbor.AsBytes(csilRaw8) : null;
+        var csilField9 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField10 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        Timestamp? csilField11 = Cbor.MapGet(value, "last_seen_at") is { } csilRaw11 ? Cbor.AsText(csilRaw11) : null;
+        Timestamp? csilField12 = Cbor.MapGet(value, "deactivated_at") is { } csilRaw12 ? Cbor.AsText(csilRaw12) : null;
         return new Member
         {
             MemberId = csilField0,
@@ -742,11 +771,12 @@ public static class Codec
             DisplayName = csilField4,
             Email = csilField5,
             AvatarUrl = csilField6,
-            CachedPublicKey = csilField7,
-            CreatedAt = csilField8,
-            UpdatedAt = csilField9,
-            LastSeenAt = csilField10,
-            DeactivatedAt = csilField11,
+            Handle = csilField7,
+            CachedPublicKey = csilField8,
+            CreatedAt = csilField9,
+            UpdatedAt = csilField10,
+            LastSeenAt = csilField11,
+            DeactivatedAt = csilField12,
         };
     }
 
@@ -2751,6 +2781,54 @@ public static class Codec
         };
     }
 
+    /// <summary>The canonical CBOR value tree for a CalendarSubscription.</summary>
+    public static CborValue CalendarSubscriptionToCborValue(CalendarSubscription value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("enabled"), new CborValue.Bool(value.Enabled)));
+        csilEntries.Add((new CborValue.Text("subject_member_id"), new CborValue.Text(value.SubjectMemberId)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a CalendarSubscription from a decoded CBOR value tree.</summary>
+    public static CalendarSubscription CalendarSubscriptionFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "subject_member_id"));
+        var csilField1 = Cbor.AsBool(Cbor.Require(value, "enabled"));
+        return new CalendarSubscription
+        {
+            SubjectMemberId = csilField0,
+            Enabled = csilField1,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a CalendarView.</summary>
+    public static CborValue CalendarViewToCborValue(CalendarView value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
+        if (value.Subscriptions is { } csilV1)
+        {
+            csilEntries.Add((new CborValue.Text("subscriptions"), new CborValue.Array(csilV1.Select(csilElem => (CborValue)CalendarSubscriptionToCborValue(csilElem)).ToList())));
+        }
+        csilEntries.Add((new CborValue.Text("viewer_member_id"), new CborValue.Text(value.ViewerMemberId)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a CalendarView from a decoded CBOR value tree.</summary>
+    public static CalendarView CalendarViewFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "house_id"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "viewer_member_id"));
+        System.Collections.Generic.List<CalendarSubscription>? csilField2 = Cbor.MapGet(value, "subscriptions") is { } csilRaw2 ? Cbor.AsArray(csilRaw2).Select(csilElem => CalendarSubscriptionFromCborValue(csilElem)).ToList() : null;
+        return new CalendarView
+        {
+            HouseId = csilField0,
+            ViewerMemberId = csilField1,
+            Subscriptions = csilField2,
+        };
+    }
+
     /// <summary>The canonical CBOR value tree for a AuditEntry.</summary>
     public static CborValue AuditEntryToCborValue(AuditEntry value)
     {
@@ -3257,6 +3335,12 @@ public static class Codec
 
     /// <summary>Decode canonical CSIL CBOR bytes into the EventListEventsResponse op-boundary payload.</summary>
     public static System.Collections.Generic.List<Event> DecodeEventListEventsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => EventFromCborValue(csilElem)).ToList();
+
+    /// <summary>Encode the EventGetCalendarViewRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
+    public static byte[] EncodeEventGetCalendarViewRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
+
+    /// <summary>Decode canonical CSIL CBOR bytes into the EventGetCalendarViewRequest op-boundary payload.</summary>
+    public static HouseID DecodeEventGetCalendarViewRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the TaskGetTaskRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeTaskGetTaskRequest(TaskID value) => Cbor.Encode(new CborValue.Text(value));

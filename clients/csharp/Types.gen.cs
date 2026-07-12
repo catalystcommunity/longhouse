@@ -160,6 +160,8 @@ public sealed record Member
     public string? Email { get; init; }
     // CBOR key: avatar_url
     public string? AvatarUrl { get; init; }
+    // CBOR key: handle
+    public string? Handle { get; init; }
     // CBOR key: cached_public_key
     public byte[]? CachedPublicKey { get; init; }
     // CBOR key: created_at
@@ -1087,6 +1089,24 @@ public sealed record ServiceError
     public required ulong Code { get; init; }
     // CBOR key: message
     public required string Message { get; init; }
+}
+
+public sealed record CalendarSubscription
+{
+    // CBOR key: subject_member_id
+    public required MemberID SubjectMemberId { get; init; }
+    // CBOR key: enabled
+    public required bool Enabled { get; init; }
+}
+
+public sealed record CalendarView
+{
+    // CBOR key: house_id
+    public required HouseID HouseId { get; init; }
+    // CBOR key: viewer_member_id
+    public required MemberID ViewerMemberId { get; init; }
+    // CBOR key: subscriptions
+    public System.Collections.Generic.List<CalendarSubscription>? Subscriptions { get; init; }
 }
 
 public sealed record AuditEntry

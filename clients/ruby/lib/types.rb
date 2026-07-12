@@ -77,13 +77,14 @@ end
 # display_name [String]
 # email [String]
 # avatar_url [String]
+# handle [String]
 # cached_public_key [String]
 # created_at [Timestamp]
 # updated_at [Timestamp]
 # last_seen_at [Timestamp]
 # deactivated_at [Timestamp]
-Member = Data.define(:member_id, :house_id, :linkkeys_domain, :linkkeys_user_id, :display_name, :email, :avatar_url, :cached_public_key, :created_at, :updated_at, :last_seen_at, :deactivated_at) do
-  def initialize(member_id:, house_id:, linkkeys_domain:, linkkeys_user_id:, created_at:, updated_at:, display_name: nil, email: nil, avatar_url: nil, cached_public_key: nil, last_seen_at: nil, deactivated_at: nil)
+Member = Data.define(:member_id, :house_id, :linkkeys_domain, :linkkeys_user_id, :display_name, :email, :avatar_url, :handle, :cached_public_key, :created_at, :updated_at, :last_seen_at, :deactivated_at) do
+  def initialize(member_id:, house_id:, linkkeys_domain:, linkkeys_user_id:, created_at:, updated_at:, display_name: nil, email: nil, avatar_url: nil, handle: nil, cached_public_key: nil, last_seen_at: nil, deactivated_at: nil)
     super
   end
 end
@@ -638,6 +639,19 @@ end
 # code [Integer]
 # message [String]
 ServiceError = Data.define(:code, :message)
+
+# subject_member_id [MemberId]
+# enabled [Boolean]
+CalendarSubscription = Data.define(:subject_member_id, :enabled)
+
+# house_id [HouseId]
+# viewer_member_id [MemberId]
+# subscriptions [Array<CalendarSubscription>]
+CalendarView = Data.define(:house_id, :viewer_member_id, :subscriptions) do
+  def initialize(house_id:, viewer_member_id:, subscriptions: nil)
+    super
+  end
+end
 
 # AuditId is an alias for String.
 
