@@ -12,6 +12,7 @@ Commands:
   build-api       Build the API server
   test            Run all tests
   test-api        Run API tests
+  test-web        Run webapp tests
   run-api         Run the API server locally (sources .env.dev if present)
   run-web         Run the SPA dev server (vite on :5173, from webapp/)
   dev             Boot postgres + api + vite together in one terminal
@@ -40,6 +41,7 @@ check_deps() {
     local missing=()
     command -v go >/dev/null 2>&1 || missing+=("go")
     command -v docker >/dev/null 2>&1 || missing+=("docker")
+    command -v npm >/dev/null 2>&1 || missing+=("npm")
 
     if [ ${#missing[@]} -gt 0 ]; then
         echo "Missing required tools: ${missing[*]}"
@@ -65,8 +67,19 @@ test_api() {
     go test ./...
 }
 
+test_web() {
+    echo "Testing webapp..."
+    cd "$SCRIPT_DIR/webapp"
+    if [ ! -d node_modules ]; then
+        echo "▶ webapp/node_modules missing — running npm install"
+        npm install
+    fi
+    npm test
+}
+
 run_tests() {
     test_api
+    test_web
 }
 
 run_api() {
@@ -154,7 +167,7 @@ dev() {
     echo $! > "$SCRIPT_DIR/logs/api.pid"
 
     echo "▶ vite → http://localhost:5173               (logs: logs/vite.log)"
-    ( cd "$SCRIPT_DIR/webapp" && exec npm run dev ) >"$SCRIPT_DIR/logs/vite.log" 2>&1 &
+    ( cd "$SCRIPT_DIR/webapp" && exec npm run dev ) >"$SCRIPT_DIR/logs/vite.log" 2>&1 </dev/null &
     echo $! > "$SCRIPT_DIR/logs/vite.pid"
 
     set +m
@@ -231,6 +244,7 @@ case "${1:-}" in
     build-api)    build_api ;;
     test)         run_tests ;;
     test-api)     test_api ;;
+    test-web)     test_web ;;
     run-api)      shift; run_api "$@" ;;
     run-web)      shift; run_web "$@" ;;
     dev)          dev ;;
