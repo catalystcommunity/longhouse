@@ -22,12 +22,20 @@ description: "Auto-deploy longhouse to the catalystsquad environment after a rel
 # store, this job will fail to resolve LINKKEYS_PKI_API_KEY and error on
 # the next release. Set that secret (see run-local notes in
 # deploy-tnl-example.yaml) before the next version bump lands on main.
+triggers:
+  events:
+    - tag_created
+  branches:
+    - v*
 job:
   image: containers.catalystsquad.com/public/reactorcide/runnerbase:latest
   command: "runnerlib run --job-command true"
   timeout: 600
   priority: 5
   working_dir: /job
+  depends_on:
+    - longhouse-api-build-and-deploy
+    - longhouse-web-build-and-deploy
 
 environment:
   REACTORCIDE_LONGHOUSE_JOB: deploy

@@ -30,6 +30,11 @@ name: longhouse-deploy-tnl
 description: "Auto-deploy longhouse to the todandlorna environment after a release"
 
 # The release workflow runs this after release images are available.
+triggers:
+  events:
+    - tag_created
+  branches:
+    - v*
 
 job:
   image: containers.catalystsquad.com/public/reactorcide/runnerbase:latest
@@ -37,6 +42,9 @@ job:
   timeout: 600
   priority: 5
   working_dir: /job
+  depends_on:
+    - longhouse-api-build-and-deploy
+    - longhouse-web-build-and-deploy
 
 environment:
   REACTORCIDE_LONGHOUSE_JOB: deploy
