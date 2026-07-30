@@ -25,7 +25,9 @@ fi
 # commit lines up with the build-and-deploy job that just pushed the
 # image. Falls back to "latest" if VERSION.txt is missing or empty.
 if [[ -z "${IMAGE_TAG:-}" ]]; then
-    if [[ -s version/VERSION.txt ]]; then
+    if [[ "${REACTORCIDE_EVENT_TYPE:-}" = "tag_created" && "${REACTORCIDE_BRANCH:-}" = v* ]]; then
+        IMAGE_TAG="${REACTORCIDE_BRANCH#v}"
+    elif [[ -s version/VERSION.txt ]]; then
         IMAGE_TAG="$(tr -d '[:space:]' < version/VERSION.txt)"
     else
         IMAGE_TAG="latest"

@@ -1,31 +1,12 @@
 name: longhouse-build-test
 description: "Build and test the Go API module"
 job:
-  image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
-  source:
-    type: git
-    url: "https://github.com/catalystcommunity/longhouse.git"
-    ref: main
-  command: |
-    set -e
-    export HOME="${HOME:-/tmp/home}"
-    export GOROOT="/usr/local/go"
-    export GOPATH="$HOME/go"
-    export GOMODCACHE="$GOPATH/pkg/mod"
-    export GOCACHE="$HOME/.cache/go-build"
-    mkdir -p "$GOMODCACHE" "$GOCACHE"
-    export PATH="$GOROOT/bin:$GOPATH/bin:$PATH"
-    go version
-
-    cd /job/src
-
-    echo "=== Building API ==="
-    cd api
-    go build ./...
-
-    echo "=== Testing API ==="
-    go test ./...
-
-    echo "=== All builds and tests passed ==="
+  image: containers.catalystsquad.com/public/reactorcide/runnerbase:latest
+  command: "runnerlib run --job-command true"
   timeout: 600
   priority: 10
+  working_dir: /job
+environment:
+  REACTORCIDE_LONGHOUSE_JOB: build-test
+run_local:
+  user: host

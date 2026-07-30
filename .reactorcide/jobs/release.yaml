@@ -1,33 +1,12 @@
 name: longhouse-release
 description: "Version bump with semver-tags and create GitHub release on merge to main"
-triggers:
-  events:
-    - pull_request_merged
-  branches:
-    - main
 job:
-  image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
-  source:
-    type: git
-    url: "https://github.com/catalystcommunity/longhouse.git"
-    ref: main
-  command: |
-    set -e
-    export HOME="${HOME:-/tmp/home}"
-    export GOROOT="/usr/local/go"
-    export GOPATH="$HOME/go"
-    export GOMODCACHE="$GOPATH/pkg/mod"
-    export GOCACHE="$HOME/.cache/go-build"
-    mkdir -p "$GOMODCACHE" "$GOCACHE"
-    export PATH="$GOROOT/bin:$GOPATH/bin:$PATH"
-    go version
-
-    cd /job/src
-    # release.sh handles git remote auth itself, gated on
-    # REACTORCIDE_WORKER_MODE / SKIP_GITHUB so run-local stays read-only.
-    sh .reactorcide/jobs/scripts/release.sh
+  image: containers.catalystsquad.com/public/reactorcide/runnerbase:latest
+  command: "runnerlib run --job-command true"
   timeout: 600
   priority: 15
+  working_dir: /job
 environment:
+  REACTORCIDE_LONGHOUSE_JOB: release
   REACTORCIDE_REPO: "catalystcommunity/longhouse"
   GITHUB_PAT: "${secret:catalystcommunity/ci:githubpat}"

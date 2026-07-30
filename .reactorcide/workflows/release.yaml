@@ -1,0 +1,27 @@
+name: Longhouse Release
+description: "Build release images and deploy Longhouse when a release tag is pushed."
+
+on:
+  events:
+    - tag_created
+  branches:
+    - "v*"
+
+jobs:
+  api-image:
+    job_file: api-build-and-deploy.yaml
+
+  web-image:
+    job_file: web-build-and-deploy.yaml
+
+  deploy-todandlorna:
+    job_file: deploy-tnl-example.yaml
+    depends_on:
+      - api-image
+      - web-image
+
+  deploy-catalystsquad:
+    job_file: deploy-catalystsquad.yaml
+    depends_on:
+      - api-image
+      - web-image

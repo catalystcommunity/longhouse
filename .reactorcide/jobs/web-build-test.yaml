@@ -1,17 +1,13 @@
 name: longhouse-web-build-test
 description: "Verify the web UI Docker image builds successfully on PR"
-triggers:
-  events:
-    - pull_request_opened
-    - pull_request_updated
-  branches:
-    - main
-paths:
-  # Dockerfile.web builds the SPA from webapp/ (Node + Vite → Caddy).
-  include: ["webapp/**", "Dockerfile.web"]
 job:
-  image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
-  command: "bash /job/src/.reactorcide/jobs/scripts/web-build-test.sh"
+  image: containers.catalystsquad.com/public/reactorcide/runnerbase:latest
+  command: "runnerlib run --job-command true"
   timeout: 600
+  working_dir: /job
   capabilities:
     - builder
+environment:
+  REACTORCIDE_LONGHOUSE_JOB: web-build-test
+run_local:
+  user: host

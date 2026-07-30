@@ -1,0 +1,12 @@
+name: Longhouse Release Tag
+description: "Calculate and push the next Longhouse release tag after a pull request merge."
+
+on:
+  events:
+    - pull_request_merged
+  branches:
+    - main
+
+jobs:
+  tag:
+    job_file: release.yaml

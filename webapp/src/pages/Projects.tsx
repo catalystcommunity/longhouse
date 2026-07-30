@@ -2,6 +2,7 @@ import { A } from "@solidjs/router";
 import { For, Show, createResource, createSignal } from "solid-js";
 import { AuthGate } from "~/components/AuthGate";
 import { projectClient } from "~/data/clients";
+import { normalizeProjectCreate } from "~/lib/taskCreate";
 import { useCurrentHouseId } from "~/stores/auth";
 import type { Project } from "@longhouse/client";
 
@@ -93,12 +94,12 @@ const ProjectComposer = (props: {
     setBusy(true);
     setErr(null);
     try {
-      await projectClient.createProject({
+      await projectClient.createProject(normalizeProjectCreate({
         houseId: props.houseId,
         name: name().trim(),
         description: description().trim() || undefined,
         category: category().trim() || undefined,
-      } as any);
+      }));
       await props.onCreated();
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : String(e2));

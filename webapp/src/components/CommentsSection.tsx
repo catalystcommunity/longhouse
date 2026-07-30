@@ -2,6 +2,7 @@ import { For, Show, createMemo, createResource, createSignal } from "solid-js";
 import { commentClient } from "~/data/clients";
 import { currentMemberId, hasRole } from "~/stores/auth";
 import { displayName, initial, memberSwatch } from "~/lib/derive";
+import { normalizeCommentCreate } from "~/lib/taskCreate";
 import type { Comment, Member } from "@longhouse/client";
 
 /**
@@ -61,12 +62,12 @@ export const CommentsSection = (props: Props) => {
     setBusy(true);
     setErr(null);
     try {
-      await commentClient.createComment({
+      await commentClient.createComment(normalizeCommentCreate({
         houseId: props.houseId,
         targetType: props.targetType as any,
         targetId: props.targetId,
         body: text,
-      } as any);
+      }));
       setDraft("");
       await refetch();
     } catch (e2) {
