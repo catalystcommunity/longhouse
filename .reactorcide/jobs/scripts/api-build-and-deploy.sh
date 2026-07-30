@@ -7,7 +7,11 @@ echo "================================================"
 
 cd "${REACTORCIDE_REPOROOT:-/job/src}"
 
-VERSION="$(cat version/VERSION.txt)"
+if [[ "${REACTORCIDE_EVENT_TYPE:-}" = "tag_created" && "${REACTORCIDE_BRANCH:-}" = v* ]]; then
+    VERSION="${REACTORCIDE_BRANCH#v}"
+else
+    VERSION="$(cat version/VERSION.txt)"
+fi
 echo "Building version: ${VERSION}"
 
 # ================================================
@@ -158,6 +162,3 @@ echo "Version: ${VERSION}"
 echo "Internal: ${INTERNAL_IMAGE}:${VERSION}"
 echo "External: ${EXTERNAL_IMAGE}:${VERSION}"
 echo "================================================"
-
-# Trigger web build and deploy
-runnerlib trigger .reactorcide/jobs/web-build-and-deploy.yaml

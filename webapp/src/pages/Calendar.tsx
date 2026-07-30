@@ -6,6 +6,7 @@ import { DateTimePicker } from "~/components/DateTimePicker";
 import { RecurrenceFields, recurrenceLabel, toRecurrence, type RecurrenceFreq } from "~/components/RecurrenceFields";
 import { eventClient, memberClient } from "~/data/clients";
 import { displayName, eventTone, timeLabel, ymdLocal } from "~/lib/derive";
+import { normalizeEventCreate } from "~/lib/taskCreate";
 import { currentMemberId, useCurrentHouseId } from "~/stores/auth";
 import { buildCells, groupSingleByDate, placeSpans } from "~/lib/month";
 import type { CalendarSubscription, Event as ApiEvent } from "@longhouse/client";
@@ -835,7 +836,7 @@ const EventComposer = (props: {
           ...body,
         } as any);
       } else {
-        await eventClient.createEvent(body as any);
+        await eventClient.createEvent(normalizeEventCreate(body));
       }
       await props.onSaved();
     } catch (e2) {

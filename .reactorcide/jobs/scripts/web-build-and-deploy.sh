@@ -7,7 +7,11 @@ echo "================================================"
 
 cd "${REACTORCIDE_REPOROOT:-/job/src}"
 
-VERSION="$(cat version/VERSION.txt)"
+if [[ "${REACTORCIDE_EVENT_TYPE:-}" = "tag_created" && "${REACTORCIDE_BRANCH:-}" = v* ]]; then
+    VERSION="${REACTORCIDE_BRANCH#v}"
+else
+    VERSION="$(cat version/VERSION.txt)"
+fi
 echo "Building version: ${VERSION}"
 
 # ================================================

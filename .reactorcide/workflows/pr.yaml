@@ -1,0 +1,33 @@
+name: Longhouse PR
+description: "Validate commits and run Longhouse checks for pull requests."
+
+on:
+  events:
+    - pull_request_opened
+    - pull_request_updated
+  branches:
+    - main
+
+jobs:
+  conventional-commits:
+    job_file: conventional-commits.yaml
+
+  api-test-postgres:
+    job_file: api-test-postgres.yaml
+    depends_on:
+      - conventional-commits
+
+  webapp-test:
+    job_file: webapp-test.yaml
+    depends_on:
+      - conventional-commits
+
+  api-build-test:
+    job_file: api-build-test.yaml
+    depends_on:
+      - conventional-commits
+
+  web-build-test:
+    job_file: web-build-test.yaml
+    depends_on:
+      - conventional-commits

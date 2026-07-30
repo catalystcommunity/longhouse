@@ -1,4 +1,4 @@
-# Auto-deploy example: longhouse → todandlorna ("tnl") environment.
+# Auto-deploy example: longhouse to todandlorna ("tnl") environment.
 #
 # This file is the template for any maintainer who runs longhouse in
 # their own k8s. Copy it to `deploy-<your-env>.yaml`, edit the four
@@ -29,33 +29,25 @@
 name: longhouse-deploy-tnl
 description: "Auto-deploy longhouse to the todandlorna environment after a release"
 
-# Fire on the same signal as the build-and-deploy jobs: a push to main
-# that bumped version/VERSION.txt. release.sh produces exactly that
-# commit, so a successful release → fresh images in the registry → this
-# helm upgrade.
-triggers:
-  events:
-    - push
-  branches:
-    - main
-paths:
-  include: ["version/VERSION.txt"]
+# The release workflow runs this after release images are available.
 
 job:
-  image: containers.catalystsquad.com/public/reactorcide/runnerbase:dev
-  command: "bash /job/src/.reactorcide/jobs/scripts/deploy.sh"
+  image: containers.catalystsquad.com/public/reactorcide/runnerbase:latest
+  command: "runnerlib run --job-command true"
   timeout: 600
   priority: 5
+  working_dir: /job
 
 environment:
+  REACTORCIDE_LONGHOUSE_JOB: deploy
   # Cluster + chart selection (per-env — change these in your copy)
   K8S_NAMESPACE: "longhouse"
   HELM_RELEASE: "longhouse"
   HELM_VALUES_FILE: "deploy/values-todandlorna.yaml"
 
-  # IMAGE_TAG is intentionally left unset. deploy.sh defaults it from
-  # version/VERSION.txt at runtime, so the job is always in lockstep
-  # with the commit that triggered it. Override here only if you want
+  # IMAGE_TAG is intentionally left unset. For a tag-created workflow,
+  # deploy.sh defaults it from the release tag. Otherwise it falls back
+  # to version/VERSION.txt. Override here only if you want
   # a deploy of this yaml to pin to a specific tag instead.
   # IMAGE_TAG: "0.2.0"
 
