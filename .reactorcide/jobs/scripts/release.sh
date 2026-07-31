@@ -108,9 +108,9 @@ if [ -x /usr/local/go/bin/go ]; then
   export GOROOT="/usr/local/go"
   export PATH="${GOROOT}/bin:${PATH}"
 fi
-export GOPATH="${GOPATH:-${HOME}/go}"
-export GOMODCACHE="${GOMODCACHE:-${GOPATH}/pkg/mod}"
-export GOCACHE="${GOCACHE:-${HOME}/.cache/go-build}"
+export GOPATH="${HOME}/go"
+export GOMODCACHE="${GOPATH}/pkg/mod"
+export GOCACHE="${HOME}/.cache/go-build"
 mkdir -p "${GOMODCACHE}" "${GOCACHE}"
 go version
 
