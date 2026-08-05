@@ -8,15 +8,14 @@ import "context"
 // response payload — or an error. An *Error becomes the declared ServiceError
 // arm (status 0); any other error is a transport-internal failure.
 //
-// Unlike the legacy Handler, the payload codec is the generated per-op codec
-// (csil.Encode<Service><Op>… / csil.Decode<Service><Op>…), not a reflection-based
-// generic CBOR pass — the generated codec owns the wire bytes.
+// The payload codec is the generated per-op codec (csil.Encode<Service><Op>… /
+// csil.Decode<Service><Op>…), so the generated code owns the wire bytes.
 type TypedHandler func(ctx context.Context, payload []byte) (variant string, out []byte, err error)
 
 // Route adapts a typed generated-interface method into a TypedHandler using the
 // generated per-op decode/encode functions. The success arm is named from the
-// response value (successVariant) so the wire stays identical to the legacy path;
-// reflection touches only the small variant string, never the payload bytes.
+// response value (successVariant), so reflection touches only the small variant
+// string, never the payload bytes.
 //
 // Decode failures surface as a caller-visible BadRequest (the body shape is the
 // caller's concern); the method's own *Error / error pass through unchanged.
@@ -28,7 +27,7 @@ func Route[Req any, Resp any](
 	return func(ctx context.Context, payload []byte) (string, []byte, error) {
 		req, err := decode(payload)
 		if err != nil {
-			return "", nil, badRequest("invalid CBOR body: " + err.Error())
+			return "", nil, BadRequest("invalid CBOR body: " + err.Error())
 		}
 		resp, err := fn(ctx, req)
 		if err != nil {

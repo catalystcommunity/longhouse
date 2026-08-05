@@ -194,4 +194,3 @@ func TestSeedInitialAdmin_Postgres_NoOpOnInvalidUUID(t *testing.T) {
 		t.Errorf("want 0 houses (invalid UUID should skip), got %d", len(houses))
 	}
 }
-

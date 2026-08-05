@@ -30,12 +30,10 @@ database:
 # Server configuration
 server:
   apiPort: 6080
-  tcpPort: 6081
   webPort: 4080
-  logLevel: "info"
-  # Linkkeys IDP metadata cached on the api (legacy — kept for api-side auth helpers).
+  # Our relying-party DNS identity — the audience linkkeys binds each
+  # assertion to. Falls back to linkkeysIdp.domain when empty.
   linkkeysDomain: ""
-  linkkeysUrl: ""
 
   # Bootstrap the first admin + house when the members table is empty.
   # userId MUST be a proper UUID issued by the linkkeys IDP; anything else is refused.
@@ -135,10 +133,6 @@ service:
   api:
     type: ClusterIP
     httpPort: 6080
-    tcp:
-      type: ClusterIP
-      port: 6081
-      nodePort: ""
   web:
     type: ClusterIP
     port: 4080
@@ -183,11 +177,6 @@ gateway:
       parentSection: ""
       hostnames: []
       pathPrefixes: []
-  tcpRoute:
-    enabled: false
-    parentGateway: ""
-    parentNamespace: ""
-    parentSection: ""
 
 resources: {}
 

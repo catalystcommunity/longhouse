@@ -18,22 +18,12 @@ type Error struct {
 func (e *Error) Error() string { return e.Message }
 
 // NewError constructs an *Error with an arbitrary HTTP-shaped code. Most
-// callers should reach for the BadRequest/Unauthorized/Forbidden/NotFound/
-// Conflict/Internal helpers below — those make the call site read.
+// callers should reach for the helpers below — those make the call site read.
 func NewError(code int, msg string) *Error { return &Error{Code: code, Message: msg} }
 
-func badRequest(msg string) *Error     { return &Error{Code: http.StatusBadRequest, Message: msg} }
-func unauthorized(msg string) *Error   { return &Error{Code: http.StatusUnauthorized, Message: msg} }
-func forbidden(msg string) *Error      { return &Error{Code: http.StatusForbidden, Message: msg} }
-func notFound(msg string) *Error       { return &Error{Code: http.StatusNotFound, Message: msg} }
-func conflict(msg string) *Error       { return &Error{Code: http.StatusConflict, Message: msg} }
-func methodNotAllowed(m string) *Error { return &Error{Code: http.StatusMethodNotAllowed, Message: m} }
-func internal(msg string) *Error       { return &Error{Code: http.StatusInternalServerError, Message: msg} }
-
-// Exported counterparts for use from handler packages.
-func BadRequest(msg string) *Error   { return badRequest(msg) }
-func Unauthorized(msg string) *Error { return unauthorized(msg) }
-func Forbidden(msg string) *Error    { return forbidden(msg) }
-func NotFound(msg string) *Error     { return notFound(msg) }
-func Conflict(msg string) *Error     { return conflict(msg) }
-func Internal(msg string) *Error     { return internal(msg) }
+func BadRequest(msg string) *Error   { return &Error{Code: http.StatusBadRequest, Message: msg} }
+func Unauthorized(msg string) *Error { return &Error{Code: http.StatusUnauthorized, Message: msg} }
+func Forbidden(msg string) *Error    { return &Error{Code: http.StatusForbidden, Message: msg} }
+func NotFound(msg string) *Error     { return &Error{Code: http.StatusNotFound, Message: msg} }
+func Conflict(msg string) *Error     { return &Error{Code: http.StatusConflict, Message: msg} }
+func Internal(msg string) *Error     { return &Error{Code: http.StatusInternalServerError, Message: msg} }

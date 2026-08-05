@@ -9,14 +9,12 @@ var (
 	DbUri = getEnvOrDefault("LONGHOUSE_DB_URI", "postgresql://longhouse:devpass123@localhost:5432/longhouse_db?sslmode=disable")
 
 	APIPort = getEnvAsIntOrDefault("LONGHOUSE_API_PORT", 6080)
-	TCPPort = getEnvAsIntOrDefault("LONGHOUSE_TCP_PORT", 6081)
 
 	// LinkkeysDomain is our relying-party DNS identity. linkkeys binds each
 	// assertion to it via the `audience` claim, so this is the value the auth
 	// layer expects on assertion.Audience (see csilservices.AuthService.RPDomain).
 	// In the single-IDP self-RP deployment it equals LinkkeysIDPDomain.
 	LinkkeysDomain = getEnvOrDefault("LONGHOUSE_LINKKEYS_DOMAIN", "")
-	LinkkeysURL    = getEnvOrDefault("LONGHOUSE_LINKKEYS_URL", "")
 
 	InitialAdminDomain = getEnvOrDefault("LONGHOUSE_INITIAL_ADMIN_DOMAIN", "")
 	InitialAdminUserID = getEnvOrDefault("LONGHOUSE_INITIAL_ADMIN_USER_ID", "")
@@ -143,11 +141,6 @@ func ApplyFlags(flags map[string]string) {
 	if v, ok := flags["api-port"]; ok {
 		if i, err := strconv.Atoi(v); err == nil {
 			APIPort = i
-		}
-	}
-	if v, ok := flags["tcp-port"]; ok {
-		if i, err := strconv.Atoi(v); err == nil {
-			TCPPort = i
 		}
 	}
 	if v, ok := flags["initial-admin-domain"]; ok {

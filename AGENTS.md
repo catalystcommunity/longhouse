@@ -12,9 +12,10 @@ membership model.
   (`api/internal/csil`, e.g. `TaskService`) via a small `csilrpc.Route[Req,Resp]`
   adapter backed by the generated per-op codec; the dispatcher (`csilrpc`) adds
   only bearer auth, audit, and the `ServiceError` arm. Service implementations
-  live in `api/internal/csilservices`. Two extra non-RPC routes: `GET
-  /api/v1/auth/start` (302 to linkkeys for the browser flow) and `GET
-  /api/health` for k8s probes. No REST.
+  live in `api/internal/csilservices`. Three extra non-RPC routes: `GET
+  /api/v1/auth/start` (302 to linkkeys for the browser flow), `GET
+  /api/v1/avatars/{member}` (cached avatar bytes for an `<img>` src, bearer
+  authenticated), and `GET /api/health` for k8s probes. No REST.
 - **webapp/**: SolidJS + Vite SPA (the web frontend). Talks to the api through
   the generated client package `@longhouse/client` (the async client surface),
   wired in `webapp/src/data/clients.ts`, over a CBOR CSIL-RPC carrier

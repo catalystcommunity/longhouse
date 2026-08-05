@@ -11,10 +11,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// MemberService exposes house-scoped member operations. Authorization
-// shifts from the URL (which used to carry house_id) into each method:
-// list-by-house uses the request's HouseId; the single-id methods load
-// the member, read its house, and check the caller is a member there.
+// MemberService exposes house-scoped member operations. Each method carries
+// its own authorization: list-by-house uses the request's HouseId; the
+// single-id methods load the member, read its house, and check the caller is
+// a member there.
 type MemberService struct{ Store store.Store }
 
 func (s *MemberService) Register(d *csilrpc.Dispatcher) {

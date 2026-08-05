@@ -13,11 +13,10 @@ import (
 // All reuse the shared softDeleteFields/restoreFields helpers.
 //
 // Purge is a plain hard delete: every edge that referenced these rows is
-// handled by the existing FK behavior (member_roles / member_skills /
-// group_members / group_skills are ON DELETE CASCADE; assigned_to_skill_id and
-// comment/event author columns are ON DELETE SET NULL), the same as the legacy
-// hard-delete paths these soft-deletes replaced. Polymorphic grant rows whose
-// grantee was a purged member/group are filtered at resolve time, as before.
+// handled by FK behavior (member_roles / member_skills / group_members /
+// group_skills are ON DELETE CASCADE; assigned_to_skill_id and comment/event
+// author columns are ON DELETE SET NULL). Grant rows are polymorphic, so they
+// carry no FK — those whose grantee was purged are filtered at resolve time.
 
 // PurgeAllSoftDeletedBefore permanently deletes every Tier-1 entity soft-deleted
 // before cutoff (the trash purge worker's per-tick sweep) and returns the total

@@ -18,7 +18,6 @@ import (
 	"github.com/catalystcommunity/longhouse/api/internal/store"
 	"github.com/catalystcommunity/longhouse/api/internal/store/postgres"
 	"github.com/catalystcommunity/longhouse/api/internal/store/postgres/models"
-	"github.com/catalystcommunity/longhouse/api/internal/tcp"
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
 )
@@ -26,12 +25,10 @@ import (
 func Serve(flags map[string]string) error {
 	config.ApplyFlags(flags)
 
-	// Run migrations
 	if err := RunMigrations(); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	// Initialize store
 	store.AppStore = &postgres.PostgresStore{}
 	cleanup, err := store.AppStore.Initialize()
 	if err != nil {
@@ -49,7 +46,6 @@ func Serve(flags map[string]string) error {
 		return fmt.Errorf("failed to ensure initial trusted domain: %w", err)
 	}
 
-	// Recurrence worker.
 	if !config.RecurrenceDisabled {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -58,7 +54,6 @@ func Serve(flags map[string]string) error {
 		log.Info("Recurrence worker disabled")
 	}
 
-	// Notification cull worker — prunes feed items past the retention window.
 	if !config.NotificationCullDisabled {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -69,8 +64,6 @@ func Serve(flags map[string]string) error {
 		log.Info("Notification cull worker disabled")
 	}
 
-	// Trash purge worker — permanently deletes soft-deleted rows past the
-	// retention window. The audit record of the delete outlives this.
 	if !config.TrashPurgeDisabled {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -81,8 +74,6 @@ func Serve(flags map[string]string) error {
 		log.Info("Trash purge worker disabled")
 	}
 
-	// Audit partition maintenance — rolls the monthly audit_log partition
-	// window forward and drops aged-out partitions (retention).
 	if !config.AuditPartitionDisabled {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -93,31 +84,18 @@ func Serve(flags map[string]string) error {
 		log.Info("Audit partition worker disabled")
 	}
 
-	// TCP server (legacy CSIL-on-raw-TCP listener, kept until callers migrate).
-	go func() {
-		log.Infof("Starting TCP server on :%d", config.TCPPort)
-		if err := tcp.ListenAndServe(fmt.Sprintf(":%d", config.TCPPort)); err != nil {
-			log.WithError(err).Error("TCP server error")
-		}
-	}()
-
-	handler, err := buildHTTPHandler()
-	if err != nil {
-		return err
-	}
 	log.Infof("Starting HTTP server on :%d", config.APIPort)
-	return http.ListenAndServe(fmt.Sprintf(":%d", config.APIPort), handler)
+	return http.ListenAndServe(fmt.Sprintf(":%d", config.APIPort), buildHTTPHandler())
 }
 
-// buildHTTPHandler assembles the public HTTP surface. The bulk of it lives at
-// POST /csil/v1/rpc — the canonical CSIL-RPC v1 carrier — with the legacy
-// POST /api/csil/{service}/{method} dispatcher kept as a transition shim. Two
-// small non-CSIL endpoints remain:
+// buildHTTPHandler assembles the public HTTP surface. Every CSIL op rides the
+// single carrier at POST /csil/v1/rpc; three plain-HTTP endpoints sit outside it
+// because they can't fit the RPC POST pattern:
 //
-//	GET /api/health          — k8s probe, always 200 ok.
-//	GET /api/v1/auth/start   — browser navigation that 302s to the IDP;
-//	                           can't fit into the RPC POST pattern.
-func buildHTTPHandler() (http.Handler, error) {
+//	GET /api/health              — k8s probe, always 200 ok.
+//	GET /api/v1/auth/start       — browser navigation that 302s to the IDP.
+//	GET /api/v1/avatars/{member} — image bytes for an <img> src.
+func buildHTTPHandler() http.Handler {
 	if config.JWTSecret == "" {
 		log.Warn("LONGHOUSE_JWT_SECRET is empty: every CSIL method will fail-closed with 'auth not configured'")
 	}
@@ -165,7 +143,7 @@ func buildHTTPHandler() (http.Handler, error) {
 	// Cached avatar images: authenticated plain-GET (outside the CSIL-RPC
 	// carrier) so the SPA can fetch the bytes with its bearer. Needs the JWT
 	// secret to verify; absent it, the route can't authenticate, so we skip it.
-	if jwtSecret != nil {
+	if len(jwtSecret) > 0 {
 		mux.Handle("GET /api/v1/avatars/{member}", newAvatarHandler(store.AppStore, jwtSecret))
 	}
 	// Canonical CSIL-RPC v1 carrier — one self-routing endpoint for every op.
@@ -181,7 +159,7 @@ func buildHTTPHandler() (http.Handler, error) {
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 	})
-	return c.Handler(mux), nil
+	return c.Handler(mux)
 }
 
 // browserAuthStartHandler kicks off the linkkeys assertion exchange. The RP

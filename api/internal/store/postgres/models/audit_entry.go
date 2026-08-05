@@ -11,20 +11,20 @@ import "time"
 // on it; GORM's NowFunc stamps it on create, routing the row to the right
 // monthly partition.
 type AuditEntry struct {
-	AuditID       string  `gorm:"column:audit_id;primaryKey;default:generate_ulid()" json:"audit_id"`
-	HouseID       *string `gorm:"column:house_id" json:"house_id,omitempty"`
-	ActorMemberID *string `gorm:"column:actor_member_id" json:"actor_member_id,omitempty"`
-	ActorDomain   string  `gorm:"column:actor_domain;not null;default:''" json:"actor_domain"`
-	ActorUserID   string  `gorm:"column:actor_user_id;not null;default:''" json:"actor_user_id"`
-	Service       string  `gorm:"column:service;not null;default:''" json:"service"`
-	Method        string  `gorm:"column:method;not null;default:''" json:"method"`
-	Action        string  `gorm:"column:action;not null" json:"action"`
-	ResourceType  *string `gorm:"column:resource_type" json:"resource_type,omitempty"`
-	ResourceID    *string `gorm:"column:resource_id" json:"resource_id,omitempty"`
-	Outcome       string  `gorm:"column:outcome;not null;default:'ok'" json:"outcome"`
-	Before        JSONMap `gorm:"column:before;type:jsonb" json:"before,omitempty"`
-	After         JSONMap `gorm:"column:after;type:jsonb" json:"after,omitempty"`
-	Detail        JSONMap `gorm:"column:detail;type:jsonb" json:"detail,omitempty"`
+	AuditID       string    `gorm:"column:audit_id;primaryKey;default:generate_ulid()" json:"audit_id"`
+	HouseID       *string   `gorm:"column:house_id" json:"house_id,omitempty"`
+	ActorMemberID *string   `gorm:"column:actor_member_id" json:"actor_member_id,omitempty"`
+	ActorDomain   string    `gorm:"column:actor_domain;not null;default:''" json:"actor_domain"`
+	ActorUserID   string    `gorm:"column:actor_user_id;not null;default:''" json:"actor_user_id"`
+	Service       string    `gorm:"column:service;not null;default:''" json:"service"`
+	Method        string    `gorm:"column:method;not null;default:''" json:"method"`
+	Action        string    `gorm:"column:action;not null" json:"action"`
+	ResourceType  *string   `gorm:"column:resource_type" json:"resource_type,omitempty"`
+	ResourceID    *string   `gorm:"column:resource_id" json:"resource_id,omitempty"`
+	Outcome       string    `gorm:"column:outcome;not null;default:'ok'" json:"outcome"`
+	Before        JSONMap   `gorm:"column:before;type:jsonb" json:"before,omitempty"`
+	After         JSONMap   `gorm:"column:after;type:jsonb" json:"after,omitempty"`
+	Detail        JSONMap   `gorm:"column:detail;type:jsonb" json:"detail,omitempty"`
 	CreatedAt     time.Time `gorm:"column:created_at;primaryKey;not null" json:"created_at"`
 }
 

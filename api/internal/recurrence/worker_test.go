@@ -12,16 +12,16 @@ import (
 // only by these tests. Keeps the test self-contained — no need to pull in
 // the handlers' larger memStore.
 type fakeWorkerStore struct {
-	due        []models.Task
-	priors     map[string]*models.Task // root_task_id → prior child
-	created    []models.Task
-	updated    []models.Task
-	comments   []models.Comment
+	due      []models.Task
+	priors   map[string]*models.Task // root_task_id → prior child
+	created  []models.Task
+	updated  []models.Task
+	comments []models.Comment
 	// task_id → assignees living on that task. Tests pre-seed assignees on
 	// the root; the worker copies them onto each spawned child.
-	assignees     map[string][]models.Member
-	failCreate    bool
-	failUpdate    bool
+	assignees  map[string][]models.Member
+	failCreate bool
+	failUpdate bool
 }
 
 func (f *fakeWorkerStore) ListDueRecurringTasks(_ context.Context, _ time.Time, _ int) ([]models.Task, error) {
