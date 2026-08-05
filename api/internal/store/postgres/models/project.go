@@ -32,39 +32,20 @@ type ProjectTask struct {
 
 func (ProjectTask) TableName() string { return "project_tasks" }
 
-// ProjectMember + ProjectOwner are separate join tables — owners are a
-// smaller list the UI surfaces independently. Semantically a strict subset
-// of members, not enforced at the storage layer.
-type ProjectMember struct {
-	ProjectID string    `gorm:"column:project_id;primaryKey" json:"project_id"`
-	MemberID  string    `gorm:"column:member_id;primaryKey"  json:"member_id"`
-	CreatedAt time.Time `gorm:"column:created_at;not null"   json:"created_at"`
-}
-
-func (ProjectMember) TableName() string { return "project_members" }
-
-type ProjectOwner struct {
-	ProjectID string    `gorm:"column:project_id;primaryKey" json:"project_id"`
-	MemberID  string    `gorm:"column:member_id;primaryKey"  json:"member_id"`
-	CreatedAt time.Time `gorm:"column:created_at;not null"   json:"created_at"`
-}
-
-func (ProjectOwner) TableName() string { return "project_owners" }
-
 // Milestone is a project timeline marker; `Position` orders the ribbon,
 // `State` drives the visual (done/current/future).
 type Milestone struct {
-	MilestoneID string    `gorm:"column:milestone_id;primaryKey;default:gen_random_uuid()" json:"milestone_id"`
-	ProjectID   string    `gorm:"column:project_id;not null" json:"project_id"`
-	Label       string    `gorm:"column:label;not null" json:"label"`
-	WhenLabel   string    `gorm:"column:when_label;not null" json:"when_label"`
-	State       string     `gorm:"column:state;type:milestone_state;not null" json:"state"`
-	Position    int        `gorm:"column:position;not null" json:"position"`
-	DeletedAt   *time.Time `gorm:"column:deleted_at" json:"deleted_at,omitempty"`
-	DeletedByMemberID *string `gorm:"column:deleted_by_member_id" json:"deleted_by_member_id,omitempty"`
-	DeletedOpID *string    `gorm:"column:deleted_op_id" json:"deleted_op_id,omitempty"`
-	CreatedAt   time.Time  `gorm:"column:created_at;not null" json:"created_at"`
-	UpdatedAt   time.Time  `gorm:"column:updated_at;not null" json:"updated_at"`
+	MilestoneID       string     `gorm:"column:milestone_id;primaryKey;default:gen_random_uuid()" json:"milestone_id"`
+	ProjectID         string     `gorm:"column:project_id;not null" json:"project_id"`
+	Label             string     `gorm:"column:label;not null" json:"label"`
+	WhenLabel         string     `gorm:"column:when_label;not null" json:"when_label"`
+	State             string     `gorm:"column:state;type:milestone_state;not null" json:"state"`
+	Position          int        `gorm:"column:position;not null" json:"position"`
+	DeletedAt         *time.Time `gorm:"column:deleted_at" json:"deleted_at,omitempty"`
+	DeletedByMemberID *string    `gorm:"column:deleted_by_member_id" json:"deleted_by_member_id,omitempty"`
+	DeletedOpID       *string    `gorm:"column:deleted_op_id" json:"deleted_op_id,omitempty"`
+	CreatedAt         time.Time  `gorm:"column:created_at;not null" json:"created_at"`
+	UpdatedAt         time.Time  `gorm:"column:updated_at;not null" json:"updated_at"`
 }
 
 func (Milestone) TableName() string { return "milestones" }

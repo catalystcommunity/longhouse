@@ -1,5 +1,5 @@
 {
-  "name": "longhouse-client",
+  "name": "longhouse-webapp",
   "private": true,
   "version": "0.0.1",
   "type": "module",

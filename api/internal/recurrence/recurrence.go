@@ -279,11 +279,8 @@ func Plan(now time.Time, root *models.Task, priorChild *models.Task) (*SpawnDeci
 			RecurrenceRootTaskID: ptrString(root.TaskID),
 			RecurrenceInterval:   1, // children carry no recurrence themselves
 		},
-		// TODO(csilrpc-restructure): copy the root's task_assignees rows onto
-		// the spawned child too. With the single assigned_to_member_id column
-		// gone, that's now a store-level operation the worker has to invoke
-		// after the child task is inserted. Tracked in the handler restructure
-		// work — until then, recurrence children spawn without assignees.
+		// Assignees are not set here: task_assignees is a separate table, so the
+		// worker copies the root's rows onto the child after the insert.
 	}
 	if priorChild != nil && priorChild.Status != "done" && priorChild.Status != "cancelled" {
 		dec.MarkMissedOnID = priorChild.TaskID

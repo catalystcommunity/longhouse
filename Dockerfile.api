@@ -19,6 +19,6 @@ FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /build/api/longhouse /longhouse
 
-EXPOSE 6080 6081
+EXPOSE 6080
 USER 1000:1000
 ENTRYPOINT ["/longhouse"]

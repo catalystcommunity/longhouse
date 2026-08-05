@@ -75,13 +75,16 @@ echo "=== Updating versioned files to ${VERSION} ==="
 sed -i "s/^version: .*/version: ${VERSION}/" helm_chart/Chart.yaml
 sed -i "s/^appVersion: .*/appVersion: \"${VERSION}\"/" helm_chart/Chart.yaml
 echo "${VERSION}" > version/VERSION.txt
+# What `longhouse --version` prints. Kept in step with VERSION.txt here because
+# the api is its own Go module and cannot embed a file outside its own tree.
+sed -i "s/^const version = .*/const version = \"${VERSION}\"/" api/cmd/cli.go
 
 # Commit the version bump (push requires GITHUB_PAT — CI only).
 # Auth was already configured at the top of the script.
 if [ "${SKIP_GITHUB:-false}" = "true" ]; then
   echo "=== SKIP_GITHUB=true: skipping version-bump commit and push ==="
 else
-  git add helm_chart/Chart.yaml version/VERSION.txt
+  git add helm_chart/Chart.yaml version/VERSION.txt api/cmd/cli.go
   if git diff --cached --quiet; then
     echo "No version changes to commit"
   else

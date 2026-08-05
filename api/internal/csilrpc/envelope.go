@@ -1,8 +1,7 @@
 package csilrpc
 
-// This file adds the canonical CSIL-RPC v1 carrier alongside the legacy
-// path-routed ServeHTTP in dispatcher.go. Both share the same registry and
-// per-method handlers; only the wire layer differs.
+// This file is the wire layer of the canonical CSIL-RPC v1 carrier over the
+// registry dispatcher.go builds.
 //
 //	POST /csil/v1/rpc
 //	Content-Type: application/cbor
@@ -142,7 +141,7 @@ func (d *Dispatcher) writeRPC(w http.ResponseWriter, id *uint64, resp transport.
 // the caller can map it to a transport Unauthenticated status.
 func (d *Dispatcher) verifyBearerRPC(r *http.Request, req *transport.RpcRequest) (*auth.Identity, *Error) {
 	if d.jwtSecret == nil {
-		return nil, internal("auth not configured on this server")
+		return nil, Internal("auth not configured on this server")
 	}
 	token := ""
 	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
@@ -152,11 +151,11 @@ func (d *Dispatcher) verifyBearerRPC(r *http.Request, req *transport.RpcRequest)
 		token = strings.TrimPrefix(*req.Auth, "Bearer ")
 	}
 	if token == "" {
-		return nil, unauthorized("missing bearer token")
+		return nil, Unauthorized("missing bearer token")
 	}
 	id, err := auth.Verify(d.jwtSecret, token)
 	if err != nil {
-		return nil, unauthorized("invalid token: " + err.Error())
+		return nil, Unauthorized("invalid token: " + err.Error())
 	}
 	return id, nil
 }

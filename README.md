@@ -47,3 +47,16 @@ Tear down with:
 ## Auth
 
 Sign-in is delegated to [linkkeys](https://github.com/catalystcommunity/linkkeys)
+as the identity provider. Longhouse keeps a local member record that caches the
+identity data linkkeys releases; who may sign in is controlled by trusted
+domains and explicit user lists.
+
+The bearer token snapshots the caller's per-house membership and roles at mint
+time, so authorization needs no database lookup per request. Staleness is
+bounded by the token's `exp` and by the `AuthService.Refresh` op.
+
+## Documentation
+
+- `AGENTS.md` — architecture, conventions, and the deploy/dogfood loop
+- `docs/rbac.md` — access levels, visibility, and the grant model
+- `docs/dependencies.md` — task and project dependency edges

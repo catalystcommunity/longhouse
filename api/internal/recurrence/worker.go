@@ -207,10 +207,3 @@ func spawnEventChild(root *models.Event, occStart time.Time) *models.Event {
 		RecurrenceRootEventID: &rootID,
 	}
 }
-
-// advanceEvent is preserved for older tests / callers that don't pass
-// the weekday/setpos filters. Internally delegates to Next() with empty
-// filters so the two paths share their date math.
-func advanceEvent(start time.Time, freq string, interval int) (time.Time, error) {
-	return Next(start, freq, interval, nil, nil)
-}

@@ -46,9 +46,6 @@ spec:
             - name: http
               containerPort: {{ .Values.server.apiPort }}
               protocol: TCP
-            - name: tcp
-              containerPort: {{ .Values.server.tcpPort }}
-              protocol: TCP
           envFrom:
             - configMapRef:
                 name: {{ include "longhouse.fullname" . }}
@@ -71,7 +68,7 @@ spec:
           {{- end }}
           livenessProbe:
             tcpSocket:
-              port: tcp
+              port: http
             initialDelaySeconds: 15
             periodSeconds: 10
           readinessProbe:

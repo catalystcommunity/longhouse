@@ -6,12 +6,8 @@ metadata:
     {{- include "longhouse.labels" . | nindent 4 }}
 data:
   LONGHOUSE_API_PORT: {{ .Values.server.apiPort | quote }}
-  LONGHOUSE_TCP_PORT: {{ .Values.server.tcpPort | quote }}
   {{- if .Values.server.linkkeysDomain }}
   LONGHOUSE_LINKKEYS_DOMAIN: {{ .Values.server.linkkeysDomain | quote }}
-  {{- end }}
-  {{- if .Values.server.linkkeysUrl }}
-  LONGHOUSE_LINKKEYS_URL: {{ .Values.server.linkkeysUrl | quote }}
   {{- end }}
   {{- if .Values.server.initialAdmin.domain }}
   LONGHOUSE_INITIAL_ADMIN_DOMAIN: {{ .Values.server.initialAdmin.domain | quote }}

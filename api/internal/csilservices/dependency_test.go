@@ -9,7 +9,6 @@ import (
 	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
 	"github.com/catalystcommunity/longhouse/api/internal/store"
 	"github.com/catalystcommunity/longhouse/api/internal/store/postgres/models"
-	"github.com/fxamacker/cbor/v2"
 )
 
 // fakeDepStore implements just the slice of the Store surface the
@@ -126,17 +125,6 @@ func (f *fakeDepStore) DependencyPathExists(_ context.Context, ft, fi, tt, ti st
 }
 
 // ---- helpers ----------------------------------------------------------
-
-var testEnc, _ = cbor.CoreDetEncOptions().EncMode()
-
-func enc(t *testing.T, v any) []byte {
-	t.Helper()
-	b, err := testEnc.Marshal(v)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	return b
-}
 
 // ctxAs builds a request context carrying an identity for `member` in house
 // `houseID` with the given roles.

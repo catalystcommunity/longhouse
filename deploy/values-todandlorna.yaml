@@ -33,7 +33,6 @@ postgresql:
 server:
   # Legacy api-side keys (kept for compatibility with older code paths).
   linkkeysDomain: "todandlorna.com"
-  linkkeysUrl: "https://linkkeys.todandlorna.com"
 
   # Bootstrap the first admin + house on initial deploy. The api only
   # acts on these when the members table is empty, so this is a one-time
@@ -73,11 +72,3 @@ gateway:
       parentSection: http
       hostnames:
         - longhouse.todandlorna.com
-  tcpRoute:
-    # Disabled until a TCP listener is added to the contour gateway.
-    # Requires adding a listener section to the Gateway resource in foundry
-    # with a dedicated port for the CSIL protocol.
-    enabled: false
-    parentGateway: contour
-    parentNamespace: projectcontour
-    parentSection: longhouse-tcp

@@ -390,7 +390,7 @@ func reconcileField(field, mirror *string, claims map[string]string, claimType s
 
 // buildHouseRoles snapshots every house the identity belongs to. Used by
 // issueToken to bake roles into the bearer instead of looking them up per
-// request. Identical to the helper that used to live in handlers/auth.go.
+// request.
 func buildHouseRoles(ctx context.Context, st store.Store, domain, userID string) ([]auth.HouseRoles, error) {
 	members, err := st.FindMembersByLinkkeysIdentity(ctx, domain, userID)
 	if err != nil {

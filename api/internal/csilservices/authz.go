@@ -6,7 +6,6 @@ import (
 
 	"github.com/catalystcommunity/longhouse/api/internal/auth"
 	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
-	"github.com/catalystcommunity/longhouse/api/internal/store"
 )
 
 // Authorization helpers used by every service. These check the caller's
@@ -69,31 +68,6 @@ func requireMemberForHouse(ctx context.Context, houseID string) (*auth.Identity,
 		return nil, "", err
 	}
 	memberID, err := requireMember(id, houseID)
-	if err != nil {
-		return nil, "", err
-	}
-	return id, memberID, nil
-}
-
-// houseOfResource is a small helper used by services whose method signatures
-// don't carry house_id (e.g. GetTask(TaskID), UpdateProject(Project)). It
-// fetches the resource's house indirectly so the authz check can run.
-//
-// Implemented as a thin wrapper over the store with explicit not-found
-// handling — the caller-visible error is "not found" so we don't leak the
-// existence of a resource the caller has no right to see.
-type resourceLoader func(ctx context.Context, store store.Store) (houseID string, err error)
-
-func authzForResource(ctx context.Context, st store.Store, load resourceLoader, anyOf ...string) (*auth.Identity, string, error) {
-	id, err := requireIdentity(ctx)
-	if err != nil {
-		return nil, "", err
-	}
-	houseID, err := load(ctx, st)
-	if err != nil {
-		return nil, "", csilrpc.NotFound("not found")
-	}
-	memberID, err := requireRole(id, houseID, anyOf...)
 	if err != nil {
 		return nil, "", err
 	}

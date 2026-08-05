@@ -15,8 +15,9 @@ Commands:
   test-web        Run webapp tests
   run-api         Run the API server locally (sources .env.dev if present)
   run-web         Run the SPA dev server (vite on :5173, from webapp/)
-  dev             Boot postgres + api + vite together in one terminal
-                  (postgres in docker, api+vite as logged background jobs)
+  dev [--no-tail] Boot postgres + api + vite together in one terminal
+                  (postgres in docker, api+vite as logged background jobs).
+                  --no-tail returns instead of tailing the logs.
   dev-down        Stop the dev stack (postgres container + background jobs)
   docker-build    Build Docker images
   clean           Remove build artifacts
@@ -247,7 +248,7 @@ case "${1:-}" in
     test-web)     test_web ;;
     run-api)      shift; run_api "$@" ;;
     run-web)      shift; run_web "$@" ;;
-    dev)          dev ;;
+    dev)          shift; dev "$@" ;;
     dev-down)     dev_down ;;
     docker-build) docker_build ;;
     clean)        clean ;;

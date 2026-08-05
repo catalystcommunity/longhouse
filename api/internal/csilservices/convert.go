@@ -82,14 +82,6 @@ func houseToCSIL(h *models.House) csil.House {
 	}
 }
 
-func housesToCSIL(rs []models.House) []csil.House {
-	out := make([]csil.House, 0, len(rs))
-	for i := range rs {
-		out = append(out, houseToCSIL(&rs[i]))
-	}
-	return out
-}
-
 // ---- Role / Skill / Group ---------------------------------------------
 
 func roleToCSIL(r *models.Role) csil.Role {
@@ -170,14 +162,6 @@ func projectToCSIL(p *models.Project) csil.Project {
 	if p.CreatedByMemberID != nil && *p.CreatedByMemberID != "" {
 		v := csil.MemberID(*p.CreatedByMemberID)
 		out.CreatedByMemberId = &v
-	}
-	return out
-}
-
-func projectsToCSIL(rs []models.Project) []csil.Project {
-	out := make([]csil.Project, 0, len(rs))
-	for i := range rs {
-		out = append(out, projectToCSIL(&rs[i]))
 	}
 	return out
 }

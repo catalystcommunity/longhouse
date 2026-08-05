@@ -31,10 +31,8 @@ services:
         environment:
             LONGHOUSE_DB_URI: "postgresql://longhouse:devpass123@postgres:5432/longhouse_db?sslmode=disable"
             LONGHOUSE_API_PORT: "6080"
-            LONGHOUSE_TCP_PORT: "6081"
         ports:
             - "6080:6080"
-            - "6081:6081"
         depends_on:
             postgres:
                 condition: service_healthy
