@@ -7,6 +7,12 @@ WORKDIR /build/coredb
 COPY coredb/go.mod ./
 COPY coredb/ ./
 
+# Copy the generated Go client module. The CLI uses its typed validators and
+# CBOR codecs.
+WORKDIR /build/clients/go
+COPY clients/go/go.mod ./
+COPY clients/go/ ./
+
 # Build api
 WORKDIR /build/api
 COPY api/go.mod api/go.sum ./

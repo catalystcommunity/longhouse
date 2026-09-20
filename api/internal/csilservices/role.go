@@ -16,13 +16,13 @@ import (
 type RoleService struct{ Store store.Store }
 
 func (s *RoleService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("role", "CreateRole", csilrpc.Route(s.CreateRole, csil.DecodeRoleCreateRoleRequest, csil.EncodeRoleCreateRoleResponse))
-	d.RegisterTyped("role", "UpdateRole", csilrpc.Route(s.UpdateRole, csil.DecodeRoleUpdateRoleRequest, csil.EncodeRoleUpdateRoleResponse))
-	d.RegisterTyped("role", "DeleteRole", csilrpc.Route(s.DeleteRole, csil.DecodeRoleDeleteRoleRequest, csil.EncodeRoleDeleteRoleResponse))
-	d.RegisterTyped("role", "ListRoles", csilrpc.Route(s.ListRoles, csil.DecodeRoleListRolesRequest, csil.EncodeRoleListRolesResponse))
-	d.RegisterTyped("role", "GrantRole", csilrpc.Route(s.GrantRole, csil.DecodeRoleGrantRoleRequest, csil.EncodeRoleGrantRoleResponse))
-	d.RegisterTyped("role", "RevokeRole", csilrpc.Route(s.RevokeRole, csil.DecodeRoleRevokeRoleRequest, csil.EncodeRoleRevokeRoleResponse))
-	d.RegisterTyped("role", "ListMemberRoles", csilrpc.Route(s.ListMemberRoles, csil.DecodeRoleListMemberRolesRequest, csil.EncodeRoleListMemberRolesResponse))
+	d.RegisterTyped("role", "CreateRole", csilrpc.Route(s.CreateRole, csil.DecodeRole, csil.EncodeRole))
+	d.RegisterTyped("role", "UpdateRole", csilrpc.Route(s.UpdateRole, csil.DecodeRole, csil.EncodeRole))
+	d.RegisterTyped("role", "DeleteRole", csilrpc.Route(s.DeleteRole, csil.DecodeRoleDeleteRoleRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("role", "ListRoles", csilrpc.Route(s.ListRoles, csil.DecodeHouseScopedListRequest, csil.EncodeRoleListRolesResponse))
+	d.RegisterTyped("role", "GrantRole", csilrpc.Route(s.GrantRole, csil.DecodeMemberRoleRef, csil.EncodeEmptyResponse))
+	d.RegisterTyped("role", "RevokeRole", csilrpc.Route(s.RevokeRole, csil.DecodeMemberRoleRef, csil.EncodeEmptyResponse))
+	d.RegisterTyped("role", "ListMemberRoles", csilrpc.Route(s.ListMemberRoles, csil.DecodeMemberScopedListRequest, csil.EncodeRoleListMemberRolesResponse))
 }
 
 func (s *RoleService) CreateRole(ctx context.Context, in csil.Role) (csil.Role, error) {

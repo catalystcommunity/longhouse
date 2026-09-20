@@ -48,6 +48,9 @@ type NotificationID string
 // NotificationEventID is a type alias
 type NotificationEventID string
 
+// CliSessionID is a type alias
+type CliSessionID string
+
 // Timestamp is a type alias
 type Timestamp string
 
@@ -77,6 +80,9 @@ type RecurrenceFreq string
 
 // MilestoneState is a type alias
 type MilestoneState string
+
+// CliLoginStatus is a type alias
+type CliLoginStatus string
 
 // House represents a structured data type
 type House struct {
@@ -346,6 +352,85 @@ type LoginResponse struct {
 	UserId      string    `json:"user_id" yaml:"user_id"`
 	DisplayName *string   `json:"display_name,omitempty" yaml:"display_name,omitempty"`
 	ExpiresAt   Timestamp `json:"expires_at" yaml:"expires_at"`
+}
+
+// CliTokenResponse represents a structured data type
+type CliTokenResponse struct {
+	Token            string       `json:"token" yaml:"token"`
+	Domain           string       `json:"domain" yaml:"domain"`
+	UserId           string       `json:"user_id" yaml:"user_id"`
+	DisplayName      *string      `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	ExpiresAt        Timestamp    `json:"expires_at" yaml:"expires_at"`
+	RefreshToken     string       `json:"refresh_token" yaml:"refresh_token"`
+	RefreshExpiresAt Timestamp    `json:"refresh_expires_at" yaml:"refresh_expires_at"`
+	SessionId        CliSessionID `json:"session_id" yaml:"session_id"`
+}
+
+// BeginCliLoginRequest represents a structured data type
+type BeginCliLoginRequest struct {
+	ClientName string `json:"client_name" yaml:"client_name"`
+}
+
+// BeginCliLoginResponse represents a structured data type
+type BeginCliLoginResponse struct {
+	DeviceCode      string    `json:"device_code" yaml:"device_code"`
+	UserCode        string    `json:"user_code" yaml:"user_code"`
+	VerificationUrl string    `json:"verification_url" yaml:"verification_url"`
+	ExpiresAt       Timestamp `json:"expires_at" yaml:"expires_at"`
+	IntervalSeconds uint64    `json:"interval_seconds" yaml:"interval_seconds"`
+}
+
+// ApproveCliLoginRequest represents a structured data type
+type ApproveCliLoginRequest struct {
+	UserCode string `json:"user_code" yaml:"user_code"`
+}
+
+// CliLoginRequestInfo represents a structured data type
+type CliLoginRequestInfo struct {
+	UserCode   string    `json:"user_code" yaml:"user_code"`
+	ClientName string    `json:"client_name" yaml:"client_name"`
+	ExpiresAt  Timestamp `json:"expires_at" yaml:"expires_at"`
+}
+
+// DenyCliLoginRequest represents a structured data type
+type DenyCliLoginRequest struct {
+	UserCode string `json:"user_code" yaml:"user_code"`
+}
+
+// ExchangeCliLoginRequest represents a structured data type
+type ExchangeCliLoginRequest struct {
+	DeviceCode string `json:"device_code" yaml:"device_code"`
+}
+
+// ExchangeCliLoginResponse represents a structured data type
+type ExchangeCliLoginResponse struct {
+	Status  CliLoginStatus    `json:"status" yaml:"status"`
+	Session *CliTokenResponse `json:"session,omitempty" yaml:"session,omitempty"`
+}
+
+// RefreshSessionRequest represents a structured data type
+type RefreshSessionRequest struct {
+	RefreshToken string `json:"refresh_token" yaml:"refresh_token"`
+}
+
+// CliSessionSummary represents a structured data type
+type CliSessionSummary struct {
+	SessionId  CliSessionID `json:"session_id" yaml:"session_id"`
+	ClientName string       `json:"client_name" yaml:"client_name"`
+	CreatedAt  Timestamp    `json:"created_at" yaml:"created_at"`
+	LastUsedAt Timestamp    `json:"last_used_at" yaml:"last_used_at"`
+	ExpiresAt  Timestamp    `json:"expires_at" yaml:"expires_at"`
+	RevokedAt  *Timestamp   `json:"revoked_at,omitempty" yaml:"revoked_at,omitempty"`
+}
+
+// CliSessionsResponse represents a structured data type
+type CliSessionsResponse struct {
+	Sessions []CliSessionSummary `json:"sessions" yaml:"sessions"`
+}
+
+// RevokeSessionRequest represents a structured data type
+type RevokeSessionRequest struct {
+	SessionId CliSessionID `json:"session_id" yaml:"session_id"`
 }
 
 // DevUserEntry represents a structured data type

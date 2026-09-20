@@ -23,8 +23,8 @@ const (
 )
 
 func (s *SettingsService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("settings", "GetSettings", csilrpc.Route(s.GetSettings, csil.DecodeSettingsGetSettingsRequest, csil.EncodeSettingsGetSettingsResponse))
-	d.RegisterTyped("settings", "UpdateSettings", csilrpc.Route(s.UpdateSettings, csil.DecodeSettingsUpdateSettingsRequest, csil.EncodeSettingsUpdateSettingsResponse))
+	d.RegisterTyped("settings", "GetSettings", csilrpc.Route(s.GetSettings, csil.DecodeSettingsGetSettingsRequest, csil.EncodeEffectiveSettings))
+	d.RegisterTyped("settings", "UpdateSettings", csilrpc.Route(s.UpdateSettings, csil.DecodeUpdateSettingsRequest, csil.EncodeEffectiveSettings))
 }
 
 // GetSettings returns the merged effective settings for a house: defaults

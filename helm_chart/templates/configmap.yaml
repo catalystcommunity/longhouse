@@ -6,6 +6,8 @@ metadata:
     {{- include "longhouse.labels" . | nindent 4 }}
 data:
   LONGHOUSE_API_PORT: {{ .Values.server.apiPort | quote }}
+  LONGHOUSE_BEARER_TTL_SECONDS: {{ .Values.server.bearerTTLSeconds | int64 | quote }}
+  LONGHOUSE_REFRESH_TOKEN_TTL_SECONDS: {{ .Values.server.refreshTokenTTLSeconds | int64 | quote }}
   {{- if .Values.server.linkkeysDomain }}
   LONGHOUSE_LINKKEYS_DOMAIN: {{ .Values.server.linkkeysDomain | quote }}
   {{- end }}

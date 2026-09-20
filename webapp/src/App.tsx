@@ -15,6 +15,7 @@ import { MorePage } from "~/pages/More";
 import { ActivityTrashPage } from "~/pages/ActivityTrash";
 import { AuthCallback } from "~/pages/AuthCallback";
 import { Stub } from "~/pages/Stub";
+import { CliAuthorizePage } from "~/pages/CliAuthorize";
 
 // /dev-login exists only in dev builds. The conditional below makes the
 // import statically dead-code in prod, so Vite tree-shakes the page module
@@ -37,6 +38,7 @@ export const App = () => (
     <Route path="/settings" component={SettingsPage} />
     <Route path="/admin/activity" component={ActivityTrashPage} />
     <Route path="/auth/callback" component={AuthCallback} />
+    <Route path="/cli/authorize" component={CliAuthorizePage} />
     <Route path="/shares" component={Stub} />
     <Route path="/more" component={MorePage} />
     <Route path="/account" component={AccountPage} />

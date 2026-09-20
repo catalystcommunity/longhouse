@@ -55,6 +55,17 @@ type Store interface {
 	ReactivateMember(ctx context.Context, memberID string) error
 	ListMembersByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Member, error)
 
+	// CLI login and refresh sessions. Codes and tokens enter this boundary as
+	// hashes. The store never receives or persists their plaintext values.
+	CreateCliLogin(ctx context.Context, login *models.CliLoginRequest) error
+	GetCliLoginByUserCode(ctx context.Context, userCodeHash []byte, now time.Time) (*models.CliLoginRequest, error)
+	ApproveCliLogin(ctx context.Context, userCodeHash []byte, domain, userID, displayName string, now time.Time) error
+	DenyCliLogin(ctx context.Context, userCodeHash []byte, now time.Time) error
+	ExchangeCliLogin(ctx context.Context, deviceCodeHash, refreshTokenHash []byte, now, sessionExpiresAt time.Time) (*models.CliSession, error)
+	RotateCliRefreshToken(ctx context.Context, tokenHash, nextTokenHash []byte, now time.Time) (*models.CliSession, error)
+	ListCliSessions(ctx context.Context, domain, userID string) ([]models.CliSession, error)
+	RevokeCliSession(ctx context.Context, sessionID, domain, userID string, now time.Time) error
+
 	// Cached avatar operations. GetCachedAvatar returns (nil, nil) on a clean
 	// miss; PutCachedAvatar upserts by url_hash.
 	GetCachedAvatar(ctx context.Context, urlHash string) (*models.CachedAvatar, error)

@@ -28,7 +28,7 @@ type BugService struct{ Store store.Store }
 const bugProjectName = "Longhouse Bug Fixes from Users"
 
 func (s *BugService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("bug", "ReportBug", csilrpc.Route(s.ReportBug, csil.DecodeBugReportBugRequest, csil.EncodeBugReportBugResponse))
+	d.RegisterTyped("bug", "ReportBug", csilrpc.Route(s.ReportBug, csil.DecodeBugReportRequest, csil.EncodeTask))
 }
 
 func (s *BugService) ReportBug(ctx context.Context, req csil.BugReportRequest) (csil.Task, error) {

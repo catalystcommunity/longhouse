@@ -77,6 +77,14 @@ typedef enum MilestoneState {
     MILESTONE_STATE_FUTURE,
 } MilestoneState;
 
+/* CliLoginStatus is an enumeration. */
+typedef enum CliLoginStatus {
+    CLI_LOGIN_STATUS_PENDING,
+    CLI_LOGIN_STATUS_DENIED,
+    CLI_LOGIN_STATUS_EXPIRED,
+    CLI_LOGIN_STATUS_COMPLETE,
+} CliLoginStatus;
+
 /* Forward declarations (resolve mutual and out-of-order references). */
 typedef struct House House;
 typedef struct Member Member;
@@ -104,6 +112,18 @@ typedef struct Identity Identity;
 typedef struct LoginRequest LoginRequest;
 typedef struct CompleteRequest CompleteRequest;
 typedef struct LoginResponse LoginResponse;
+typedef struct CliTokenResponse CliTokenResponse;
+typedef struct BeginCliLoginRequest BeginCliLoginRequest;
+typedef struct BeginCliLoginResponse BeginCliLoginResponse;
+typedef struct ApproveCliLoginRequest ApproveCliLoginRequest;
+typedef struct CliLoginRequestInfo CliLoginRequestInfo;
+typedef struct DenyCliLoginRequest DenyCliLoginRequest;
+typedef struct ExchangeCliLoginRequest ExchangeCliLoginRequest;
+typedef struct ExchangeCliLoginResponse ExchangeCliLoginResponse;
+typedef struct RefreshSessionRequest RefreshSessionRequest;
+typedef struct CliSessionSummary CliSessionSummary;
+typedef struct CliSessionsResponse CliSessionsResponse;
+typedef struct RevokeSessionRequest RevokeSessionRequest;
 typedef struct DevUserEntry DevUserEntry;
 typedef struct DevUsersResponse DevUsersResponse;
 typedef struct DevLoginRequest DevLoginRequest;
@@ -201,111 +221,14 @@ typedef char *NotificationID;
 /* NotificationEventID is a type alias. */
 typedef char *NotificationEventID;
 
+/* CliSessionID is a type alias. */
+typedef char *CliSessionID;
+
 /* Timestamp is a type alias. */
 typedef char *Timestamp;
 
 /* AuditID is a type alias. */
 typedef char *AuditID;
-
-/* Identity is a structured data type. */
-typedef struct Identity {
-    char *domain;
-    char *user_id;
-    char *display_name;
-    HouseRoles *houses;
-    size_t houses_count;
-    int64_t iat;
-    int64_t exp;
-} Identity;
-
-/* LoginRequest is a structured data type. */
-typedef struct LoginRequest {
-    char *signed_assertion;
-} LoginRequest;
-
-/* CompleteRequest is a structured data type. */
-typedef struct CompleteRequest {
-    char *encrypted_token;
-} CompleteRequest;
-
-/* DevUsersResponse is a structured data type. */
-typedef struct DevUsersResponse {
-    DevUserEntry *users;
-    size_t users_count;
-} DevUsersResponse;
-
-/* EmptyRequest is a structured data type. */
-typedef struct EmptyRequest {
-} EmptyRequest;
-
-/* EmptyResponse is a structured data type. */
-typedef struct EmptyResponse {
-} EmptyResponse;
-
-/* BoolResponse is a structured data type. */
-typedef struct BoolResponse {
-    bool value;
-} BoolResponse;
-
-/* HouseListRequest is a structured data type. */
-typedef struct HouseListRequest {
-    uint64_t *limit;
-    uint64_t *offset;
-} HouseListRequest;
-
-/* TaskList is a structured data type. */
-typedef struct TaskList {
-    Task *tasks;
-    size_t tasks_count;
-    uint64_t hidden_count;
-} TaskList;
-
-/* ProjectList is a structured data type. */
-typedef struct ProjectList {
-    Project *projects;
-    size_t projects_count;
-    uint64_t hidden_count;
-} ProjectList;
-
-/* NotificationUnreadCount is a structured data type. */
-typedef struct NotificationUnreadCount {
-    uint64_t count;
-} NotificationUnreadCount;
-
-/* DependencyGraph is a structured data type. */
-typedef struct DependencyGraph {
-    DependencyNode *dependencies;
-    size_t dependencies_count;
-    DependencyNode *dependents;
-    size_t dependents_count;
-} DependencyGraph;
-
-/* EffectiveSettings is a structured data type. */
-typedef struct EffectiveSettings {
-    bool *bug_reports_enabled;
-    ProjectID *bug_reports_project_id;
-    AccessLevel *default_project_visibility;
-} EffectiveSettings;
-
-/* ServiceError is a structured data type. */
-typedef struct ServiceError {
-    uint64_t code;
-    char *message;
-} ServiceError;
-
-/* AuditPage is a structured data type. */
-typedef struct AuditPage {
-    AuditEntry *entries;
-    size_t entries_count;
-    char *next_cursor;
-} AuditPage;
-
-/* TrashPage is a structured data type. */
-typedef struct TrashPage {
-    TrashItem *items;
-    size_t items_count;
-    char *next_cursor;
-} TrashPage;
 
 /* House is a structured data type. */
 typedef struct House {
@@ -553,6 +476,27 @@ typedef struct HouseRoles {
     size_t roles_count;
 } HouseRoles;
 
+/* Identity is a structured data type. */
+typedef struct Identity {
+    char *domain;
+    char *user_id;
+    char *display_name;
+    HouseRoles *houses;
+    size_t houses_count;
+    int64_t iat;
+    int64_t exp;
+} Identity;
+
+/* LoginRequest is a structured data type. */
+typedef struct LoginRequest {
+    char *signed_assertion;
+} LoginRequest;
+
+/* CompleteRequest is a structured data type. */
+typedef struct CompleteRequest {
+    char *encrypted_token;
+} CompleteRequest;
+
 /* LoginResponse is a structured data type. */
 typedef struct LoginResponse {
     char *token;
@@ -561,6 +505,86 @@ typedef struct LoginResponse {
     char *display_name;
     Timestamp expires_at;
 } LoginResponse;
+
+/* CliTokenResponse is a structured data type. */
+typedef struct CliTokenResponse {
+    char *token;
+    char *domain;
+    char *user_id;
+    char *display_name;
+    Timestamp expires_at;
+    char *refresh_token;
+    Timestamp refresh_expires_at;
+    CliSessionID session_id;
+} CliTokenResponse;
+
+/* BeginCliLoginRequest is a structured data type. */
+typedef struct BeginCliLoginRequest {
+    char *client_name;
+} BeginCliLoginRequest;
+
+/* BeginCliLoginResponse is a structured data type. */
+typedef struct BeginCliLoginResponse {
+    char *device_code;
+    char *user_code;
+    char *verification_url;
+    Timestamp expires_at;
+    uint64_t interval_seconds;
+} BeginCliLoginResponse;
+
+/* ApproveCliLoginRequest is a structured data type. */
+typedef struct ApproveCliLoginRequest {
+    char *user_code;
+} ApproveCliLoginRequest;
+
+/* CliLoginRequestInfo is a structured data type. */
+typedef struct CliLoginRequestInfo {
+    char *user_code;
+    char *client_name;
+    Timestamp expires_at;
+} CliLoginRequestInfo;
+
+/* DenyCliLoginRequest is a structured data type. */
+typedef struct DenyCliLoginRequest {
+    char *user_code;
+} DenyCliLoginRequest;
+
+/* ExchangeCliLoginRequest is a structured data type. */
+typedef struct ExchangeCliLoginRequest {
+    char *device_code;
+} ExchangeCliLoginRequest;
+
+/* ExchangeCliLoginResponse is a structured data type. */
+typedef struct ExchangeCliLoginResponse {
+    CliLoginStatus status;
+    CliTokenResponse *session;
+} ExchangeCliLoginResponse;
+
+/* RefreshSessionRequest is a structured data type. */
+typedef struct RefreshSessionRequest {
+    char *refresh_token;
+} RefreshSessionRequest;
+
+/* CliSessionSummary is a structured data type. */
+typedef struct CliSessionSummary {
+    CliSessionID session_id;
+    char *client_name;
+    Timestamp created_at;
+    Timestamp last_used_at;
+    Timestamp expires_at;
+    Timestamp *revoked_at;
+} CliSessionSummary;
+
+/* CliSessionsResponse is a structured data type. */
+typedef struct CliSessionsResponse {
+    CliSessionSummary *sessions;
+    size_t sessions_count;
+} CliSessionsResponse;
+
+/* RevokeSessionRequest is a structured data type. */
+typedef struct RevokeSessionRequest {
+    CliSessionID session_id;
+} RevokeSessionRequest;
 
 /* DevUserEntry is a structured data type. */
 typedef struct DevUserEntry {
@@ -573,6 +597,12 @@ typedef struct DevUserEntry {
     char **roles;
     size_t roles_count;
 } DevUserEntry;
+
+/* DevUsersResponse is a structured data type. */
+typedef struct DevUsersResponse {
+    DevUserEntry *users;
+    size_t users_count;
+} DevUsersResponse;
 
 /* DevLoginRequest is a structured data type. */
 typedef struct DevLoginRequest {
@@ -589,12 +619,45 @@ typedef struct MeResponse {
     size_t houses_count;
 } MeResponse;
 
+/* EmptyRequest is a structured data type. */
+typedef struct EmptyRequest {
+} EmptyRequest;
+
+/* EmptyResponse is a structured data type. */
+typedef struct EmptyResponse {
+} EmptyResponse;
+
+/* BoolResponse is a structured data type. */
+typedef struct BoolResponse {
+    bool value;
+} BoolResponse;
+
+/* HouseListRequest is a structured data type. */
+typedef struct HouseListRequest {
+    uint64_t *limit;
+    uint64_t *offset;
+} HouseListRequest;
+
 /* HouseScopedListRequest is a structured data type. */
 typedef struct HouseScopedListRequest {
     HouseID house_id;
     uint64_t *limit;
     uint64_t *offset;
 } HouseScopedListRequest;
+
+/* TaskList is a structured data type. */
+typedef struct TaskList {
+    Task *tasks;
+    size_t tasks_count;
+    uint64_t hidden_count;
+} TaskList;
+
+/* ProjectList is a structured data type. */
+typedef struct ProjectList {
+    Project *projects;
+    size_t projects_count;
+    uint64_t hidden_count;
+} ProjectList;
 
 /* MemberScopedListRequest is a structured data type. */
 typedef struct MemberScopedListRequest {
@@ -644,6 +707,11 @@ typedef struct NotificationListRequest {
     uint64_t *limit;
     uint64_t *offset;
 } NotificationListRequest;
+
+/* NotificationUnreadCount is a structured data type. */
+typedef struct NotificationUnreadCount {
+    uint64_t count;
+} NotificationUnreadCount;
 
 /* ShareAccessRequest is a structured data type. */
 typedef struct ShareAccessRequest {
@@ -730,6 +798,14 @@ typedef struct DependencyNode {
     char *status;
 } DependencyNode;
 
+/* DependencyGraph is a structured data type. */
+typedef struct DependencyGraph {
+    DependencyNode *dependencies;
+    size_t dependencies_count;
+    DependencyNode *dependents;
+    size_t dependents_count;
+} DependencyGraph;
+
 /* Grant is a structured data type. */
 typedef struct Grant {
     GranteeType grantee_type;
@@ -779,6 +855,13 @@ typedef struct SetProjectVisibilityRequest {
     AccessLevel visibility;
 } SetProjectVisibilityRequest;
 
+/* EffectiveSettings is a structured data type. */
+typedef struct EffectiveSettings {
+    bool *bug_reports_enabled;
+    ProjectID *bug_reports_project_id;
+    AccessLevel *default_project_visibility;
+} EffectiveSettings;
+
 /* UpdateSettingsRequest is a structured data type. */
 typedef struct UpdateSettingsRequest {
     HouseID house_id;
@@ -791,6 +874,12 @@ typedef struct BugReportRequest {
     char *title;
     char *description;
 } BugReportRequest;
+
+/* ServiceError is a structured data type. */
+typedef struct ServiceError {
+    uint64_t code;
+    char *message;
+} ServiceError;
 
 /* CalendarSubscription is a structured data type. */
 typedef struct CalendarSubscription {
@@ -837,6 +926,13 @@ typedef struct AuditQuery {
     uint64_t *limit;
 } AuditQuery;
 
+/* AuditPage is a structured data type. */
+typedef struct AuditPage {
+    AuditEntry *entries;
+    size_t entries_count;
+    char *next_cursor;
+} AuditPage;
+
 /* TrashItem is a structured data type. */
 typedef struct TrashItem {
     char *resource_type;
@@ -847,6 +943,13 @@ typedef struct TrashItem {
     MemberID *deleted_by_member_id;
     char *deleted_op_id;
 } TrashItem;
+
+/* TrashPage is a structured data type. */
+typedef struct TrashPage {
+    TrashItem *items;
+    size_t items_count;
+    char *next_cursor;
+} TrashPage;
 
 /* RestoreRequest is a structured data type. */
 typedef struct RestoreRequest {

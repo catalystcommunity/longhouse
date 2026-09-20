@@ -14,6 +14,14 @@ type AuthService interface {
 	Refresh(ctx context.Context, req EmptyRequest) (LoginResponse, error)
 	Logout(ctx context.Context, req EmptyRequest) (EmptyResponse, error)
 	Me(ctx context.Context, req EmptyRequest) (MeResponse, error)
+	BeginCliLogin(ctx context.Context, req BeginCliLoginRequest) (BeginCliLoginResponse, error)
+	InspectCliLogin(ctx context.Context, req ApproveCliLoginRequest) (CliLoginRequestInfo, error)
+	ApproveCliLogin(ctx context.Context, req ApproveCliLoginRequest) (EmptyResponse, error)
+	DenyCliLogin(ctx context.Context, req DenyCliLoginRequest) (EmptyResponse, error)
+	ExchangeCliLogin(ctx context.Context, req ExchangeCliLoginRequest) (ExchangeCliLoginResponse, error)
+	RefreshSession(ctx context.Context, req RefreshSessionRequest) (CliTokenResponse, error)
+	ListSessions(ctx context.Context, req EmptyRequest) (CliSessionsResponse, error)
+	RevokeSession(ctx context.Context, req RevokeSessionRequest) (EmptyResponse, error)
 }
 
 // DevAuthService defines the service interface

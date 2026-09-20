@@ -120,7 +120,7 @@ public static partial class Cbor
     public static CborValue Decode(byte[] b)
     {
         int csilPos = 0;
-        var v = Dec(b, ref csilPos);
+        var v = Dec(b, ref csilPos, 0);
         if (csilPos != b.Length) { throw new CborException("trailing bytes"); }
         return v;
     }
@@ -128,6 +128,11 @@ public static partial class Cbor
     static ulong ReadArg(byte[] b, ref int csilPos, byte low)
     {
         if (low < 24) { csilPos += 1; return low; }
+        int csilWidth = low == 24 ? 1 : low == 25 ? 2 : low == 26 ? 4 : low == 27 ? 8 : 0;
+        if (csilWidth == 0 || csilPos >= b.Length || b.Length - csilPos - 1 < csilWidth)
+        {
+            throw new CborException("truncated argument");
+        }
         switch (low)
         {
             case 24:
@@ -161,8 +166,10 @@ public static partial class Cbor
         }
     }
 
-    static CborValue Dec(byte[] b, ref int csilPos)
+    static CborValue Dec(byte[] b, ref int csilPos, int csilDepth)
     {
+        if (csilDepth > 64) { throw new CborException("nesting limit exceeded"); }
+        if (csilPos >= b.Length) { throw new CborException("unexpected end of input"); }
         var ib = b[csilPos];
         var major = (byte)(ib >> 5);
         var low = (byte)(ib & 0x1f);
@@ -198,6 +205,7 @@ public static partial class Cbor
                 return new CborValue.Int(-1 - (long)arg);
             case 2:
             {
+                if (arg > (ulong)(b.Length - csilPos)) { throw new CborException("truncated byte string"); }
                 var n = (int)arg;
                 var slice = new byte[n];
                 System.Array.Copy(b, csilPos, slice, 0, n);
@@ -206,33 +214,38 @@ public static partial class Cbor
             }
             case 3:
             {
+                if (arg > (ulong)(b.Length - csilPos)) { throw new CborException("truncated text string"); }
                 var n = (int)arg;
-                var s = System.Text.Encoding.UTF8.GetString(b, csilPos, n);
+                string s;
+                try { s = new System.Text.UTF8Encoding(false, true).GetString(b, csilPos, n); }
+                catch (System.Text.DecoderFallbackException) { throw new CborException("invalid utf-8"); }
                 csilPos += n;
                 return new CborValue.Text(s);
             }
             case 4:
             {
+                if (arg > (ulong)(b.Length - csilPos)) { throw new CborException("array length exceeds remaining input"); }
                 var n = (int)arg;
                 var items = new System.Collections.Generic.List<CborValue>(n);
-                for (int csilI = 0; csilI < n; csilI++) { items.Add(Dec(b, ref csilPos)); }
+                for (int csilI = 0; csilI < n; csilI++) { items.Add(Dec(b, ref csilPos, csilDepth + 1)); }
                 return new CborValue.Array(items);
             }
             case 5:
             {
+                if (arg > (ulong)(b.Length - csilPos)) { throw new CborException("map length exceeds remaining input"); }
                 var n = (int)arg;
                 var kvs = new System.Collections.Generic.List<(CborValue, CborValue)>(n);
                 for (int csilI = 0; csilI < n; csilI++)
                 {
-                    var k = Dec(b, ref csilPos);
-                    var val = Dec(b, ref csilPos);
+                    var k = Dec(b, ref csilPos, csilDepth + 1);
+                    var val = Dec(b, ref csilPos, csilDepth + 1);
                     kvs.Add((k, val));
                 }
                 return new CborValue.Map(kvs);
             }
             case 6:
             {
-                var inner = Dec(b, ref csilPos);
+                var inner = Dec(b, ref csilPos, csilDepth + 1);
                 return new CborValue.Tag(arg, inner);
             }
             default:
@@ -270,7 +283,7 @@ public static partial class Cbor
         (CborValue.Float a, CborValue.Float b) => a.Value == b.Value,
         (CborValue.Null, CborValue.Null) => true,
         (CborValue.Text a, CborValue.Text b) => a.Value == b.Value,
-        (CborValue.Bytes a, CborValue.Bytes b) => a.Value.AsSpan().SequenceEqual(b.Value),
+        (CborValue.Bytes a, CborValue.Bytes b) => a.Value.SequenceEqual(b.Value),
         (CborValue.Array a, CborValue.Array b) => a.Items.Count == b.Items.Count && a.Items.Zip(b.Items).All(p => ValueEquals(p.First, p.Second)),
         _ => false,
     };
@@ -335,6 +348,7 @@ public static class Codec
         DependencyNodeType csilTyped => DependencyNodeTypeToCborValue(csilTyped),
         RecurrenceFreq csilTyped => RecurrenceFreqToCborValue(csilTyped),
         MilestoneState csilTyped => MilestoneStateToCborValue(csilTyped),
+        CliLoginStatus csilTyped => CliLoginStatusToCborValue(csilTyped),
         House csilTyped => HouseToCborValue(csilTyped),
         Member csilTyped => MemberToCborValue(csilTyped),
         TrustedDomain csilTyped => TrustedDomainToCborValue(csilTyped),
@@ -361,6 +375,18 @@ public static class Codec
         LoginRequest csilTyped => LoginRequestToCborValue(csilTyped),
         CompleteRequest csilTyped => CompleteRequestToCborValue(csilTyped),
         LoginResponse csilTyped => LoginResponseToCborValue(csilTyped),
+        CliTokenResponse csilTyped => CliTokenResponseToCborValue(csilTyped),
+        BeginCliLoginRequest csilTyped => BeginCliLoginRequestToCborValue(csilTyped),
+        BeginCliLoginResponse csilTyped => BeginCliLoginResponseToCborValue(csilTyped),
+        ApproveCliLoginRequest csilTyped => ApproveCliLoginRequestToCborValue(csilTyped),
+        CliLoginRequestInfo csilTyped => CliLoginRequestInfoToCborValue(csilTyped),
+        DenyCliLoginRequest csilTyped => DenyCliLoginRequestToCborValue(csilTyped),
+        ExchangeCliLoginRequest csilTyped => ExchangeCliLoginRequestToCborValue(csilTyped),
+        ExchangeCliLoginResponse csilTyped => ExchangeCliLoginResponseToCborValue(csilTyped),
+        RefreshSessionRequest csilTyped => RefreshSessionRequestToCborValue(csilTyped),
+        CliSessionSummary csilTyped => CliSessionSummaryToCborValue(csilTyped),
+        CliSessionsResponse csilTyped => CliSessionsResponseToCborValue(csilTyped),
+        RevokeSessionRequest csilTyped => RevokeSessionRequestToCborValue(csilTyped),
         DevUserEntry csilTyped => DevUserEntryToCborValue(csilTyped),
         DevUsersResponse csilTyped => DevUsersResponseToCborValue(csilTyped),
         DevLoginRequest csilTyped => DevLoginRequestToCborValue(csilTyped),
@@ -426,6 +452,7 @@ public static class Codec
         if (csilType == typeof(DependencyNodeType)) return DependencyNodeTypeFromCborValue(value);
         if (csilType == typeof(RecurrenceFreq)) return RecurrenceFreqFromCborValue(value);
         if (csilType == typeof(MilestoneState)) return MilestoneStateFromCborValue(value);
+        if (csilType == typeof(CliLoginStatus)) return CliLoginStatusFromCborValue(value);
         if (csilType == typeof(House)) return HouseFromCborValue(value);
         if (csilType == typeof(Member)) return MemberFromCborValue(value);
         if (csilType == typeof(TrustedDomain)) return TrustedDomainFromCborValue(value);
@@ -452,6 +479,18 @@ public static class Codec
         if (csilType == typeof(LoginRequest)) return LoginRequestFromCborValue(value);
         if (csilType == typeof(CompleteRequest)) return CompleteRequestFromCborValue(value);
         if (csilType == typeof(LoginResponse)) return LoginResponseFromCborValue(value);
+        if (csilType == typeof(CliTokenResponse)) return CliTokenResponseFromCborValue(value);
+        if (csilType == typeof(BeginCliLoginRequest)) return BeginCliLoginRequestFromCborValue(value);
+        if (csilType == typeof(BeginCliLoginResponse)) return BeginCliLoginResponseFromCborValue(value);
+        if (csilType == typeof(ApproveCliLoginRequest)) return ApproveCliLoginRequestFromCborValue(value);
+        if (csilType == typeof(CliLoginRequestInfo)) return CliLoginRequestInfoFromCborValue(value);
+        if (csilType == typeof(DenyCliLoginRequest)) return DenyCliLoginRequestFromCborValue(value);
+        if (csilType == typeof(ExchangeCliLoginRequest)) return ExchangeCliLoginRequestFromCborValue(value);
+        if (csilType == typeof(ExchangeCliLoginResponse)) return ExchangeCliLoginResponseFromCborValue(value);
+        if (csilType == typeof(RefreshSessionRequest)) return RefreshSessionRequestFromCborValue(value);
+        if (csilType == typeof(CliSessionSummary)) return CliSessionSummaryFromCborValue(value);
+        if (csilType == typeof(CliSessionsResponse)) return CliSessionsResponseFromCborValue(value);
+        if (csilType == typeof(RevokeSessionRequest)) return RevokeSessionRequestFromCborValue(value);
         if (csilType == typeof(DevUserEntry)) return DevUserEntryFromCborValue(value);
         if (csilType == typeof(DevUsersResponse)) return DevUsersResponseFromCborValue(value);
         if (csilType == typeof(DevLoginRequest)) return DevLoginRequestFromCborValue(value);
@@ -670,6 +709,26 @@ public static class Codec
         "current" => MilestoneState.Current,
         "future" => MilestoneState.Future,
         _ => throw new CborException("invalid MilestoneState value"),
+    };
+
+    /// <summary>The bare-literal CBOR value for a CliLoginStatus.</summary>
+    public static CborValue CliLoginStatusToCborValue(CliLoginStatus value) => value switch
+    {
+        CliLoginStatus.Pending => new CborValue.Text("pending"),
+        CliLoginStatus.Denied => new CborValue.Text("denied"),
+        CliLoginStatus.Expired => new CborValue.Text("expired"),
+        CliLoginStatus.Complete => new CborValue.Text("complete"),
+        _ => throw new CborException("invalid CliLoginStatus"),
+    };
+
+    /// <summary>Reconstruct a CliLoginStatus from its bare-literal CBOR value.</summary>
+    public static CliLoginStatus CliLoginStatusFromCborValue(CborValue value) => Cbor.AsText(value) switch
+    {
+        "pending" => CliLoginStatus.Pending,
+        "denied" => CliLoginStatus.Denied,
+        "expired" => CliLoginStatus.Expired,
+        "complete" => CliLoginStatus.Complete,
+        _ => throw new CborException("invalid CliLoginStatus value"),
     };
 
     /// <summary>The canonical CBOR value tree for a House.</summary>
@@ -1710,6 +1769,288 @@ public static class Codec
             UserId = csilField2,
             DisplayName = csilField3,
             ExpiresAt = csilField4,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a CliTokenResponse.</summary>
+    public static CborValue CliTokenResponseToCborValue(CliTokenResponse value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("token"), new CborValue.Text(value.Token)));
+        csilEntries.Add((new CborValue.Text("domain"), new CborValue.Text(value.Domain)));
+        csilEntries.Add((new CborValue.Text("user_id"), new CborValue.Text(value.UserId)));
+        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        csilEntries.Add((new CborValue.Text("session_id"), new CborValue.Text(value.SessionId)));
+        if (value.DisplayName is { } csilV5)
+        {
+            csilEntries.Add((new CborValue.Text("display_name"), new CborValue.Text(csilV5)));
+        }
+        csilEntries.Add((new CborValue.Text("refresh_token"), new CborValue.Text(value.RefreshToken)));
+        csilEntries.Add((new CborValue.Text("refresh_expires_at"), new CborValue.Text(value.RefreshExpiresAt)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a CliTokenResponse from a decoded CBOR value tree.</summary>
+    public static CliTokenResponse CliTokenResponseFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "token"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "domain"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "user_id"));
+        string? csilField3 = Cbor.MapGet(value, "display_name") is { } csilRaw3 ? Cbor.AsText(csilRaw3) : null;
+        var csilField4 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        var csilField5 = Cbor.AsText(Cbor.Require(value, "refresh_token"));
+        var csilField6 = Cbor.AsText(Cbor.Require(value, "refresh_expires_at"));
+        var csilField7 = Cbor.AsText(Cbor.Require(value, "session_id"));
+        return new CliTokenResponse
+        {
+            Token = csilField0,
+            Domain = csilField1,
+            UserId = csilField2,
+            DisplayName = csilField3,
+            ExpiresAt = csilField4,
+            RefreshToken = csilField5,
+            RefreshExpiresAt = csilField6,
+            SessionId = csilField7,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a BeginCliLoginRequest.</summary>
+    public static CborValue BeginCliLoginRequestToCborValue(BeginCliLoginRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("client_name"), new CborValue.Text(value.ClientName)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a BeginCliLoginRequest from a decoded CBOR value tree.</summary>
+    public static BeginCliLoginRequest BeginCliLoginRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "client_name"));
+        return new BeginCliLoginRequest
+        {
+            ClientName = csilField0,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a BeginCliLoginResponse.</summary>
+    public static CborValue BeginCliLoginResponseToCborValue(BeginCliLoginResponse value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("user_code"), new CborValue.Text(value.UserCode)));
+        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        csilEntries.Add((new CborValue.Text("device_code"), new CborValue.Text(value.DeviceCode)));
+        csilEntries.Add((new CborValue.Text("interval_seconds"), new CborValue.Uint(value.IntervalSeconds)));
+        csilEntries.Add((new CborValue.Text("verification_url"), new CborValue.Text(value.VerificationUrl)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a BeginCliLoginResponse from a decoded CBOR value tree.</summary>
+    public static BeginCliLoginResponse BeginCliLoginResponseFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "device_code"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "user_code"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "verification_url"));
+        var csilField3 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        var csilField4 = Cbor.AsU64(Cbor.Require(value, "interval_seconds"));
+        return new BeginCliLoginResponse
+        {
+            DeviceCode = csilField0,
+            UserCode = csilField1,
+            VerificationUrl = csilField2,
+            ExpiresAt = csilField3,
+            IntervalSeconds = csilField4,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a ApproveCliLoginRequest.</summary>
+    public static CborValue ApproveCliLoginRequestToCborValue(ApproveCliLoginRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("user_code"), new CborValue.Text(value.UserCode)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ApproveCliLoginRequest from a decoded CBOR value tree.</summary>
+    public static ApproveCliLoginRequest ApproveCliLoginRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "user_code"));
+        return new ApproveCliLoginRequest
+        {
+            UserCode = csilField0,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a CliLoginRequestInfo.</summary>
+    public static CborValue CliLoginRequestInfoToCborValue(CliLoginRequestInfo value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("user_code"), new CborValue.Text(value.UserCode)));
+        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        csilEntries.Add((new CborValue.Text("client_name"), new CborValue.Text(value.ClientName)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a CliLoginRequestInfo from a decoded CBOR value tree.</summary>
+    public static CliLoginRequestInfo CliLoginRequestInfoFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "user_code"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "client_name"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        return new CliLoginRequestInfo
+        {
+            UserCode = csilField0,
+            ClientName = csilField1,
+            ExpiresAt = csilField2,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a DenyCliLoginRequest.</summary>
+    public static CborValue DenyCliLoginRequestToCborValue(DenyCliLoginRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("user_code"), new CborValue.Text(value.UserCode)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a DenyCliLoginRequest from a decoded CBOR value tree.</summary>
+    public static DenyCliLoginRequest DenyCliLoginRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "user_code"));
+        return new DenyCliLoginRequest
+        {
+            UserCode = csilField0,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a ExchangeCliLoginRequest.</summary>
+    public static CborValue ExchangeCliLoginRequestToCborValue(ExchangeCliLoginRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("device_code"), new CborValue.Text(value.DeviceCode)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ExchangeCliLoginRequest from a decoded CBOR value tree.</summary>
+    public static ExchangeCliLoginRequest ExchangeCliLoginRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "device_code"));
+        return new ExchangeCliLoginRequest
+        {
+            DeviceCode = csilField0,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a ExchangeCliLoginResponse.</summary>
+    public static CborValue ExchangeCliLoginResponseToCborValue(ExchangeCliLoginResponse value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("status"), CliLoginStatusToCborValue(value.Status)));
+        if (value.Session is { } csilV1)
+        {
+            csilEntries.Add((new CborValue.Text("session"), CliTokenResponseToCborValue(csilV1)));
+        }
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ExchangeCliLoginResponse from a decoded CBOR value tree.</summary>
+    public static ExchangeCliLoginResponse ExchangeCliLoginResponseFromCborValue(CborValue value)
+    {
+        var csilField0 = CliLoginStatusFromCborValue(Cbor.Require(value, "status"));
+        CliTokenResponse? csilField1 = Cbor.MapGet(value, "session") is { } csilRaw1 ? CliTokenResponseFromCborValue(csilRaw1) : null;
+        return new ExchangeCliLoginResponse
+        {
+            Status = csilField0,
+            Session = csilField1,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a RefreshSessionRequest.</summary>
+    public static CborValue RefreshSessionRequestToCborValue(RefreshSessionRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("refresh_token"), new CborValue.Text(value.RefreshToken)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a RefreshSessionRequest from a decoded CBOR value tree.</summary>
+    public static RefreshSessionRequest RefreshSessionRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "refresh_token"));
+        return new RefreshSessionRequest
+        {
+            RefreshToken = csilField0,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a CliSessionSummary.</summary>
+    public static CborValue CliSessionSummaryToCborValue(CliSessionSummary value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        if (value.RevokedAt is { } csilV2)
+        {
+            csilEntries.Add((new CborValue.Text("revoked_at"), new CborValue.Text(csilV2)));
+        }
+        csilEntries.Add((new CborValue.Text("session_id"), new CborValue.Text(value.SessionId)));
+        csilEntries.Add((new CborValue.Text("client_name"), new CborValue.Text(value.ClientName)));
+        csilEntries.Add((new CborValue.Text("last_used_at"), new CborValue.Text(value.LastUsedAt)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a CliSessionSummary from a decoded CBOR value tree.</summary>
+    public static CliSessionSummary CliSessionSummaryFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "session_id"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "client_name"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField3 = Cbor.AsText(Cbor.Require(value, "last_used_at"));
+        var csilField4 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        Timestamp? csilField5 = Cbor.MapGet(value, "revoked_at") is { } csilRaw5 ? Cbor.AsText(csilRaw5) : null;
+        return new CliSessionSummary
+        {
+            SessionId = csilField0,
+            ClientName = csilField1,
+            CreatedAt = csilField2,
+            LastUsedAt = csilField3,
+            ExpiresAt = csilField4,
+            RevokedAt = csilField5,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a CliSessionsResponse.</summary>
+    public static CborValue CliSessionsResponseToCborValue(CliSessionsResponse value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("sessions"), new CborValue.Array(value.Sessions.Select(csilElem => (CborValue)CliSessionSummaryToCborValue(csilElem)).ToList())));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a CliSessionsResponse from a decoded CBOR value tree.</summary>
+    public static CliSessionsResponse CliSessionsResponseFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsArray(Cbor.Require(value, "sessions")).Select(csilElem => CliSessionSummaryFromCborValue(csilElem)).ToList();
+        return new CliSessionsResponse
+        {
+            Sessions = csilField0,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a RevokeSessionRequest.</summary>
+    public static CborValue RevokeSessionRequestToCborValue(RevokeSessionRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("session_id"), new CborValue.Text(value.SessionId)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a RevokeSessionRequest from a decoded CBOR value tree.</summary>
+    public static RevokeSessionRequest RevokeSessionRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "session_id"));
+        return new RevokeSessionRequest
+        {
+            SessionId = csilField0,
         };
     }
 

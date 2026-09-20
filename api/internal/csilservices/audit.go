@@ -20,7 +20,7 @@ type AuditService struct {
 }
 
 func (s *AuditService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("audit", "QueryAudit", csilrpc.Route(s.QueryAudit, csil.DecodeAuditQueryAuditRequest, csil.EncodeAuditQueryAuditResponse))
+	d.RegisterTyped("audit", "QueryAudit", csilrpc.Route(s.QueryAudit, csil.DecodeAuditQuery, csil.EncodeAuditPage))
 }
 
 func (s *AuditService) QueryAudit(ctx context.Context, q csil.AuditQuery) (csil.AuditPage, error) {

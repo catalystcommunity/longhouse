@@ -270,12 +270,36 @@ static inline int csilc_read_arg(const uint8_t *b, size_t len, uint8_t low, uint
 
 static inline const uint8_t *csilc_arena_copy(CsilCodecArena *a, const uint8_t *src, size_t n,
                                        bool as_text) {
+    if (as_text && n == SIZE_MAX) return NULL;
     size_t total = as_text ? n + 1 : (n ? n : 1);
     uint8_t *dst = (uint8_t *)csilc_arena_alloc(a, total);
     if (!dst) return NULL;
     if (n) memcpy(dst, src, n);
     if (as_text) dst[n] = 0;
     return dst;
+}
+
+static inline bool csilc_valid_utf8(const uint8_t *s, size_t n) {
+    size_t i = 0;
+    while (i < n) {
+        uint8_t c = s[i++];
+        if (c < 0x80) continue;
+        size_t need;
+        uint32_t cp;
+        if (c >= 0xc2 && c <= 0xdf) { need = 1; cp = c & 0x1f; }
+        else if (c >= 0xe0 && c <= 0xef) { need = 2; cp = c & 0x0f; }
+        else if (c >= 0xf0 && c <= 0xf4) { need = 3; cp = c & 0x07; }
+        else return false;
+        if (need > n - i) return false;
+        for (size_t j = 0; j < need; j++) {
+            uint8_t d = s[i++];
+            if ((d & 0xc0) != 0x80) return false;
+            cp = (cp << 6) | (uint32_t)(d & 0x3f);
+        }
+        if ((need == 2 && cp < 0x800) || (need == 3 && cp < 0x10000) ||
+            (cp >= 0xd800 && cp <= 0xdfff) || cp > 0x10ffff) return false;
+    }
+    return true;
 }
 
 /* Decode a half-precision float (only ever seen on decode; encode never emits one). */
@@ -304,7 +328,8 @@ static inline double csilc_half_to_double(uint16_t h) {
 }
 
 static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t len,
-                              csilc_value *out, size_t *consumed) {
+                              csilc_value *out, size_t *consumed, size_t depth) {
+    if (depth > 64) return -1;
     if (len == 0) return -1;
     uint8_t ib = b[0];
     uint8_t major = ib >> 5;
@@ -328,6 +353,7 @@ static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t
     case 3: {
         if (arg > len - head) return -1;
         bool as_text = major == 3;
+        if (as_text && !csilc_valid_utf8(b + head, (size_t)arg)) return -1;
         const uint8_t *copy = csilc_arena_copy(a, b + head, (size_t)arg, as_text);
         if (!copy) return -1;
         out->kind = as_text ? CSILC_TEXT : CSILC_BYTES;
@@ -337,6 +363,7 @@ static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t
         return 0;
     }
     case 4: {
+        if (arg > len - head || arg > SIZE_MAX / sizeof(csilc_value)) return -1;
         csilc_value *items = NULL;
         if (arg) {
             items = (csilc_value *)csilc_arena_alloc(a, (size_t)arg * sizeof(*items));
@@ -345,7 +372,7 @@ static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t
         size_t off = head;
         for (uint64_t i = 0; i < arg; i++) {
             size_t m = 0;
-            if (csilc_decode_value(a, b + off, len - off, &items[i], &m)) return -1;
+            if (csilc_decode_value(a, b + off, len - off, &items[i], &m, depth + 1)) return -1;
             off += m;
         }
         out->kind = CSILC_ARRAY;
@@ -355,6 +382,7 @@ static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t
         return 0;
     }
     case 5: {
+        if (arg > len - head || arg > SIZE_MAX / sizeof(csilc_pair)) return -1;
         csilc_pair *pairs = NULL;
         if (arg) {
             pairs = (csilc_pair *)csilc_arena_alloc(a, (size_t)arg * sizeof(*pairs));
@@ -366,9 +394,9 @@ static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t
             csilc_value *v = (csilc_value *)csilc_arena_alloc(a, sizeof(*v));
             if (!k || !v) return -1;
             size_t m = 0;
-            if (csilc_decode_value(a, b + off, len - off, k, &m)) return -1;
+            if (csilc_decode_value(a, b + off, len - off, k, &m, depth + 1)) return -1;
             off += m;
-            if (csilc_decode_value(a, b + off, len - off, v, &m)) return -1;
+            if (csilc_decode_value(a, b + off, len - off, v, &m, depth + 1)) return -1;
             off += m;
             pairs[i].key = k;
             pairs[i].val = v;
@@ -383,7 +411,7 @@ static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t
         csilc_value *content = (csilc_value *)csilc_arena_alloc(a, sizeof(*content));
         if (!content) return -1;
         size_t m = 0;
-        if (csilc_decode_value(a, b + head, len - head, content, &m)) return -1;
+        if (csilc_decode_value(a, b + head, len - head, content, &m, depth + 1)) return -1;
         out->kind = CSILC_TAG;
         out->as.tag.num = arg;
         out->as.tag.content = content;
@@ -449,7 +477,7 @@ static inline int csilc_decode(const uint8_t *b, size_t len, CsilCodecArena **ou
         return -1;
     }
     size_t consumed = 0;
-    if (csilc_decode_value(a, b, len, root, &consumed)) {
+    if (csilc_decode_value(a, b, len, root, &consumed, 0)) {
         csil_codec_arena_free(a);
         return -1;
     }
@@ -591,6 +619,8 @@ static inline int csilc_enc_RecurrenceFreq(csilc_buf *b, const RecurrenceFreq *v
 static inline int csilc_dec_RecurrenceFreq(const csilc_value *src, CsilCodecArena *a, RecurrenceFreq *out);
 static inline int csilc_enc_MilestoneState(csilc_buf *b, const MilestoneState *v);
 static inline int csilc_dec_MilestoneState(const csilc_value *src, CsilCodecArena *a, MilestoneState *out);
+static inline int csilc_enc_CliLoginStatus(csilc_buf *b, const CliLoginStatus *v);
+static inline int csilc_dec_CliLoginStatus(const csilc_value *src, CsilCodecArena *a, CliLoginStatus *out);
 static inline int csilc_enc_House(csilc_buf *b, const House *v);
 static inline int csilc_dec_House(const csilc_value *m, CsilCodecArena *a, House *out);
 static inline int csilc_enc_Member(csilc_buf *b, const Member *v);
@@ -643,6 +673,30 @@ static inline int csilc_enc_CompleteRequest(csilc_buf *b, const CompleteRequest 
 static inline int csilc_dec_CompleteRequest(const csilc_value *m, CsilCodecArena *a, CompleteRequest *out);
 static inline int csilc_enc_LoginResponse(csilc_buf *b, const LoginResponse *v);
 static inline int csilc_dec_LoginResponse(const csilc_value *m, CsilCodecArena *a, LoginResponse *out);
+static inline int csilc_enc_CliTokenResponse(csilc_buf *b, const CliTokenResponse *v);
+static inline int csilc_dec_CliTokenResponse(const csilc_value *m, CsilCodecArena *a, CliTokenResponse *out);
+static inline int csilc_enc_BeginCliLoginRequest(csilc_buf *b, const BeginCliLoginRequest *v);
+static inline int csilc_dec_BeginCliLoginRequest(const csilc_value *m, CsilCodecArena *a, BeginCliLoginRequest *out);
+static inline int csilc_enc_BeginCliLoginResponse(csilc_buf *b, const BeginCliLoginResponse *v);
+static inline int csilc_dec_BeginCliLoginResponse(const csilc_value *m, CsilCodecArena *a, BeginCliLoginResponse *out);
+static inline int csilc_enc_ApproveCliLoginRequest(csilc_buf *b, const ApproveCliLoginRequest *v);
+static inline int csilc_dec_ApproveCliLoginRequest(const csilc_value *m, CsilCodecArena *a, ApproveCliLoginRequest *out);
+static inline int csilc_enc_CliLoginRequestInfo(csilc_buf *b, const CliLoginRequestInfo *v);
+static inline int csilc_dec_CliLoginRequestInfo(const csilc_value *m, CsilCodecArena *a, CliLoginRequestInfo *out);
+static inline int csilc_enc_DenyCliLoginRequest(csilc_buf *b, const DenyCliLoginRequest *v);
+static inline int csilc_dec_DenyCliLoginRequest(const csilc_value *m, CsilCodecArena *a, DenyCliLoginRequest *out);
+static inline int csilc_enc_ExchangeCliLoginRequest(csilc_buf *b, const ExchangeCliLoginRequest *v);
+static inline int csilc_dec_ExchangeCliLoginRequest(const csilc_value *m, CsilCodecArena *a, ExchangeCliLoginRequest *out);
+static inline int csilc_enc_ExchangeCliLoginResponse(csilc_buf *b, const ExchangeCliLoginResponse *v);
+static inline int csilc_dec_ExchangeCliLoginResponse(const csilc_value *m, CsilCodecArena *a, ExchangeCliLoginResponse *out);
+static inline int csilc_enc_RefreshSessionRequest(csilc_buf *b, const RefreshSessionRequest *v);
+static inline int csilc_dec_RefreshSessionRequest(const csilc_value *m, CsilCodecArena *a, RefreshSessionRequest *out);
+static inline int csilc_enc_CliSessionSummary(csilc_buf *b, const CliSessionSummary *v);
+static inline int csilc_dec_CliSessionSummary(const csilc_value *m, CsilCodecArena *a, CliSessionSummary *out);
+static inline int csilc_enc_CliSessionsResponse(csilc_buf *b, const CliSessionsResponse *v);
+static inline int csilc_dec_CliSessionsResponse(const csilc_value *m, CsilCodecArena *a, CliSessionsResponse *out);
+static inline int csilc_enc_RevokeSessionRequest(csilc_buf *b, const RevokeSessionRequest *v);
+static inline int csilc_dec_RevokeSessionRequest(const csilc_value *m, CsilCodecArena *a, RevokeSessionRequest *out);
 static inline int csilc_enc_DevUserEntry(csilc_buf *b, const DevUserEntry *v);
 static inline int csilc_dec_DevUserEntry(const csilc_value *m, CsilCodecArena *a, DevUserEntry *out);
 static inline int csilc_enc_DevUsersResponse(csilc_buf *b, const DevUsersResponse *v);
@@ -967,6 +1021,32 @@ static inline int csilc_dec_MilestoneState(const csilc_value *src, CsilCodecAren
         if (strlen(csilc_MilestoneState_names[csilc_i]) == src->as.bytes.len &&
             memcmp(csilc_MilestoneState_names[csilc_i], src->as.bytes.ptr, src->as.bytes.len) == 0) {
             *out = (MilestoneState)csilc_i;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+static CSILC_UNUSED const char *const csilc_CliLoginStatus_names[] = {
+    "pending",
+    "denied",
+    "expired",
+    "complete",
+};
+/* csilc_enc_CliLoginStatus writes the CliLoginStatus variant's wire text. */
+static inline int csilc_enc_CliLoginStatus(csilc_buf *b, const CliLoginStatus *v) {
+    const char *csilc_s = csilc_CliLoginStatus_names[(size_t)(*v)];
+    return csilc_w_text(b, csilc_s, strlen(csilc_s));
+}
+
+/* csilc_dec_CliLoginStatus matches the wire text back to a CliLoginStatus variant. */
+static inline int csilc_dec_CliLoginStatus(const csilc_value *src, CsilCodecArena *a, CliLoginStatus *out) {
+    (void)a;
+    if (!src || src->kind != CSILC_TEXT) return -1;
+    for (size_t csilc_i = 0; csilc_i < sizeof(csilc_CliLoginStatus_names) / sizeof(csilc_CliLoginStatus_names[0]); csilc_i++) {
+        if (strlen(csilc_CliLoginStatus_names[csilc_i]) == src->as.bytes.len &&
+            memcmp(csilc_CliLoginStatus_names[csilc_i], src->as.bytes.ptr, src->as.bytes.len) == 0) {
+            *out = (CliLoginStatus)csilc_i;
             return 0;
         }
     }
@@ -2423,6 +2503,343 @@ static inline int csilc_dec_LoginResponse(const csilc_value *m, CsilCodecArena *
     if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
     csilc_f = csilc_map_get(m, "display_name");
     out->display_name = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
+    return 0;
+}
+
+/* csilc_enc_CliTokenResponse writes CliTokenResponse as a canonical CBOR map. */
+static inline int csilc_enc_CliTokenResponse(csilc_buf *b, const CliTokenResponse *v) {
+    size_t csilc_n = 7;
+    if (v->display_name) csilc_n++;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "token", 5)) return -1;
+    if (csilc_w_text(b, (v->token), (v->token) ? strlen(v->token) : 0)) return -1;
+    if (csilc_w_text(b, "domain", 6)) return -1;
+    if (csilc_w_text(b, (v->domain), (v->domain) ? strlen(v->domain) : 0)) return -1;
+    if (csilc_w_text(b, "user_id", 7)) return -1;
+    if (csilc_w_text(b, (v->user_id), (v->user_id) ? strlen(v->user_id) : 0)) return -1;
+    if (csilc_w_text(b, "expires_at", 10)) return -1;
+    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (csilc_w_text(b, "session_id", 10)) return -1;
+    if (csilc_w_text(b, (v->session_id), (v->session_id) ? strlen(v->session_id) : 0)) return -1;
+    if (v->display_name) {
+        if (csilc_w_text(b, "display_name", 12)) return -1;
+        if (csilc_w_text(b, (v->display_name), (v->display_name) ? strlen(v->display_name) : 0)) return -1;
+    }
+    if (csilc_w_text(b, "refresh_token", 13)) return -1;
+    if (csilc_w_text(b, (v->refresh_token), (v->refresh_token) ? strlen(v->refresh_token) : 0)) return -1;
+    if (csilc_w_text(b, "refresh_expires_at", 18)) return -1;
+    if (csilc_w_text(b, (v->refresh_expires_at), (v->refresh_expires_at) ? strlen(v->refresh_expires_at) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_CliTokenResponse reads CliTokenResponse from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_CliTokenResponse(const csilc_value *m, CsilCodecArena *a, CliTokenResponse *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "token");
+    if (!csilc_get_text(csilc_f, &(out->token))) return -1;
+    csilc_f = csilc_map_get(m, "domain");
+    if (!csilc_get_text(csilc_f, &(out->domain))) return -1;
+    csilc_f = csilc_map_get(m, "user_id");
+    if (!csilc_get_text(csilc_f, &(out->user_id))) return -1;
+    csilc_f = csilc_map_get(m, "expires_at");
+    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    csilc_f = csilc_map_get(m, "session_id");
+    if (!csilc_get_text(csilc_f, &(out->session_id))) return -1;
+    csilc_f = csilc_map_get(m, "display_name");
+    out->display_name = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
+    csilc_f = csilc_map_get(m, "refresh_token");
+    if (!csilc_get_text(csilc_f, &(out->refresh_token))) return -1;
+    csilc_f = csilc_map_get(m, "refresh_expires_at");
+    if (!csilc_get_text(csilc_f, &(out->refresh_expires_at))) return -1;
+    return 0;
+}
+
+/* csilc_enc_BeginCliLoginRequest writes BeginCliLoginRequest as a canonical CBOR map. */
+static inline int csilc_enc_BeginCliLoginRequest(csilc_buf *b, const BeginCliLoginRequest *v) {
+    size_t csilc_n = 1;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "client_name", 11)) return -1;
+    if (csilc_w_text(b, (v->client_name), (v->client_name) ? strlen(v->client_name) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_BeginCliLoginRequest reads BeginCliLoginRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_BeginCliLoginRequest(const csilc_value *m, CsilCodecArena *a, BeginCliLoginRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "client_name");
+    if (!csilc_get_text(csilc_f, &(out->client_name))) return -1;
+    return 0;
+}
+
+/* csilc_enc_BeginCliLoginResponse writes BeginCliLoginResponse as a canonical CBOR map. */
+static inline int csilc_enc_BeginCliLoginResponse(csilc_buf *b, const BeginCliLoginResponse *v) {
+    size_t csilc_n = 5;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "user_code", 9)) return -1;
+    if (csilc_w_text(b, (v->user_code), (v->user_code) ? strlen(v->user_code) : 0)) return -1;
+    if (csilc_w_text(b, "expires_at", 10)) return -1;
+    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (csilc_w_text(b, "device_code", 11)) return -1;
+    if (csilc_w_text(b, (v->device_code), (v->device_code) ? strlen(v->device_code) : 0)) return -1;
+    if (csilc_w_text(b, "interval_seconds", 16)) return -1;
+    if (csilc_w_uint(b, (uint64_t)(v->interval_seconds))) return -1;
+    if (csilc_w_text(b, "verification_url", 16)) return -1;
+    if (csilc_w_text(b, (v->verification_url), (v->verification_url) ? strlen(v->verification_url) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_BeginCliLoginResponse reads BeginCliLoginResponse from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_BeginCliLoginResponse(const csilc_value *m, CsilCodecArena *a, BeginCliLoginResponse *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "user_code");
+    if (!csilc_get_text(csilc_f, &(out->user_code))) return -1;
+    csilc_f = csilc_map_get(m, "expires_at");
+    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    csilc_f = csilc_map_get(m, "device_code");
+    if (!csilc_get_text(csilc_f, &(out->device_code))) return -1;
+    csilc_f = csilc_map_get(m, "interval_seconds");
+    if (!csilc_as_u64(csilc_f, &(out->interval_seconds))) return -1;
+    csilc_f = csilc_map_get(m, "verification_url");
+    if (!csilc_get_text(csilc_f, &(out->verification_url))) return -1;
+    return 0;
+}
+
+/* csilc_enc_ApproveCliLoginRequest writes ApproveCliLoginRequest as a canonical CBOR map. */
+static inline int csilc_enc_ApproveCliLoginRequest(csilc_buf *b, const ApproveCliLoginRequest *v) {
+    size_t csilc_n = 1;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "user_code", 9)) return -1;
+    if (csilc_w_text(b, (v->user_code), (v->user_code) ? strlen(v->user_code) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_ApproveCliLoginRequest reads ApproveCliLoginRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_ApproveCliLoginRequest(const csilc_value *m, CsilCodecArena *a, ApproveCliLoginRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "user_code");
+    if (!csilc_get_text(csilc_f, &(out->user_code))) return -1;
+    return 0;
+}
+
+/* csilc_enc_CliLoginRequestInfo writes CliLoginRequestInfo as a canonical CBOR map. */
+static inline int csilc_enc_CliLoginRequestInfo(csilc_buf *b, const CliLoginRequestInfo *v) {
+    size_t csilc_n = 3;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "user_code", 9)) return -1;
+    if (csilc_w_text(b, (v->user_code), (v->user_code) ? strlen(v->user_code) : 0)) return -1;
+    if (csilc_w_text(b, "expires_at", 10)) return -1;
+    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (csilc_w_text(b, "client_name", 11)) return -1;
+    if (csilc_w_text(b, (v->client_name), (v->client_name) ? strlen(v->client_name) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_CliLoginRequestInfo reads CliLoginRequestInfo from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_CliLoginRequestInfo(const csilc_value *m, CsilCodecArena *a, CliLoginRequestInfo *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "user_code");
+    if (!csilc_get_text(csilc_f, &(out->user_code))) return -1;
+    csilc_f = csilc_map_get(m, "expires_at");
+    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    csilc_f = csilc_map_get(m, "client_name");
+    if (!csilc_get_text(csilc_f, &(out->client_name))) return -1;
+    return 0;
+}
+
+/* csilc_enc_DenyCliLoginRequest writes DenyCliLoginRequest as a canonical CBOR map. */
+static inline int csilc_enc_DenyCliLoginRequest(csilc_buf *b, const DenyCliLoginRequest *v) {
+    size_t csilc_n = 1;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "user_code", 9)) return -1;
+    if (csilc_w_text(b, (v->user_code), (v->user_code) ? strlen(v->user_code) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_DenyCliLoginRequest reads DenyCliLoginRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_DenyCliLoginRequest(const csilc_value *m, CsilCodecArena *a, DenyCliLoginRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "user_code");
+    if (!csilc_get_text(csilc_f, &(out->user_code))) return -1;
+    return 0;
+}
+
+/* csilc_enc_ExchangeCliLoginRequest writes ExchangeCliLoginRequest as a canonical CBOR map. */
+static inline int csilc_enc_ExchangeCliLoginRequest(csilc_buf *b, const ExchangeCliLoginRequest *v) {
+    size_t csilc_n = 1;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "device_code", 11)) return -1;
+    if (csilc_w_text(b, (v->device_code), (v->device_code) ? strlen(v->device_code) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_ExchangeCliLoginRequest reads ExchangeCliLoginRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_ExchangeCliLoginRequest(const csilc_value *m, CsilCodecArena *a, ExchangeCliLoginRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "device_code");
+    if (!csilc_get_text(csilc_f, &(out->device_code))) return -1;
+    return 0;
+}
+
+/* csilc_enc_ExchangeCliLoginResponse writes ExchangeCliLoginResponse as a canonical CBOR map. */
+static inline int csilc_enc_ExchangeCliLoginResponse(csilc_buf *b, const ExchangeCliLoginResponse *v) {
+    size_t csilc_n = 1;
+    if (v->session) csilc_n++;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "status", 6)) return -1;
+    if (csilc_enc_CliLoginStatus(b, &(v->status))) return -1;
+    if (v->session) {
+        if (csilc_w_text(b, "session", 7)) return -1;
+        if (csilc_enc_CliTokenResponse(b, &((*v->session)))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_ExchangeCliLoginResponse reads ExchangeCliLoginResponse from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_ExchangeCliLoginResponse(const csilc_value *m, CsilCodecArena *a, ExchangeCliLoginResponse *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "status");
+    if (csilc_dec_CliLoginStatus(csilc_f, a, &(out->status))) return -1;
+    csilc_f = csilc_map_get(m, "session");
+    out->session = NULL;
+    if (csilc_f) {
+        CliTokenResponse *csilc_p = (CliTokenResponse *)csilc_arena_alloc(a, sizeof(CliTokenResponse));
+        if (!csilc_p) return -1;
+        if (csilc_dec_CliTokenResponse(csilc_f, a, &((*csilc_p)))) return -1;
+        out->session = csilc_p;
+    }
+    return 0;
+}
+
+/* csilc_enc_RefreshSessionRequest writes RefreshSessionRequest as a canonical CBOR map. */
+static inline int csilc_enc_RefreshSessionRequest(csilc_buf *b, const RefreshSessionRequest *v) {
+    size_t csilc_n = 1;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "refresh_token", 13)) return -1;
+    if (csilc_w_text(b, (v->refresh_token), (v->refresh_token) ? strlen(v->refresh_token) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_RefreshSessionRequest reads RefreshSessionRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_RefreshSessionRequest(const csilc_value *m, CsilCodecArena *a, RefreshSessionRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "refresh_token");
+    if (!csilc_get_text(csilc_f, &(out->refresh_token))) return -1;
+    return 0;
+}
+
+/* csilc_enc_CliSessionSummary writes CliSessionSummary as a canonical CBOR map. */
+static inline int csilc_enc_CliSessionSummary(csilc_buf *b, const CliSessionSummary *v) {
+    size_t csilc_n = 5;
+    if (v->revoked_at) csilc_n++;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "created_at", 10)) return -1;
+    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_text(b, "expires_at", 10)) return -1;
+    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (v->revoked_at) {
+        if (csilc_w_text(b, "revoked_at", 10)) return -1;
+        if (csilc_w_text(b, ((*v->revoked_at)), ((*v->revoked_at)) ? strlen((*v->revoked_at)) : 0)) return -1;
+    }
+    if (csilc_w_text(b, "session_id", 10)) return -1;
+    if (csilc_w_text(b, (v->session_id), (v->session_id) ? strlen(v->session_id) : 0)) return -1;
+    if (csilc_w_text(b, "client_name", 11)) return -1;
+    if (csilc_w_text(b, (v->client_name), (v->client_name) ? strlen(v->client_name) : 0)) return -1;
+    if (csilc_w_text(b, "last_used_at", 12)) return -1;
+    if (csilc_w_text(b, (v->last_used_at), (v->last_used_at) ? strlen(v->last_used_at) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_CliSessionSummary reads CliSessionSummary from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_CliSessionSummary(const csilc_value *m, CsilCodecArena *a, CliSessionSummary *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "created_at");
+    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    csilc_f = csilc_map_get(m, "expires_at");
+    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    csilc_f = csilc_map_get(m, "revoked_at");
+    out->revoked_at = NULL;
+    if (csilc_f) {
+        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        if (!csilc_p) return -1;
+        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        out->revoked_at = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "session_id");
+    if (!csilc_get_text(csilc_f, &(out->session_id))) return -1;
+    csilc_f = csilc_map_get(m, "client_name");
+    if (!csilc_get_text(csilc_f, &(out->client_name))) return -1;
+    csilc_f = csilc_map_get(m, "last_used_at");
+    if (!csilc_get_text(csilc_f, &(out->last_used_at))) return -1;
+    return 0;
+}
+
+/* csilc_enc_CliSessionsResponse writes CliSessionsResponse as a canonical CBOR map. */
+static inline int csilc_enc_CliSessionsResponse(csilc_buf *b, const CliSessionsResponse *v) {
+    size_t csilc_n = 1;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "sessions", 8)) return -1;
+    if (csilc_w_array_head(b, v->sessions_count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->sessions_count; csilc_i++) {
+        if (csilc_enc_CliSessionSummary(b, &(v->sessions[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_CliSessionsResponse reads CliSessionsResponse from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_CliSessionsResponse(const csilc_value *m, CsilCodecArena *a, CliSessionsResponse *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "sessions");
+    if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
+    out->sessions_count = csilc_f->as.array.count;
+    out->sessions = NULL;
+    if (out->sessions_count) {
+        out->sessions = (CliSessionSummary *)csilc_arena_alloc(a, out->sessions_count * sizeof(CliSessionSummary));
+        if (!out->sessions) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->sessions_count; csilc_i++) {
+            if (csilc_dec_CliSessionSummary(&csilc_f->as.array.items[csilc_i], a, &(out->sessions[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_RevokeSessionRequest writes RevokeSessionRequest as a canonical CBOR map. */
+static inline int csilc_enc_RevokeSessionRequest(csilc_buf *b, const RevokeSessionRequest *v) {
+    size_t csilc_n = 1;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "session_id", 10)) return -1;
+    if (csilc_w_text(b, (v->session_id), (v->session_id) ? strlen(v->session_id) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_RevokeSessionRequest reads RevokeSessionRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_RevokeSessionRequest(const csilc_value *m, CsilCodecArena *a, RevokeSessionRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "session_id");
+    if (!csilc_get_text(csilc_f, &(out->session_id))) return -1;
     return 0;
 }
 
@@ -5037,6 +5454,29 @@ static inline int csil_decode_MilestoneState(const uint8_t *in, size_t len, Mile
     return 0;
 }
 
+/* Encode a CliLoginStatus to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CliLoginStatus(const CliLoginStatus *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CliLoginStatus(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CliLoginStatus. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CliLoginStatus(const uint8_t *in, size_t len, CliLoginStatus *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CliLoginStatus(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
 /* Encode a House to CBOR. On success *out is a malloc'd buffer of
  * *out_len bytes the caller frees with free(); returns non-zero on failure. */
 static inline int csil_encode_House(const House *v, uint8_t **out, size_t *out_len) {
@@ -5631,6 +6071,282 @@ static inline int csil_decode_LoginResponse(const uint8_t *in, size_t len, Login
     const csilc_value *root;
     if (csilc_decode(in, len, &a, &root)) return -1;
     if (csilc_dec_LoginResponse(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CliTokenResponse to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CliTokenResponse(const CliTokenResponse *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CliTokenResponse(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CliTokenResponse. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CliTokenResponse(const uint8_t *in, size_t len, CliTokenResponse *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CliTokenResponse(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a BeginCliLoginRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_BeginCliLoginRequest(const BeginCliLoginRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_BeginCliLoginRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a BeginCliLoginRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_BeginCliLoginRequest(const uint8_t *in, size_t len, BeginCliLoginRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_BeginCliLoginRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a BeginCliLoginResponse to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_BeginCliLoginResponse(const BeginCliLoginResponse *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_BeginCliLoginResponse(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a BeginCliLoginResponse. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_BeginCliLoginResponse(const uint8_t *in, size_t len, BeginCliLoginResponse *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_BeginCliLoginResponse(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a ApproveCliLoginRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_ApproveCliLoginRequest(const ApproveCliLoginRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_ApproveCliLoginRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a ApproveCliLoginRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_ApproveCliLoginRequest(const uint8_t *in, size_t len, ApproveCliLoginRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_ApproveCliLoginRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CliLoginRequestInfo to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CliLoginRequestInfo(const CliLoginRequestInfo *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CliLoginRequestInfo(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CliLoginRequestInfo. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CliLoginRequestInfo(const uint8_t *in, size_t len, CliLoginRequestInfo *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CliLoginRequestInfo(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a DenyCliLoginRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_DenyCliLoginRequest(const DenyCliLoginRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_DenyCliLoginRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a DenyCliLoginRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_DenyCliLoginRequest(const uint8_t *in, size_t len, DenyCliLoginRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_DenyCliLoginRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a ExchangeCliLoginRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_ExchangeCliLoginRequest(const ExchangeCliLoginRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_ExchangeCliLoginRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a ExchangeCliLoginRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_ExchangeCliLoginRequest(const uint8_t *in, size_t len, ExchangeCliLoginRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_ExchangeCliLoginRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a ExchangeCliLoginResponse to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_ExchangeCliLoginResponse(const ExchangeCliLoginResponse *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_ExchangeCliLoginResponse(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a ExchangeCliLoginResponse. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_ExchangeCliLoginResponse(const uint8_t *in, size_t len, ExchangeCliLoginResponse *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_ExchangeCliLoginResponse(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a RefreshSessionRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_RefreshSessionRequest(const RefreshSessionRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_RefreshSessionRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a RefreshSessionRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_RefreshSessionRequest(const uint8_t *in, size_t len, RefreshSessionRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_RefreshSessionRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CliSessionSummary to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CliSessionSummary(const CliSessionSummary *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CliSessionSummary(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CliSessionSummary. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CliSessionSummary(const uint8_t *in, size_t len, CliSessionSummary *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CliSessionSummary(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CliSessionsResponse to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CliSessionsResponse(const CliSessionsResponse *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CliSessionsResponse(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CliSessionsResponse. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CliSessionsResponse(const uint8_t *in, size_t len, CliSessionsResponse *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CliSessionsResponse(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a RevokeSessionRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_RevokeSessionRequest(const RevokeSessionRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_RevokeSessionRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a RevokeSessionRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_RevokeSessionRequest(const uint8_t *in, size_t len, RevokeSessionRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_RevokeSessionRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
     *owner = a;
     return 0;
 }

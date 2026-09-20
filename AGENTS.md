@@ -42,9 +42,11 @@ membership model.
 Uses linkkeys as external IDP. Local member records cache identity data.
 Trusted domains and explicit user lists control access. Per-resource
 sharing supports external READ access via linkkeys identity. The bearer
-token snapshots per-house membership + roles at mint time so authz
-needs no DB lookup per request; staleness is bounded by `exp` and the
-`AuthService.Refresh` op.
+token snapshots per-house membership + roles at mint time so authz needs no
+DB lookup per request. Bearers expire after 12 hours by default. The server
+setting controls this lifetime. CLI login uses browser approval and a rotating
+refresh token. The database stores only refresh-token hashes. A CLI session
+cannot use the browser-only `AuthService.Refresh` op.
 
 ## Dev setup
 
@@ -183,4 +185,3 @@ dev-auth and recurrence-worker knobs.
   for `--password-stdin`-style stdin pipes; for reactorcide-managed
   secrets, set `REACTORCIDE_SECRETS_PASSWORD` inline per command from
   `~/.reactorcide-pass` rather than exporting.
-

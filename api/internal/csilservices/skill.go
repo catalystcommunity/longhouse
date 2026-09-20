@@ -16,15 +16,15 @@ import (
 type SkillService struct{ Store store.Store }
 
 func (s *SkillService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("skill", "CreateSkill", csilrpc.Route(s.CreateSkill, csil.DecodeSkillCreateSkillRequest, csil.EncodeSkillCreateSkillResponse))
-	d.RegisterTyped("skill", "UpdateSkill", csilrpc.Route(s.UpdateSkill, csil.DecodeSkillUpdateSkillRequest, csil.EncodeSkillUpdateSkillResponse))
-	d.RegisterTyped("skill", "DeleteSkill", csilrpc.Route(s.DeleteSkill, csil.DecodeSkillDeleteSkillRequest, csil.EncodeSkillDeleteSkillResponse))
-	d.RegisterTyped("skill", "ListSkills", csilrpc.Route(s.ListSkills, csil.DecodeSkillListSkillsRequest, csil.EncodeSkillListSkillsResponse))
-	d.RegisterTyped("skill", "AddMemberSkill", csilrpc.Route(s.AddMemberSkill, csil.DecodeSkillAddMemberSkillRequest, csil.EncodeSkillAddMemberSkillResponse))
-	d.RegisterTyped("skill", "RemoveMemberSkill", csilrpc.Route(s.RemoveMemberSkill, csil.DecodeSkillRemoveMemberSkillRequest, csil.EncodeSkillRemoveMemberSkillResponse))
-	d.RegisterTyped("skill", "ListMemberSkills", csilrpc.Route(s.ListMemberSkills, csil.DecodeSkillListMemberSkillsRequest, csil.EncodeSkillListMemberSkillsResponse))
-	d.RegisterTyped("skill", "AddGroupSkill", csilrpc.Route(s.AddGroupSkill, csil.DecodeSkillAddGroupSkillRequest, csil.EncodeSkillAddGroupSkillResponse))
-	d.RegisterTyped("skill", "RemoveGroupSkill", csilrpc.Route(s.RemoveGroupSkill, csil.DecodeSkillRemoveGroupSkillRequest, csil.EncodeSkillRemoveGroupSkillResponse))
+	d.RegisterTyped("skill", "CreateSkill", csilrpc.Route(s.CreateSkill, csil.DecodeSkill, csil.EncodeSkill))
+	d.RegisterTyped("skill", "UpdateSkill", csilrpc.Route(s.UpdateSkill, csil.DecodeSkill, csil.EncodeSkill))
+	d.RegisterTyped("skill", "DeleteSkill", csilrpc.Route(s.DeleteSkill, csil.DecodeSkillDeleteSkillRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("skill", "ListSkills", csilrpc.Route(s.ListSkills, csil.DecodeHouseScopedListRequest, csil.EncodeSkillListSkillsResponse))
+	d.RegisterTyped("skill", "AddMemberSkill", csilrpc.Route(s.AddMemberSkill, csil.DecodeMemberSkillRef, csil.EncodeEmptyResponse))
+	d.RegisterTyped("skill", "RemoveMemberSkill", csilrpc.Route(s.RemoveMemberSkill, csil.DecodeMemberSkillRef, csil.EncodeEmptyResponse))
+	d.RegisterTyped("skill", "ListMemberSkills", csilrpc.Route(s.ListMemberSkills, csil.DecodeMemberScopedListRequest, csil.EncodeSkillListMemberSkillsResponse))
+	d.RegisterTyped("skill", "AddGroupSkill", csilrpc.Route(s.AddGroupSkill, csil.DecodeGroupSkillRef, csil.EncodeEmptyResponse))
+	d.RegisterTyped("skill", "RemoveGroupSkill", csilrpc.Route(s.RemoveGroupSkill, csil.DecodeGroupSkillRef, csil.EncodeEmptyResponse))
 	d.RegisterTyped("skill", "ListGroupSkills", csilrpc.Route(s.ListGroupSkills, csil.DecodeSkillListGroupSkillsRequest, csil.EncodeSkillListGroupSkillsResponse))
 }
 

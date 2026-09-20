@@ -20,15 +20,15 @@ import (
 type TaskService struct{ Store store.Store }
 
 func (s *TaskService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("task", "ListTasks", csilrpc.Route(s.ListTasks, csil.DecodeTaskListTasksRequest, csil.EncodeTaskListTasksResponse))
-	d.RegisterTyped("task", "GetTask", csilrpc.Route(s.GetTask, csil.DecodeTaskGetTaskRequest, csil.EncodeTaskGetTaskResponse))
-	d.RegisterTyped("task", "CreateTask", csilrpc.Route(s.CreateTask, csil.DecodeTaskCreateTaskRequest, csil.EncodeTaskCreateTaskResponse))
-	d.RegisterTyped("task", "UpdateTask", csilrpc.Route(s.UpdateTask, csil.DecodeTaskUpdateTaskRequest, csil.EncodeTaskUpdateTaskResponse))
-	d.RegisterTyped("task", "DeleteTask", csilrpc.Route(s.DeleteTask, csil.DecodeTaskDeleteTaskRequest, csil.EncodeTaskDeleteTaskResponse))
-	d.RegisterTyped("task", "SetTaskVisibility", csilrpc.Route(s.SetTaskVisibility, csil.DecodeTaskSetTaskVisibilityRequest, csil.EncodeTaskSetTaskVisibilityResponse))
+	d.RegisterTyped("task", "ListTasks", csilrpc.Route(s.ListTasks, csil.DecodeHouseScopedListRequest, csil.EncodeTaskList))
+	d.RegisterTyped("task", "GetTask", csilrpc.Route(s.GetTask, csil.DecodeTaskGetTaskRequest, csil.EncodeTask))
+	d.RegisterTyped("task", "CreateTask", csilrpc.Route(s.CreateTask, csil.DecodeTask, csil.EncodeTask))
+	d.RegisterTyped("task", "UpdateTask", csilrpc.Route(s.UpdateTask, csil.DecodeTask, csil.EncodeTask))
+	d.RegisterTyped("task", "DeleteTask", csilrpc.Route(s.DeleteTask, csil.DecodeTaskDeleteTaskRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("task", "SetTaskVisibility", csilrpc.Route(s.SetTaskVisibility, csil.DecodeSetTaskVisibilityRequest, csil.EncodeTask))
 	d.RegisterTyped("task", "ListTaskGrants", csilrpc.Route(s.ListTaskGrants, csil.DecodeTaskListTaskGrantsRequest, csil.EncodeTaskListTaskGrantsResponse))
-	d.RegisterTyped("task", "PutTaskGrant", csilrpc.Route(s.PutTaskGrant, csil.DecodeTaskPutTaskGrantRequest, csil.EncodeTaskPutTaskGrantResponse))
-	d.RegisterTyped("task", "DeleteTaskGrant", csilrpc.Route(s.DeleteTaskGrant, csil.DecodeTaskDeleteTaskGrantRequest, csil.EncodeTaskDeleteTaskGrantResponse))
+	d.RegisterTyped("task", "PutTaskGrant", csilrpc.Route(s.PutTaskGrant, csil.DecodePutTaskGrantRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("task", "DeleteTaskGrant", csilrpc.Route(s.DeleteTaskGrant, csil.DecodeTaskGrantRef, csil.EncodeEmptyResponse))
 }
 
 func (s *TaskService) ListTasks(ctx context.Context, req csil.HouseScopedListRequest) (csil.TaskList, error) {

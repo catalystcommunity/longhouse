@@ -13,6 +13,14 @@ public interface IAuthService
     LoginResponse Refresh(EmptyRequest emptyRequest);
     EmptyResponse Logout(EmptyRequest emptyRequest);
     MeResponse Me(EmptyRequest emptyRequest);
+    BeginCliLoginResponse BeginCliLogin(BeginCliLoginRequest beginCliLoginRequest);
+    CliLoginRequestInfo InspectCliLogin(ApproveCliLoginRequest approveCliLoginRequest);
+    EmptyResponse ApproveCliLogin(ApproveCliLoginRequest approveCliLoginRequest);
+    EmptyResponse DenyCliLogin(DenyCliLoginRequest denyCliLoginRequest);
+    ExchangeCliLoginResponse ExchangeCliLogin(ExchangeCliLoginRequest exchangeCliLoginRequest);
+    CliTokenResponse RefreshSession(RefreshSessionRequest refreshSessionRequest);
+    CliSessionsResponse ListSessions(EmptyRequest emptyRequest);
+    EmptyResponse RevokeSession(RevokeSessionRequest revokeSessionRequest);
 }
 
 /// <summary>Server handler interface for the DevAuthService service.</summary>

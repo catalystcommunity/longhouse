@@ -25,8 +25,10 @@ func (e *ClientError) Error() string {
 
 // Transport is the caller-supplied byte carrier: it performs the call named by
 // (service, op) with the already-encoded request bytes and returns the response
-// bytes, or an error. The generated client owns (de)serialization via the codec;
-// the carrier only moves bytes, so it can be HTTP, a queue, or an in-process loop.
+// bytes, or an error. Both names are the verbatim CSIL names (service as written,
+// op in kebab-case as written), ready to go on the wire unmodified. The generated
+// client owns (de)serialization via the codec; the carrier only moves bytes, so
+// it can be HTTP, a queue, or an in-process loop.
 type Transport interface {
 	Call(ctx context.Context, service string, op string, req []byte) ([]byte, error)
 }
@@ -43,7 +45,7 @@ func NewAuthClient(transport Transport) *AuthClient {
 
 func (c *AuthClient) Login(ctx context.Context, req LoginRequest) (LoginResponse, error) {
 	var csilZero LoginResponse
-	csilResp, csilErr := c.transport.Call(ctx, "auth", "Login", EncodeLoginRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "login", EncodeLoginRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -52,7 +54,7 @@ func (c *AuthClient) Login(ctx context.Context, req LoginRequest) (LoginResponse
 
 func (c *AuthClient) Complete(ctx context.Context, req CompleteRequest) (LoginResponse, error) {
 	var csilZero LoginResponse
-	csilResp, csilErr := c.transport.Call(ctx, "auth", "Complete", EncodeCompleteRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "complete", EncodeCompleteRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -61,7 +63,7 @@ func (c *AuthClient) Complete(ctx context.Context, req CompleteRequest) (LoginRe
 
 func (c *AuthClient) Refresh(ctx context.Context, req EmptyRequest) (LoginResponse, error) {
 	var csilZero LoginResponse
-	csilResp, csilErr := c.transport.Call(ctx, "auth", "Refresh", EncodeEmptyRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "refresh", EncodeEmptyRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -70,7 +72,7 @@ func (c *AuthClient) Refresh(ctx context.Context, req EmptyRequest) (LoginRespon
 
 func (c *AuthClient) Logout(ctx context.Context, req EmptyRequest) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "auth", "Logout", EncodeEmptyRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "logout", EncodeEmptyRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -79,11 +81,83 @@ func (c *AuthClient) Logout(ctx context.Context, req EmptyRequest) (EmptyRespons
 
 func (c *AuthClient) Me(ctx context.Context, req EmptyRequest) (MeResponse, error) {
 	var csilZero MeResponse
-	csilResp, csilErr := c.transport.Call(ctx, "auth", "Me", EncodeEmptyRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "me", EncodeEmptyRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
 	return DecodeMeResponse(csilResp)
+}
+
+func (c *AuthClient) BeginCliLogin(ctx context.Context, req BeginCliLoginRequest) (BeginCliLoginResponse, error) {
+	var csilZero BeginCliLoginResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "begin-cli-login", EncodeBeginCliLoginRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeBeginCliLoginResponse(csilResp)
+}
+
+func (c *AuthClient) InspectCliLogin(ctx context.Context, req ApproveCliLoginRequest) (CliLoginRequestInfo, error) {
+	var csilZero CliLoginRequestInfo
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "inspect-cli-login", EncodeApproveCliLoginRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCliLoginRequestInfo(csilResp)
+}
+
+func (c *AuthClient) ApproveCliLogin(ctx context.Context, req ApproveCliLoginRequest) (EmptyResponse, error) {
+	var csilZero EmptyResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "approve-cli-login", EncodeApproveCliLoginRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEmptyResponse(csilResp)
+}
+
+func (c *AuthClient) DenyCliLogin(ctx context.Context, req DenyCliLoginRequest) (EmptyResponse, error) {
+	var csilZero EmptyResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "deny-cli-login", EncodeDenyCliLoginRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEmptyResponse(csilResp)
+}
+
+func (c *AuthClient) ExchangeCliLogin(ctx context.Context, req ExchangeCliLoginRequest) (ExchangeCliLoginResponse, error) {
+	var csilZero ExchangeCliLoginResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "exchange-cli-login", EncodeExchangeCliLoginRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeExchangeCliLoginResponse(csilResp)
+}
+
+func (c *AuthClient) RefreshSession(ctx context.Context, req RefreshSessionRequest) (CliTokenResponse, error) {
+	var csilZero CliTokenResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "refresh-session", EncodeRefreshSessionRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCliTokenResponse(csilResp)
+}
+
+func (c *AuthClient) ListSessions(ctx context.Context, req EmptyRequest) (CliSessionsResponse, error) {
+	var csilZero CliSessionsResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "list-sessions", EncodeEmptyRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCliSessionsResponse(csilResp)
+}
+
+func (c *AuthClient) RevokeSession(ctx context.Context, req RevokeSessionRequest) (EmptyResponse, error) {
+	var csilZero EmptyResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "revoke-session", EncodeRevokeSessionRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEmptyResponse(csilResp)
 }
 
 // DevAuthClient is a typed client for the DevAuthService service. The client owns
@@ -98,7 +172,7 @@ func NewDevAuthClient(transport Transport) *DevAuthClient {
 
 func (c *DevAuthClient) ListDevUsers(ctx context.Context, req EmptyRequest) (DevUsersResponse, error) {
 	var csilZero DevUsersResponse
-	csilResp, csilErr := c.transport.Call(ctx, "devauth", "ListDevUsers", EncodeEmptyRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "DevAuthService", "list-dev-users", EncodeEmptyRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -107,7 +181,7 @@ func (c *DevAuthClient) ListDevUsers(ctx context.Context, req EmptyRequest) (Dev
 
 func (c *DevAuthClient) DevLogin(ctx context.Context, req DevLoginRequest) (LoginResponse, error) {
 	var csilZero LoginResponse
-	csilResp, csilErr := c.transport.Call(ctx, "devauth", "DevLogin", EncodeDevLoginRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "DevAuthService", "dev-login", EncodeDevLoginRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -126,7 +200,7 @@ func NewHouseClient(transport Transport) *HouseClient {
 
 func (c *HouseClient) CreateHouse(ctx context.Context, req House) (House, error) {
 	var csilZero House
-	csilResp, csilErr := c.transport.Call(ctx, "house", "CreateHouse", EncodeHouse(req))
+	csilResp, csilErr := c.transport.Call(ctx, "HouseService", "create-house", EncodeHouse(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -135,7 +209,7 @@ func (c *HouseClient) CreateHouse(ctx context.Context, req House) (House, error)
 
 func (c *HouseClient) GetHouse(ctx context.Context, req HouseID) (House, error) {
 	var csilZero House
-	csilResp, csilErr := c.transport.Call(ctx, "house", "GetHouse", EncodeHouseGetHouseRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "HouseService", "get-house", EncodeHouseGetHouseRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -144,7 +218,7 @@ func (c *HouseClient) GetHouse(ctx context.Context, req HouseID) (House, error) 
 
 func (c *HouseClient) UpdateHouse(ctx context.Context, req House) (House, error) {
 	var csilZero House
-	csilResp, csilErr := c.transport.Call(ctx, "house", "UpdateHouse", EncodeHouse(req))
+	csilResp, csilErr := c.transport.Call(ctx, "HouseService", "update-house", EncodeHouse(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -153,7 +227,7 @@ func (c *HouseClient) UpdateHouse(ctx context.Context, req House) (House, error)
 
 func (c *HouseClient) DeleteHouse(ctx context.Context, req HouseID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "house", "DeleteHouse", EncodeHouseDeleteHouseRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "HouseService", "delete-house", EncodeHouseDeleteHouseRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -162,7 +236,7 @@ func (c *HouseClient) DeleteHouse(ctx context.Context, req HouseID) (EmptyRespon
 
 func (c *HouseClient) ListHouses(ctx context.Context, req HouseListRequest) ([]House, error) {
 	var csilZero []House
-	csilResp, csilErr := c.transport.Call(ctx, "house", "ListHouses", EncodeHouseListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "HouseService", "list-houses", EncodeHouseListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -181,7 +255,7 @@ func NewMemberClient(transport Transport) *MemberClient {
 
 func (c *MemberClient) CreateMember(ctx context.Context, req Member) (Member, error) {
 	var csilZero Member
-	csilResp, csilErr := c.transport.Call(ctx, "member", "CreateMember", EncodeMember(req))
+	csilResp, csilErr := c.transport.Call(ctx, "MemberService", "create-member", EncodeMember(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -190,7 +264,7 @@ func (c *MemberClient) CreateMember(ctx context.Context, req Member) (Member, er
 
 func (c *MemberClient) GetMember(ctx context.Context, req MemberID) (Member, error) {
 	var csilZero Member
-	csilResp, csilErr := c.transport.Call(ctx, "member", "GetMember", EncodeMemberGetMemberRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "MemberService", "get-member", EncodeMemberGetMemberRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -199,7 +273,7 @@ func (c *MemberClient) GetMember(ctx context.Context, req MemberID) (Member, err
 
 func (c *MemberClient) GetMemberByIdentity(ctx context.Context, req Member) (Member, error) {
 	var csilZero Member
-	csilResp, csilErr := c.transport.Call(ctx, "member", "GetMemberByIdentity", EncodeMember(req))
+	csilResp, csilErr := c.transport.Call(ctx, "MemberService", "get-member-by-identity", EncodeMember(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -208,7 +282,7 @@ func (c *MemberClient) GetMemberByIdentity(ctx context.Context, req Member) (Mem
 
 func (c *MemberClient) UpdateMember(ctx context.Context, req Member) (Member, error) {
 	var csilZero Member
-	csilResp, csilErr := c.transport.Call(ctx, "member", "UpdateMember", EncodeMember(req))
+	csilResp, csilErr := c.transport.Call(ctx, "MemberService", "update-member", EncodeMember(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -217,7 +291,7 @@ func (c *MemberClient) UpdateMember(ctx context.Context, req Member) (Member, er
 
 func (c *MemberClient) DeactivateMember(ctx context.Context, req MemberID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "member", "DeactivateMember", EncodeMemberDeactivateMemberRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "MemberService", "deactivate-member", EncodeMemberDeactivateMemberRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -226,7 +300,7 @@ func (c *MemberClient) DeactivateMember(ctx context.Context, req MemberID) (Empt
 
 func (c *MemberClient) ReactivateMember(ctx context.Context, req MemberID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "member", "ReactivateMember", EncodeMemberReactivateMemberRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "MemberService", "reactivate-member", EncodeMemberReactivateMemberRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -235,7 +309,7 @@ func (c *MemberClient) ReactivateMember(ctx context.Context, req MemberID) (Empt
 
 func (c *MemberClient) ListMembers(ctx context.Context, req HouseScopedListRequest) ([]Member, error) {
 	var csilZero []Member
-	csilResp, csilErr := c.transport.Call(ctx, "member", "ListMembers", EncodeHouseScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "MemberService", "list-members", EncodeHouseScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -254,7 +328,7 @@ func NewTrustedDomainClient(transport Transport) *TrustedDomainClient {
 
 func (c *TrustedDomainClient) AddTrustedDomain(ctx context.Context, req TrustedDomain) (TrustedDomain, error) {
 	var csilZero TrustedDomain
-	csilResp, csilErr := c.transport.Call(ctx, "trusteddomain", "AddTrustedDomain", EncodeTrustedDomain(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TrustedDomainService", "add-trusted-domain", EncodeTrustedDomain(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -263,7 +337,7 @@ func (c *TrustedDomainClient) AddTrustedDomain(ctx context.Context, req TrustedD
 
 func (c *TrustedDomainClient) RemoveTrustedDomain(ctx context.Context, req TrustedDomainID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "trusteddomain", "RemoveTrustedDomain", EncodeTrustedDomainRemoveTrustedDomainRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TrustedDomainService", "remove-trusted-domain", EncodeTrustedDomainRemoveTrustedDomainRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -272,7 +346,7 @@ func (c *TrustedDomainClient) RemoveTrustedDomain(ctx context.Context, req Trust
 
 func (c *TrustedDomainClient) ListTrustedDomains(ctx context.Context, req HouseID) ([]TrustedDomain, error) {
 	var csilZero []TrustedDomain
-	csilResp, csilErr := c.transport.Call(ctx, "trusteddomain", "ListTrustedDomains", EncodeTrustedDomainListTrustedDomainsRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TrustedDomainService", "list-trusted-domains", EncodeTrustedDomainListTrustedDomainsRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -281,7 +355,7 @@ func (c *TrustedDomainClient) ListTrustedDomains(ctx context.Context, req HouseI
 
 func (c *TrustedDomainClient) IsDomainTrusted(ctx context.Context, req TrustedDomain) (BoolResponse, error) {
 	var csilZero BoolResponse
-	csilResp, csilErr := c.transport.Call(ctx, "trusteddomain", "IsDomainTrusted", EncodeTrustedDomain(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TrustedDomainService", "is-domain-trusted", EncodeTrustedDomain(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -300,7 +374,7 @@ func NewRoleClient(transport Transport) *RoleClient {
 
 func (c *RoleClient) CreateRole(ctx context.Context, req Role) (Role, error) {
 	var csilZero Role
-	csilResp, csilErr := c.transport.Call(ctx, "role", "CreateRole", EncodeRole(req))
+	csilResp, csilErr := c.transport.Call(ctx, "RoleService", "create-role", EncodeRole(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -309,7 +383,7 @@ func (c *RoleClient) CreateRole(ctx context.Context, req Role) (Role, error) {
 
 func (c *RoleClient) UpdateRole(ctx context.Context, req Role) (Role, error) {
 	var csilZero Role
-	csilResp, csilErr := c.transport.Call(ctx, "role", "UpdateRole", EncodeRole(req))
+	csilResp, csilErr := c.transport.Call(ctx, "RoleService", "update-role", EncodeRole(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -318,7 +392,7 @@ func (c *RoleClient) UpdateRole(ctx context.Context, req Role) (Role, error) {
 
 func (c *RoleClient) DeleteRole(ctx context.Context, req RoleID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "role", "DeleteRole", EncodeRoleDeleteRoleRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "RoleService", "delete-role", EncodeRoleDeleteRoleRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -327,7 +401,7 @@ func (c *RoleClient) DeleteRole(ctx context.Context, req RoleID) (EmptyResponse,
 
 func (c *RoleClient) ListRoles(ctx context.Context, req HouseScopedListRequest) ([]Role, error) {
 	var csilZero []Role
-	csilResp, csilErr := c.transport.Call(ctx, "role", "ListRoles", EncodeHouseScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "RoleService", "list-roles", EncodeHouseScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -336,7 +410,7 @@ func (c *RoleClient) ListRoles(ctx context.Context, req HouseScopedListRequest) 
 
 func (c *RoleClient) GrantRole(ctx context.Context, req MemberRoleRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "role", "GrantRole", EncodeMemberRoleRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "RoleService", "grant-role", EncodeMemberRoleRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -345,7 +419,7 @@ func (c *RoleClient) GrantRole(ctx context.Context, req MemberRoleRef) (EmptyRes
 
 func (c *RoleClient) RevokeRole(ctx context.Context, req MemberRoleRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "role", "RevokeRole", EncodeMemberRoleRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "RoleService", "revoke-role", EncodeMemberRoleRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -354,7 +428,7 @@ func (c *RoleClient) RevokeRole(ctx context.Context, req MemberRoleRef) (EmptyRe
 
 func (c *RoleClient) ListMemberRoles(ctx context.Context, req MemberScopedListRequest) ([]Role, error) {
 	var csilZero []Role
-	csilResp, csilErr := c.transport.Call(ctx, "role", "ListMemberRoles", EncodeMemberScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "RoleService", "list-member-roles", EncodeMemberScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -373,7 +447,7 @@ func NewSkillClient(transport Transport) *SkillClient {
 
 func (c *SkillClient) CreateSkill(ctx context.Context, req Skill) (Skill, error) {
 	var csilZero Skill
-	csilResp, csilErr := c.transport.Call(ctx, "skill", "CreateSkill", EncodeSkill(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SkillService", "create-skill", EncodeSkill(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -382,7 +456,7 @@ func (c *SkillClient) CreateSkill(ctx context.Context, req Skill) (Skill, error)
 
 func (c *SkillClient) UpdateSkill(ctx context.Context, req Skill) (Skill, error) {
 	var csilZero Skill
-	csilResp, csilErr := c.transport.Call(ctx, "skill", "UpdateSkill", EncodeSkill(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SkillService", "update-skill", EncodeSkill(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -391,7 +465,7 @@ func (c *SkillClient) UpdateSkill(ctx context.Context, req Skill) (Skill, error)
 
 func (c *SkillClient) DeleteSkill(ctx context.Context, req SkillID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "skill", "DeleteSkill", EncodeSkillDeleteSkillRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SkillService", "delete-skill", EncodeSkillDeleteSkillRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -400,7 +474,7 @@ func (c *SkillClient) DeleteSkill(ctx context.Context, req SkillID) (EmptyRespon
 
 func (c *SkillClient) ListSkills(ctx context.Context, req HouseScopedListRequest) ([]Skill, error) {
 	var csilZero []Skill
-	csilResp, csilErr := c.transport.Call(ctx, "skill", "ListSkills", EncodeHouseScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SkillService", "list-skills", EncodeHouseScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -409,7 +483,7 @@ func (c *SkillClient) ListSkills(ctx context.Context, req HouseScopedListRequest
 
 func (c *SkillClient) AddMemberSkill(ctx context.Context, req MemberSkillRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "skill", "AddMemberSkill", EncodeMemberSkillRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SkillService", "add-member-skill", EncodeMemberSkillRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -418,7 +492,7 @@ func (c *SkillClient) AddMemberSkill(ctx context.Context, req MemberSkillRef) (E
 
 func (c *SkillClient) RemoveMemberSkill(ctx context.Context, req MemberSkillRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "skill", "RemoveMemberSkill", EncodeMemberSkillRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SkillService", "remove-member-skill", EncodeMemberSkillRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -427,7 +501,7 @@ func (c *SkillClient) RemoveMemberSkill(ctx context.Context, req MemberSkillRef)
 
 func (c *SkillClient) ListMemberSkills(ctx context.Context, req MemberScopedListRequest) ([]Skill, error) {
 	var csilZero []Skill
-	csilResp, csilErr := c.transport.Call(ctx, "skill", "ListMemberSkills", EncodeMemberScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SkillService", "list-member-skills", EncodeMemberScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -436,7 +510,7 @@ func (c *SkillClient) ListMemberSkills(ctx context.Context, req MemberScopedList
 
 func (c *SkillClient) AddGroupSkill(ctx context.Context, req GroupSkillRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "skill", "AddGroupSkill", EncodeGroupSkillRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SkillService", "add-group-skill", EncodeGroupSkillRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -445,7 +519,7 @@ func (c *SkillClient) AddGroupSkill(ctx context.Context, req GroupSkillRef) (Emp
 
 func (c *SkillClient) RemoveGroupSkill(ctx context.Context, req GroupSkillRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "skill", "RemoveGroupSkill", EncodeGroupSkillRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SkillService", "remove-group-skill", EncodeGroupSkillRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -454,7 +528,7 @@ func (c *SkillClient) RemoveGroupSkill(ctx context.Context, req GroupSkillRef) (
 
 func (c *SkillClient) ListGroupSkills(ctx context.Context, req GroupID) ([]Skill, error) {
 	var csilZero []Skill
-	csilResp, csilErr := c.transport.Call(ctx, "skill", "ListGroupSkills", EncodeSkillListGroupSkillsRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SkillService", "list-group-skills", EncodeSkillListGroupSkillsRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -473,7 +547,7 @@ func NewGroupClient(transport Transport) *GroupClient {
 
 func (c *GroupClient) CreateGroup(ctx context.Context, req Group) (Group, error) {
 	var csilZero Group
-	csilResp, csilErr := c.transport.Call(ctx, "group", "CreateGroup", EncodeGroup(req))
+	csilResp, csilErr := c.transport.Call(ctx, "GroupService", "create-group", EncodeGroup(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -482,7 +556,7 @@ func (c *GroupClient) CreateGroup(ctx context.Context, req Group) (Group, error)
 
 func (c *GroupClient) UpdateGroup(ctx context.Context, req Group) (Group, error) {
 	var csilZero Group
-	csilResp, csilErr := c.transport.Call(ctx, "group", "UpdateGroup", EncodeGroup(req))
+	csilResp, csilErr := c.transport.Call(ctx, "GroupService", "update-group", EncodeGroup(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -491,7 +565,7 @@ func (c *GroupClient) UpdateGroup(ctx context.Context, req Group) (Group, error)
 
 func (c *GroupClient) DeleteGroup(ctx context.Context, req GroupID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "group", "DeleteGroup", EncodeGroupDeleteGroupRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "GroupService", "delete-group", EncodeGroupDeleteGroupRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -500,7 +574,7 @@ func (c *GroupClient) DeleteGroup(ctx context.Context, req GroupID) (EmptyRespon
 
 func (c *GroupClient) ListGroups(ctx context.Context, req HouseScopedListRequest) ([]Group, error) {
 	var csilZero []Group
-	csilResp, csilErr := c.transport.Call(ctx, "group", "ListGroups", EncodeHouseScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "GroupService", "list-groups", EncodeHouseScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -509,7 +583,7 @@ func (c *GroupClient) ListGroups(ctx context.Context, req HouseScopedListRequest
 
 func (c *GroupClient) AddGroupMember(ctx context.Context, req GroupMemberRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "group", "AddGroupMember", EncodeGroupMemberRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "GroupService", "add-group-member", EncodeGroupMemberRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -518,7 +592,7 @@ func (c *GroupClient) AddGroupMember(ctx context.Context, req GroupMemberRef) (E
 
 func (c *GroupClient) RemoveGroupMember(ctx context.Context, req GroupMemberRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "group", "RemoveGroupMember", EncodeGroupMemberRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "GroupService", "remove-group-member", EncodeGroupMemberRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -527,7 +601,7 @@ func (c *GroupClient) RemoveGroupMember(ctx context.Context, req GroupMemberRef)
 
 func (c *GroupClient) ListGroupMembers(ctx context.Context, req MemberScopedListRequest) ([]Member, error) {
 	var csilZero []Member
-	csilResp, csilErr := c.transport.Call(ctx, "group", "ListGroupMembers", EncodeMemberScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "GroupService", "list-group-members", EncodeMemberScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -546,7 +620,7 @@ func NewProjectClient(transport Transport) *ProjectClient {
 
 func (c *ProjectClient) CreateProject(ctx context.Context, req Project) (Project, error) {
 	var csilZero Project
-	csilResp, csilErr := c.transport.Call(ctx, "project", "CreateProject", EncodeProject(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "create-project", EncodeProject(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -555,7 +629,7 @@ func (c *ProjectClient) CreateProject(ctx context.Context, req Project) (Project
 
 func (c *ProjectClient) GetProject(ctx context.Context, req ProjectID) (Project, error) {
 	var csilZero Project
-	csilResp, csilErr := c.transport.Call(ctx, "project", "GetProject", EncodeProjectGetProjectRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "get-project", EncodeProjectGetProjectRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -564,7 +638,7 @@ func (c *ProjectClient) GetProject(ctx context.Context, req ProjectID) (Project,
 
 func (c *ProjectClient) UpdateProject(ctx context.Context, req Project) (Project, error) {
 	var csilZero Project
-	csilResp, csilErr := c.transport.Call(ctx, "project", "UpdateProject", EncodeProject(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "update-project", EncodeProject(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -573,7 +647,7 @@ func (c *ProjectClient) UpdateProject(ctx context.Context, req Project) (Project
 
 func (c *ProjectClient) DeleteProject(ctx context.Context, req ProjectID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "project", "DeleteProject", EncodeProjectDeleteProjectRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "delete-project", EncodeProjectDeleteProjectRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -582,7 +656,7 @@ func (c *ProjectClient) DeleteProject(ctx context.Context, req ProjectID) (Empty
 
 func (c *ProjectClient) ListProjects(ctx context.Context, req HouseScopedListRequest) (ProjectList, error) {
 	var csilZero ProjectList
-	csilResp, csilErr := c.transport.Call(ctx, "project", "ListProjects", EncodeHouseScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "list-projects", EncodeHouseScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -591,7 +665,7 @@ func (c *ProjectClient) ListProjects(ctx context.Context, req HouseScopedListReq
 
 func (c *ProjectClient) ListProjectTasks(ctx context.Context, req ProjectScopedListRequest) (TaskList, error) {
 	var csilZero TaskList
-	csilResp, csilErr := c.transport.Call(ctx, "project", "ListProjectTasks", EncodeProjectScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "list-project-tasks", EncodeProjectScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -600,7 +674,7 @@ func (c *ProjectClient) ListProjectTasks(ctx context.Context, req ProjectScopedL
 
 func (c *ProjectClient) AddProjectTask(ctx context.Context, req ProjectTaskOrderRequest) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "project", "AddProjectTask", EncodeProjectTaskOrderRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "add-project-task", EncodeProjectTaskOrderRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -609,7 +683,7 @@ func (c *ProjectClient) AddProjectTask(ctx context.Context, req ProjectTaskOrder
 
 func (c *ProjectClient) RemoveProjectTask(ctx context.Context, req ProjectTaskRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "project", "RemoveProjectTask", EncodeProjectTaskRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "remove-project-task", EncodeProjectTaskRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -618,7 +692,7 @@ func (c *ProjectClient) RemoveProjectTask(ctx context.Context, req ProjectTaskRe
 
 func (c *ProjectClient) SetProjectTaskPosition(ctx context.Context, req ProjectTaskOrderRequest) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "project", "SetProjectTaskPosition", EncodeProjectTaskOrderRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "set-project-task-position", EncodeProjectTaskOrderRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -627,7 +701,7 @@ func (c *ProjectClient) SetProjectTaskPosition(ctx context.Context, req ProjectT
 
 func (c *ProjectClient) ListProjectMembers(ctx context.Context, req ProjectID) ([]Member, error) {
 	var csilZero []Member
-	csilResp, csilErr := c.transport.Call(ctx, "project", "ListProjectMembers", EncodeProjectListProjectMembersRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "list-project-members", EncodeProjectListProjectMembersRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -636,7 +710,7 @@ func (c *ProjectClient) ListProjectMembers(ctx context.Context, req ProjectID) (
 
 func (c *ProjectClient) AddProjectMember(ctx context.Context, req ProjectMemberRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "project", "AddProjectMember", EncodeProjectMemberRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "add-project-member", EncodeProjectMemberRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -645,7 +719,7 @@ func (c *ProjectClient) AddProjectMember(ctx context.Context, req ProjectMemberR
 
 func (c *ProjectClient) RemoveProjectMember(ctx context.Context, req ProjectMemberRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "project", "RemoveProjectMember", EncodeProjectMemberRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "remove-project-member", EncodeProjectMemberRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -654,7 +728,7 @@ func (c *ProjectClient) RemoveProjectMember(ctx context.Context, req ProjectMemb
 
 func (c *ProjectClient) ListProjectOwners(ctx context.Context, req ProjectID) ([]Member, error) {
 	var csilZero []Member
-	csilResp, csilErr := c.transport.Call(ctx, "project", "ListProjectOwners", EncodeProjectListProjectOwnersRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "list-project-owners", EncodeProjectListProjectOwnersRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -663,7 +737,7 @@ func (c *ProjectClient) ListProjectOwners(ctx context.Context, req ProjectID) ([
 
 func (c *ProjectClient) AddProjectOwner(ctx context.Context, req ProjectOwnerRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "project", "AddProjectOwner", EncodeProjectOwnerRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "add-project-owner", EncodeProjectOwnerRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -672,7 +746,7 @@ func (c *ProjectClient) AddProjectOwner(ctx context.Context, req ProjectOwnerRef
 
 func (c *ProjectClient) RemoveProjectOwner(ctx context.Context, req ProjectOwnerRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "project", "RemoveProjectOwner", EncodeProjectOwnerRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "remove-project-owner", EncodeProjectOwnerRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -681,7 +755,7 @@ func (c *ProjectClient) RemoveProjectOwner(ctx context.Context, req ProjectOwner
 
 func (c *ProjectClient) ListMilestones(ctx context.Context, req ProjectID) ([]Milestone, error) {
 	var csilZero []Milestone
-	csilResp, csilErr := c.transport.Call(ctx, "project", "ListMilestones", EncodeProjectListMilestonesRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "list-milestones", EncodeProjectListMilestonesRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -690,7 +764,7 @@ func (c *ProjectClient) ListMilestones(ctx context.Context, req ProjectID) ([]Mi
 
 func (c *ProjectClient) CreateMilestone(ctx context.Context, req Milestone) (Milestone, error) {
 	var csilZero Milestone
-	csilResp, csilErr := c.transport.Call(ctx, "project", "CreateMilestone", EncodeMilestone(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "create-milestone", EncodeMilestone(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -699,7 +773,7 @@ func (c *ProjectClient) CreateMilestone(ctx context.Context, req Milestone) (Mil
 
 func (c *ProjectClient) UpdateMilestone(ctx context.Context, req Milestone) (Milestone, error) {
 	var csilZero Milestone
-	csilResp, csilErr := c.transport.Call(ctx, "project", "UpdateMilestone", EncodeMilestone(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "update-milestone", EncodeMilestone(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -708,7 +782,7 @@ func (c *ProjectClient) UpdateMilestone(ctx context.Context, req Milestone) (Mil
 
 func (c *ProjectClient) DeleteMilestone(ctx context.Context, req MilestoneID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "project", "DeleteMilestone", EncodeProjectDeleteMilestoneRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "delete-milestone", EncodeProjectDeleteMilestoneRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -717,7 +791,7 @@ func (c *ProjectClient) DeleteMilestone(ctx context.Context, req MilestoneID) (E
 
 func (c *ProjectClient) SetProjectVisibility(ctx context.Context, req SetProjectVisibilityRequest) (Project, error) {
 	var csilZero Project
-	csilResp, csilErr := c.transport.Call(ctx, "project", "SetProjectVisibility", EncodeSetProjectVisibilityRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "set-project-visibility", EncodeSetProjectVisibilityRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -726,7 +800,7 @@ func (c *ProjectClient) SetProjectVisibility(ctx context.Context, req SetProject
 
 func (c *ProjectClient) ListProjectGrants(ctx context.Context, req ProjectID) ([]Grant, error) {
 	var csilZero []Grant
-	csilResp, csilErr := c.transport.Call(ctx, "project", "ListProjectGrants", EncodeProjectListProjectGrantsRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "list-project-grants", EncodeProjectListProjectGrantsRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -735,7 +809,7 @@ func (c *ProjectClient) ListProjectGrants(ctx context.Context, req ProjectID) ([
 
 func (c *ProjectClient) PutProjectGrant(ctx context.Context, req PutProjectGrantRequest) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "project", "PutProjectGrant", EncodePutProjectGrantRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "put-project-grant", EncodePutProjectGrantRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -744,7 +818,7 @@ func (c *ProjectClient) PutProjectGrant(ctx context.Context, req PutProjectGrant
 
 func (c *ProjectClient) DeleteProjectGrant(ctx context.Context, req ProjectGrantRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "project", "DeleteProjectGrant", EncodeProjectGrantRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ProjectService", "delete-project-grant", EncodeProjectGrantRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -763,7 +837,7 @@ func NewEventClient(transport Transport) *EventClient {
 
 func (c *EventClient) CreateEvent(ctx context.Context, req Event) (Event, error) {
 	var csilZero Event
-	csilResp, csilErr := c.transport.Call(ctx, "event", "CreateEvent", EncodeEvent(req))
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "create-event", EncodeEvent(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -772,7 +846,7 @@ func (c *EventClient) CreateEvent(ctx context.Context, req Event) (Event, error)
 
 func (c *EventClient) GetEvent(ctx context.Context, req EventID) (Event, error) {
 	var csilZero Event
-	csilResp, csilErr := c.transport.Call(ctx, "event", "GetEvent", EncodeEventGetEventRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "get-event", EncodeEventGetEventRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -781,7 +855,7 @@ func (c *EventClient) GetEvent(ctx context.Context, req EventID) (Event, error) 
 
 func (c *EventClient) UpdateEvent(ctx context.Context, req Event) (Event, error) {
 	var csilZero Event
-	csilResp, csilErr := c.transport.Call(ctx, "event", "UpdateEvent", EncodeEvent(req))
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "update-event", EncodeEvent(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -790,7 +864,7 @@ func (c *EventClient) UpdateEvent(ctx context.Context, req Event) (Event, error)
 
 func (c *EventClient) DeleteEvent(ctx context.Context, req EventID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "event", "DeleteEvent", EncodeEventDeleteEventRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "delete-event", EncodeEventDeleteEventRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -799,7 +873,7 @@ func (c *EventClient) DeleteEvent(ctx context.Context, req EventID) (EmptyRespon
 
 func (c *EventClient) DeleteEventAndFuture(ctx context.Context, req EventID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "event", "DeleteEventAndFuture", EncodeEventDeleteEventAndFutureRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "delete-event-and-future", EncodeEventDeleteEventAndFutureRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -808,7 +882,7 @@ func (c *EventClient) DeleteEventAndFuture(ctx context.Context, req EventID) (Em
 
 func (c *EventClient) ListEvents(ctx context.Context, req HouseScopedListRequest) ([]Event, error) {
 	var csilZero []Event
-	csilResp, csilErr := c.transport.Call(ctx, "event", "ListEvents", EncodeHouseScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "list-events", EncodeHouseScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -817,7 +891,7 @@ func (c *EventClient) ListEvents(ctx context.Context, req HouseScopedListRequest
 
 func (c *EventClient) GetCalendarView(ctx context.Context, req HouseID) (CalendarView, error) {
 	var csilZero CalendarView
-	csilResp, csilErr := c.transport.Call(ctx, "event", "GetCalendarView", EncodeEventGetCalendarViewRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "get-calendar-view", EncodeEventGetCalendarViewRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -826,7 +900,7 @@ func (c *EventClient) GetCalendarView(ctx context.Context, req HouseID) (Calenda
 
 func (c *EventClient) SetCalendarView(ctx context.Context, req CalendarView) (CalendarView, error) {
 	var csilZero CalendarView
-	csilResp, csilErr := c.transport.Call(ctx, "event", "SetCalendarView", EncodeCalendarView(req))
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "set-calendar-view", EncodeCalendarView(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -845,7 +919,7 @@ func NewTaskClient(transport Transport) *TaskClient {
 
 func (c *TaskClient) CreateTask(ctx context.Context, req Task) (Task, error) {
 	var csilZero Task
-	csilResp, csilErr := c.transport.Call(ctx, "task", "CreateTask", EncodeTask(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "create-task", EncodeTask(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -854,7 +928,7 @@ func (c *TaskClient) CreateTask(ctx context.Context, req Task) (Task, error) {
 
 func (c *TaskClient) GetTask(ctx context.Context, req TaskID) (Task, error) {
 	var csilZero Task
-	csilResp, csilErr := c.transport.Call(ctx, "task", "GetTask", EncodeTaskGetTaskRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "get-task", EncodeTaskGetTaskRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -863,7 +937,7 @@ func (c *TaskClient) GetTask(ctx context.Context, req TaskID) (Task, error) {
 
 func (c *TaskClient) UpdateTask(ctx context.Context, req Task) (Task, error) {
 	var csilZero Task
-	csilResp, csilErr := c.transport.Call(ctx, "task", "UpdateTask", EncodeTask(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "update-task", EncodeTask(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -872,7 +946,7 @@ func (c *TaskClient) UpdateTask(ctx context.Context, req Task) (Task, error) {
 
 func (c *TaskClient) DeleteTask(ctx context.Context, req TaskID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "task", "DeleteTask", EncodeTaskDeleteTaskRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "delete-task", EncodeTaskDeleteTaskRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -881,7 +955,7 @@ func (c *TaskClient) DeleteTask(ctx context.Context, req TaskID) (EmptyResponse,
 
 func (c *TaskClient) ListTasks(ctx context.Context, req HouseScopedListRequest) (TaskList, error) {
 	var csilZero TaskList
-	csilResp, csilErr := c.transport.Call(ctx, "task", "ListTasks", EncodeHouseScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "list-tasks", EncodeHouseScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -890,7 +964,7 @@ func (c *TaskClient) ListTasks(ctx context.Context, req HouseScopedListRequest) 
 
 func (c *TaskClient) SetTaskVisibility(ctx context.Context, req SetTaskVisibilityRequest) (Task, error) {
 	var csilZero Task
-	csilResp, csilErr := c.transport.Call(ctx, "task", "SetTaskVisibility", EncodeSetTaskVisibilityRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "set-task-visibility", EncodeSetTaskVisibilityRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -899,7 +973,7 @@ func (c *TaskClient) SetTaskVisibility(ctx context.Context, req SetTaskVisibilit
 
 func (c *TaskClient) ListTaskGrants(ctx context.Context, req TaskID) ([]Grant, error) {
 	var csilZero []Grant
-	csilResp, csilErr := c.transport.Call(ctx, "task", "ListTaskGrants", EncodeTaskListTaskGrantsRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "list-task-grants", EncodeTaskListTaskGrantsRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -908,7 +982,7 @@ func (c *TaskClient) ListTaskGrants(ctx context.Context, req TaskID) ([]Grant, e
 
 func (c *TaskClient) PutTaskGrant(ctx context.Context, req PutTaskGrantRequest) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "task", "PutTaskGrant", EncodePutTaskGrantRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "put-task-grant", EncodePutTaskGrantRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -917,7 +991,7 @@ func (c *TaskClient) PutTaskGrant(ctx context.Context, req PutTaskGrantRequest) 
 
 func (c *TaskClient) DeleteTaskGrant(ctx context.Context, req TaskGrantRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "task", "DeleteTaskGrant", EncodeTaskGrantRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "delete-task-grant", EncodeTaskGrantRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -936,7 +1010,7 @@ func NewDependencyClient(transport Transport) *DependencyClient {
 
 func (c *DependencyClient) AddDependency(ctx context.Context, req DependencyRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "dependency", "AddDependency", EncodeDependencyRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "DependencyService", "add-dependency", EncodeDependencyRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -945,7 +1019,7 @@ func (c *DependencyClient) AddDependency(ctx context.Context, req DependencyRef)
 
 func (c *DependencyClient) RemoveDependency(ctx context.Context, req DependencyRef) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "dependency", "RemoveDependency", EncodeDependencyRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "DependencyService", "remove-dependency", EncodeDependencyRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -954,7 +1028,7 @@ func (c *DependencyClient) RemoveDependency(ctx context.Context, req DependencyR
 
 func (c *DependencyClient) GetDependencies(ctx context.Context, req DependencyTarget) (DependencyGraph, error) {
 	var csilZero DependencyGraph
-	csilResp, csilErr := c.transport.Call(ctx, "dependency", "GetDependencies", EncodeDependencyTarget(req))
+	csilResp, csilErr := c.transport.Call(ctx, "DependencyService", "get-dependencies", EncodeDependencyTarget(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -973,7 +1047,7 @@ func NewCommentClient(transport Transport) *CommentClient {
 
 func (c *CommentClient) CreateComment(ctx context.Context, req Comment) (Comment, error) {
 	var csilZero Comment
-	csilResp, csilErr := c.transport.Call(ctx, "comment", "CreateComment", EncodeComment(req))
+	csilResp, csilErr := c.transport.Call(ctx, "CommentService", "create-comment", EncodeComment(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -982,7 +1056,7 @@ func (c *CommentClient) CreateComment(ctx context.Context, req Comment) (Comment
 
 func (c *CommentClient) GetComment(ctx context.Context, req CommentID) (Comment, error) {
 	var csilZero Comment
-	csilResp, csilErr := c.transport.Call(ctx, "comment", "GetComment", EncodeCommentGetCommentRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "CommentService", "get-comment", EncodeCommentGetCommentRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -991,7 +1065,7 @@ func (c *CommentClient) GetComment(ctx context.Context, req CommentID) (Comment,
 
 func (c *CommentClient) UpdateComment(ctx context.Context, req Comment) (Comment, error) {
 	var csilZero Comment
-	csilResp, csilErr := c.transport.Call(ctx, "comment", "UpdateComment", EncodeComment(req))
+	csilResp, csilErr := c.transport.Call(ctx, "CommentService", "update-comment", EncodeComment(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1000,7 +1074,7 @@ func (c *CommentClient) UpdateComment(ctx context.Context, req Comment) (Comment
 
 func (c *CommentClient) DeleteComment(ctx context.Context, req CommentID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "comment", "DeleteComment", EncodeCommentDeleteCommentRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "CommentService", "delete-comment", EncodeCommentDeleteCommentRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1009,7 +1083,7 @@ func (c *CommentClient) DeleteComment(ctx context.Context, req CommentID) (Empty
 
 func (c *CommentClient) ListComments(ctx context.Context, req CommentListRequest) ([]Comment, error) {
 	var csilZero []Comment
-	csilResp, csilErr := c.transport.Call(ctx, "comment", "ListComments", EncodeCommentListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "CommentService", "list-comments", EncodeCommentListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1028,7 +1102,7 @@ func NewNotificationClient(transport Transport) *NotificationClient {
 
 func (c *NotificationClient) ListNotifications(ctx context.Context, req NotificationListRequest) ([]Notification, error) {
 	var csilZero []Notification
-	csilResp, csilErr := c.transport.Call(ctx, "notification", "ListNotifications", EncodeNotificationListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "NotificationService", "list-notifications", EncodeNotificationListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1037,7 +1111,7 @@ func (c *NotificationClient) ListNotifications(ctx context.Context, req Notifica
 
 func (c *NotificationClient) UnreadCount(ctx context.Context, req HouseID) (NotificationUnreadCount, error) {
 	var csilZero NotificationUnreadCount
-	csilResp, csilErr := c.transport.Call(ctx, "notification", "UnreadCount", EncodeNotificationUnreadCountRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "NotificationService", "unread-count", EncodeNotificationUnreadCountRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1046,7 +1120,7 @@ func (c *NotificationClient) UnreadCount(ctx context.Context, req HouseID) (Noti
 
 func (c *NotificationClient) MarkRead(ctx context.Context, req NotificationID) (Notification, error) {
 	var csilZero Notification
-	csilResp, csilErr := c.transport.Call(ctx, "notification", "MarkRead", EncodeNotificationMarkReadRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "NotificationService", "mark-read", EncodeNotificationMarkReadRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1055,7 +1129,7 @@ func (c *NotificationClient) MarkRead(ctx context.Context, req NotificationID) (
 
 func (c *NotificationClient) MarkAllRead(ctx context.Context, req HouseID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "notification", "MarkAllRead", EncodeNotificationMarkAllReadRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "NotificationService", "mark-all-read", EncodeNotificationMarkAllReadRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1074,7 +1148,7 @@ func NewShareClient(transport Transport) *ShareClient {
 
 func (c *ShareClient) CreateShare(ctx context.Context, req Share) (Share, error) {
 	var csilZero Share
-	csilResp, csilErr := c.transport.Call(ctx, "share", "CreateShare", EncodeShare(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ShareService", "create-share", EncodeShare(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1083,7 +1157,7 @@ func (c *ShareClient) CreateShare(ctx context.Context, req Share) (Share, error)
 
 func (c *ShareClient) DeleteShare(ctx context.Context, req ShareID) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "share", "DeleteShare", EncodeShareDeleteShareRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ShareService", "delete-share", EncodeShareDeleteShareRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1092,7 +1166,7 @@ func (c *ShareClient) DeleteShare(ctx context.Context, req ShareID) (EmptyRespon
 
 func (c *ShareClient) ListSharesByResource(ctx context.Context, req ResourceRef) ([]Share, error) {
 	var csilZero []Share
-	csilResp, csilErr := c.transport.Call(ctx, "share", "ListSharesByResource", EncodeResourceRef(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ShareService", "list-shares-by-resource", EncodeResourceRef(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1101,7 +1175,7 @@ func (c *ShareClient) ListSharesByResource(ctx context.Context, req ResourceRef)
 
 func (c *ShareClient) CheckAccess(ctx context.Context, req ShareAccessRequest) (Share, error) {
 	var csilZero Share
-	csilResp, csilErr := c.transport.Call(ctx, "share", "CheckAccess", EncodeShareAccessRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "ShareService", "check-access", EncodeShareAccessRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1120,7 +1194,7 @@ func NewMemberAuditClient(transport Transport) *MemberAuditClient {
 
 func (c *MemberAuditClient) ListAuditsForMember(ctx context.Context, req MemberScopedListRequest) ([]MemberAudit, error) {
 	var csilZero []MemberAudit
-	csilResp, csilErr := c.transport.Call(ctx, "memberaudit", "ListAuditsForMember", EncodeMemberScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "MemberAuditService", "list-audits-for-member", EncodeMemberScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1139,7 +1213,7 @@ func NewSettingsClient(transport Transport) *SettingsClient {
 
 func (c *SettingsClient) GetSettings(ctx context.Context, req HouseID) (EffectiveSettings, error) {
 	var csilZero EffectiveSettings
-	csilResp, csilErr := c.transport.Call(ctx, "settings", "GetSettings", EncodeSettingsGetSettingsRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SettingsService", "get-settings", EncodeSettingsGetSettingsRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1148,7 +1222,7 @@ func (c *SettingsClient) GetSettings(ctx context.Context, req HouseID) (Effectiv
 
 func (c *SettingsClient) UpdateSettings(ctx context.Context, req UpdateSettingsRequest) (EffectiveSettings, error) {
 	var csilZero EffectiveSettings
-	csilResp, csilErr := c.transport.Call(ctx, "settings", "UpdateSettings", EncodeUpdateSettingsRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "SettingsService", "update-settings", EncodeUpdateSettingsRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1167,7 +1241,7 @@ func NewBugClient(transport Transport) *BugClient {
 
 func (c *BugClient) ReportBug(ctx context.Context, req BugReportRequest) (Task, error) {
 	var csilZero Task
-	csilResp, csilErr := c.transport.Call(ctx, "bug", "ReportBug", EncodeBugReportRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "BugService", "report-bug", EncodeBugReportRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1186,7 +1260,7 @@ func NewAuditClient(transport Transport) *AuditClient {
 
 func (c *AuditClient) QueryAudit(ctx context.Context, req AuditQuery) (AuditPage, error) {
 	var csilZero AuditPage
-	csilResp, csilErr := c.transport.Call(ctx, "audit", "QueryAudit", EncodeAuditQuery(req))
+	csilResp, csilErr := c.transport.Call(ctx, "AuditService", "query-audit", EncodeAuditQuery(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1205,7 +1279,7 @@ func NewTrashClient(transport Transport) *TrashClient {
 
 func (c *TrashClient) ListTrash(ctx context.Context, req HouseScopedListRequest) (TrashPage, error) {
 	var csilZero TrashPage
-	csilResp, csilErr := c.transport.Call(ctx, "trash", "ListTrash", EncodeHouseScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TrashService", "list-trash", EncodeHouseScopedListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1214,7 +1288,7 @@ func (c *TrashClient) ListTrash(ctx context.Context, req HouseScopedListRequest)
 
 func (c *TrashClient) Restore(ctx context.Context, req RestoreRequest) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "trash", "Restore", EncodeRestoreRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TrashService", "restore", EncodeRestoreRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
@@ -1223,7 +1297,7 @@ func (c *TrashClient) Restore(ctx context.Context, req RestoreRequest) (EmptyRes
 
 func (c *TrashClient) Purge(ctx context.Context, req PurgeRequest) (EmptyResponse, error) {
 	var csilZero EmptyResponse
-	csilResp, csilErr := c.transport.Call(ctx, "trash", "Purge", EncodePurgeRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TrashService", "purge", EncodePurgeRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

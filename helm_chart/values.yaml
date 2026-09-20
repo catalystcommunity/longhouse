@@ -46,6 +46,8 @@ server:
   appCallbackUrl: ""      # full https://.../auth/callback URL the IDP redirects users back to (the SPA's route)
   linkkeysIdpUrl: ""      # IDP base URL — the /auth/start endpoint 302s to <this>/auth/authorize
   linkkeysIdpDomain: ""   # IDP identity domain — checked against the assertion's `domain` and `audience`
+  bearerTTLSeconds: 43200
+  refreshTokenTTLSeconds: 2592000
 
   # Optional. Default behavior is "prod" — dev-auth endpoints stay 404.
   # Set env to "dev" or "nonprod" AND devAuthEnabled to true to register

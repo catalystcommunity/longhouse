@@ -24,6 +24,14 @@ typedef struct AuthHandlers {
     int (*refresh)(void *ctx, const EmptyRequest *req, LoginResponse *resp);
     int (*logout)(void *ctx, const EmptyRequest *req, EmptyResponse *resp);
     int (*me)(void *ctx, const EmptyRequest *req, MeResponse *resp);
+    int (*begin_cli_login)(void *ctx, const BeginCliLoginRequest *req, BeginCliLoginResponse *resp);
+    int (*inspect_cli_login)(void *ctx, const ApproveCliLoginRequest *req, CliLoginRequestInfo *resp);
+    int (*approve_cli_login)(void *ctx, const ApproveCliLoginRequest *req, EmptyResponse *resp);
+    int (*deny_cli_login)(void *ctx, const DenyCliLoginRequest *req, EmptyResponse *resp);
+    int (*exchange_cli_login)(void *ctx, const ExchangeCliLoginRequest *req, ExchangeCliLoginResponse *resp);
+    int (*refresh_session)(void *ctx, const RefreshSessionRequest *req, CliTokenResponse *resp);
+    int (*list_sessions)(void *ctx, const EmptyRequest *req, CliSessionsResponse *resp);
+    int (*revoke_session)(void *ctx, const RevokeSessionRequest *req, EmptyResponse *resp);
 } AuthHandlers;
 
 /* DevAuthHandlers is the host's implementation of the DevAuthService service. */

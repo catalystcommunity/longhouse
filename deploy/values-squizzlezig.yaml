@@ -1,0 +1,57 @@
+image:
+  api:
+    repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-api
+  web:
+    repository: containers.catalystsquad.com/public/catalystcommunity/longhouse-web
+
+# Use the existing ephemeral squizzlezig Linkkeys server as the IDP and RP.
+linkkeysRp:
+  enabled: false
+  transport: "tcp"
+  url: "https://linkkeys.squizzlezig.com"
+  tcpAddr: "linkkeys-squizzlezig.linkkeys-squizzlezig.svc.cluster.local:4987"
+
+database:
+  url: ""
+
+postgresql:
+  enabled: true
+  teamId: longhouse-squizzlezig
+  database: longhouse_db
+  user: longhouse
+  instances: 1
+  storage:
+    size: 1Gi
+
+server:
+  env: "nonprod"
+  linkkeysDomain: "squizzlezig.com"
+  initialAdmin:
+    domain: "squizzlezig.com"
+    userId: "01a083dc-b31f-7c53-a689-56ea92268809"
+  initialHouseName: "Squizzlezig Dev"
+  linkkeysIdpUrl: "https://linkkeys.squizzlezig.com"
+  linkkeysIdpDomain: "squizzlezig.com"
+  appCallbackUrl: "https://longhouse.squizzlezig.com/auth/callback"
+  bearerTTLSeconds: 43200
+  refreshTokenTTLSeconds: 2592000
+
+gateway:
+  httpRoute:
+    api:
+      enabled: true
+      parentGateway: contour
+      parentNamespace: projectcontour
+      parentSection: http
+      hostnames:
+        - longhouse-api.squizzlezig.com
+        - longhouse.squizzlezig.com
+      pathPrefixes:
+        - /api
+    web:
+      enabled: true
+      parentGateway: contour
+      parentNamespace: projectcontour
+      parentSection: http
+      hostnames:
+        - longhouse.squizzlezig.com

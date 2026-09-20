@@ -85,7 +85,11 @@ func Serve(flags map[string]string) error {
 	}
 
 	log.Infof("Starting HTTP server on :%d", config.APIPort)
-	return http.ListenAndServe(fmt.Sprintf(":%d", config.APIPort), buildHTTPHandler())
+	handler, err := buildHTTPHandler()
+	if err != nil {
+		return err
+	}
+	return http.ListenAndServe(fmt.Sprintf(":%d", config.APIPort), handler)
 }
 
 // buildHTTPHandler assembles the public HTTP surface. Every CSIL op rides the
@@ -95,7 +99,7 @@ func Serve(flags map[string]string) error {
 //	GET /api/health              — k8s probe, always 200 ok.
 //	GET /api/v1/auth/start       — browser navigation that 302s to the IDP.
 //	GET /api/v1/avatars/{member} — image bytes for an <img> src.
-func buildHTTPHandler() http.Handler {
+func buildHTTPHandler() (http.Handler, error) {
 	if config.JWTSecret == "" {
 		log.Warn("LONGHOUSE_JWT_SECRET is empty: every CSIL method will fail-closed with 'auth not configured'")
 	}
@@ -106,7 +110,10 @@ func buildHTTPHandler() http.Handler {
 	// mutation (auth/devauth emit their own security events).
 	d.SetAuditRecorder(store.AppStore)
 
-	authSvc := buildAuthService()
+	authSvc, err := buildAuthService()
+	if err != nil {
+		return nil, err
+	}
 	if authSvc != nil {
 		authSvc.Register(d)
 	}
@@ -159,7 +166,7 @@ func buildHTTPHandler() http.Handler {
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 	})
-	return c.Handler(mux)
+	return c.Handler(mux), nil
 }
 
 // browserAuthStartHandler kicks off the linkkeys assertion exchange. The RP
@@ -196,9 +203,13 @@ func healthHandler(w http.ResponseWriter, _ *http.Request) {
 // dispatcher. PKI is optional — when missing, Login/Complete refuse with
 // Internal but Refresh/Me still work for any caller holding a valid bearer
 // minted via DevAuthService.
-func buildAuthService() *csilservices.AuthService {
+func buildAuthService() (*csilservices.AuthService, error) {
 	if config.JWTSecret == "" {
-		return nil
+		return nil, nil
+	}
+	bearerTTL, refreshTokenTTL, err := config.AuthTokenDurations()
+	if err != nil {
+		return nil, err
 	}
 	// RPDomain is the audience we expect on assertions. Prefer the explicit
 	// LONGHOUSE_LINKKEYS_DOMAIN; in this single-IDP self-RP deployment it
@@ -209,12 +220,14 @@ func buildAuthService() *csilservices.AuthService {
 		rpDomain = config.LinkkeysIDPDomain
 	}
 	svc := &csilservices.AuthService{
-		Store:       store.AppStore,
-		JWTSecret:   []byte(config.JWTSecret),
-		IDPDomain:   config.LinkkeysIDPDomain,
-		RPDomain:    rpDomain,
-		IDPURL:      config.LinkkeysIDPURL,
-		CallbackURL: config.AppCallbackURL,
+		Store:           store.AppStore,
+		JWTSecret:       []byte(config.JWTSecret),
+		BearerTTL:       bearerTTL,
+		RefreshTokenTTL: refreshTokenTTL,
+		IDPDomain:       config.LinkkeysIDPDomain,
+		RPDomain:        rpDomain,
+		IDPURL:          config.LinkkeysIDPURL,
+		CallbackURL:     config.AppCallbackURL,
 	}
 	if pki := buildPKIClient(); pki != nil {
 		svc.PKI = pki
@@ -222,7 +235,7 @@ func buildAuthService() *csilservices.AuthService {
 		log.Warn("linkkeys RP not configured: auth.Login/Complete will fail. " +
 			"Use devauth.DevLogin locally (LONGHOUSE_DEV_AUTH_ENABLED=true).")
 	}
-	return svc
+	return svc, nil
 }
 
 // buildPKIClient constructs the linkkeys RP client for the configured

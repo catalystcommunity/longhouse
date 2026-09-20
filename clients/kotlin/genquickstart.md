@@ -13,7 +13,7 @@ shared repository — then depend on it alongside the transport library:
 
 ```kotlin
 dependencies {
-    implementation("com.catalystcommunity.longhouse.client:longhouse-client:0.14.2")
+    implementation("com.catalystcommunity.longhouse.client:longhouse-client:0.14.6")
     implementation("community.catalyst.csilgen:csilgen-transport:0.1.0")
 }
 ```
@@ -93,14 +93,23 @@ import community.catalyst.csilgen.transport.Heartbeat
 import community.catalyst.csilgen.transport.Hello
 import community.catalyst.csilgen.transport.HelloAck
 import community.catalyst.csilgen.transport.Profile
+import community.catalyst.csilgen.transport.MAX_FRAME_DEFAULT
 import community.catalyst.csilgen.transport.StreamCarrier
 import javax.net.ssl.SSLSocketFactory
 
 // One example carrier: a TLS byte stream framed with CSIL's 4-byte length prefix. The
 // library's StreamCarrier owns the framing; we own only the socket.
+
+// The max-frame guard is a carrier setting, not a generated constant: raise it when a peer
+// accepts payloads larger than the 16 MiB default (the envelope adds framing and request
+// metadata around the payload, so the limit must exceed the largest payload), or lower it
+// to harden an exposed listener. Valid limits are 1..MAX_FRAME_LIMIT and are checked at
+// construction.
+const val MAX_FRAME: Int = MAX_FRAME_DEFAULT
+
 fun openTlsCarrier(host: String, port: Int): FrameCarrier {
     val socket = SSLSocketFactory.getDefault().createSocket(host, port)
-    return StreamCarrier(socket.getInputStream(), socket.getOutputStream())
+    return StreamCarrier(socket.getInputStream(), socket.getOutputStream(), MAX_FRAME)
 }
 
 

@@ -18,12 +18,12 @@ import (
 type MemberService struct{ Store store.Store }
 
 func (s *MemberService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("member", "ListMembers", csilrpc.Route(s.ListMembers, csil.DecodeMemberListMembersRequest, csil.EncodeMemberListMembersResponse))
-	d.RegisterTyped("member", "GetMember", csilrpc.Route(s.GetMember, csil.DecodeMemberGetMemberRequest, csil.EncodeMemberGetMemberResponse))
-	d.RegisterTyped("member", "CreateMember", csilrpc.Route(s.CreateMember, csil.DecodeMemberCreateMemberRequest, csil.EncodeMemberCreateMemberResponse))
-	d.RegisterTyped("member", "UpdateMember", csilrpc.Route(s.UpdateMember, csil.DecodeMemberUpdateMemberRequest, csil.EncodeMemberUpdateMemberResponse))
-	d.RegisterTyped("member", "DeactivateMember", csilrpc.Route(s.DeactivateMember, csil.DecodeMemberDeactivateMemberRequest, csil.EncodeMemberDeactivateMemberResponse))
-	d.RegisterTyped("member", "ReactivateMember", csilrpc.Route(s.ReactivateMember, csil.DecodeMemberReactivateMemberRequest, csil.EncodeMemberReactivateMemberResponse))
+	d.RegisterTyped("member", "ListMembers", csilrpc.Route(s.ListMembers, csil.DecodeHouseScopedListRequest, csil.EncodeMemberListMembersResponse))
+	d.RegisterTyped("member", "GetMember", csilrpc.Route(s.GetMember, csil.DecodeMemberGetMemberRequest, csil.EncodeMember))
+	d.RegisterTyped("member", "CreateMember", csilrpc.Route(s.CreateMember, csil.DecodeMember, csil.EncodeMember))
+	d.RegisterTyped("member", "UpdateMember", csilrpc.Route(s.UpdateMember, csil.DecodeMember, csil.EncodeMember))
+	d.RegisterTyped("member", "DeactivateMember", csilrpc.Route(s.DeactivateMember, csil.DecodeMemberDeactivateMemberRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("member", "ReactivateMember", csilrpc.Route(s.ReactivateMember, csil.DecodeMemberReactivateMemberRequest, csil.EncodeEmptyResponse))
 }
 
 func (s *MemberService) ListMembers(ctx context.Context, req csil.HouseScopedListRequest) ([]csil.Member, error) {

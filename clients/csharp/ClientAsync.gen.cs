@@ -19,15 +19,31 @@ public interface ICsilAsyncTransport
 public sealed class AuthAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<LoginResponse> LoginAsync(LoginRequest loginRequest) =>
-        Codec.Decode<LoginResponse>(await transport.Call("auth", "Login", Codec.Encode(loginRequest)));
+        Codec.Decode<LoginResponse>(await transport.Call("AuthService", "login", Codec.Encode(loginRequest)));
     public async System.Threading.Tasks.Task<LoginResponse> CompleteAsync(CompleteRequest completeRequest) =>
-        Codec.Decode<LoginResponse>(await transport.Call("auth", "Complete", Codec.Encode(completeRequest)));
+        Codec.Decode<LoginResponse>(await transport.Call("AuthService", "complete", Codec.Encode(completeRequest)));
     public async System.Threading.Tasks.Task<LoginResponse> RefreshAsync(EmptyRequest emptyRequest) =>
-        Codec.Decode<LoginResponse>(await transport.Call("auth", "Refresh", Codec.Encode(emptyRequest)));
+        Codec.Decode<LoginResponse>(await transport.Call("AuthService", "refresh", Codec.Encode(emptyRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> LogoutAsync(EmptyRequest emptyRequest) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("auth", "Logout", Codec.Encode(emptyRequest)));
+        Codec.Decode<EmptyResponse>(await transport.Call("AuthService", "logout", Codec.Encode(emptyRequest)));
     public async System.Threading.Tasks.Task<MeResponse> MeAsync(EmptyRequest emptyRequest) =>
-        Codec.Decode<MeResponse>(await transport.Call("auth", "Me", Codec.Encode(emptyRequest)));
+        Codec.Decode<MeResponse>(await transport.Call("AuthService", "me", Codec.Encode(emptyRequest)));
+    public async System.Threading.Tasks.Task<BeginCliLoginResponse> BeginCliLoginAsync(BeginCliLoginRequest beginCliLoginRequest) =>
+        Codec.Decode<BeginCliLoginResponse>(await transport.Call("AuthService", "begin-cli-login", Codec.Encode(beginCliLoginRequest)));
+    public async System.Threading.Tasks.Task<CliLoginRequestInfo> InspectCliLoginAsync(ApproveCliLoginRequest approveCliLoginRequest) =>
+        Codec.Decode<CliLoginRequestInfo>(await transport.Call("AuthService", "inspect-cli-login", Codec.Encode(approveCliLoginRequest)));
+    public async System.Threading.Tasks.Task<EmptyResponse> ApproveCliLoginAsync(ApproveCliLoginRequest approveCliLoginRequest) =>
+        Codec.Decode<EmptyResponse>(await transport.Call("AuthService", "approve-cli-login", Codec.Encode(approveCliLoginRequest)));
+    public async System.Threading.Tasks.Task<EmptyResponse> DenyCliLoginAsync(DenyCliLoginRequest denyCliLoginRequest) =>
+        Codec.Decode<EmptyResponse>(await transport.Call("AuthService", "deny-cli-login", Codec.Encode(denyCliLoginRequest)));
+    public async System.Threading.Tasks.Task<ExchangeCliLoginResponse> ExchangeCliLoginAsync(ExchangeCliLoginRequest exchangeCliLoginRequest) =>
+        Codec.Decode<ExchangeCliLoginResponse>(await transport.Call("AuthService", "exchange-cli-login", Codec.Encode(exchangeCliLoginRequest)));
+    public async System.Threading.Tasks.Task<CliTokenResponse> RefreshSessionAsync(RefreshSessionRequest refreshSessionRequest) =>
+        Codec.Decode<CliTokenResponse>(await transport.Call("AuthService", "refresh-session", Codec.Encode(refreshSessionRequest)));
+    public async System.Threading.Tasks.Task<CliSessionsResponse> ListSessionsAsync(EmptyRequest emptyRequest) =>
+        Codec.Decode<CliSessionsResponse>(await transport.Call("AuthService", "list-sessions", Codec.Encode(emptyRequest)));
+    public async System.Threading.Tasks.Task<EmptyResponse> RevokeSessionAsync(RevokeSessionRequest revokeSessionRequest) =>
+        Codec.Decode<EmptyResponse>(await transport.Call("AuthService", "revoke-session", Codec.Encode(revokeSessionRequest)));
 }
 
 /// <summary>Typed RPC client for the DevAuthService service. The client owns
@@ -35,9 +51,9 @@ public sealed class AuthAsyncClient(ICsilAsyncTransport transport)
 public sealed class DevAuthAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<DevUsersResponse> ListDevUsersAsync(EmptyRequest emptyRequest) =>
-        Codec.Decode<DevUsersResponse>(await transport.Call("devauth", "ListDevUsers", Codec.Encode(emptyRequest)));
+        Codec.Decode<DevUsersResponse>(await transport.Call("DevAuthService", "list-dev-users", Codec.Encode(emptyRequest)));
     public async System.Threading.Tasks.Task<LoginResponse> DevLoginAsync(DevLoginRequest devLoginRequest) =>
-        Codec.Decode<LoginResponse>(await transport.Call("devauth", "DevLogin", Codec.Encode(devLoginRequest)));
+        Codec.Decode<LoginResponse>(await transport.Call("DevAuthService", "dev-login", Codec.Encode(devLoginRequest)));
 }
 
 /// <summary>Typed RPC client for the HouseService service. The client owns
@@ -45,15 +61,15 @@ public sealed class DevAuthAsyncClient(ICsilAsyncTransport transport)
 public sealed class HouseAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<House> CreateHouseAsync(House house) =>
-        Codec.Decode<House>(await transport.Call("house", "CreateHouse", Codec.Encode(house)));
+        Codec.Decode<House>(await transport.Call("HouseService", "create-house", Codec.Encode(house)));
     public async System.Threading.Tasks.Task<House> GetHouseAsync(HouseID houseID) =>
-        Codec.Decode<House>(await transport.Call("house", "GetHouse", Codec.EncodeHouseGetHouseRequest(houseID)));
+        Codec.Decode<House>(await transport.Call("HouseService", "get-house", Codec.EncodeHouseGetHouseRequest(houseID)));
     public async System.Threading.Tasks.Task<House> UpdateHouseAsync(House house) =>
-        Codec.Decode<House>(await transport.Call("house", "UpdateHouse", Codec.Encode(house)));
+        Codec.Decode<House>(await transport.Call("HouseService", "update-house", Codec.Encode(house)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteHouseAsync(HouseID houseID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("house", "DeleteHouse", Codec.EncodeHouseDeleteHouseRequest(houseID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("HouseService", "delete-house", Codec.EncodeHouseDeleteHouseRequest(houseID)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<House>> ListHousesAsync(HouseListRequest houseListRequest) =>
-        Codec.DecodeHouseListHousesResponse(await transport.Call("house", "ListHouses", Codec.Encode(houseListRequest)));
+        Codec.DecodeHouseListHousesResponse(await transport.Call("HouseService", "list-houses", Codec.Encode(houseListRequest)));
 }
 
 /// <summary>Typed RPC client for the MemberService service. The client owns
@@ -61,19 +77,19 @@ public sealed class HouseAsyncClient(ICsilAsyncTransport transport)
 public sealed class MemberAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<Member> CreateMemberAsync(Member member) =>
-        Codec.Decode<Member>(await transport.Call("member", "CreateMember", Codec.Encode(member)));
+        Codec.Decode<Member>(await transport.Call("MemberService", "create-member", Codec.Encode(member)));
     public async System.Threading.Tasks.Task<Member> GetMemberAsync(MemberID memberID) =>
-        Codec.Decode<Member>(await transport.Call("member", "GetMember", Codec.EncodeMemberGetMemberRequest(memberID)));
+        Codec.Decode<Member>(await transport.Call("MemberService", "get-member", Codec.EncodeMemberGetMemberRequest(memberID)));
     public async System.Threading.Tasks.Task<Member> GetMemberByIdentityAsync(Member member) =>
-        Codec.Decode<Member>(await transport.Call("member", "GetMemberByIdentity", Codec.Encode(member)));
+        Codec.Decode<Member>(await transport.Call("MemberService", "get-member-by-identity", Codec.Encode(member)));
     public async System.Threading.Tasks.Task<Member> UpdateMemberAsync(Member member) =>
-        Codec.Decode<Member>(await transport.Call("member", "UpdateMember", Codec.Encode(member)));
+        Codec.Decode<Member>(await transport.Call("MemberService", "update-member", Codec.Encode(member)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeactivateMemberAsync(MemberID memberID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("member", "DeactivateMember", Codec.EncodeMemberDeactivateMemberRequest(memberID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("MemberService", "deactivate-member", Codec.EncodeMemberDeactivateMemberRequest(memberID)));
     public async System.Threading.Tasks.Task<EmptyResponse> ReactivateMemberAsync(MemberID memberID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("member", "ReactivateMember", Codec.EncodeMemberReactivateMemberRequest(memberID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("MemberService", "reactivate-member", Codec.EncodeMemberReactivateMemberRequest(memberID)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Member>> ListMembersAsync(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeMemberListMembersResponse(await transport.Call("member", "ListMembers", Codec.Encode(houseScopedListRequest)));
+        Codec.DecodeMemberListMembersResponse(await transport.Call("MemberService", "list-members", Codec.Encode(houseScopedListRequest)));
 }
 
 /// <summary>Typed RPC client for the TrustedDomainService service. The client owns
@@ -81,13 +97,13 @@ public sealed class MemberAsyncClient(ICsilAsyncTransport transport)
 public sealed class TrustedDomainAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<TrustedDomain> AddTrustedDomainAsync(TrustedDomain trustedDomain) =>
-        Codec.Decode<TrustedDomain>(await transport.Call("trusteddomain", "AddTrustedDomain", Codec.Encode(trustedDomain)));
+        Codec.Decode<TrustedDomain>(await transport.Call("TrustedDomainService", "add-trusted-domain", Codec.Encode(trustedDomain)));
     public async System.Threading.Tasks.Task<EmptyResponse> RemoveTrustedDomainAsync(TrustedDomainID trustedDomainID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("trusteddomain", "RemoveTrustedDomain", Codec.EncodeTrustedDomainRemoveTrustedDomainRequest(trustedDomainID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("TrustedDomainService", "remove-trusted-domain", Codec.EncodeTrustedDomainRemoveTrustedDomainRequest(trustedDomainID)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<TrustedDomain>> ListTrustedDomainsAsync(HouseID houseID) =>
-        Codec.DecodeTrustedDomainListTrustedDomainsResponse(await transport.Call("trusteddomain", "ListTrustedDomains", Codec.EncodeTrustedDomainListTrustedDomainsRequest(houseID)));
+        Codec.DecodeTrustedDomainListTrustedDomainsResponse(await transport.Call("TrustedDomainService", "list-trusted-domains", Codec.EncodeTrustedDomainListTrustedDomainsRequest(houseID)));
     public async System.Threading.Tasks.Task<BoolResponse> IsDomainTrustedAsync(TrustedDomain trustedDomain) =>
-        Codec.Decode<BoolResponse>(await transport.Call("trusteddomain", "IsDomainTrusted", Codec.Encode(trustedDomain)));
+        Codec.Decode<BoolResponse>(await transport.Call("TrustedDomainService", "is-domain-trusted", Codec.Encode(trustedDomain)));
 }
 
 /// <summary>Typed RPC client for the RoleService service. The client owns
@@ -95,19 +111,19 @@ public sealed class TrustedDomainAsyncClient(ICsilAsyncTransport transport)
 public sealed class RoleAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<Role> CreateRoleAsync(Role role) =>
-        Codec.Decode<Role>(await transport.Call("role", "CreateRole", Codec.Encode(role)));
+        Codec.Decode<Role>(await transport.Call("RoleService", "create-role", Codec.Encode(role)));
     public async System.Threading.Tasks.Task<Role> UpdateRoleAsync(Role role) =>
-        Codec.Decode<Role>(await transport.Call("role", "UpdateRole", Codec.Encode(role)));
+        Codec.Decode<Role>(await transport.Call("RoleService", "update-role", Codec.Encode(role)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteRoleAsync(RoleID roleID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("role", "DeleteRole", Codec.EncodeRoleDeleteRoleRequest(roleID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("RoleService", "delete-role", Codec.EncodeRoleDeleteRoleRequest(roleID)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Role>> ListRolesAsync(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeRoleListRolesResponse(await transport.Call("role", "ListRoles", Codec.Encode(houseScopedListRequest)));
+        Codec.DecodeRoleListRolesResponse(await transport.Call("RoleService", "list-roles", Codec.Encode(houseScopedListRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> GrantRoleAsync(MemberRoleRef memberRoleRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("role", "GrantRole", Codec.Encode(memberRoleRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("RoleService", "grant-role", Codec.Encode(memberRoleRef)));
     public async System.Threading.Tasks.Task<EmptyResponse> RevokeRoleAsync(MemberRoleRef memberRoleRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("role", "RevokeRole", Codec.Encode(memberRoleRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("RoleService", "revoke-role", Codec.Encode(memberRoleRef)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Role>> ListMemberRolesAsync(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeRoleListMemberRolesResponse(await transport.Call("role", "ListMemberRoles", Codec.Encode(memberScopedListRequest)));
+        Codec.DecodeRoleListMemberRolesResponse(await transport.Call("RoleService", "list-member-roles", Codec.Encode(memberScopedListRequest)));
 }
 
 /// <summary>Typed RPC client for the SkillService service. The client owns
@@ -115,25 +131,25 @@ public sealed class RoleAsyncClient(ICsilAsyncTransport transport)
 public sealed class SkillAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<Skill> CreateSkillAsync(Skill skill) =>
-        Codec.Decode<Skill>(await transport.Call("skill", "CreateSkill", Codec.Encode(skill)));
+        Codec.Decode<Skill>(await transport.Call("SkillService", "create-skill", Codec.Encode(skill)));
     public async System.Threading.Tasks.Task<Skill> UpdateSkillAsync(Skill skill) =>
-        Codec.Decode<Skill>(await transport.Call("skill", "UpdateSkill", Codec.Encode(skill)));
+        Codec.Decode<Skill>(await transport.Call("SkillService", "update-skill", Codec.Encode(skill)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteSkillAsync(SkillID skillID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("skill", "DeleteSkill", Codec.EncodeSkillDeleteSkillRequest(skillID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("SkillService", "delete-skill", Codec.EncodeSkillDeleteSkillRequest(skillID)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Skill>> ListSkillsAsync(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeSkillListSkillsResponse(await transport.Call("skill", "ListSkills", Codec.Encode(houseScopedListRequest)));
+        Codec.DecodeSkillListSkillsResponse(await transport.Call("SkillService", "list-skills", Codec.Encode(houseScopedListRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> AddMemberSkillAsync(MemberSkillRef memberSkillRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("skill", "AddMemberSkill", Codec.Encode(memberSkillRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("SkillService", "add-member-skill", Codec.Encode(memberSkillRef)));
     public async System.Threading.Tasks.Task<EmptyResponse> RemoveMemberSkillAsync(MemberSkillRef memberSkillRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("skill", "RemoveMemberSkill", Codec.Encode(memberSkillRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("SkillService", "remove-member-skill", Codec.Encode(memberSkillRef)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Skill>> ListMemberSkillsAsync(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeSkillListMemberSkillsResponse(await transport.Call("skill", "ListMemberSkills", Codec.Encode(memberScopedListRequest)));
+        Codec.DecodeSkillListMemberSkillsResponse(await transport.Call("SkillService", "list-member-skills", Codec.Encode(memberScopedListRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> AddGroupSkillAsync(GroupSkillRef groupSkillRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("skill", "AddGroupSkill", Codec.Encode(groupSkillRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("SkillService", "add-group-skill", Codec.Encode(groupSkillRef)));
     public async System.Threading.Tasks.Task<EmptyResponse> RemoveGroupSkillAsync(GroupSkillRef groupSkillRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("skill", "RemoveGroupSkill", Codec.Encode(groupSkillRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("SkillService", "remove-group-skill", Codec.Encode(groupSkillRef)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Skill>> ListGroupSkillsAsync(GroupID groupID) =>
-        Codec.DecodeSkillListGroupSkillsResponse(await transport.Call("skill", "ListGroupSkills", Codec.EncodeSkillListGroupSkillsRequest(groupID)));
+        Codec.DecodeSkillListGroupSkillsResponse(await transport.Call("SkillService", "list-group-skills", Codec.EncodeSkillListGroupSkillsRequest(groupID)));
 }
 
 /// <summary>Typed RPC client for the GroupService service. The client owns
@@ -141,19 +157,19 @@ public sealed class SkillAsyncClient(ICsilAsyncTransport transport)
 public sealed class GroupAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<Group> CreateGroupAsync(Group group) =>
-        Codec.Decode<Group>(await transport.Call("group", "CreateGroup", Codec.Encode(group)));
+        Codec.Decode<Group>(await transport.Call("GroupService", "create-group", Codec.Encode(group)));
     public async System.Threading.Tasks.Task<Group> UpdateGroupAsync(Group group) =>
-        Codec.Decode<Group>(await transport.Call("group", "UpdateGroup", Codec.Encode(group)));
+        Codec.Decode<Group>(await transport.Call("GroupService", "update-group", Codec.Encode(group)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteGroupAsync(GroupID groupID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("group", "DeleteGroup", Codec.EncodeGroupDeleteGroupRequest(groupID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("GroupService", "delete-group", Codec.EncodeGroupDeleteGroupRequest(groupID)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Group>> ListGroupsAsync(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeGroupListGroupsResponse(await transport.Call("group", "ListGroups", Codec.Encode(houseScopedListRequest)));
+        Codec.DecodeGroupListGroupsResponse(await transport.Call("GroupService", "list-groups", Codec.Encode(houseScopedListRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> AddGroupMemberAsync(GroupMemberRef groupMemberRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("group", "AddGroupMember", Codec.Encode(groupMemberRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("GroupService", "add-group-member", Codec.Encode(groupMemberRef)));
     public async System.Threading.Tasks.Task<EmptyResponse> RemoveGroupMemberAsync(GroupMemberRef groupMemberRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("group", "RemoveGroupMember", Codec.Encode(groupMemberRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("GroupService", "remove-group-member", Codec.Encode(groupMemberRef)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Member>> ListGroupMembersAsync(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeGroupListGroupMembersResponse(await transport.Call("group", "ListGroupMembers", Codec.Encode(memberScopedListRequest)));
+        Codec.DecodeGroupListGroupMembersResponse(await transport.Call("GroupService", "list-group-members", Codec.Encode(memberScopedListRequest)));
 }
 
 /// <summary>Typed RPC client for the ProjectService service. The client owns
@@ -161,51 +177,51 @@ public sealed class GroupAsyncClient(ICsilAsyncTransport transport)
 public sealed class ProjectAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<Project> CreateProjectAsync(Project project) =>
-        Codec.Decode<Project>(await transport.Call("project", "CreateProject", Codec.Encode(project)));
+        Codec.Decode<Project>(await transport.Call("ProjectService", "create-project", Codec.Encode(project)));
     public async System.Threading.Tasks.Task<Project> GetProjectAsync(ProjectID projectID) =>
-        Codec.Decode<Project>(await transport.Call("project", "GetProject", Codec.EncodeProjectGetProjectRequest(projectID)));
+        Codec.Decode<Project>(await transport.Call("ProjectService", "get-project", Codec.EncodeProjectGetProjectRequest(projectID)));
     public async System.Threading.Tasks.Task<Project> UpdateProjectAsync(Project project) =>
-        Codec.Decode<Project>(await transport.Call("project", "UpdateProject", Codec.Encode(project)));
+        Codec.Decode<Project>(await transport.Call("ProjectService", "update-project", Codec.Encode(project)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteProjectAsync(ProjectID projectID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("project", "DeleteProject", Codec.EncodeProjectDeleteProjectRequest(projectID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ProjectService", "delete-project", Codec.EncodeProjectDeleteProjectRequest(projectID)));
     public async System.Threading.Tasks.Task<ProjectList> ListProjectsAsync(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.Decode<ProjectList>(await transport.Call("project", "ListProjects", Codec.Encode(houseScopedListRequest)));
+        Codec.Decode<ProjectList>(await transport.Call("ProjectService", "list-projects", Codec.Encode(houseScopedListRequest)));
     public async System.Threading.Tasks.Task<TaskList> ListProjectTasksAsync(ProjectScopedListRequest projectScopedListRequest) =>
-        Codec.Decode<TaskList>(await transport.Call("project", "ListProjectTasks", Codec.Encode(projectScopedListRequest)));
+        Codec.Decode<TaskList>(await transport.Call("ProjectService", "list-project-tasks", Codec.Encode(projectScopedListRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> AddProjectTaskAsync(ProjectTaskOrderRequest projectTaskOrderRequest) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("project", "AddProjectTask", Codec.Encode(projectTaskOrderRequest)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ProjectService", "add-project-task", Codec.Encode(projectTaskOrderRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> RemoveProjectTaskAsync(ProjectTaskRef projectTaskRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("project", "RemoveProjectTask", Codec.Encode(projectTaskRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ProjectService", "remove-project-task", Codec.Encode(projectTaskRef)));
     public async System.Threading.Tasks.Task<EmptyResponse> SetProjectTaskPositionAsync(ProjectTaskOrderRequest projectTaskOrderRequest) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("project", "SetProjectTaskPosition", Codec.Encode(projectTaskOrderRequest)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ProjectService", "set-project-task-position", Codec.Encode(projectTaskOrderRequest)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Member>> ListProjectMembersAsync(ProjectID projectID) =>
-        Codec.DecodeProjectListProjectMembersResponse(await transport.Call("project", "ListProjectMembers", Codec.EncodeProjectListProjectMembersRequest(projectID)));
+        Codec.DecodeProjectListProjectMembersResponse(await transport.Call("ProjectService", "list-project-members", Codec.EncodeProjectListProjectMembersRequest(projectID)));
     public async System.Threading.Tasks.Task<EmptyResponse> AddProjectMemberAsync(ProjectMemberRef projectMemberRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("project", "AddProjectMember", Codec.Encode(projectMemberRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ProjectService", "add-project-member", Codec.Encode(projectMemberRef)));
     public async System.Threading.Tasks.Task<EmptyResponse> RemoveProjectMemberAsync(ProjectMemberRef projectMemberRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("project", "RemoveProjectMember", Codec.Encode(projectMemberRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ProjectService", "remove-project-member", Codec.Encode(projectMemberRef)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Member>> ListProjectOwnersAsync(ProjectID projectID) =>
-        Codec.DecodeProjectListProjectOwnersResponse(await transport.Call("project", "ListProjectOwners", Codec.EncodeProjectListProjectOwnersRequest(projectID)));
+        Codec.DecodeProjectListProjectOwnersResponse(await transport.Call("ProjectService", "list-project-owners", Codec.EncodeProjectListProjectOwnersRequest(projectID)));
     public async System.Threading.Tasks.Task<EmptyResponse> AddProjectOwnerAsync(ProjectOwnerRef projectOwnerRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("project", "AddProjectOwner", Codec.Encode(projectOwnerRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ProjectService", "add-project-owner", Codec.Encode(projectOwnerRef)));
     public async System.Threading.Tasks.Task<EmptyResponse> RemoveProjectOwnerAsync(ProjectOwnerRef projectOwnerRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("project", "RemoveProjectOwner", Codec.Encode(projectOwnerRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ProjectService", "remove-project-owner", Codec.Encode(projectOwnerRef)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Milestone>> ListMilestonesAsync(ProjectID projectID) =>
-        Codec.DecodeProjectListMilestonesResponse(await transport.Call("project", "ListMilestones", Codec.EncodeProjectListMilestonesRequest(projectID)));
+        Codec.DecodeProjectListMilestonesResponse(await transport.Call("ProjectService", "list-milestones", Codec.EncodeProjectListMilestonesRequest(projectID)));
     public async System.Threading.Tasks.Task<Milestone> CreateMilestoneAsync(Milestone milestone) =>
-        Codec.Decode<Milestone>(await transport.Call("project", "CreateMilestone", Codec.Encode(milestone)));
+        Codec.Decode<Milestone>(await transport.Call("ProjectService", "create-milestone", Codec.Encode(milestone)));
     public async System.Threading.Tasks.Task<Milestone> UpdateMilestoneAsync(Milestone milestone) =>
-        Codec.Decode<Milestone>(await transport.Call("project", "UpdateMilestone", Codec.Encode(milestone)));
+        Codec.Decode<Milestone>(await transport.Call("ProjectService", "update-milestone", Codec.Encode(milestone)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteMilestoneAsync(MilestoneID milestoneID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("project", "DeleteMilestone", Codec.EncodeProjectDeleteMilestoneRequest(milestoneID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ProjectService", "delete-milestone", Codec.EncodeProjectDeleteMilestoneRequest(milestoneID)));
     public async System.Threading.Tasks.Task<Project> SetProjectVisibilityAsync(SetProjectVisibilityRequest setProjectVisibilityRequest) =>
-        Codec.Decode<Project>(await transport.Call("project", "SetProjectVisibility", Codec.Encode(setProjectVisibilityRequest)));
+        Codec.Decode<Project>(await transport.Call("ProjectService", "set-project-visibility", Codec.Encode(setProjectVisibilityRequest)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Grant>> ListProjectGrantsAsync(ProjectID projectID) =>
-        Codec.DecodeProjectListProjectGrantsResponse(await transport.Call("project", "ListProjectGrants", Codec.EncodeProjectListProjectGrantsRequest(projectID)));
+        Codec.DecodeProjectListProjectGrantsResponse(await transport.Call("ProjectService", "list-project-grants", Codec.EncodeProjectListProjectGrantsRequest(projectID)));
     public async System.Threading.Tasks.Task<EmptyResponse> PutProjectGrantAsync(PutProjectGrantRequest putProjectGrantRequest) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("project", "PutProjectGrant", Codec.Encode(putProjectGrantRequest)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ProjectService", "put-project-grant", Codec.Encode(putProjectGrantRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteProjectGrantAsync(ProjectGrantRef projectGrantRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("project", "DeleteProjectGrant", Codec.Encode(projectGrantRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ProjectService", "delete-project-grant", Codec.Encode(projectGrantRef)));
 }
 
 /// <summary>Typed RPC client for the EventService service. The client owns
@@ -213,21 +229,21 @@ public sealed class ProjectAsyncClient(ICsilAsyncTransport transport)
 public sealed class EventAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<Event> CreateEventAsync(Event @event) =>
-        Codec.Decode<Event>(await transport.Call("event", "CreateEvent", Codec.Encode(@event)));
+        Codec.Decode<Event>(await transport.Call("EventService", "create-event", Codec.Encode(@event)));
     public async System.Threading.Tasks.Task<Event> GetEventAsync(EventID eventID) =>
-        Codec.Decode<Event>(await transport.Call("event", "GetEvent", Codec.EncodeEventGetEventRequest(eventID)));
+        Codec.Decode<Event>(await transport.Call("EventService", "get-event", Codec.EncodeEventGetEventRequest(eventID)));
     public async System.Threading.Tasks.Task<Event> UpdateEventAsync(Event @event) =>
-        Codec.Decode<Event>(await transport.Call("event", "UpdateEvent", Codec.Encode(@event)));
+        Codec.Decode<Event>(await transport.Call("EventService", "update-event", Codec.Encode(@event)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteEventAsync(EventID eventID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("event", "DeleteEvent", Codec.EncodeEventDeleteEventRequest(eventID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("EventService", "delete-event", Codec.EncodeEventDeleteEventRequest(eventID)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteEventAndFutureAsync(EventID eventID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("event", "DeleteEventAndFuture", Codec.EncodeEventDeleteEventAndFutureRequest(eventID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("EventService", "delete-event-and-future", Codec.EncodeEventDeleteEventAndFutureRequest(eventID)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Event>> ListEventsAsync(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeEventListEventsResponse(await transport.Call("event", "ListEvents", Codec.Encode(houseScopedListRequest)));
+        Codec.DecodeEventListEventsResponse(await transport.Call("EventService", "list-events", Codec.Encode(houseScopedListRequest)));
     public async System.Threading.Tasks.Task<CalendarView> GetCalendarViewAsync(HouseID houseID) =>
-        Codec.Decode<CalendarView>(await transport.Call("event", "GetCalendarView", Codec.EncodeEventGetCalendarViewRequest(houseID)));
+        Codec.Decode<CalendarView>(await transport.Call("EventService", "get-calendar-view", Codec.EncodeEventGetCalendarViewRequest(houseID)));
     public async System.Threading.Tasks.Task<CalendarView> SetCalendarViewAsync(CalendarView calendarView) =>
-        Codec.Decode<CalendarView>(await transport.Call("event", "SetCalendarView", Codec.Encode(calendarView)));
+        Codec.Decode<CalendarView>(await transport.Call("EventService", "set-calendar-view", Codec.Encode(calendarView)));
 }
 
 /// <summary>Typed RPC client for the TaskService service. The client owns
@@ -235,23 +251,23 @@ public sealed class EventAsyncClient(ICsilAsyncTransport transport)
 public sealed class TaskAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<Task> CreateTaskAsync(Task task) =>
-        Codec.Decode<Task>(await transport.Call("task", "CreateTask", Codec.Encode(task)));
+        Codec.Decode<Task>(await transport.Call("TaskService", "create-task", Codec.Encode(task)));
     public async System.Threading.Tasks.Task<Task> GetTaskAsync(TaskID taskID) =>
-        Codec.Decode<Task>(await transport.Call("task", "GetTask", Codec.EncodeTaskGetTaskRequest(taskID)));
+        Codec.Decode<Task>(await transport.Call("TaskService", "get-task", Codec.EncodeTaskGetTaskRequest(taskID)));
     public async System.Threading.Tasks.Task<Task> UpdateTaskAsync(Task task) =>
-        Codec.Decode<Task>(await transport.Call("task", "UpdateTask", Codec.Encode(task)));
+        Codec.Decode<Task>(await transport.Call("TaskService", "update-task", Codec.Encode(task)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteTaskAsync(TaskID taskID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("task", "DeleteTask", Codec.EncodeTaskDeleteTaskRequest(taskID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("TaskService", "delete-task", Codec.EncodeTaskDeleteTaskRequest(taskID)));
     public async System.Threading.Tasks.Task<TaskList> ListTasksAsync(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.Decode<TaskList>(await transport.Call("task", "ListTasks", Codec.Encode(houseScopedListRequest)));
+        Codec.Decode<TaskList>(await transport.Call("TaskService", "list-tasks", Codec.Encode(houseScopedListRequest)));
     public async System.Threading.Tasks.Task<Task> SetTaskVisibilityAsync(SetTaskVisibilityRequest setTaskVisibilityRequest) =>
-        Codec.Decode<Task>(await transport.Call("task", "SetTaskVisibility", Codec.Encode(setTaskVisibilityRequest)));
+        Codec.Decode<Task>(await transport.Call("TaskService", "set-task-visibility", Codec.Encode(setTaskVisibilityRequest)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Grant>> ListTaskGrantsAsync(TaskID taskID) =>
-        Codec.DecodeTaskListTaskGrantsResponse(await transport.Call("task", "ListTaskGrants", Codec.EncodeTaskListTaskGrantsRequest(taskID)));
+        Codec.DecodeTaskListTaskGrantsResponse(await transport.Call("TaskService", "list-task-grants", Codec.EncodeTaskListTaskGrantsRequest(taskID)));
     public async System.Threading.Tasks.Task<EmptyResponse> PutTaskGrantAsync(PutTaskGrantRequest putTaskGrantRequest) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("task", "PutTaskGrant", Codec.Encode(putTaskGrantRequest)));
+        Codec.Decode<EmptyResponse>(await transport.Call("TaskService", "put-task-grant", Codec.Encode(putTaskGrantRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteTaskGrantAsync(TaskGrantRef taskGrantRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("task", "DeleteTaskGrant", Codec.Encode(taskGrantRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("TaskService", "delete-task-grant", Codec.Encode(taskGrantRef)));
 }
 
 /// <summary>Typed RPC client for the DependencyService service. The client owns
@@ -259,11 +275,11 @@ public sealed class TaskAsyncClient(ICsilAsyncTransport transport)
 public sealed class DependencyAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<EmptyResponse> AddDependencyAsync(DependencyRef dependencyRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("dependency", "AddDependency", Codec.Encode(dependencyRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("DependencyService", "add-dependency", Codec.Encode(dependencyRef)));
     public async System.Threading.Tasks.Task<EmptyResponse> RemoveDependencyAsync(DependencyRef dependencyRef) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("dependency", "RemoveDependency", Codec.Encode(dependencyRef)));
+        Codec.Decode<EmptyResponse>(await transport.Call("DependencyService", "remove-dependency", Codec.Encode(dependencyRef)));
     public async System.Threading.Tasks.Task<DependencyGraph> GetDependenciesAsync(DependencyTarget dependencyTarget) =>
-        Codec.Decode<DependencyGraph>(await transport.Call("dependency", "GetDependencies", Codec.Encode(dependencyTarget)));
+        Codec.Decode<DependencyGraph>(await transport.Call("DependencyService", "get-dependencies", Codec.Encode(dependencyTarget)));
 }
 
 /// <summary>Typed RPC client for the CommentService service. The client owns
@@ -271,15 +287,15 @@ public sealed class DependencyAsyncClient(ICsilAsyncTransport transport)
 public sealed class CommentAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<Comment> CreateCommentAsync(Comment comment) =>
-        Codec.Decode<Comment>(await transport.Call("comment", "CreateComment", Codec.Encode(comment)));
+        Codec.Decode<Comment>(await transport.Call("CommentService", "create-comment", Codec.Encode(comment)));
     public async System.Threading.Tasks.Task<Comment> GetCommentAsync(CommentID commentID) =>
-        Codec.Decode<Comment>(await transport.Call("comment", "GetComment", Codec.EncodeCommentGetCommentRequest(commentID)));
+        Codec.Decode<Comment>(await transport.Call("CommentService", "get-comment", Codec.EncodeCommentGetCommentRequest(commentID)));
     public async System.Threading.Tasks.Task<Comment> UpdateCommentAsync(Comment comment) =>
-        Codec.Decode<Comment>(await transport.Call("comment", "UpdateComment", Codec.Encode(comment)));
+        Codec.Decode<Comment>(await transport.Call("CommentService", "update-comment", Codec.Encode(comment)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteCommentAsync(CommentID commentID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("comment", "DeleteComment", Codec.EncodeCommentDeleteCommentRequest(commentID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("CommentService", "delete-comment", Codec.EncodeCommentDeleteCommentRequest(commentID)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Comment>> ListCommentsAsync(CommentListRequest commentListRequest) =>
-        Codec.DecodeCommentListCommentsResponse(await transport.Call("comment", "ListComments", Codec.Encode(commentListRequest)));
+        Codec.DecodeCommentListCommentsResponse(await transport.Call("CommentService", "list-comments", Codec.Encode(commentListRequest)));
 }
 
 /// <summary>Typed RPC client for the NotificationService service. The client owns
@@ -287,13 +303,13 @@ public sealed class CommentAsyncClient(ICsilAsyncTransport transport)
 public sealed class NotificationAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Notification>> ListNotificationsAsync(NotificationListRequest notificationListRequest) =>
-        Codec.DecodeNotificationListNotificationsResponse(await transport.Call("notification", "ListNotifications", Codec.Encode(notificationListRequest)));
+        Codec.DecodeNotificationListNotificationsResponse(await transport.Call("NotificationService", "list-notifications", Codec.Encode(notificationListRequest)));
     public async System.Threading.Tasks.Task<NotificationUnreadCount> UnreadCountAsync(HouseID houseID) =>
-        Codec.Decode<NotificationUnreadCount>(await transport.Call("notification", "UnreadCount", Codec.EncodeNotificationUnreadCountRequest(houseID)));
+        Codec.Decode<NotificationUnreadCount>(await transport.Call("NotificationService", "unread-count", Codec.EncodeNotificationUnreadCountRequest(houseID)));
     public async System.Threading.Tasks.Task<Notification> MarkReadAsync(NotificationID notificationID) =>
-        Codec.Decode<Notification>(await transport.Call("notification", "MarkRead", Codec.EncodeNotificationMarkReadRequest(notificationID)));
+        Codec.Decode<Notification>(await transport.Call("NotificationService", "mark-read", Codec.EncodeNotificationMarkReadRequest(notificationID)));
     public async System.Threading.Tasks.Task<EmptyResponse> MarkAllReadAsync(HouseID houseID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("notification", "MarkAllRead", Codec.EncodeNotificationMarkAllReadRequest(houseID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("NotificationService", "mark-all-read", Codec.EncodeNotificationMarkAllReadRequest(houseID)));
 }
 
 /// <summary>Typed RPC client for the ShareService service. The client owns
@@ -301,13 +317,13 @@ public sealed class NotificationAsyncClient(ICsilAsyncTransport transport)
 public sealed class ShareAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<Share> CreateShareAsync(Share share) =>
-        Codec.Decode<Share>(await transport.Call("share", "CreateShare", Codec.Encode(share)));
+        Codec.Decode<Share>(await transport.Call("ShareService", "create-share", Codec.Encode(share)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteShareAsync(ShareID shareID) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("share", "DeleteShare", Codec.EncodeShareDeleteShareRequest(shareID)));
+        Codec.Decode<EmptyResponse>(await transport.Call("ShareService", "delete-share", Codec.EncodeShareDeleteShareRequest(shareID)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Share>> ListSharesByResourceAsync(ResourceRef resourceRef) =>
-        Codec.DecodeShareListSharesByResourceResponse(await transport.Call("share", "ListSharesByResource", Codec.Encode(resourceRef)));
+        Codec.DecodeShareListSharesByResourceResponse(await transport.Call("ShareService", "list-shares-by-resource", Codec.Encode(resourceRef)));
     public async System.Threading.Tasks.Task<Share> CheckAccessAsync(ShareAccessRequest shareAccessRequest) =>
-        Codec.Decode<Share>(await transport.Call("share", "CheckAccess", Codec.Encode(shareAccessRequest)));
+        Codec.Decode<Share>(await transport.Call("ShareService", "check-access", Codec.Encode(shareAccessRequest)));
 }
 
 /// <summary>Typed RPC client for the MemberAuditService service. The client owns
@@ -315,7 +331,7 @@ public sealed class ShareAsyncClient(ICsilAsyncTransport transport)
 public sealed class MemberAuditAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<MemberAudit>> ListAuditsForMemberAsync(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeMemberAuditListAuditsForMemberResponse(await transport.Call("memberaudit", "ListAuditsForMember", Codec.Encode(memberScopedListRequest)));
+        Codec.DecodeMemberAuditListAuditsForMemberResponse(await transport.Call("MemberAuditService", "list-audits-for-member", Codec.Encode(memberScopedListRequest)));
 }
 
 /// <summary>Typed RPC client for the SettingsService service. The client owns
@@ -323,9 +339,9 @@ public sealed class MemberAuditAsyncClient(ICsilAsyncTransport transport)
 public sealed class SettingsAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<EffectiveSettings> GetSettingsAsync(HouseID houseID) =>
-        Codec.Decode<EffectiveSettings>(await transport.Call("settings", "GetSettings", Codec.EncodeSettingsGetSettingsRequest(houseID)));
+        Codec.Decode<EffectiveSettings>(await transport.Call("SettingsService", "get-settings", Codec.EncodeSettingsGetSettingsRequest(houseID)));
     public async System.Threading.Tasks.Task<EffectiveSettings> UpdateSettingsAsync(UpdateSettingsRequest updateSettingsRequest) =>
-        Codec.Decode<EffectiveSettings>(await transport.Call("settings", "UpdateSettings", Codec.Encode(updateSettingsRequest)));
+        Codec.Decode<EffectiveSettings>(await transport.Call("SettingsService", "update-settings", Codec.Encode(updateSettingsRequest)));
 }
 
 /// <summary>Typed RPC client for the BugService service. The client owns
@@ -333,7 +349,7 @@ public sealed class SettingsAsyncClient(ICsilAsyncTransport transport)
 public sealed class BugAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<Task> ReportBugAsync(BugReportRequest bugReportRequest) =>
-        Codec.Decode<Task>(await transport.Call("bug", "ReportBug", Codec.Encode(bugReportRequest)));
+        Codec.Decode<Task>(await transport.Call("BugService", "report-bug", Codec.Encode(bugReportRequest)));
 }
 
 /// <summary>Typed RPC client for the AuditService service. The client owns
@@ -341,7 +357,7 @@ public sealed class BugAsyncClient(ICsilAsyncTransport transport)
 public sealed class AuditAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<AuditPage> QueryAuditAsync(AuditQuery auditQuery) =>
-        Codec.Decode<AuditPage>(await transport.Call("audit", "QueryAudit", Codec.Encode(auditQuery)));
+        Codec.Decode<AuditPage>(await transport.Call("AuditService", "query-audit", Codec.Encode(auditQuery)));
 }
 
 /// <summary>Typed RPC client for the TrashService service. The client owns
@@ -349,10 +365,10 @@ public sealed class AuditAsyncClient(ICsilAsyncTransport transport)
 public sealed class TrashAsyncClient(ICsilAsyncTransport transport)
 {
     public async System.Threading.Tasks.Task<TrashPage> ListTrashAsync(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.Decode<TrashPage>(await transport.Call("trash", "ListTrash", Codec.Encode(houseScopedListRequest)));
+        Codec.Decode<TrashPage>(await transport.Call("TrashService", "list-trash", Codec.Encode(houseScopedListRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> RestoreAsync(RestoreRequest restoreRequest) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("trash", "Restore", Codec.Encode(restoreRequest)));
+        Codec.Decode<EmptyResponse>(await transport.Call("TrashService", "restore", Codec.Encode(restoreRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> PurgeAsync(PurgeRequest purgeRequest) =>
-        Codec.Decode<EmptyResponse>(await transport.Call("trash", "Purge", Codec.Encode(purgeRequest)));
+        Codec.Decode<EmptyResponse>(await transport.Call("TrashService", "purge", Codec.Encode(purgeRequest)));
 }
 

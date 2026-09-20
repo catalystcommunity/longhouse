@@ -46,7 +46,7 @@ csilgen validate --input "$SPEC"
 # typescript) emit a client-only package, the bare targets emit all surfaces.
 # <extra-options> are spliced into the options block verbatim (comma-joined).
 LANGS=(
-  "typescript|typescript-client|package_name: \"@longhouse/client\""
+  "typescript|typescript-client|package_name: \"@longhouse/client\", import_extension: \"none\""
   "go|go-client|package_name: \"$GO_MODULE_BASE/go\", go_module: \"$GO_MODULE_BASE/go\", go_package: \"longhouseclient\""
   "rust|rust-client|package_name: \"longhouse-client\""
   "python|python-client|package_name: \"longhouse_client\""

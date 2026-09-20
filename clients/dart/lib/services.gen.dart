@@ -20,6 +20,14 @@ abstract interface class AuthServiceHandler {
   LoginResponse refresh(EmptyRequest request);
   EmptyResponse logout(EmptyRequest request);
   MeResponse me(EmptyRequest request);
+  BeginCliLoginResponse beginCliLogin(BeginCliLoginRequest request);
+  CliLoginRequestInfo inspectCliLogin(ApproveCliLoginRequest request);
+  EmptyResponse approveCliLogin(ApproveCliLoginRequest request);
+  EmptyResponse denyCliLogin(DenyCliLoginRequest request);
+  ExchangeCliLoginResponse exchangeCliLogin(ExchangeCliLoginRequest request);
+  CliTokenResponse refreshSession(RefreshSessionRequest request);
+  CliSessionsResponse listSessions(EmptyRequest request);
+  EmptyResponse revokeSession(RevokeSessionRequest request);
 }
 
 /// The DevAuthService service contract. A host `implements` this; the router
@@ -222,4 +230,3 @@ abstract interface class TrashServiceHandler {
   EmptyResponse restore(RestoreRequest request);
   EmptyResponse purge(PurgeRequest request);
 }
-

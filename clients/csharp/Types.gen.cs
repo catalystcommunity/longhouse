@@ -18,6 +18,7 @@ global using MemberAuditID = string;
 global using MilestoneID = string;
 global using NotificationID = string;
 global using NotificationEventID = string;
+global using CliSessionID = string;
 global using Timestamp = string;
 global using AuditID = string;
 
@@ -115,6 +116,18 @@ public enum MilestoneState
     Current,
     // wire value: future
     Future,
+}
+
+public enum CliLoginStatus
+{
+    // wire value: pending
+    Pending,
+    // wire value: denied
+    Denied,
+    // wire value: expired
+    Expired,
+    // wire value: complete
+    Complete,
 }
 
 public sealed record House
@@ -668,6 +681,129 @@ public sealed record LoginResponse
     public string? DisplayName { get; init; }
     // CBOR key: expires_at
     public required Timestamp ExpiresAt { get; init; }
+}
+
+public sealed record CliTokenResponse
+{
+    // CBOR key: token
+    public required string Token { get; init; }
+    // CBOR key: domain
+    public required string Domain { get; init; }
+    // CBOR key: user_id
+    public required string UserId { get; init; }
+    // CBOR key: display_name
+    public string? DisplayName { get; init; }
+    // CBOR key: expires_at
+    public required Timestamp ExpiresAt { get; init; }
+    // CBOR key: refresh_token
+    public required string RefreshToken { get; init; }
+    // CBOR key: refresh_expires_at
+    public required Timestamp RefreshExpiresAt { get; init; }
+    // CBOR key: session_id
+    public required CliSessionID SessionId { get; init; }
+}
+
+public sealed record BeginCliLoginRequest
+{
+    // CBOR key: client_name
+    public required string ClientName { get; init; }
+
+    /// <summary>Throws System.ArgumentException when a field violates a CSIL constraint.</summary>
+    public void Validate()
+    {
+        if (ClientName.Length < 1)
+        {
+            throw new System.ArgumentException("field 'ClientName' must have at least 1 elements");
+        }
+        if (ClientName.Length > 128)
+        {
+            throw new System.ArgumentException("field 'ClientName' must have at most 128 elements");
+        }
+    }
+}
+
+public sealed record BeginCliLoginResponse
+{
+    // CBOR key: device_code
+    public required string DeviceCode { get; init; }
+    // CBOR key: user_code
+    public required string UserCode { get; init; }
+    // CBOR key: verification_url
+    public required string VerificationUrl { get; init; }
+    // CBOR key: expires_at
+    public required Timestamp ExpiresAt { get; init; }
+    // CBOR key: interval_seconds
+    public required ulong IntervalSeconds { get; init; }
+}
+
+public sealed record ApproveCliLoginRequest
+{
+    // CBOR key: user_code
+    public required string UserCode { get; init; }
+}
+
+public sealed record CliLoginRequestInfo
+{
+    // CBOR key: user_code
+    public required string UserCode { get; init; }
+    // CBOR key: client_name
+    public required string ClientName { get; init; }
+    // CBOR key: expires_at
+    public required Timestamp ExpiresAt { get; init; }
+}
+
+public sealed record DenyCliLoginRequest
+{
+    // CBOR key: user_code
+    public required string UserCode { get; init; }
+}
+
+public sealed record ExchangeCliLoginRequest
+{
+    // CBOR key: device_code
+    public required string DeviceCode { get; init; }
+}
+
+public sealed record ExchangeCliLoginResponse
+{
+    // CBOR key: status
+    public required CliLoginStatus Status { get; init; }
+    // CBOR key: session
+    public CliTokenResponse? Session { get; init; }
+}
+
+public sealed record RefreshSessionRequest
+{
+    // CBOR key: refresh_token
+    public required string RefreshToken { get; init; }
+}
+
+public sealed record CliSessionSummary
+{
+    // CBOR key: session_id
+    public required CliSessionID SessionId { get; init; }
+    // CBOR key: client_name
+    public required string ClientName { get; init; }
+    // CBOR key: created_at
+    public required Timestamp CreatedAt { get; init; }
+    // CBOR key: last_used_at
+    public required Timestamp LastUsedAt { get; init; }
+    // CBOR key: expires_at
+    public required Timestamp ExpiresAt { get; init; }
+    // CBOR key: revoked_at
+    public Timestamp? RevokedAt { get; init; }
+}
+
+public sealed record CliSessionsResponse
+{
+    // CBOR key: sessions
+    public required System.Collections.Generic.List<CliSessionSummary> Sessions { get; init; }
+}
+
+public sealed record RevokeSessionRequest
+{
+    // CBOR key: session_id
+    public required CliSessionID SessionId { get; init; }
 }
 
 public sealed record DevUserEntry

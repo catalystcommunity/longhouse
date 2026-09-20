@@ -25,10 +25,12 @@ import (
 // Refresh and Me work whenever the JWT secret is set, because they don't
 // touch linkkeys.
 type AuthService struct {
-	Store     store.Store
-	JWTSecret []byte
-	PKI       PKIClient
-	IDPDomain string
+	Store           store.Store
+	JWTSecret       []byte
+	BearerTTL       time.Duration
+	RefreshTokenTTL time.Duration
+	PKI             PKIClient
+	IDPDomain       string
 
 	// RPDomain is our relying-party DNS identity — the value linkkeys binds
 	// each assertion to via its `audience` claim. We compare it against
@@ -118,11 +120,19 @@ func resolveDisplayName(claims map[string]string, a *linkkeys.Assertion) string 
 }
 
 func (s *AuthService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTypedPublic("auth", "Login", csilrpc.Route(s.Login, csil.DecodeAuthLoginRequest, csil.EncodeAuthLoginResponse))
-	d.RegisterTypedPublic("auth", "Complete", csilrpc.Route(s.Complete, csil.DecodeAuthCompleteRequest, csil.EncodeAuthCompleteResponse))
-	d.RegisterTyped("auth", "Refresh", csilrpc.Route(s.Refresh, csil.DecodeAuthRefreshRequest, csil.EncodeAuthRefreshResponse))
-	d.RegisterTyped("auth", "Logout", csilrpc.Route(s.Logout, csil.DecodeAuthLogoutRequest, csil.EncodeAuthLogoutResponse))
-	d.RegisterTyped("auth", "Me", csilrpc.Route(s.Me, csil.DecodeAuthMeRequest, csil.EncodeAuthMeResponse))
+	d.RegisterTypedPublic("auth", "Login", csilrpc.Route(s.Login, csil.DecodeLoginRequest, csil.EncodeLoginResponse))
+	d.RegisterTypedPublic("auth", "Complete", csilrpc.Route(s.Complete, csil.DecodeCompleteRequest, csil.EncodeLoginResponse))
+	d.RegisterTyped("auth", "Refresh", csilrpc.Route(s.Refresh, csil.DecodeEmptyRequest, csil.EncodeLoginResponse))
+	d.RegisterTyped("auth", "Logout", csilrpc.Route(s.Logout, csil.DecodeEmptyRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("auth", "Me", csilrpc.Route(s.Me, csil.DecodeEmptyRequest, csil.EncodeMeResponse))
+	d.RegisterTypedPublic("auth", "BeginCliLogin", csilrpc.Route(s.BeginCliLogin, csil.DecodeBeginCliLoginRequest, csil.EncodeBeginCliLoginResponse))
+	d.RegisterTyped("auth", "InspectCliLogin", csilrpc.Route(s.InspectCliLogin, csil.DecodeApproveCliLoginRequest, csil.EncodeCliLoginRequestInfo))
+	d.RegisterTyped("auth", "ApproveCliLogin", csilrpc.Route(s.ApproveCliLogin, csil.DecodeApproveCliLoginRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("auth", "DenyCliLogin", csilrpc.Route(s.DenyCliLogin, csil.DecodeDenyCliLoginRequest, csil.EncodeEmptyResponse))
+	d.RegisterTypedPublic("auth", "ExchangeCliLogin", csilrpc.Route(s.ExchangeCliLogin, csil.DecodeExchangeCliLoginRequest, csil.EncodeExchangeCliLoginResponse))
+	d.RegisterTypedPublic("auth", "RefreshSession", csilrpc.Route(s.RefreshSession, csil.DecodeRefreshSessionRequest, csil.EncodeCliTokenResponse))
+	d.RegisterTyped("auth", "ListSessions", csilrpc.Route(s.ListSessions, csil.DecodeEmptyRequest, csil.EncodeCliSessionsResponse))
+	d.RegisterTyped("auth", "RevokeSession", csilrpc.Route(s.RevokeSession, csil.DecodeRevokeSessionRequest, csil.EncodeEmptyResponse))
 }
 
 // logout records a logout security event for the bearer's identity. Tokens are
@@ -248,6 +258,9 @@ func (s *AuthService) Refresh(ctx context.Context, _ csil.EmptyRequest) (csil.Lo
 	if err != nil {
 		return csil.LoginResponse{}, err
 	}
+	if id.CliSessionID != "" {
+		return csil.LoginResponse{}, csilrpc.Unauthorized("CLI sessions must use a refresh token")
+	}
 	// Refresh re-mints from the bearer without re-contacting linkkeys, so there
 	// are no fresh claims to reconcile — pass nil and keep the cached identity.
 	return s.issueToken(ctx, id.Domain, id.UserID, id.DisplayName, nil, models.AuditActionRefresh)
@@ -290,6 +303,10 @@ func (s *AuthService) Me(ctx context.Context, _ csil.EmptyRequest) (csil.MeRespo
 // this redemption (nil on refresh/dev-login); it seeds/reconciles the
 // claim-backed member fields and is otherwise ignored.
 func (s *AuthService) issueToken(ctx context.Context, domain, userID, displayName string, claims map[string]string, action string) (csil.LoginResponse, error) {
+	return s.issueTokenWithTTL(ctx, domain, userID, displayName, claims, action, s.bearerTTL(), "")
+}
+
+func (s *AuthService) issueTokenWithTTL(ctx context.Context, domain, userID, displayName string, claims map[string]string, action string, ttl time.Duration, cliSessionID string) (csil.LoginResponse, error) {
 	// Auto-provision: if this verified identity's domain is in any house's
 	// trusted_domains table and they aren't already a member there, insert
 	// a member row + grant the canonical "member" role before we snapshot
@@ -311,11 +328,12 @@ func (s *AuthService) issueToken(ctx context.Context, domain, userID, displayNam
 		return csil.LoginResponse{}, csilrpc.Internal("internal error")
 	}
 	tok, err := auth.Mint(s.JWTSecret, auth.Identity{
-		Domain:      domain,
-		UserID:      userID,
-		DisplayName: displayName,
-		Houses:      houses,
-	}, 0)
+		Domain:       domain,
+		UserID:       userID,
+		DisplayName:  displayName,
+		Houses:       houses,
+		CliSessionID: cliSessionID,
+	}, ttl)
 	if err != nil {
 		log.WithError(err).Error("auth: jwt mint failed")
 		return csil.LoginResponse{}, csilrpc.Internal("internal error")
@@ -332,6 +350,13 @@ func (s *AuthService) issueToken(ctx context.Context, domain, userID, displayNam
 		DisplayName: strPtrCopy(displayName),
 		ExpiresAt:   csil.Timestamp(time.Unix(verified.ExpiresAt, 0).UTC().Format(time.RFC3339)),
 	}, nil
+}
+
+func (s *AuthService) bearerTTL() time.Duration {
+	if s.BearerTTL <= 0 {
+		return auth.DefaultTTL
+	}
+	return s.BearerTTL
 }
 
 // reconcileMemberClaims seeds/updates the claim-backed fields on every member

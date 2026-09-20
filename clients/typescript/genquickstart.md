@@ -12,6 +12,14 @@ WebSocket, WebRTC, QUIC, or raw UDP unchanged.
 npm install @longhouse/client csilgen-transport
 ```
 
+The generated modules import each other with `.ts`-extensioned relative
+specifiers (`./types.gen.ts`), matching this package's `tsconfig.json`
+(`rewriteRelativeImportExtensions`) and Node's ESM loader. Regenerating
+outside of package mode — a bare `csilgen generate --target typescript`
+dropped into an existing project — pass `import_extension: "js"` or
+`"none"` to match a project that does not enable that TypeScript 5.7+
+flag.
+
 ## CSIL-RPC (HTTP)
 
 Request/response. The library owns the envelope (`RpcRequest`/`RpcResponse`);
@@ -76,15 +84,24 @@ import {
   control,
   frameLengthPrefixed,
   LengthPrefixedDeframer,
+  MAX_FRAME_DEFAULT,
   type FrameCarrier,
   type Profile,
 } from "csilgen-transport";
 import * as tls from "node:tls";
 
 // One example carrier: a TLS byte stream framed with CSIL's 4-byte length prefix.
+
+// The max-frame guard is a carrier setting, not a generated constant: raise it when a peer
+// accepts payloads larger than the 16 MiB default (the envelope adds framing and request
+// metadata around the payload, so the limit must exceed the largest payload), or lower it
+// to harden an exposed listener. Valid limits are 1..=MAX_FRAME_LIMIT and are checked where
+// the deframer is built.
+const MAX_FRAME = MAX_FRAME_DEFAULT;
+
 function openTlsCarrier(host: string, port: number): FrameCarrier {
   const socket = tls.connect({ host, port });
-  const deframer = new LengthPrefixedDeframer();
+  const deframer = new LengthPrefixedDeframer(MAX_FRAME);
   const inbox: Uint8Array[] = [];
   const waiters: ((f: Uint8Array | null) => void)[] = [];
   const deliver = (f: Uint8Array | null) => {
@@ -99,7 +116,7 @@ function openTlsCarrier(host: string, port: number): FrameCarrier {
   socket.on("close", () => deliver(null));
   return {
     sendFrame(bytes: Uint8Array) {
-      socket.write(frameLengthPrefixed(bytes));
+      socket.write(frameLengthPrefixed(bytes, MAX_FRAME));
     },
     recvFrame(): Promise<Uint8Array | null> {
       const f = inbox.shift();

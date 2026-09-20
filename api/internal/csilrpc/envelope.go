@@ -61,11 +61,11 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 	}
 	id := req.ID // echoed on every response when present
 
-	// Resolve (service, op) → typed handler. The envelope carries the canonical
-	// CSIL names: a lower-case service segment matching the registry keys, and a
-	// kebab-case op; the typed registry is keyed by the PascalCase method.
+	// Resolve (service, op) → typed handler. New generated clients send the full
+	// CSIL service name. Older Longhouse clients send its lower-case segment.
 	method := methodFromOp(req.Op)
-	handler := d.typedRegistry[req.Service][method]
+	service := registryService(req.Service)
+	handler := d.typedRegistry[service][method]
 	if handler == nil {
 		d.writeRPC(w, id, transport.NewRpcResponseTransportError(
 			transport.StatusUnknownServiceOrOp, "unknown service/op: "+req.Service+"/"+req.Op))
@@ -73,7 +73,7 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	authenticated := !d.publicMethods[req.Service+"."+method]
+	authenticated := !d.publicMethods[service+"."+method]
 	if authenticated {
 		identity, authErr := d.verifyBearerRPC(r, &req)
 		if authErr != nil {
@@ -90,7 +90,7 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 	// already encoded by the generated codec.
 	variant, payload, callErr := handler(ctx, req.Payload)
 	if authenticated {
-		d.emitAudit(ctx, req.Service, method, callErr)
+		d.emitAudit(ctx, service, method, callErr)
 	}
 
 	if callErr != nil {
@@ -115,6 +115,13 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d.writeRPC(w, id, transport.NewRpcResponseOk(variant, payload))
+}
+
+// registryService maps a generated CSIL name such as "AuthService" to the
+// existing registry key "auth". A lower-case key passes through unchanged.
+func registryService(service string) string {
+	service = strings.TrimSuffix(service, "Service")
+	return strings.ToLower(service)
 }
 
 // writeRPC encodes and writes a CsilRpcResponse envelope at HTTP 200. The

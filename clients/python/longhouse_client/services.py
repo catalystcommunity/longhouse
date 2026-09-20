@@ -44,6 +44,46 @@ class AuthServiceHandlers(ABC):
         """me"""
         ...
 
+    @abstractmethod
+    def begin_cli_login(self, req: BeginCliLoginRequest, ctx: dict) -> Union[BeginCliLoginResponse, ServiceError]:
+        """begin-cli-login"""
+        ...
+
+    @abstractmethod
+    def inspect_cli_login(self, req: ApproveCliLoginRequest, ctx: dict) -> Union[CliLoginRequestInfo, ServiceError]:
+        """inspect-cli-login"""
+        ...
+
+    @abstractmethod
+    def approve_cli_login(self, req: ApproveCliLoginRequest, ctx: dict) -> Union[EmptyResponse, ServiceError]:
+        """approve-cli-login"""
+        ...
+
+    @abstractmethod
+    def deny_cli_login(self, req: DenyCliLoginRequest, ctx: dict) -> Union[EmptyResponse, ServiceError]:
+        """deny-cli-login"""
+        ...
+
+    @abstractmethod
+    def exchange_cli_login(self, req: ExchangeCliLoginRequest, ctx: dict) -> Union[ExchangeCliLoginResponse, ServiceError]:
+        """exchange-cli-login"""
+        ...
+
+    @abstractmethod
+    def refresh_session(self, req: RefreshSessionRequest, ctx: dict) -> Union[CliTokenResponse, ServiceError]:
+        """refresh-session"""
+        ...
+
+    @abstractmethod
+    def list_sessions(self, req: EmptyRequest, ctx: dict) -> Union[CliSessionsResponse, ServiceError]:
+        """list-sessions"""
+        ...
+
+    @abstractmethod
+    def revoke_session(self, req: RevokeSessionRequest, ctx: dict) -> Union[EmptyResponse, ServiceError]:
+        """revoke-session"""
+        ...
+
 class DevAuthServiceHandlers(ABC):
     """Server-side handlers for DevAuthService service operations."""
 

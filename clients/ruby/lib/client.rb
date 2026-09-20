@@ -17,27 +17,67 @@ class AuthClient
 
   # login: -> LoginResponse
   def login(req)
-    LoginResponse.from_cbor(@transport.call("auth", "Login", req.to_cbor))
+    LoginResponse.from_cbor(@transport.call("AuthService", "login", req.to_cbor))
   end
 
   # complete: -> LoginResponse
   def complete(req)
-    LoginResponse.from_cbor(@transport.call("auth", "Complete", req.to_cbor))
+    LoginResponse.from_cbor(@transport.call("AuthService", "complete", req.to_cbor))
   end
 
   # refresh: -> LoginResponse
   def refresh(req)
-    LoginResponse.from_cbor(@transport.call("auth", "Refresh", req.to_cbor))
+    LoginResponse.from_cbor(@transport.call("AuthService", "refresh", req.to_cbor))
   end
 
   # logout: -> EmptyResponse
   def logout(req)
-    EmptyResponse.from_cbor(@transport.call("auth", "Logout", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("AuthService", "logout", req.to_cbor))
   end
 
   # me: -> MeResponse
   def me(req)
-    MeResponse.from_cbor(@transport.call("auth", "Me", req.to_cbor))
+    MeResponse.from_cbor(@transport.call("AuthService", "me", req.to_cbor))
+  end
+
+  # begin-cli-login: -> BeginCliLoginResponse
+  def begin_cli_login(req)
+    BeginCliLoginResponse.from_cbor(@transport.call("AuthService", "begin-cli-login", req.to_cbor))
+  end
+
+  # inspect-cli-login: -> CliLoginRequestInfo
+  def inspect_cli_login(req)
+    CliLoginRequestInfo.from_cbor(@transport.call("AuthService", "inspect-cli-login", req.to_cbor))
+  end
+
+  # approve-cli-login: -> EmptyResponse
+  def approve_cli_login(req)
+    EmptyResponse.from_cbor(@transport.call("AuthService", "approve-cli-login", req.to_cbor))
+  end
+
+  # deny-cli-login: -> EmptyResponse
+  def deny_cli_login(req)
+    EmptyResponse.from_cbor(@transport.call("AuthService", "deny-cli-login", req.to_cbor))
+  end
+
+  # exchange-cli-login: -> ExchangeCliLoginResponse
+  def exchange_cli_login(req)
+    ExchangeCliLoginResponse.from_cbor(@transport.call("AuthService", "exchange-cli-login", req.to_cbor))
+  end
+
+  # refresh-session: -> CliTokenResponse
+  def refresh_session(req)
+    CliTokenResponse.from_cbor(@transport.call("AuthService", "refresh-session", req.to_cbor))
+  end
+
+  # list-sessions: -> CliSessionsResponse
+  def list_sessions(req)
+    CliSessionsResponse.from_cbor(@transport.call("AuthService", "list-sessions", req.to_cbor))
+  end
+
+  # revoke-session: -> EmptyResponse
+  def revoke_session(req)
+    EmptyResponse.from_cbor(@transport.call("AuthService", "revoke-session", req.to_cbor))
   end
 end
 
@@ -49,12 +89,12 @@ class DevAuthClient
 
   # list-dev-users: -> DevUsersResponse
   def list_dev_users(req)
-    DevUsersResponse.from_cbor(@transport.call("devauth", "ListDevUsers", req.to_cbor))
+    DevUsersResponse.from_cbor(@transport.call("DevAuthService", "list-dev-users", req.to_cbor))
   end
 
   # dev-login: -> LoginResponse
   def dev_login(req)
-    LoginResponse.from_cbor(@transport.call("devauth", "DevLogin", req.to_cbor))
+    LoginResponse.from_cbor(@transport.call("DevAuthService", "dev-login", req.to_cbor))
   end
 end
 
@@ -66,27 +106,27 @@ class HouseClient
 
   # create-house: -> House
   def create_house(req)
-    House.from_cbor(@transport.call("house", "CreateHouse", req.to_cbor))
+    House.from_cbor(@transport.call("HouseService", "create-house", req.to_cbor))
   end
 
   # get-house: -> House
   def get_house(req)
-    House.from_cbor(@transport.call("house", "GetHouse", req.to_cbor))
+    House.from_cbor(@transport.call("HouseService", "get-house", req.to_cbor))
   end
 
   # update-house: -> House
   def update_house(req)
-    House.from_cbor(@transport.call("house", "UpdateHouse", req.to_cbor))
+    House.from_cbor(@transport.call("HouseService", "update-house", req.to_cbor))
   end
 
   # delete-house: -> EmptyResponse
   def delete_house(req)
-    EmptyResponse.from_cbor(@transport.call("house", "DeleteHouse", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("HouseService", "delete-house", req.to_cbor))
   end
 
   # list-houses: -> Array<House>
   def list_houses(req)
-    @transport.call("house", "ListHouses", req.to_cbor)
+    @transport.call("HouseService", "list-houses", req.to_cbor)
   end
 end
 
@@ -98,37 +138,37 @@ class MemberClient
 
   # create-member: -> Member
   def create_member(req)
-    Member.from_cbor(@transport.call("member", "CreateMember", req.to_cbor))
+    Member.from_cbor(@transport.call("MemberService", "create-member", req.to_cbor))
   end
 
   # get-member: -> Member
   def get_member(req)
-    Member.from_cbor(@transport.call("member", "GetMember", req.to_cbor))
+    Member.from_cbor(@transport.call("MemberService", "get-member", req.to_cbor))
   end
 
   # get-member-by-identity: -> Member
   def get_member_by_identity(req)
-    Member.from_cbor(@transport.call("member", "GetMemberByIdentity", req.to_cbor))
+    Member.from_cbor(@transport.call("MemberService", "get-member-by-identity", req.to_cbor))
   end
 
   # update-member: -> Member
   def update_member(req)
-    Member.from_cbor(@transport.call("member", "UpdateMember", req.to_cbor))
+    Member.from_cbor(@transport.call("MemberService", "update-member", req.to_cbor))
   end
 
   # deactivate-member: -> EmptyResponse
   def deactivate_member(req)
-    EmptyResponse.from_cbor(@transport.call("member", "DeactivateMember", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("MemberService", "deactivate-member", req.to_cbor))
   end
 
   # reactivate-member: -> EmptyResponse
   def reactivate_member(req)
-    EmptyResponse.from_cbor(@transport.call("member", "ReactivateMember", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("MemberService", "reactivate-member", req.to_cbor))
   end
 
   # list-members: -> Array<Member>
   def list_members(req)
-    @transport.call("member", "ListMembers", req.to_cbor)
+    @transport.call("MemberService", "list-members", req.to_cbor)
   end
 end
 
@@ -140,22 +180,22 @@ class TrustedDomainClient
 
   # add-trusted-domain: -> TrustedDomain
   def add_trusted_domain(req)
-    TrustedDomain.from_cbor(@transport.call("trusteddomain", "AddTrustedDomain", req.to_cbor))
+    TrustedDomain.from_cbor(@transport.call("TrustedDomainService", "add-trusted-domain", req.to_cbor))
   end
 
   # remove-trusted-domain: -> EmptyResponse
   def remove_trusted_domain(req)
-    EmptyResponse.from_cbor(@transport.call("trusteddomain", "RemoveTrustedDomain", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("TrustedDomainService", "remove-trusted-domain", req.to_cbor))
   end
 
   # list-trusted-domains: -> Array<TrustedDomain>
   def list_trusted_domains(req)
-    @transport.call("trusteddomain", "ListTrustedDomains", req.to_cbor)
+    @transport.call("TrustedDomainService", "list-trusted-domains", req.to_cbor)
   end
 
   # is-domain-trusted: -> BoolResponse
   def is_domain_trusted(req)
-    BoolResponse.from_cbor(@transport.call("trusteddomain", "IsDomainTrusted", req.to_cbor))
+    BoolResponse.from_cbor(@transport.call("TrustedDomainService", "is-domain-trusted", req.to_cbor))
   end
 end
 
@@ -167,37 +207,37 @@ class RoleClient
 
   # create-role: -> Role
   def create_role(req)
-    Role.from_cbor(@transport.call("role", "CreateRole", req.to_cbor))
+    Role.from_cbor(@transport.call("RoleService", "create-role", req.to_cbor))
   end
 
   # update-role: -> Role
   def update_role(req)
-    Role.from_cbor(@transport.call("role", "UpdateRole", req.to_cbor))
+    Role.from_cbor(@transport.call("RoleService", "update-role", req.to_cbor))
   end
 
   # delete-role: -> EmptyResponse
   def delete_role(req)
-    EmptyResponse.from_cbor(@transport.call("role", "DeleteRole", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("RoleService", "delete-role", req.to_cbor))
   end
 
   # list-roles: -> Array<Role>
   def list_roles(req)
-    @transport.call("role", "ListRoles", req.to_cbor)
+    @transport.call("RoleService", "list-roles", req.to_cbor)
   end
 
   # grant-role: -> EmptyResponse
   def grant_role(req)
-    EmptyResponse.from_cbor(@transport.call("role", "GrantRole", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("RoleService", "grant-role", req.to_cbor))
   end
 
   # revoke-role: -> EmptyResponse
   def revoke_role(req)
-    EmptyResponse.from_cbor(@transport.call("role", "RevokeRole", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("RoleService", "revoke-role", req.to_cbor))
   end
 
   # list-member-roles: -> Array<Role>
   def list_member_roles(req)
-    @transport.call("role", "ListMemberRoles", req.to_cbor)
+    @transport.call("RoleService", "list-member-roles", req.to_cbor)
   end
 end
 
@@ -209,52 +249,52 @@ class SkillClient
 
   # create-skill: -> Skill
   def create_skill(req)
-    Skill.from_cbor(@transport.call("skill", "CreateSkill", req.to_cbor))
+    Skill.from_cbor(@transport.call("SkillService", "create-skill", req.to_cbor))
   end
 
   # update-skill: -> Skill
   def update_skill(req)
-    Skill.from_cbor(@transport.call("skill", "UpdateSkill", req.to_cbor))
+    Skill.from_cbor(@transport.call("SkillService", "update-skill", req.to_cbor))
   end
 
   # delete-skill: -> EmptyResponse
   def delete_skill(req)
-    EmptyResponse.from_cbor(@transport.call("skill", "DeleteSkill", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("SkillService", "delete-skill", req.to_cbor))
   end
 
   # list-skills: -> Array<Skill>
   def list_skills(req)
-    @transport.call("skill", "ListSkills", req.to_cbor)
+    @transport.call("SkillService", "list-skills", req.to_cbor)
   end
 
   # add-member-skill: -> EmptyResponse
   def add_member_skill(req)
-    EmptyResponse.from_cbor(@transport.call("skill", "AddMemberSkill", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("SkillService", "add-member-skill", req.to_cbor))
   end
 
   # remove-member-skill: -> EmptyResponse
   def remove_member_skill(req)
-    EmptyResponse.from_cbor(@transport.call("skill", "RemoveMemberSkill", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("SkillService", "remove-member-skill", req.to_cbor))
   end
 
   # list-member-skills: -> Array<Skill>
   def list_member_skills(req)
-    @transport.call("skill", "ListMemberSkills", req.to_cbor)
+    @transport.call("SkillService", "list-member-skills", req.to_cbor)
   end
 
   # add-group-skill: -> EmptyResponse
   def add_group_skill(req)
-    EmptyResponse.from_cbor(@transport.call("skill", "AddGroupSkill", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("SkillService", "add-group-skill", req.to_cbor))
   end
 
   # remove-group-skill: -> EmptyResponse
   def remove_group_skill(req)
-    EmptyResponse.from_cbor(@transport.call("skill", "RemoveGroupSkill", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("SkillService", "remove-group-skill", req.to_cbor))
   end
 
   # list-group-skills: -> Array<Skill>
   def list_group_skills(req)
-    @transport.call("skill", "ListGroupSkills", req.to_cbor)
+    @transport.call("SkillService", "list-group-skills", req.to_cbor)
   end
 end
 
@@ -266,37 +306,37 @@ class GroupClient
 
   # create-group: -> Group
   def create_group(req)
-    Group.from_cbor(@transport.call("group", "CreateGroup", req.to_cbor))
+    Group.from_cbor(@transport.call("GroupService", "create-group", req.to_cbor))
   end
 
   # update-group: -> Group
   def update_group(req)
-    Group.from_cbor(@transport.call("group", "UpdateGroup", req.to_cbor))
+    Group.from_cbor(@transport.call("GroupService", "update-group", req.to_cbor))
   end
 
   # delete-group: -> EmptyResponse
   def delete_group(req)
-    EmptyResponse.from_cbor(@transport.call("group", "DeleteGroup", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("GroupService", "delete-group", req.to_cbor))
   end
 
   # list-groups: -> Array<Group>
   def list_groups(req)
-    @transport.call("group", "ListGroups", req.to_cbor)
+    @transport.call("GroupService", "list-groups", req.to_cbor)
   end
 
   # add-group-member: -> EmptyResponse
   def add_group_member(req)
-    EmptyResponse.from_cbor(@transport.call("group", "AddGroupMember", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("GroupService", "add-group-member", req.to_cbor))
   end
 
   # remove-group-member: -> EmptyResponse
   def remove_group_member(req)
-    EmptyResponse.from_cbor(@transport.call("group", "RemoveGroupMember", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("GroupService", "remove-group-member", req.to_cbor))
   end
 
   # list-group-members: -> Array<Member>
   def list_group_members(req)
-    @transport.call("group", "ListGroupMembers", req.to_cbor)
+    @transport.call("GroupService", "list-group-members", req.to_cbor)
   end
 end
 
@@ -308,117 +348,117 @@ class ProjectClient
 
   # create-project: -> Project
   def create_project(req)
-    Project.from_cbor(@transport.call("project", "CreateProject", req.to_cbor))
+    Project.from_cbor(@transport.call("ProjectService", "create-project", req.to_cbor))
   end
 
   # get-project: -> Project
   def get_project(req)
-    Project.from_cbor(@transport.call("project", "GetProject", req.to_cbor))
+    Project.from_cbor(@transport.call("ProjectService", "get-project", req.to_cbor))
   end
 
   # update-project: -> Project
   def update_project(req)
-    Project.from_cbor(@transport.call("project", "UpdateProject", req.to_cbor))
+    Project.from_cbor(@transport.call("ProjectService", "update-project", req.to_cbor))
   end
 
   # delete-project: -> EmptyResponse
   def delete_project(req)
-    EmptyResponse.from_cbor(@transport.call("project", "DeleteProject", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "delete-project", req.to_cbor))
   end
 
   # list-projects: -> ProjectList
   def list_projects(req)
-    ProjectList.from_cbor(@transport.call("project", "ListProjects", req.to_cbor))
+    ProjectList.from_cbor(@transport.call("ProjectService", "list-projects", req.to_cbor))
   end
 
   # list-project-tasks: -> TaskList
   def list_project_tasks(req)
-    TaskList.from_cbor(@transport.call("project", "ListProjectTasks", req.to_cbor))
+    TaskList.from_cbor(@transport.call("ProjectService", "list-project-tasks", req.to_cbor))
   end
 
   # add-project-task: -> EmptyResponse
   def add_project_task(req)
-    EmptyResponse.from_cbor(@transport.call("project", "AddProjectTask", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "add-project-task", req.to_cbor))
   end
 
   # remove-project-task: -> EmptyResponse
   def remove_project_task(req)
-    EmptyResponse.from_cbor(@transport.call("project", "RemoveProjectTask", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "remove-project-task", req.to_cbor))
   end
 
   # set-project-task-position: -> EmptyResponse
   def set_project_task_position(req)
-    EmptyResponse.from_cbor(@transport.call("project", "SetProjectTaskPosition", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "set-project-task-position", req.to_cbor))
   end
 
   # list-project-members: -> Array<Member>
   def list_project_members(req)
-    @transport.call("project", "ListProjectMembers", req.to_cbor)
+    @transport.call("ProjectService", "list-project-members", req.to_cbor)
   end
 
   # add-project-member: -> EmptyResponse
   def add_project_member(req)
-    EmptyResponse.from_cbor(@transport.call("project", "AddProjectMember", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "add-project-member", req.to_cbor))
   end
 
   # remove-project-member: -> EmptyResponse
   def remove_project_member(req)
-    EmptyResponse.from_cbor(@transport.call("project", "RemoveProjectMember", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "remove-project-member", req.to_cbor))
   end
 
   # list-project-owners: -> Array<Member>
   def list_project_owners(req)
-    @transport.call("project", "ListProjectOwners", req.to_cbor)
+    @transport.call("ProjectService", "list-project-owners", req.to_cbor)
   end
 
   # add-project-owner: -> EmptyResponse
   def add_project_owner(req)
-    EmptyResponse.from_cbor(@transport.call("project", "AddProjectOwner", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "add-project-owner", req.to_cbor))
   end
 
   # remove-project-owner: -> EmptyResponse
   def remove_project_owner(req)
-    EmptyResponse.from_cbor(@transport.call("project", "RemoveProjectOwner", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "remove-project-owner", req.to_cbor))
   end
 
   # list-milestones: -> Array<Milestone>
   def list_milestones(req)
-    @transport.call("project", "ListMilestones", req.to_cbor)
+    @transport.call("ProjectService", "list-milestones", req.to_cbor)
   end
 
   # create-milestone: -> Milestone
   def create_milestone(req)
-    Milestone.from_cbor(@transport.call("project", "CreateMilestone", req.to_cbor))
+    Milestone.from_cbor(@transport.call("ProjectService", "create-milestone", req.to_cbor))
   end
 
   # update-milestone: -> Milestone
   def update_milestone(req)
-    Milestone.from_cbor(@transport.call("project", "UpdateMilestone", req.to_cbor))
+    Milestone.from_cbor(@transport.call("ProjectService", "update-milestone", req.to_cbor))
   end
 
   # delete-milestone: -> EmptyResponse
   def delete_milestone(req)
-    EmptyResponse.from_cbor(@transport.call("project", "DeleteMilestone", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "delete-milestone", req.to_cbor))
   end
 
   # set-project-visibility: -> Project
   def set_project_visibility(req)
-    Project.from_cbor(@transport.call("project", "SetProjectVisibility", req.to_cbor))
+    Project.from_cbor(@transport.call("ProjectService", "set-project-visibility", req.to_cbor))
   end
 
   # list-project-grants: -> Array<Grant>
   def list_project_grants(req)
-    @transport.call("project", "ListProjectGrants", req.to_cbor)
+    @transport.call("ProjectService", "list-project-grants", req.to_cbor)
   end
 
   # put-project-grant: -> EmptyResponse
   def put_project_grant(req)
-    EmptyResponse.from_cbor(@transport.call("project", "PutProjectGrant", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "put-project-grant", req.to_cbor))
   end
 
   # delete-project-grant: -> EmptyResponse
   def delete_project_grant(req)
-    EmptyResponse.from_cbor(@transport.call("project", "DeleteProjectGrant", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "delete-project-grant", req.to_cbor))
   end
 end
 
@@ -430,42 +470,42 @@ class EventClient
 
   # create-event: -> Event
   def create_event(req)
-    Event.from_cbor(@transport.call("event", "CreateEvent", req.to_cbor))
+    Event.from_cbor(@transport.call("EventService", "create-event", req.to_cbor))
   end
 
   # get-event: -> Event
   def get_event(req)
-    Event.from_cbor(@transport.call("event", "GetEvent", req.to_cbor))
+    Event.from_cbor(@transport.call("EventService", "get-event", req.to_cbor))
   end
 
   # update-event: -> Event
   def update_event(req)
-    Event.from_cbor(@transport.call("event", "UpdateEvent", req.to_cbor))
+    Event.from_cbor(@transport.call("EventService", "update-event", req.to_cbor))
   end
 
   # delete-event: -> EmptyResponse
   def delete_event(req)
-    EmptyResponse.from_cbor(@transport.call("event", "DeleteEvent", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("EventService", "delete-event", req.to_cbor))
   end
 
   # delete-event-and-future: -> EmptyResponse
   def delete_event_and_future(req)
-    EmptyResponse.from_cbor(@transport.call("event", "DeleteEventAndFuture", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("EventService", "delete-event-and-future", req.to_cbor))
   end
 
   # list-events: -> Array<Event>
   def list_events(req)
-    @transport.call("event", "ListEvents", req.to_cbor)
+    @transport.call("EventService", "list-events", req.to_cbor)
   end
 
   # get-calendar-view: -> CalendarView
   def get_calendar_view(req)
-    CalendarView.from_cbor(@transport.call("event", "GetCalendarView", req.to_cbor))
+    CalendarView.from_cbor(@transport.call("EventService", "get-calendar-view", req.to_cbor))
   end
 
   # set-calendar-view: -> CalendarView
   def set_calendar_view(req)
-    CalendarView.from_cbor(@transport.call("event", "SetCalendarView", req.to_cbor))
+    CalendarView.from_cbor(@transport.call("EventService", "set-calendar-view", req.to_cbor))
   end
 end
 
@@ -477,47 +517,47 @@ class TaskClient
 
   # create-task: -> Task
   def create_task(req)
-    Task.from_cbor(@transport.call("task", "CreateTask", req.to_cbor))
+    Task.from_cbor(@transport.call("TaskService", "create-task", req.to_cbor))
   end
 
   # get-task: -> Task
   def get_task(req)
-    Task.from_cbor(@transport.call("task", "GetTask", req.to_cbor))
+    Task.from_cbor(@transport.call("TaskService", "get-task", req.to_cbor))
   end
 
   # update-task: -> Task
   def update_task(req)
-    Task.from_cbor(@transport.call("task", "UpdateTask", req.to_cbor))
+    Task.from_cbor(@transport.call("TaskService", "update-task", req.to_cbor))
   end
 
   # delete-task: -> EmptyResponse
   def delete_task(req)
-    EmptyResponse.from_cbor(@transport.call("task", "DeleteTask", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("TaskService", "delete-task", req.to_cbor))
   end
 
   # list-tasks: -> TaskList
   def list_tasks(req)
-    TaskList.from_cbor(@transport.call("task", "ListTasks", req.to_cbor))
+    TaskList.from_cbor(@transport.call("TaskService", "list-tasks", req.to_cbor))
   end
 
   # set-task-visibility: -> Task
   def set_task_visibility(req)
-    Task.from_cbor(@transport.call("task", "SetTaskVisibility", req.to_cbor))
+    Task.from_cbor(@transport.call("TaskService", "set-task-visibility", req.to_cbor))
   end
 
   # list-task-grants: -> Array<Grant>
   def list_task_grants(req)
-    @transport.call("task", "ListTaskGrants", req.to_cbor)
+    @transport.call("TaskService", "list-task-grants", req.to_cbor)
   end
 
   # put-task-grant: -> EmptyResponse
   def put_task_grant(req)
-    EmptyResponse.from_cbor(@transport.call("task", "PutTaskGrant", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("TaskService", "put-task-grant", req.to_cbor))
   end
 
   # delete-task-grant: -> EmptyResponse
   def delete_task_grant(req)
-    EmptyResponse.from_cbor(@transport.call("task", "DeleteTaskGrant", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("TaskService", "delete-task-grant", req.to_cbor))
   end
 end
 
@@ -529,17 +569,17 @@ class DependencyClient
 
   # add-dependency: -> EmptyResponse
   def add_dependency(req)
-    EmptyResponse.from_cbor(@transport.call("dependency", "AddDependency", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("DependencyService", "add-dependency", req.to_cbor))
   end
 
   # remove-dependency: -> EmptyResponse
   def remove_dependency(req)
-    EmptyResponse.from_cbor(@transport.call("dependency", "RemoveDependency", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("DependencyService", "remove-dependency", req.to_cbor))
   end
 
   # get-dependencies: -> DependencyGraph
   def get_dependencies(req)
-    DependencyGraph.from_cbor(@transport.call("dependency", "GetDependencies", req.to_cbor))
+    DependencyGraph.from_cbor(@transport.call("DependencyService", "get-dependencies", req.to_cbor))
   end
 end
 
@@ -551,27 +591,27 @@ class CommentClient
 
   # create-comment: -> Comment
   def create_comment(req)
-    Comment.from_cbor(@transport.call("comment", "CreateComment", req.to_cbor))
+    Comment.from_cbor(@transport.call("CommentService", "create-comment", req.to_cbor))
   end
 
   # get-comment: -> Comment
   def get_comment(req)
-    Comment.from_cbor(@transport.call("comment", "GetComment", req.to_cbor))
+    Comment.from_cbor(@transport.call("CommentService", "get-comment", req.to_cbor))
   end
 
   # update-comment: -> Comment
   def update_comment(req)
-    Comment.from_cbor(@transport.call("comment", "UpdateComment", req.to_cbor))
+    Comment.from_cbor(@transport.call("CommentService", "update-comment", req.to_cbor))
   end
 
   # delete-comment: -> EmptyResponse
   def delete_comment(req)
-    EmptyResponse.from_cbor(@transport.call("comment", "DeleteComment", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("CommentService", "delete-comment", req.to_cbor))
   end
 
   # list-comments: -> Array<Comment>
   def list_comments(req)
-    @transport.call("comment", "ListComments", req.to_cbor)
+    @transport.call("CommentService", "list-comments", req.to_cbor)
   end
 end
 
@@ -583,22 +623,22 @@ class NotificationClient
 
   # list-notifications: -> Array<Notification>
   def list_notifications(req)
-    @transport.call("notification", "ListNotifications", req.to_cbor)
+    @transport.call("NotificationService", "list-notifications", req.to_cbor)
   end
 
   # unread-count: -> NotificationUnreadCount
   def unread_count(req)
-    NotificationUnreadCount.from_cbor(@transport.call("notification", "UnreadCount", req.to_cbor))
+    NotificationUnreadCount.from_cbor(@transport.call("NotificationService", "unread-count", req.to_cbor))
   end
 
   # mark-read: -> Notification
   def mark_read(req)
-    Notification.from_cbor(@transport.call("notification", "MarkRead", req.to_cbor))
+    Notification.from_cbor(@transport.call("NotificationService", "mark-read", req.to_cbor))
   end
 
   # mark-all-read: -> EmptyResponse
   def mark_all_read(req)
-    EmptyResponse.from_cbor(@transport.call("notification", "MarkAllRead", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("NotificationService", "mark-all-read", req.to_cbor))
   end
 end
 
@@ -610,22 +650,22 @@ class ShareClient
 
   # create-share: -> Share
   def create_share(req)
-    Share.from_cbor(@transport.call("share", "CreateShare", req.to_cbor))
+    Share.from_cbor(@transport.call("ShareService", "create-share", req.to_cbor))
   end
 
   # delete-share: -> EmptyResponse
   def delete_share(req)
-    EmptyResponse.from_cbor(@transport.call("share", "DeleteShare", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ShareService", "delete-share", req.to_cbor))
   end
 
   # list-shares-by-resource: -> Array<Share>
   def list_shares_by_resource(req)
-    @transport.call("share", "ListSharesByResource", req.to_cbor)
+    @transport.call("ShareService", "list-shares-by-resource", req.to_cbor)
   end
 
   # check-access: -> Share
   def check_access(req)
-    Share.from_cbor(@transport.call("share", "CheckAccess", req.to_cbor))
+    Share.from_cbor(@transport.call("ShareService", "check-access", req.to_cbor))
   end
 end
 
@@ -637,7 +677,7 @@ class MemberAuditClient
 
   # list-audits-for-member: -> Array<MemberAudit>
   def list_audits_for_member(req)
-    @transport.call("memberaudit", "ListAuditsForMember", req.to_cbor)
+    @transport.call("MemberAuditService", "list-audits-for-member", req.to_cbor)
   end
 end
 
@@ -649,12 +689,12 @@ class SettingsClient
 
   # get-settings: -> EffectiveSettings
   def get_settings(req)
-    EffectiveSettings.from_cbor(@transport.call("settings", "GetSettings", req.to_cbor))
+    EffectiveSettings.from_cbor(@transport.call("SettingsService", "get-settings", req.to_cbor))
   end
 
   # update-settings: -> EffectiveSettings
   def update_settings(req)
-    EffectiveSettings.from_cbor(@transport.call("settings", "UpdateSettings", req.to_cbor))
+    EffectiveSettings.from_cbor(@transport.call("SettingsService", "update-settings", req.to_cbor))
   end
 end
 
@@ -666,7 +706,7 @@ class BugClient
 
   # report-bug: -> Task
   def report_bug(req)
-    Task.from_cbor(@transport.call("bug", "ReportBug", req.to_cbor))
+    Task.from_cbor(@transport.call("BugService", "report-bug", req.to_cbor))
   end
 end
 
@@ -678,7 +718,7 @@ class AuditClient
 
   # query-audit: -> AuditPage
   def query_audit(req)
-    AuditPage.from_cbor(@transport.call("audit", "QueryAudit", req.to_cbor))
+    AuditPage.from_cbor(@transport.call("AuditService", "query-audit", req.to_cbor))
   end
 end
 
@@ -690,16 +730,16 @@ class TrashClient
 
   # list-trash: -> TrashPage
   def list_trash(req)
-    TrashPage.from_cbor(@transport.call("trash", "ListTrash", req.to_cbor))
+    TrashPage.from_cbor(@transport.call("TrashService", "list-trash", req.to_cbor))
   end
 
   # restore: -> EmptyResponse
   def restore(req)
-    EmptyResponse.from_cbor(@transport.call("trash", "Restore", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("TrashService", "restore", req.to_cbor))
   end
 
   # purge: -> EmptyResponse
   def purge(req)
-    EmptyResponse.from_cbor(@transport.call("trash", "Purge", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("TrashService", "purge", req.to_cbor))
   end
 end

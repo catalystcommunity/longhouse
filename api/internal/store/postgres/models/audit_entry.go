@@ -59,6 +59,9 @@ const (
 	AuditActionLogout      = "logout"
 	AuditActionRefresh     = "refresh"
 	AuditActionDevLogin    = "dev_login"
+	AuditActionCliLogin    = "cli_login"
+	AuditActionCliRefresh  = "cli_refresh"
+	AuditActionCliRevoke   = "cli_revoke"
 )
 
 // Audit outcomes.

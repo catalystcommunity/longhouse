@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AccessLevel, AuditEntry, AuditID, AuditPage, AuditQuery, BoolResponse, BugReportRequest, CalendarSubscription, CalendarView, Comment, CommentID, CommentListRequest, CompleteRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, ResourceRef, ResourceType, RestoreRequest, Role, RoleID, ServiceError, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskStatus, Timestamp, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import type { AccessLevel, ApproveCliLoginRequest, AuditEntry, AuditID, AuditPage, AuditQuery, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarSubscription, CalendarView, CliLoginRequestInfo, CliLoginStatus, CliSessionID, CliSessionSummary, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteRequest, DenyCliLoginRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, RefreshSessionRequest, ResourceRef, ResourceType, RestoreRequest, RevokeSessionRequest, Role, RoleID, ServiceError, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskStatus, Timestamp, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -20,7 +20,7 @@ export type CborValue =
   | CborTag;
 
 const csilTextEncoder = new TextEncoder();
-const csilTextDecoder = new TextDecoder();
+const csilTextDecoder = new TextDecoder("utf-8", { fatal: true });
 
 function head(major: number, n: number | bigint, out: number[]): void {
   const mt = major << 5;
@@ -98,6 +98,10 @@ function readArg(st: Cursor, low: number): bigint {
     st.pos += 1;
     return BigInt(low);
   }
+  const width = low === 24 ? 1 : low === 25 ? 2 : low === 26 ? 4 : low === 27 ? 8 : 0;
+  if (width === 0 || st.pos >= st.b.length || st.b.length - st.pos - 1 < width) {
+    throw new Error("truncated CBOR argument");
+  }
   if (low === 24) {
     const v = BigInt(st.b[st.pos + 1]);
     st.pos += 2;
@@ -140,7 +144,9 @@ function readFloat(st: Cursor, low: number): number {
   return view.getFloat64(0, false);
 }
 
-function decInto(st: Cursor): CborValue {
+function decInto(st: Cursor, depth: number): CborValue {
+  if (depth > 64) throw new Error("CBOR nesting limit exceeded");
+  if (st.pos >= st.b.length) throw new Error("unexpected end of CBOR input");
   const ib = st.b[st.pos];
   const major = ib >> 5;
   const low = ib & 0x1f;
@@ -169,35 +175,39 @@ function decInto(st: Cursor): CborValue {
       return n >= BigInt(Number.MIN_SAFE_INTEGER) ? Number(n) : n;
     }
     case 2: {
+      if (arg > BigInt(st.b.length - st.pos)) throw new Error("truncated CBOR byte string");
       const n = Number(arg);
       const slice = st.b.slice(st.pos, st.pos + n);
       st.pos += n;
       return slice;
     }
     case 3: {
+      if (arg > BigInt(st.b.length - st.pos)) throw new Error("truncated CBOR text string");
       const n = Number(arg);
       const text = csilTextDecoder.decode(st.b.subarray(st.pos, st.pos + n));
       st.pos += n;
       return text;
     }
     case 4: {
+      if (arg > BigInt(st.b.length - st.pos)) throw new Error("CBOR array length exceeds remaining input");
       const n = Number(arg);
       const arr: CborValue[] = [];
-      for (let i = 0; i < n; i++) arr.push(decInto(st));
+      for (let i = 0; i < n; i++) arr.push(decInto(st, depth + 1));
       return arr;
     }
     case 5: {
+      if (arg > BigInt(st.b.length - st.pos)) throw new Error("CBOR map length exceeds remaining input");
       const n = Number(arg);
       const m = new Map<CborValue, CborValue>();
       for (let i = 0; i < n; i++) {
-        const k = decInto(st);
-        const val = decInto(st);
+        const k = decInto(st, depth + 1);
+        const val = decInto(st, depth + 1);
         m.set(k, val);
       }
       return m;
     }
     case 6: {
-      const inner = decInto(st);
+      const inner = decInto(st, depth + 1);
       return { tag: Number(arg), value: inner };
     }
     default:
@@ -208,7 +218,7 @@ function decInto(st: Cursor): CborValue {
 /** Decode a CSIL CBOR byte payload into a CBOR value tree. */
 export function decode(bytes: Uint8Array): CborValue {
   const st: Cursor = { b: bytes, pos: 0 };
-  const v = decInto(st);
+  const v = decInto(st, 0);
   if (st.pos !== bytes.length) throw new Error("trailing bytes after CBOR value");
   return v;
 }
@@ -254,6 +264,46 @@ export function asArray(value: CborValue): CborValue[] {
 export function asMap(value: CborValue): Map<CborValue, CborValue> {
   if (value instanceof Map) return value;
   throw new Error("expected a map");
+}
+
+/** A decoded integer may surface as `bigint` (see `decInto`'s large-value path), so a
+ * numeric literal's expected `number` is compared against the `bigint`-normalized form
+ * rather than failing on a type mismatch that isn't a value mismatch. */
+export function asLiteral<T extends CborValue>(value: CborValue, expected: T): T {
+  const norm = typeof value === "bigint" && typeof expected === "number" ? Number(value) : value;
+  if (norm !== expected) throw new Error(`literal mismatch: expected ${JSON.stringify(expected)}`);
+  return expected;
+}
+
+/** Validate a decoded scalar against a literal-enum's declared vocabulary, erroring
+ * on an unknown value. The caller reads through `asNumber`/`asString`/`asBool`, which
+ * already normalize a decoded `bigint` to `number`, so a plain membership check suffices. */
+export function asEnumMember<T extends number | string | boolean | null>(
+  value: T,
+  members: readonly T[],
+): T {
+  if (!members.includes(value)) {
+    throw new Error(`unknown enum value: ${JSON.stringify(value)}`);
+  }
+  return value;
+}
+
+/** Read a decoded CBOR scalar without narrowing to one JS type, normalizing a
+ * decoded integer `bigint` to `number` the same way `asNumber` does. Used for a
+ * MIXED-kind literal enum (`"a" / 1`), where no single `asNumber`/`asString`/
+ * `asBool` reader fits every member's runtime type — `asEnumMember`'s membership
+ * check does the real narrowing instead. */
+export function asEnumScalar(value: CborValue): string | number | boolean | null {
+  if (typeof value === "bigint") return Number(value);
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null
+  ) {
+    return value;
+  }
+  throw new Error("expected an enum scalar (string, number, boolean, or null)");
 }
 
 function asTagged(value: CborValue, tag: number): CborValue {
@@ -632,8 +682,8 @@ export function fromProjectCborValue(value: CborValue): Project {
     name: asString(requireKey(value, "name")),
     description: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "description")),
     category: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "category")),
-    status: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (csilV as unknown as ProjectStatus))(mapGet(value, "status")),
-    visibility: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (csilV as unknown as AccessLevel))(mapGet(value, "visibility")),
+    status: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["active", "archived"]) as "active" | "archived"))(mapGet(value, "status")),
+    visibility: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"))(mapGet(value, "visibility")),
     createdByMemberId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "created_by_member_id")),
     createdAt: asString(requireKey(value, "created_at")),
     updatedAt: asString(requireKey(value, "updated_at")),
@@ -741,7 +791,7 @@ export function fromMilestoneCborValue(value: CborValue): Milestone {
     projectId: asString(requireKey(value, "project_id")),
     label: asString(requireKey(value, "label")),
     whenLabel: asString(requireKey(value, "when_label")),
-    state: (requireKey(value, "state") as unknown as MilestoneState),
+    state: (asEnumMember(asString(requireKey(value, "state")), ["done", "current", "future"]) as "done" | "current" | "future"),
     position: asNumber(requireKey(value, "position")),
     createdAt: asString(requireKey(value, "created_at")),
     updatedAt: asString(requireKey(value, "updated_at")),
@@ -789,7 +839,7 @@ export function fromEventCborValue(value: CborValue): Event {
     startsAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "starts_at")),
     endsAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "ends_at")),
     allDay: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "all_day")),
-    recurrenceFreq: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (csilV as unknown as RecurrenceFreq))(mapGet(value, "recurrence_freq")),
+    recurrenceFreq: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["hourly", "daily", "weekly", "monthly", "quarterly", "yearly"]) as "hourly" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly"))(mapGet(value, "recurrence_freq")),
     recurrenceInterval: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_interval")),
     recurrenceByWeekday: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asNumber(csilE)))(mapGet(value, "recurrence_by_weekday")),
     recurrenceBySetpos: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_by_setpos")),
@@ -843,14 +893,14 @@ export function fromTaskCborValue(value: CborValue): Task {
     assignees: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "assignees")),
     assignedToSkillId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "assigned_to_skill_id")),
     parentTaskId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "parent_task_id")),
-    visibility: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (csilV as unknown as AccessLevel))(mapGet(value, "visibility")),
+    visibility: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"))(mapGet(value, "visibility")),
     title: asString(requireKey(value, "title")),
     description: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "description")),
-    status: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (csilV as unknown as TaskStatus))(mapGet(value, "status")),
+    status: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["open", "in_progress", "done", "cancelled"]) as "open" | "in_progress" | "done" | "cancelled"))(mapGet(value, "status")),
     dueAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "due_at")),
     tag: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "tag")),
     estimateMinutes: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "estimate_minutes")),
-    recurrenceFreq: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (csilV as unknown as RecurrenceFreq))(mapGet(value, "recurrence_freq")),
+    recurrenceFreq: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["hourly", "daily", "weekly", "monthly", "quarterly", "yearly"]) as "hourly" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly"))(mapGet(value, "recurrence_freq")),
     recurrenceInterval: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_interval")),
     recurrenceByWeekday: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asNumber(csilE)))(mapGet(value, "recurrence_by_weekday")),
     recurrenceBySetpos: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_by_setpos")),
@@ -888,7 +938,7 @@ export function fromCommentCborValue(value: CborValue): Comment {
     commentId: asString(requireKey(value, "comment_id")),
     houseId: asString(requireKey(value, "house_id")),
     memberId: asString(requireKey(value, "member_id")),
-    targetType: (requireKey(value, "target_type") as unknown as TargetType),
+    targetType: (asEnumMember(asString(requireKey(value, "target_type")), ["event", "task", "project"]) as "event" | "task" | "project"),
     targetId: asString(requireKey(value, "target_id")),
     body: asString(requireKey(value, "body")),
     createdAt: asString(requireKey(value, "created_at")),
@@ -926,9 +976,9 @@ export function fromShareCborValue(value: CborValue): Share {
     sharedBy: asString(requireKey(value, "shared_by")),
     linkkeysDomain: asString(requireKey(value, "linkkeys_domain")),
     linkkeysUserId: asString(requireKey(value, "linkkeys_user_id")),
-    resourceType: (requireKey(value, "resource_type") as unknown as ResourceType),
+    resourceType: (asEnumMember(asString(requireKey(value, "resource_type")), ["event", "task", "house"]) as "event" | "task" | "house"),
     resourceId: asString(requireKey(value, "resource_id")),
-    accessLevel: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (csilV as unknown as AccessLevel))(mapGet(value, "access_level")),
+    accessLevel: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"))(mapGet(value, "access_level")),
     createdAt: asString(requireKey(value, "created_at")),
     expiresAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "expires_at")),
   };
@@ -1088,6 +1138,284 @@ export function toLoginResponseCbor(v: LoginResponse): Uint8Array {
 
 export function fromLoginResponseCbor(bytes: Uint8Array): LoginResponse {
   return fromLoginResponseCborValue(decode(bytes));
+}
+
+export function toCliTokenResponseCborValue(v: CliTokenResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("token", v.token);
+  csilMap.set("domain", v.domain);
+  csilMap.set("user_id", v.userId);
+  csilMap.set("expires_at", v.expiresAt);
+  csilMap.set("session_id", v.sessionId);
+  if (v.displayName !== undefined) csilMap.set("display_name", v.displayName);
+  csilMap.set("refresh_token", v.refreshToken);
+  csilMap.set("refresh_expires_at", v.refreshExpiresAt);
+  return csilMap;
+}
+
+export function fromCliTokenResponseCborValue(value: CborValue): CliTokenResponse {
+  return {
+    token: asString(requireKey(value, "token")),
+    domain: asString(requireKey(value, "domain")),
+    userId: asString(requireKey(value, "user_id")),
+    displayName: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "display_name")),
+    expiresAt: asString(requireKey(value, "expires_at")),
+    refreshToken: asString(requireKey(value, "refresh_token")),
+    refreshExpiresAt: asString(requireKey(value, "refresh_expires_at")),
+    sessionId: asString(requireKey(value, "session_id")),
+  };
+}
+
+export function toCliTokenResponseCbor(v: CliTokenResponse): Uint8Array {
+  return encodeValue(toCliTokenResponseCborValue(v));
+}
+
+export function fromCliTokenResponseCbor(bytes: Uint8Array): CliTokenResponse {
+  return fromCliTokenResponseCborValue(decode(bytes));
+}
+
+export function toBeginCliLoginRequestCborValue(v: BeginCliLoginRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("client_name", v.clientName);
+  return csilMap;
+}
+
+export function fromBeginCliLoginRequestCborValue(value: CborValue): BeginCliLoginRequest {
+  return {
+    clientName: asString(requireKey(value, "client_name")),
+  };
+}
+
+export function toBeginCliLoginRequestCbor(v: BeginCliLoginRequest): Uint8Array {
+  return encodeValue(toBeginCliLoginRequestCborValue(v));
+}
+
+export function fromBeginCliLoginRequestCbor(bytes: Uint8Array): BeginCliLoginRequest {
+  return fromBeginCliLoginRequestCborValue(decode(bytes));
+}
+
+export function toBeginCliLoginResponseCborValue(v: BeginCliLoginResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("user_code", v.userCode);
+  csilMap.set("expires_at", v.expiresAt);
+  csilMap.set("device_code", v.deviceCode);
+  csilMap.set("interval_seconds", v.intervalSeconds);
+  csilMap.set("verification_url", v.verificationUrl);
+  return csilMap;
+}
+
+export function fromBeginCliLoginResponseCborValue(value: CborValue): BeginCliLoginResponse {
+  return {
+    deviceCode: asString(requireKey(value, "device_code")),
+    userCode: asString(requireKey(value, "user_code")),
+    verificationUrl: asString(requireKey(value, "verification_url")),
+    expiresAt: asString(requireKey(value, "expires_at")),
+    intervalSeconds: asNumber(requireKey(value, "interval_seconds")),
+  };
+}
+
+export function toBeginCliLoginResponseCbor(v: BeginCliLoginResponse): Uint8Array {
+  return encodeValue(toBeginCliLoginResponseCborValue(v));
+}
+
+export function fromBeginCliLoginResponseCbor(bytes: Uint8Array): BeginCliLoginResponse {
+  return fromBeginCliLoginResponseCborValue(decode(bytes));
+}
+
+export function toApproveCliLoginRequestCborValue(v: ApproveCliLoginRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("user_code", v.userCode);
+  return csilMap;
+}
+
+export function fromApproveCliLoginRequestCborValue(value: CborValue): ApproveCliLoginRequest {
+  return {
+    userCode: asString(requireKey(value, "user_code")),
+  };
+}
+
+export function toApproveCliLoginRequestCbor(v: ApproveCliLoginRequest): Uint8Array {
+  return encodeValue(toApproveCliLoginRequestCborValue(v));
+}
+
+export function fromApproveCliLoginRequestCbor(bytes: Uint8Array): ApproveCliLoginRequest {
+  return fromApproveCliLoginRequestCborValue(decode(bytes));
+}
+
+export function toCliLoginRequestInfoCborValue(v: CliLoginRequestInfo): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("user_code", v.userCode);
+  csilMap.set("expires_at", v.expiresAt);
+  csilMap.set("client_name", v.clientName);
+  return csilMap;
+}
+
+export function fromCliLoginRequestInfoCborValue(value: CborValue): CliLoginRequestInfo {
+  return {
+    userCode: asString(requireKey(value, "user_code")),
+    clientName: asString(requireKey(value, "client_name")),
+    expiresAt: asString(requireKey(value, "expires_at")),
+  };
+}
+
+export function toCliLoginRequestInfoCbor(v: CliLoginRequestInfo): Uint8Array {
+  return encodeValue(toCliLoginRequestInfoCborValue(v));
+}
+
+export function fromCliLoginRequestInfoCbor(bytes: Uint8Array): CliLoginRequestInfo {
+  return fromCliLoginRequestInfoCborValue(decode(bytes));
+}
+
+export function toDenyCliLoginRequestCborValue(v: DenyCliLoginRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("user_code", v.userCode);
+  return csilMap;
+}
+
+export function fromDenyCliLoginRequestCborValue(value: CborValue): DenyCliLoginRequest {
+  return {
+    userCode: asString(requireKey(value, "user_code")),
+  };
+}
+
+export function toDenyCliLoginRequestCbor(v: DenyCliLoginRequest): Uint8Array {
+  return encodeValue(toDenyCliLoginRequestCborValue(v));
+}
+
+export function fromDenyCliLoginRequestCbor(bytes: Uint8Array): DenyCliLoginRequest {
+  return fromDenyCliLoginRequestCborValue(decode(bytes));
+}
+
+export function toExchangeCliLoginRequestCborValue(v: ExchangeCliLoginRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("device_code", v.deviceCode);
+  return csilMap;
+}
+
+export function fromExchangeCliLoginRequestCborValue(value: CborValue): ExchangeCliLoginRequest {
+  return {
+    deviceCode: asString(requireKey(value, "device_code")),
+  };
+}
+
+export function toExchangeCliLoginRequestCbor(v: ExchangeCliLoginRequest): Uint8Array {
+  return encodeValue(toExchangeCliLoginRequestCborValue(v));
+}
+
+export function fromExchangeCliLoginRequestCbor(bytes: Uint8Array): ExchangeCliLoginRequest {
+  return fromExchangeCliLoginRequestCborValue(decode(bytes));
+}
+
+export function toExchangeCliLoginResponseCborValue(v: ExchangeCliLoginResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("status", v.status);
+  if (v.session !== undefined) csilMap.set("session", toCliTokenResponseCborValue(v.session));
+  return csilMap;
+}
+
+export function fromExchangeCliLoginResponseCborValue(value: CborValue): ExchangeCliLoginResponse {
+  return {
+    status: (asEnumMember(asString(requireKey(value, "status")), ["pending", "denied", "expired", "complete"]) as "pending" | "denied" | "expired" | "complete"),
+    session: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromCliTokenResponseCborValue(csilV))(mapGet(value, "session")),
+  };
+}
+
+export function toExchangeCliLoginResponseCbor(v: ExchangeCliLoginResponse): Uint8Array {
+  return encodeValue(toExchangeCliLoginResponseCborValue(v));
+}
+
+export function fromExchangeCliLoginResponseCbor(bytes: Uint8Array): ExchangeCliLoginResponse {
+  return fromExchangeCliLoginResponseCborValue(decode(bytes));
+}
+
+export function toRefreshSessionRequestCborValue(v: RefreshSessionRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("refresh_token", v.refreshToken);
+  return csilMap;
+}
+
+export function fromRefreshSessionRequestCborValue(value: CborValue): RefreshSessionRequest {
+  return {
+    refreshToken: asString(requireKey(value, "refresh_token")),
+  };
+}
+
+export function toRefreshSessionRequestCbor(v: RefreshSessionRequest): Uint8Array {
+  return encodeValue(toRefreshSessionRequestCborValue(v));
+}
+
+export function fromRefreshSessionRequestCbor(bytes: Uint8Array): RefreshSessionRequest {
+  return fromRefreshSessionRequestCborValue(decode(bytes));
+}
+
+export function toCliSessionSummaryCborValue(v: CliSessionSummary): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("created_at", v.createdAt);
+  csilMap.set("expires_at", v.expiresAt);
+  if (v.revokedAt !== undefined) csilMap.set("revoked_at", v.revokedAt);
+  csilMap.set("session_id", v.sessionId);
+  csilMap.set("client_name", v.clientName);
+  csilMap.set("last_used_at", v.lastUsedAt);
+  return csilMap;
+}
+
+export function fromCliSessionSummaryCborValue(value: CborValue): CliSessionSummary {
+  return {
+    sessionId: asString(requireKey(value, "session_id")),
+    clientName: asString(requireKey(value, "client_name")),
+    createdAt: asString(requireKey(value, "created_at")),
+    lastUsedAt: asString(requireKey(value, "last_used_at")),
+    expiresAt: asString(requireKey(value, "expires_at")),
+    revokedAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "revoked_at")),
+  };
+}
+
+export function toCliSessionSummaryCbor(v: CliSessionSummary): Uint8Array {
+  return encodeValue(toCliSessionSummaryCborValue(v));
+}
+
+export function fromCliSessionSummaryCbor(bytes: Uint8Array): CliSessionSummary {
+  return fromCliSessionSummaryCborValue(decode(bytes));
+}
+
+export function toCliSessionsResponseCborValue(v: CliSessionsResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("sessions", v.sessions.map((csilE): CborValue => toCliSessionSummaryCborValue(csilE)));
+  return csilMap;
+}
+
+export function fromCliSessionsResponseCborValue(value: CborValue): CliSessionsResponse {
+  return {
+    sessions: asArray(requireKey(value, "sessions")).map((csilE) => fromCliSessionSummaryCborValue(csilE)),
+  };
+}
+
+export function toCliSessionsResponseCbor(v: CliSessionsResponse): Uint8Array {
+  return encodeValue(toCliSessionsResponseCborValue(v));
+}
+
+export function fromCliSessionsResponseCbor(bytes: Uint8Array): CliSessionsResponse {
+  return fromCliSessionsResponseCborValue(decode(bytes));
+}
+
+export function toRevokeSessionRequestCborValue(v: RevokeSessionRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("session_id", v.sessionId);
+  return csilMap;
+}
+
+export function fromRevokeSessionRequestCborValue(value: CborValue): RevokeSessionRequest {
+  return {
+    sessionId: asString(requireKey(value, "session_id")),
+  };
+}
+
+export function toRevokeSessionRequestCbor(v: RevokeSessionRequest): Uint8Array {
+  return encodeValue(toRevokeSessionRequestCborValue(v));
+}
+
+export function fromRevokeSessionRequestCbor(bytes: Uint8Array): RevokeSessionRequest {
+  return fromRevokeSessionRequestCborValue(decode(bytes));
 }
 
 export function toDevUserEntryCborValue(v: DevUserEntry): CborValue {
@@ -1399,7 +1727,7 @@ export function toCommentListRequestCborValue(v: CommentListRequest): CborValue 
 
 export function fromCommentListRequestCborValue(value: CborValue): CommentListRequest {
   return {
-    targetType: (requireKey(value, "target_type") as unknown as TargetType),
+    targetType: (asEnumMember(asString(requireKey(value, "target_type")), ["event", "task", "project"]) as "event" | "task" | "project"),
     targetId: asString(requireKey(value, "target_id")),
     limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
     offset: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "offset")),
@@ -1517,7 +1845,7 @@ export function fromShareAccessRequestCborValue(value: CborValue): ShareAccessRe
   return {
     linkkeysDomain: asString(requireKey(value, "linkkeys_domain")),
     linkkeysUserId: asString(requireKey(value, "linkkeys_user_id")),
-    resourceType: (requireKey(value, "resource_type") as unknown as ResourceType),
+    resourceType: (asEnumMember(asString(requireKey(value, "resource_type")), ["event", "task", "house"]) as "event" | "task" | "house"),
     resourceId: asString(requireKey(value, "resource_id")),
   };
 }
@@ -1539,7 +1867,7 @@ export function toResourceRefCborValue(v: ResourceRef): CborValue {
 
 export function fromResourceRefCborValue(value: CborValue): ResourceRef {
   return {
-    resourceType: (requireKey(value, "resource_type") as unknown as ResourceType),
+    resourceType: (asEnumMember(asString(requireKey(value, "resource_type")), ["event", "task", "house"]) as "event" | "task" | "house"),
     resourceId: asString(requireKey(value, "resource_id")),
   };
 }
@@ -1741,9 +2069,9 @@ export function toDependencyRefCborValue(v: DependencyRef): CborValue {
 
 export function fromDependencyRefCborValue(value: CborValue): DependencyRef {
   return {
-    dependentType: (requireKey(value, "dependent_type") as unknown as DependencyNodeType),
+    dependentType: (asEnumMember(asString(requireKey(value, "dependent_type")), ["task", "project"]) as "task" | "project"),
     dependentId: asString(requireKey(value, "dependent_id")),
-    dependencyType: (requireKey(value, "dependency_type") as unknown as DependencyNodeType),
+    dependencyType: (asEnumMember(asString(requireKey(value, "dependency_type")), ["task", "project"]) as "task" | "project"),
     dependencyId: asString(requireKey(value, "dependency_id")),
   };
 }
@@ -1765,7 +2093,7 @@ export function toDependencyTargetCborValue(v: DependencyTarget): CborValue {
 
 export function fromDependencyTargetCborValue(value: CborValue): DependencyTarget {
   return {
-    type: (requireKey(value, "type") as unknown as DependencyNodeType),
+    type: (asEnumMember(asString(requireKey(value, "type")), ["task", "project"]) as "task" | "project"),
     id: asString(requireKey(value, "id")),
   };
 }
@@ -1789,7 +2117,7 @@ export function toDependencyNodeCborValue(v: DependencyNode): CborValue {
 
 export function fromDependencyNodeCborValue(value: CborValue): DependencyNode {
   return {
-    type: (requireKey(value, "type") as unknown as DependencyNodeType),
+    type: (asEnumMember(asString(requireKey(value, "type")), ["task", "project"]) as "task" | "project"),
     id: asString(requireKey(value, "id")),
     title: asString(requireKey(value, "title")),
     status: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "status")),
@@ -1836,9 +2164,9 @@ export function toGrantCborValue(v: Grant): CborValue {
 
 export function fromGrantCborValue(value: CborValue): Grant {
   return {
-    granteeType: (requireKey(value, "grantee_type") as unknown as GranteeType),
+    granteeType: (asEnumMember(asString(requireKey(value, "grantee_type")), ["member", "group"]) as "member" | "group"),
     granteeId: asString(requireKey(value, "grantee_id")),
-    accessLevel: (requireKey(value, "access_level") as unknown as AccessLevel),
+    accessLevel: (asEnumMember(asString(requireKey(value, "access_level")), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"),
   };
 }
 
@@ -1861,7 +2189,7 @@ export function toTaskGrantRefCborValue(v: TaskGrantRef): CborValue {
 export function fromTaskGrantRefCborValue(value: CborValue): TaskGrantRef {
   return {
     taskId: asString(requireKey(value, "task_id")),
-    granteeType: (requireKey(value, "grantee_type") as unknown as GranteeType),
+    granteeType: (asEnumMember(asString(requireKey(value, "grantee_type")), ["member", "group"]) as "member" | "group"),
     granteeId: asString(requireKey(value, "grantee_id")),
   };
 }
@@ -1886,9 +2214,9 @@ export function toPutTaskGrantRequestCborValue(v: PutTaskGrantRequest): CborValu
 export function fromPutTaskGrantRequestCborValue(value: CborValue): PutTaskGrantRequest {
   return {
     taskId: asString(requireKey(value, "task_id")),
-    granteeType: (requireKey(value, "grantee_type") as unknown as GranteeType),
+    granteeType: (asEnumMember(asString(requireKey(value, "grantee_type")), ["member", "group"]) as "member" | "group"),
     granteeId: asString(requireKey(value, "grantee_id")),
-    accessLevel: (requireKey(value, "access_level") as unknown as AccessLevel),
+    accessLevel: (asEnumMember(asString(requireKey(value, "access_level")), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"),
   };
 }
 
@@ -1910,7 +2238,7 @@ export function toSetTaskVisibilityRequestCborValue(v: SetTaskVisibilityRequest)
 export function fromSetTaskVisibilityRequestCborValue(value: CborValue): SetTaskVisibilityRequest {
   return {
     taskId: asString(requireKey(value, "task_id")),
-    visibility: (requireKey(value, "visibility") as unknown as AccessLevel),
+    visibility: (asEnumMember(asString(requireKey(value, "visibility")), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"),
   };
 }
 
@@ -1933,7 +2261,7 @@ export function toProjectGrantRefCborValue(v: ProjectGrantRef): CborValue {
 export function fromProjectGrantRefCborValue(value: CborValue): ProjectGrantRef {
   return {
     projectId: asString(requireKey(value, "project_id")),
-    granteeType: (requireKey(value, "grantee_type") as unknown as GranteeType),
+    granteeType: (asEnumMember(asString(requireKey(value, "grantee_type")), ["member", "group"]) as "member" | "group"),
     granteeId: asString(requireKey(value, "grantee_id")),
   };
 }
@@ -1958,9 +2286,9 @@ export function toPutProjectGrantRequestCborValue(v: PutProjectGrantRequest): Cb
 export function fromPutProjectGrantRequestCborValue(value: CborValue): PutProjectGrantRequest {
   return {
     projectId: asString(requireKey(value, "project_id")),
-    granteeType: (requireKey(value, "grantee_type") as unknown as GranteeType),
+    granteeType: (asEnumMember(asString(requireKey(value, "grantee_type")), ["member", "group"]) as "member" | "group"),
     granteeId: asString(requireKey(value, "grantee_id")),
-    accessLevel: (requireKey(value, "access_level") as unknown as AccessLevel),
+    accessLevel: (asEnumMember(asString(requireKey(value, "access_level")), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"),
   };
 }
 
@@ -1982,7 +2310,7 @@ export function toSetProjectVisibilityRequestCborValue(v: SetProjectVisibilityRe
 export function fromSetProjectVisibilityRequestCborValue(value: CborValue): SetProjectVisibilityRequest {
   return {
     projectId: asString(requireKey(value, "project_id")),
-    visibility: (requireKey(value, "visibility") as unknown as AccessLevel),
+    visibility: (asEnumMember(asString(requireKey(value, "visibility")), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"),
   };
 }
 
@@ -2006,7 +2334,7 @@ export function fromEffectiveSettingsCborValue(value: CborValue): EffectiveSetti
   return {
     bugReportsEnabled: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "bug_reports_enabled")),
     bugReportsProjectId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "bug_reports_project_id")),
-    defaultProjectVisibility: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (csilV as unknown as AccessLevel))(mapGet(value, "default_project_visibility")),
+    defaultProjectVisibility: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"))(mapGet(value, "default_project_visibility")),
   };
 }
 
