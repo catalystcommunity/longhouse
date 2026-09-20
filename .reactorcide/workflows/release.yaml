@@ -8,20 +8,20 @@ on:
     - "v*"
 
 jobs:
-  api-image:
+  longhouse-api-build-and-deploy:
     job_file: api-build-and-deploy.yaml
 
-  web-image:
+  longhouse-web-build-and-deploy:
     job_file: web-build-and-deploy.yaml
 
-  deploy-todandlorna:
+  longhouse-deploy-tnl:
     job_file: deploy-tnl-example.yaml
     depends_on:
-      - api-image
-      - web-image
+      - longhouse-api-build-and-deploy
+      - longhouse-web-build-and-deploy
 
-  deploy-catalystsquad:
+  longhouse-deploy-catalystsquad:
     job_file: deploy-catalystsquad.yaml
     depends_on:
-      - api-image
-      - web-image
+      - longhouse-api-build-and-deploy
+      - longhouse-web-build-and-deploy

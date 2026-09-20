@@ -8,5 +8,5 @@ on:
     - main
 
 jobs:
-  tag:
+  longhouse-release:
     job_file: release.yaml
