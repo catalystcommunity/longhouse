@@ -64,7 +64,7 @@ LONGHOUSE_ENV, and LONGHOUSE_DEV_AUTH_ENABLED.
 
 // version is bumped by .reactorcide/jobs/scripts/release.sh alongside
 // version/VERSION.txt and helm_chart/Chart.yaml.
-const version = "0.14.6"
+const version = "0.15.0"
 
 // Run parses args and dispatches to the appropriate subcommand.
 func Run(args []string) error {
