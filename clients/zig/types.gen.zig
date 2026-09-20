@@ -140,6 +140,23 @@ pub const MilestoneState = enum {
     }
 };
 
+/// CliLoginStatus is an enumeration.
+pub const CliLoginStatus = enum {
+    pending,
+    denied,
+    expired,
+    complete,
+
+    pub fn wire_name(self: CliLoginStatus) []const u8 {
+        return switch (self) {
+            .pending => "pending",
+            .denied => "denied",
+            .expired => "expired",
+            .complete => "complete",
+        };
+    }
+};
+
 /// HouseID is a type alias.
 pub const HouseID = []const u8;
 
@@ -185,6 +202,9 @@ pub const NotificationID = []const u8;
 /// NotificationEventID is a type alias.
 pub const NotificationEventID = []const u8;
 
+/// CliSessionID is a type alias.
+pub const CliSessionID = []const u8;
+
 /// Timestamp is a type alias.
 pub const Timestamp = []const u8;
 
@@ -211,18 +231,46 @@ pub const CompleteRequest = struct {
     encrypted_token: []const u8,
 };
 
+/// BeginCliLoginRequest is a structured data type.
+pub const BeginCliLoginRequest = struct {
+    client_name: []const u8,
+};
+
+/// ApproveCliLoginRequest is a structured data type.
+pub const ApproveCliLoginRequest = struct {
+    user_code: []const u8,
+};
+
+/// DenyCliLoginRequest is a structured data type.
+pub const DenyCliLoginRequest = struct {
+    user_code: []const u8,
+};
+
+/// ExchangeCliLoginRequest is a structured data type.
+pub const ExchangeCliLoginRequest = struct {
+    device_code: []const u8,
+};
+
+/// RefreshSessionRequest is a structured data type.
+pub const RefreshSessionRequest = struct {
+    refresh_token: []const u8,
+};
+
+/// CliSessionsResponse is a structured data type.
+pub const CliSessionsResponse = struct {
+    sessions: []CliSessionSummary,
+};
+
 /// DevUsersResponse is a structured data type.
 pub const DevUsersResponse = struct {
     users: []DevUserEntry,
 };
 
 /// EmptyRequest is a structured data type.
-pub const EmptyRequest = struct {
-};
+pub const EmptyRequest = struct {};
 
 /// EmptyResponse is a structured data type.
-pub const EmptyResponse = struct {
-};
+pub const EmptyResponse = struct {};
 
 /// BoolResponse is a structured data type.
 pub const BoolResponse = struct {
@@ -533,6 +581,55 @@ pub const LoginResponse = struct {
     expires_at: Timestamp,
 };
 
+/// CliTokenResponse is a structured data type.
+pub const CliTokenResponse = struct {
+    token: []const u8,
+    domain: []const u8,
+    user_id: []const u8,
+    display_name: ?[]const u8 = null,
+    expires_at: Timestamp,
+    refresh_token: []const u8,
+    refresh_expires_at: Timestamp,
+    session_id: CliSessionID,
+};
+
+/// BeginCliLoginResponse is a structured data type.
+pub const BeginCliLoginResponse = struct {
+    device_code: []const u8,
+    user_code: []const u8,
+    verification_url: []const u8,
+    expires_at: Timestamp,
+    interval_seconds: u64,
+};
+
+/// CliLoginRequestInfo is a structured data type.
+pub const CliLoginRequestInfo = struct {
+    user_code: []const u8,
+    client_name: []const u8,
+    expires_at: Timestamp,
+};
+
+/// ExchangeCliLoginResponse is a structured data type.
+pub const ExchangeCliLoginResponse = struct {
+    status: CliLoginStatus,
+    session: ?CliTokenResponse = null,
+};
+
+/// CliSessionSummary is a structured data type.
+pub const CliSessionSummary = struct {
+    session_id: CliSessionID,
+    client_name: []const u8,
+    created_at: Timestamp,
+    last_used_at: Timestamp,
+    expires_at: Timestamp,
+    revoked_at: ?Timestamp = null,
+};
+
+/// RevokeSessionRequest is a structured data type.
+pub const RevokeSessionRequest = struct {
+    session_id: CliSessionID,
+};
+
 /// DevUserEntry is a structured data type.
 pub const DevUserEntry = struct {
     member_id: MemberID,
@@ -687,13 +784,13 @@ pub const DependencyRef = struct {
 
 /// DependencyTarget is a structured data type.
 pub const DependencyTarget = struct {
-    @"type": DependencyNodeType,
+    type: DependencyNodeType,
     id: []const u8,
 };
 
 /// DependencyNode is a structured data type.
 pub const DependencyNode = struct {
-    @"type": DependencyNodeType,
+    type: DependencyNodeType,
     id: []const u8,
     title: []const u8,
     status: ?[]const u8 = null,

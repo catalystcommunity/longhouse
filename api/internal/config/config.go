@@ -1,8 +1,15 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+	"time"
+)
+
+const (
+	DefaultBearerTTLSeconds       = 12 * 60 * 60
+	DefaultRefreshTokenTTLSeconds = 30 * 24 * 60 * 60
 )
 
 var (
@@ -58,9 +65,15 @@ var (
 	// (LinkkeysDomain), not this URL.
 	AppCallbackURL = getEnvOrDefault("LONGHOUSE_APP_CALLBACK_URL", "")
 
-	// JWT signing secret. HMAC-SHA256 over a base64url'd JSON payload.
+	// Token signing secret. HMAC-SHA256 over a base64url-encoded CBOR payload.
 	// Required for the api to issue tokens at /auth/login.
 	JWTSecret = getEnvOrDefault("LONGHOUSE_JWT_SECRET", "")
+
+	// Access bearers stay stateless. CLI refresh tokens are rotating database
+	// credentials with a separate absolute lifetime. Keep both settings as raw
+	// text until server startup so an invalid security setting fails closed.
+	BearerTTLSeconds       = getEnvOrDefault("LONGHOUSE_BEARER_TTL_SECONDS", strconv.Itoa(DefaultBearerTTLSeconds))
+	RefreshTokenTTLSeconds = getEnvOrDefault("LONGHOUSE_REFRESH_TOKEN_TTL_SECONDS", strconv.Itoa(DefaultRefreshTokenTTLSeconds))
 
 	// Recurrence worker. Disabled defaults to false (worker on by default);
 	// set LONGHOUSE_RECURRENCE_DISABLED=true in environments where the
@@ -133,6 +146,32 @@ func getEnvAsIntOrDefault(key string, defaultVal int) int {
 	return defaultVal
 }
 
+// AuthTokenDurations validates the configured token lifetime. A bad value is a
+// startup error instead of a silent fallback to a different security policy.
+func AuthTokenDurations() (time.Duration, time.Duration, error) {
+	bearer, err := positiveSeconds("LONGHOUSE_BEARER_TTL_SECONDS", BearerTTLSeconds)
+	if err != nil {
+		return 0, 0, err
+	}
+	refresh, err := positiveSeconds("LONGHOUSE_REFRESH_TOKEN_TTL_SECONDS", RefreshTokenTTLSeconds)
+	if err != nil {
+		return 0, 0, err
+	}
+	return bearer, refresh, nil
+}
+
+func positiveSeconds(name, raw string) (time.Duration, error) {
+	seconds, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || seconds <= 0 {
+		return 0, fmt.Errorf("%s must be a positive integer number of seconds", name)
+	}
+	maxSeconds := int64((time.Duration(1<<63 - 1)) / time.Second)
+	if seconds > maxSeconds {
+		return 0, fmt.Errorf("%s is too large", name)
+	}
+	return time.Duration(seconds) * time.Second, nil
+}
+
 // ApplyFlags overrides config values from CLI flags.
 func ApplyFlags(flags map[string]string) {
 	if v, ok := flags["db-uri"]; ok {
@@ -178,5 +217,11 @@ func ApplyFlags(flags map[string]string) {
 	}
 	if v, ok := flags["jwt-secret"]; ok {
 		JWTSecret = v
+	}
+	if v, ok := flags["bearer-ttl-seconds"]; ok {
+		BearerTTLSeconds = v
+	}
+	if v, ok := flags["refresh-token-ttl-seconds"]; ok {
+		RefreshTokenTTLSeconds = v
 	}
 }

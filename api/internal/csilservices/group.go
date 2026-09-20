@@ -18,13 +18,13 @@ import (
 type GroupService struct{ Store store.Store }
 
 func (s *GroupService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("group", "CreateGroup", csilrpc.Route(s.CreateGroup, csil.DecodeGroupCreateGroupRequest, csil.EncodeGroupCreateGroupResponse))
-	d.RegisterTyped("group", "UpdateGroup", csilrpc.Route(s.UpdateGroup, csil.DecodeGroupUpdateGroupRequest, csil.EncodeGroupUpdateGroupResponse))
-	d.RegisterTyped("group", "DeleteGroup", csilrpc.Route(s.DeleteGroup, csil.DecodeGroupDeleteGroupRequest, csil.EncodeGroupDeleteGroupResponse))
-	d.RegisterTyped("group", "ListGroups", csilrpc.Route(s.ListGroups, csil.DecodeGroupListGroupsRequest, csil.EncodeGroupListGroupsResponse))
-	d.RegisterTyped("group", "AddGroupMember", csilrpc.Route(s.AddGroupMember, csil.DecodeGroupAddGroupMemberRequest, csil.EncodeGroupAddGroupMemberResponse))
-	d.RegisterTyped("group", "RemoveGroupMember", csilrpc.Route(s.RemoveGroupMember, csil.DecodeGroupRemoveGroupMemberRequest, csil.EncodeGroupRemoveGroupMemberResponse))
-	d.RegisterTyped("group", "ListGroupMembers", csilrpc.Route(s.ListGroupMembers, csil.DecodeGroupListGroupMembersRequest, csil.EncodeGroupListGroupMembersResponse))
+	d.RegisterTyped("group", "CreateGroup", csilrpc.Route(s.CreateGroup, csil.DecodeGroup, csil.EncodeGroup))
+	d.RegisterTyped("group", "UpdateGroup", csilrpc.Route(s.UpdateGroup, csil.DecodeGroup, csil.EncodeGroup))
+	d.RegisterTyped("group", "DeleteGroup", csilrpc.Route(s.DeleteGroup, csil.DecodeGroupDeleteGroupRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("group", "ListGroups", csilrpc.Route(s.ListGroups, csil.DecodeHouseScopedListRequest, csil.EncodeGroupListGroupsResponse))
+	d.RegisterTyped("group", "AddGroupMember", csilrpc.Route(s.AddGroupMember, csil.DecodeGroupMemberRef, csil.EncodeEmptyResponse))
+	d.RegisterTyped("group", "RemoveGroupMember", csilrpc.Route(s.RemoveGroupMember, csil.DecodeGroupMemberRef, csil.EncodeEmptyResponse))
+	d.RegisterTyped("group", "ListGroupMembers", csilrpc.Route(s.ListGroupMembers, csil.DecodeMemberScopedListRequest, csil.EncodeGroupListGroupMembersResponse))
 }
 
 func (s *GroupService) CreateGroup(ctx context.Context, in csil.Group) (csil.Group, error) {

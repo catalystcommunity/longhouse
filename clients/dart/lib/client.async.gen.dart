@@ -22,30 +22,127 @@ final class AuthAsyncClient {
   const AuthAsyncClient(this.transport);
 
   Future<LoginResponse> login(LoginRequest request) async {
-    final csilResp = await transport.call('auth', 'Login', request.toCbor());
+    final csilResp = await transport.call(
+      'AuthService',
+      'login',
+      request.toCbor(),
+    );
     return LoginResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<LoginResponse> complete(CompleteRequest request) async {
-    final csilResp = await transport.call('auth', 'Complete', request.toCbor());
+    final csilResp = await transport.call(
+      'AuthService',
+      'complete',
+      request.toCbor(),
+    );
     return LoginResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<LoginResponse> refresh(EmptyRequest request) async {
-    final csilResp = await transport.call('auth', 'Refresh', request.toCbor());
+    final csilResp = await transport.call(
+      'AuthService',
+      'refresh',
+      request.toCbor(),
+    );
     return LoginResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> logout(EmptyRequest request) async {
-    final csilResp = await transport.call('auth', 'Logout', request.toCbor());
+    final csilResp = await transport.call(
+      'AuthService',
+      'logout',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<MeResponse> me(EmptyRequest request) async {
-    final csilResp = await transport.call('auth', 'Me', request.toCbor());
+    final csilResp = await transport.call(
+      'AuthService',
+      'me',
+      request.toCbor(),
+    );
     return MeResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
+  Future<BeginCliLoginResponse> beginCliLogin(
+    BeginCliLoginRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'begin-cli-login',
+      request.toCbor(),
+    );
+    return BeginCliLoginResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<CliLoginRequestInfo> inspectCliLogin(
+    ApproveCliLoginRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'inspect-cli-login',
+      request.toCbor(),
+    );
+    return CliLoginRequestInfo.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<EmptyResponse> approveCliLogin(ApproveCliLoginRequest request) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'approve-cli-login',
+      request.toCbor(),
+    );
+    return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<EmptyResponse> denyCliLogin(DenyCliLoginRequest request) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'deny-cli-login',
+      request.toCbor(),
+    );
+    return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<ExchangeCliLoginResponse> exchangeCliLogin(
+    ExchangeCliLoginRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'exchange-cli-login',
+      request.toCbor(),
+    );
+    return ExchangeCliLoginResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<CliTokenResponse> refreshSession(RefreshSessionRequest request) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'refresh-session',
+      request.toCbor(),
+    );
+    return CliTokenResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<CliSessionsResponse> listSessions(EmptyRequest request) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'list-sessions',
+      request.toCbor(),
+    );
+    return CliSessionsResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<EmptyResponse> revokeSession(RevokeSessionRequest request) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'revoke-session',
+      request.toCbor(),
+    );
+    return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
 }
 
 /// A typed, transport-agnostic client for the DevAuthService service. The client owns
@@ -55,15 +152,22 @@ final class DevAuthAsyncClient {
   const DevAuthAsyncClient(this.transport);
 
   Future<DevUsersResponse> listDevUsers(EmptyRequest request) async {
-    final csilResp = await transport.call('devauth', 'ListDevUsers', request.toCbor());
+    final csilResp = await transport.call(
+      'DevAuthService',
+      'list-dev-users',
+      request.toCbor(),
+    );
     return DevUsersResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<LoginResponse> devLogin(DevLoginRequest request) async {
-    final csilResp = await transport.call('devauth', 'DevLogin', request.toCbor());
+    final csilResp = await transport.call(
+      'DevAuthService',
+      'dev-login',
+      request.toCbor(),
+    );
     return LoginResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the HouseService service. The client owns
@@ -73,30 +177,52 @@ final class HouseAsyncClient {
   const HouseAsyncClient(this.transport);
 
   Future<House> createHouse(House request) async {
-    final csilResp = await transport.call('house', 'CreateHouse', request.toCbor());
+    final csilResp = await transport.call(
+      'HouseService',
+      'create-house',
+      request.toCbor(),
+    );
     return House.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<House> getHouse(HouseId request) async {
-    final csilResp = await transport.call('house', 'GetHouse', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'HouseService',
+      'get-house',
+      CsilCbor.encodeValue(request),
+    );
     return House.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<House> updateHouse(House request) async {
-    final csilResp = await transport.call('house', 'UpdateHouse', request.toCbor());
+    final csilResp = await transport.call(
+      'HouseService',
+      'update-house',
+      request.toCbor(),
+    );
     return House.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteHouse(HouseId request) async {
-    final csilResp = await transport.call('house', 'DeleteHouse', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'HouseService',
+      'delete-house',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<House>> listHouses(HouseListRequest request) async {
-    final csilResp = await transport.call('house', 'ListHouses', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => House.fromCborValue(csilE)).cast<House>().toList();
+    final csilResp = await transport.call(
+      'HouseService',
+      'list-houses',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => House.fromCborValue(csilE))
+        .cast<House>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the MemberService service. The client owns
@@ -106,40 +232,70 @@ final class MemberAsyncClient {
   const MemberAsyncClient(this.transport);
 
   Future<Member> createMember(Member request) async {
-    final csilResp = await transport.call('member', 'CreateMember', request.toCbor());
+    final csilResp = await transport.call(
+      'MemberService',
+      'create-member',
+      request.toCbor(),
+    );
     return Member.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Member> getMember(MemberId request) async {
-    final csilResp = await transport.call('member', 'GetMember', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'MemberService',
+      'get-member',
+      CsilCbor.encodeValue(request),
+    );
     return Member.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Member> getMemberByIdentity(Member request) async {
-    final csilResp = await transport.call('member', 'GetMemberByIdentity', request.toCbor());
+    final csilResp = await transport.call(
+      'MemberService',
+      'get-member-by-identity',
+      request.toCbor(),
+    );
     return Member.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Member> updateMember(Member request) async {
-    final csilResp = await transport.call('member', 'UpdateMember', request.toCbor());
+    final csilResp = await transport.call(
+      'MemberService',
+      'update-member',
+      request.toCbor(),
+    );
     return Member.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deactivateMember(MemberId request) async {
-    final csilResp = await transport.call('member', 'DeactivateMember', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'MemberService',
+      'deactivate-member',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> reactivateMember(MemberId request) async {
-    final csilResp = await transport.call('member', 'ReactivateMember', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'MemberService',
+      'reactivate-member',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Member>> listMembers(HouseScopedListRequest request) async {
-    final csilResp = await transport.call('member', 'ListMembers', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Member.fromCborValue(csilE)).cast<Member>().toList();
+    final csilResp = await transport.call(
+      'MemberService',
+      'list-members',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Member.fromCborValue(csilE))
+        .cast<Member>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the TrustedDomainService service. The client owns
@@ -149,25 +305,43 @@ final class TrustedDomainAsyncClient {
   const TrustedDomainAsyncClient(this.transport);
 
   Future<TrustedDomain> addTrustedDomain(TrustedDomain request) async {
-    final csilResp = await transport.call('trusteddomain', 'AddTrustedDomain', request.toCbor());
+    final csilResp = await transport.call(
+      'TrustedDomainService',
+      'add-trusted-domain',
+      request.toCbor(),
+    );
     return TrustedDomain.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> removeTrustedDomain(TrustedDomainId request) async {
-    final csilResp = await transport.call('trusteddomain', 'RemoveTrustedDomain', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'TrustedDomainService',
+      'remove-trusted-domain',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<TrustedDomain>> listTrustedDomains(HouseId request) async {
-    final csilResp = await transport.call('trusteddomain', 'ListTrustedDomains', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => TrustedDomain.fromCborValue(csilE)).cast<TrustedDomain>().toList();
+    final csilResp = await transport.call(
+      'TrustedDomainService',
+      'list-trusted-domains',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => TrustedDomain.fromCborValue(csilE))
+        .cast<TrustedDomain>()
+        .toList();
   }
 
   Future<BoolResponse> isDomainTrusted(TrustedDomain request) async {
-    final csilResp = await transport.call('trusteddomain', 'IsDomainTrusted', request.toCbor());
+    final csilResp = await transport.call(
+      'TrustedDomainService',
+      'is-domain-trusted',
+      request.toCbor(),
+    );
     return BoolResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the RoleService service. The client owns
@@ -177,40 +351,73 @@ final class RoleAsyncClient {
   const RoleAsyncClient(this.transport);
 
   Future<Role> createRole(Role request) async {
-    final csilResp = await transport.call('role', 'CreateRole', request.toCbor());
+    final csilResp = await transport.call(
+      'RoleService',
+      'create-role',
+      request.toCbor(),
+    );
     return Role.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Role> updateRole(Role request) async {
-    final csilResp = await transport.call('role', 'UpdateRole', request.toCbor());
+    final csilResp = await transport.call(
+      'RoleService',
+      'update-role',
+      request.toCbor(),
+    );
     return Role.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteRole(RoleId request) async {
-    final csilResp = await transport.call('role', 'DeleteRole', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'RoleService',
+      'delete-role',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Role>> listRoles(HouseScopedListRequest request) async {
-    final csilResp = await transport.call('role', 'ListRoles', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Role.fromCborValue(csilE)).cast<Role>().toList();
+    final csilResp = await transport.call(
+      'RoleService',
+      'list-roles',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Role.fromCborValue(csilE))
+        .cast<Role>()
+        .toList();
   }
 
   Future<EmptyResponse> grantRole(MemberRoleRef request) async {
-    final csilResp = await transport.call('role', 'GrantRole', request.toCbor());
+    final csilResp = await transport.call(
+      'RoleService',
+      'grant-role',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> revokeRole(MemberRoleRef request) async {
-    final csilResp = await transport.call('role', 'RevokeRole', request.toCbor());
+    final csilResp = await transport.call(
+      'RoleService',
+      'revoke-role',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Role>> listMemberRoles(MemberScopedListRequest request) async {
-    final csilResp = await transport.call('role', 'ListMemberRoles', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Role.fromCborValue(csilE)).cast<Role>().toList();
+    final csilResp = await transport.call(
+      'RoleService',
+      'list-member-roles',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Role.fromCborValue(csilE))
+        .cast<Role>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the SkillService service. The client owns
@@ -220,55 +427,103 @@ final class SkillAsyncClient {
   const SkillAsyncClient(this.transport);
 
   Future<Skill> createSkill(Skill request) async {
-    final csilResp = await transport.call('skill', 'CreateSkill', request.toCbor());
+    final csilResp = await transport.call(
+      'SkillService',
+      'create-skill',
+      request.toCbor(),
+    );
     return Skill.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Skill> updateSkill(Skill request) async {
-    final csilResp = await transport.call('skill', 'UpdateSkill', request.toCbor());
+    final csilResp = await transport.call(
+      'SkillService',
+      'update-skill',
+      request.toCbor(),
+    );
     return Skill.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteSkill(SkillId request) async {
-    final csilResp = await transport.call('skill', 'DeleteSkill', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'SkillService',
+      'delete-skill',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Skill>> listSkills(HouseScopedListRequest request) async {
-    final csilResp = await transport.call('skill', 'ListSkills', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Skill.fromCborValue(csilE)).cast<Skill>().toList();
+    final csilResp = await transport.call(
+      'SkillService',
+      'list-skills',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Skill.fromCborValue(csilE))
+        .cast<Skill>()
+        .toList();
   }
 
   Future<EmptyResponse> addMemberSkill(MemberSkillRef request) async {
-    final csilResp = await transport.call('skill', 'AddMemberSkill', request.toCbor());
+    final csilResp = await transport.call(
+      'SkillService',
+      'add-member-skill',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> removeMemberSkill(MemberSkillRef request) async {
-    final csilResp = await transport.call('skill', 'RemoveMemberSkill', request.toCbor());
+    final csilResp = await transport.call(
+      'SkillService',
+      'remove-member-skill',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Skill>> listMemberSkills(MemberScopedListRequest request) async {
-    final csilResp = await transport.call('skill', 'ListMemberSkills', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Skill.fromCborValue(csilE)).cast<Skill>().toList();
+    final csilResp = await transport.call(
+      'SkillService',
+      'list-member-skills',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Skill.fromCborValue(csilE))
+        .cast<Skill>()
+        .toList();
   }
 
   Future<EmptyResponse> addGroupSkill(GroupSkillRef request) async {
-    final csilResp = await transport.call('skill', 'AddGroupSkill', request.toCbor());
+    final csilResp = await transport.call(
+      'SkillService',
+      'add-group-skill',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> removeGroupSkill(GroupSkillRef request) async {
-    final csilResp = await transport.call('skill', 'RemoveGroupSkill', request.toCbor());
+    final csilResp = await transport.call(
+      'SkillService',
+      'remove-group-skill',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Skill>> listGroupSkills(GroupId request) async {
-    final csilResp = await transport.call('skill', 'ListGroupSkills', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Skill.fromCborValue(csilE)).cast<Skill>().toList();
+    final csilResp = await transport.call(
+      'SkillService',
+      'list-group-skills',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Skill.fromCborValue(csilE))
+        .cast<Skill>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the GroupService service. The client owns
@@ -278,40 +533,73 @@ final class GroupAsyncClient {
   const GroupAsyncClient(this.transport);
 
   Future<Group> createGroup(Group request) async {
-    final csilResp = await transport.call('group', 'CreateGroup', request.toCbor());
+    final csilResp = await transport.call(
+      'GroupService',
+      'create-group',
+      request.toCbor(),
+    );
     return Group.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Group> updateGroup(Group request) async {
-    final csilResp = await transport.call('group', 'UpdateGroup', request.toCbor());
+    final csilResp = await transport.call(
+      'GroupService',
+      'update-group',
+      request.toCbor(),
+    );
     return Group.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteGroup(GroupId request) async {
-    final csilResp = await transport.call('group', 'DeleteGroup', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'GroupService',
+      'delete-group',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Group>> listGroups(HouseScopedListRequest request) async {
-    final csilResp = await transport.call('group', 'ListGroups', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Group.fromCborValue(csilE)).cast<Group>().toList();
+    final csilResp = await transport.call(
+      'GroupService',
+      'list-groups',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Group.fromCborValue(csilE))
+        .cast<Group>()
+        .toList();
   }
 
   Future<EmptyResponse> addGroupMember(GroupMemberRef request) async {
-    final csilResp = await transport.call('group', 'AddGroupMember', request.toCbor());
+    final csilResp = await transport.call(
+      'GroupService',
+      'add-group-member',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> removeGroupMember(GroupMemberRef request) async {
-    final csilResp = await transport.call('group', 'RemoveGroupMember', request.toCbor());
+    final csilResp = await transport.call(
+      'GroupService',
+      'remove-group-member',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Member>> listGroupMembers(MemberScopedListRequest request) async {
-    final csilResp = await transport.call('group', 'ListGroupMembers', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Member.fromCborValue(csilE)).cast<Member>().toList();
+    final csilResp = await transport.call(
+      'GroupService',
+      'list-group-members',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Member.fromCborValue(csilE))
+        .cast<Member>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the ProjectService service. The client owns
@@ -321,120 +609,227 @@ final class ProjectAsyncClient {
   const ProjectAsyncClient(this.transport);
 
   Future<Project> createProject(Project request) async {
-    final csilResp = await transport.call('project', 'CreateProject', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'create-project',
+      request.toCbor(),
+    );
     return Project.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Project> getProject(ProjectId request) async {
-    final csilResp = await transport.call('project', 'GetProject', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'ProjectService',
+      'get-project',
+      CsilCbor.encodeValue(request),
+    );
     return Project.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Project> updateProject(Project request) async {
-    final csilResp = await transport.call('project', 'UpdateProject', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'update-project',
+      request.toCbor(),
+    );
     return Project.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteProject(ProjectId request) async {
-    final csilResp = await transport.call('project', 'DeleteProject', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'ProjectService',
+      'delete-project',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<ProjectList> listProjects(HouseScopedListRequest request) async {
-    final csilResp = await transport.call('project', 'ListProjects', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'list-projects',
+      request.toCbor(),
+    );
     return ProjectList.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<TaskList> listProjectTasks(ProjectScopedListRequest request) async {
-    final csilResp = await transport.call('project', 'ListProjectTasks', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'list-project-tasks',
+      request.toCbor(),
+    );
     return TaskList.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> addProjectTask(ProjectTaskOrderRequest request) async {
-    final csilResp = await transport.call('project', 'AddProjectTask', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'add-project-task',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> removeProjectTask(ProjectTaskRef request) async {
-    final csilResp = await transport.call('project', 'RemoveProjectTask', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'remove-project-task',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
-  Future<EmptyResponse> setProjectTaskPosition(ProjectTaskOrderRequest request) async {
-    final csilResp = await transport.call('project', 'SetProjectTaskPosition', request.toCbor());
+  Future<EmptyResponse> setProjectTaskPosition(
+    ProjectTaskOrderRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'ProjectService',
+      'set-project-task-position',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Member>> listProjectMembers(ProjectId request) async {
-    final csilResp = await transport.call('project', 'ListProjectMembers', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Member.fromCborValue(csilE)).cast<Member>().toList();
+    final csilResp = await transport.call(
+      'ProjectService',
+      'list-project-members',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Member.fromCborValue(csilE))
+        .cast<Member>()
+        .toList();
   }
 
   Future<EmptyResponse> addProjectMember(ProjectMemberRef request) async {
-    final csilResp = await transport.call('project', 'AddProjectMember', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'add-project-member',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> removeProjectMember(ProjectMemberRef request) async {
-    final csilResp = await transport.call('project', 'RemoveProjectMember', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'remove-project-member',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Member>> listProjectOwners(ProjectId request) async {
-    final csilResp = await transport.call('project', 'ListProjectOwners', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Member.fromCborValue(csilE)).cast<Member>().toList();
+    final csilResp = await transport.call(
+      'ProjectService',
+      'list-project-owners',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Member.fromCborValue(csilE))
+        .cast<Member>()
+        .toList();
   }
 
   Future<EmptyResponse> addProjectOwner(ProjectOwnerRef request) async {
-    final csilResp = await transport.call('project', 'AddProjectOwner', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'add-project-owner',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> removeProjectOwner(ProjectOwnerRef request) async {
-    final csilResp = await transport.call('project', 'RemoveProjectOwner', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'remove-project-owner',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Milestone>> listMilestones(ProjectId request) async {
-    final csilResp = await transport.call('project', 'ListMilestones', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Milestone.fromCborValue(csilE)).cast<Milestone>().toList();
+    final csilResp = await transport.call(
+      'ProjectService',
+      'list-milestones',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Milestone.fromCborValue(csilE))
+        .cast<Milestone>()
+        .toList();
   }
 
   Future<Milestone> createMilestone(Milestone request) async {
-    final csilResp = await transport.call('project', 'CreateMilestone', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'create-milestone',
+      request.toCbor(),
+    );
     return Milestone.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Milestone> updateMilestone(Milestone request) async {
-    final csilResp = await transport.call('project', 'UpdateMilestone', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'update-milestone',
+      request.toCbor(),
+    );
     return Milestone.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteMilestone(MilestoneId request) async {
-    final csilResp = await transport.call('project', 'DeleteMilestone', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'ProjectService',
+      'delete-milestone',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
-  Future<Project> setProjectVisibility(SetProjectVisibilityRequest request) async {
-    final csilResp = await transport.call('project', 'SetProjectVisibility', request.toCbor());
+  Future<Project> setProjectVisibility(
+    SetProjectVisibilityRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'ProjectService',
+      'set-project-visibility',
+      request.toCbor(),
+    );
     return Project.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Grant>> listProjectGrants(ProjectId request) async {
-    final csilResp = await transport.call('project', 'ListProjectGrants', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Grant.fromCborValue(csilE)).cast<Grant>().toList();
+    final csilResp = await transport.call(
+      'ProjectService',
+      'list-project-grants',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Grant.fromCborValue(csilE))
+        .cast<Grant>()
+        .toList();
   }
 
   Future<EmptyResponse> putProjectGrant(PutProjectGrantRequest request) async {
-    final csilResp = await transport.call('project', 'PutProjectGrant', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'put-project-grant',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteProjectGrant(ProjectGrantRef request) async {
-    final csilResp = await transport.call('project', 'DeleteProjectGrant', request.toCbor());
+    final csilResp = await transport.call(
+      'ProjectService',
+      'delete-project-grant',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the EventService service. The client owns
@@ -444,45 +839,79 @@ final class EventAsyncClient {
   const EventAsyncClient(this.transport);
 
   Future<Event> createEvent(Event request) async {
-    final csilResp = await transport.call('event', 'CreateEvent', request.toCbor());
+    final csilResp = await transport.call(
+      'EventService',
+      'create-event',
+      request.toCbor(),
+    );
     return Event.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Event> getEvent(EventId request) async {
-    final csilResp = await transport.call('event', 'GetEvent', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'EventService',
+      'get-event',
+      CsilCbor.encodeValue(request),
+    );
     return Event.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Event> updateEvent(Event request) async {
-    final csilResp = await transport.call('event', 'UpdateEvent', request.toCbor());
+    final csilResp = await transport.call(
+      'EventService',
+      'update-event',
+      request.toCbor(),
+    );
     return Event.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteEvent(EventId request) async {
-    final csilResp = await transport.call('event', 'DeleteEvent', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'EventService',
+      'delete-event',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteEventAndFuture(EventId request) async {
-    final csilResp = await transport.call('event', 'DeleteEventAndFuture', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'EventService',
+      'delete-event-and-future',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Event>> listEvents(HouseScopedListRequest request) async {
-    final csilResp = await transport.call('event', 'ListEvents', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Event.fromCborValue(csilE)).cast<Event>().toList();
+    final csilResp = await transport.call(
+      'EventService',
+      'list-events',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Event.fromCborValue(csilE))
+        .cast<Event>()
+        .toList();
   }
 
   Future<CalendarView> getCalendarView(HouseId request) async {
-    final csilResp = await transport.call('event', 'GetCalendarView', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'EventService',
+      'get-calendar-view',
+      CsilCbor.encodeValue(request),
+    );
     return CalendarView.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<CalendarView> setCalendarView(CalendarView request) async {
-    final csilResp = await transport.call('event', 'SetCalendarView', request.toCbor());
+    final csilResp = await transport.call(
+      'EventService',
+      'set-calendar-view',
+      request.toCbor(),
+    );
     return CalendarView.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the TaskService service. The client owns
@@ -492,50 +921,88 @@ final class TaskAsyncClient {
   const TaskAsyncClient(this.transport);
 
   Future<Task> createTask(Task request) async {
-    final csilResp = await transport.call('task', 'CreateTask', request.toCbor());
+    final csilResp = await transport.call(
+      'TaskService',
+      'create-task',
+      request.toCbor(),
+    );
     return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Task> getTask(TaskId request) async {
-    final csilResp = await transport.call('task', 'GetTask', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'TaskService',
+      'get-task',
+      CsilCbor.encodeValue(request),
+    );
     return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Task> updateTask(Task request) async {
-    final csilResp = await transport.call('task', 'UpdateTask', request.toCbor());
+    final csilResp = await transport.call(
+      'TaskService',
+      'update-task',
+      request.toCbor(),
+    );
     return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteTask(TaskId request) async {
-    final csilResp = await transport.call('task', 'DeleteTask', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'TaskService',
+      'delete-task',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<TaskList> listTasks(HouseScopedListRequest request) async {
-    final csilResp = await transport.call('task', 'ListTasks', request.toCbor());
+    final csilResp = await transport.call(
+      'TaskService',
+      'list-tasks',
+      request.toCbor(),
+    );
     return TaskList.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Task> setTaskVisibility(SetTaskVisibilityRequest request) async {
-    final csilResp = await transport.call('task', 'SetTaskVisibility', request.toCbor());
+    final csilResp = await transport.call(
+      'TaskService',
+      'set-task-visibility',
+      request.toCbor(),
+    );
     return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Grant>> listTaskGrants(TaskId request) async {
-    final csilResp = await transport.call('task', 'ListTaskGrants', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Grant.fromCborValue(csilE)).cast<Grant>().toList();
+    final csilResp = await transport.call(
+      'TaskService',
+      'list-task-grants',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Grant.fromCborValue(csilE))
+        .cast<Grant>()
+        .toList();
   }
 
   Future<EmptyResponse> putTaskGrant(PutTaskGrantRequest request) async {
-    final csilResp = await transport.call('task', 'PutTaskGrant', request.toCbor());
+    final csilResp = await transport.call(
+      'TaskService',
+      'put-task-grant',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteTaskGrant(TaskGrantRef request) async {
-    final csilResp = await transport.call('task', 'DeleteTaskGrant', request.toCbor());
+    final csilResp = await transport.call(
+      'TaskService',
+      'delete-task-grant',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the DependencyService service. The client owns
@@ -545,20 +1012,31 @@ final class DependencyAsyncClient {
   const DependencyAsyncClient(this.transport);
 
   Future<EmptyResponse> addDependency(DependencyRef request) async {
-    final csilResp = await transport.call('dependency', 'AddDependency', request.toCbor());
+    final csilResp = await transport.call(
+      'DependencyService',
+      'add-dependency',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> removeDependency(DependencyRef request) async {
-    final csilResp = await transport.call('dependency', 'RemoveDependency', request.toCbor());
+    final csilResp = await transport.call(
+      'DependencyService',
+      'remove-dependency',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<DependencyGraph> getDependencies(DependencyTarget request) async {
-    final csilResp = await transport.call('dependency', 'GetDependencies', request.toCbor());
+    final csilResp = await transport.call(
+      'DependencyService',
+      'get-dependencies',
+      request.toCbor(),
+    );
     return DependencyGraph.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the CommentService service. The client owns
@@ -568,30 +1046,52 @@ final class CommentAsyncClient {
   const CommentAsyncClient(this.transport);
 
   Future<Comment> createComment(Comment request) async {
-    final csilResp = await transport.call('comment', 'CreateComment', request.toCbor());
+    final csilResp = await transport.call(
+      'CommentService',
+      'create-comment',
+      request.toCbor(),
+    );
     return Comment.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Comment> getComment(CommentId request) async {
-    final csilResp = await transport.call('comment', 'GetComment', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'CommentService',
+      'get-comment',
+      CsilCbor.encodeValue(request),
+    );
     return Comment.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Comment> updateComment(Comment request) async {
-    final csilResp = await transport.call('comment', 'UpdateComment', request.toCbor());
+    final csilResp = await transport.call(
+      'CommentService',
+      'update-comment',
+      request.toCbor(),
+    );
     return Comment.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteComment(CommentId request) async {
-    final csilResp = await transport.call('comment', 'DeleteComment', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'CommentService',
+      'delete-comment',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Comment>> listComments(CommentListRequest request) async {
-    final csilResp = await transport.call('comment', 'ListComments', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Comment.fromCborValue(csilE)).cast<Comment>().toList();
+    final csilResp = await transport.call(
+      'CommentService',
+      'list-comments',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Comment.fromCborValue(csilE))
+        .cast<Comment>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the NotificationService service. The client owns
@@ -600,26 +1100,46 @@ final class NotificationAsyncClient {
   final AsyncCsilTransport transport;
   const NotificationAsyncClient(this.transport);
 
-  Future<List<Notification>> listNotifications(NotificationListRequest request) async {
-    final csilResp = await transport.call('notification', 'ListNotifications', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Notification.fromCborValue(csilE)).cast<Notification>().toList();
+  Future<List<Notification>> listNotifications(
+    NotificationListRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'NotificationService',
+      'list-notifications',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Notification.fromCborValue(csilE))
+        .cast<Notification>()
+        .toList();
   }
 
   Future<NotificationUnreadCount> unreadCount(HouseId request) async {
-    final csilResp = await transport.call('notification', 'UnreadCount', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'NotificationService',
+      'unread-count',
+      CsilCbor.encodeValue(request),
+    );
     return NotificationUnreadCount.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Notification> markRead(NotificationId request) async {
-    final csilResp = await transport.call('notification', 'MarkRead', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'NotificationService',
+      'mark-read',
+      CsilCbor.encodeValue(request),
+    );
     return Notification.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> markAllRead(HouseId request) async {
-    final csilResp = await transport.call('notification', 'MarkAllRead', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'NotificationService',
+      'mark-all-read',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the ShareService service. The client owns
@@ -629,25 +1149,43 @@ final class ShareAsyncClient {
   const ShareAsyncClient(this.transport);
 
   Future<Share> createShare(Share request) async {
-    final csilResp = await transport.call('share', 'CreateShare', request.toCbor());
+    final csilResp = await transport.call(
+      'ShareService',
+      'create-share',
+      request.toCbor(),
+    );
     return Share.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> deleteShare(ShareId request) async {
-    final csilResp = await transport.call('share', 'DeleteShare', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'ShareService',
+      'delete-share',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<List<Share>> listSharesByResource(ResourceRef request) async {
-    final csilResp = await transport.call('share', 'ListSharesByResource', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Share.fromCborValue(csilE)).cast<Share>().toList();
+    final csilResp = await transport.call(
+      'ShareService',
+      'list-shares-by-resource',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Share.fromCborValue(csilE))
+        .cast<Share>()
+        .toList();
   }
 
   Future<Share> checkAccess(ShareAccessRequest request) async {
-    final csilResp = await transport.call('share', 'CheckAccess', request.toCbor());
+    final csilResp = await transport.call(
+      'ShareService',
+      'check-access',
+      request.toCbor(),
+    );
     return Share.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the MemberAuditService service. The client owns
@@ -656,11 +1194,19 @@ final class MemberAuditAsyncClient {
   final AsyncCsilTransport transport;
   const MemberAuditAsyncClient(this.transport);
 
-  Future<List<MemberAudit>> listAuditsForMember(MemberScopedListRequest request) async {
-    final csilResp = await transport.call('memberaudit', 'ListAuditsForMember', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => MemberAudit.fromCborValue(csilE)).cast<MemberAudit>().toList();
+  Future<List<MemberAudit>> listAuditsForMember(
+    MemberScopedListRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'MemberAuditService',
+      'list-audits-for-member',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => MemberAudit.fromCborValue(csilE))
+        .cast<MemberAudit>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the SettingsService service. The client owns
@@ -670,15 +1216,24 @@ final class SettingsAsyncClient {
   const SettingsAsyncClient(this.transport);
 
   Future<EffectiveSettings> getSettings(HouseId request) async {
-    final csilResp = await transport.call('settings', 'GetSettings', CsilCbor.encodeValue(request));
+    final csilResp = await transport.call(
+      'SettingsService',
+      'get-settings',
+      CsilCbor.encodeValue(request),
+    );
     return EffectiveSettings.fromCborValue(CsilCbor.decode(csilResp));
   }
 
-  Future<EffectiveSettings> updateSettings(UpdateSettingsRequest request) async {
-    final csilResp = await transport.call('settings', 'UpdateSettings', request.toCbor());
+  Future<EffectiveSettings> updateSettings(
+    UpdateSettingsRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'SettingsService',
+      'update-settings',
+      request.toCbor(),
+    );
     return EffectiveSettings.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the BugService service. The client owns
@@ -688,10 +1243,13 @@ final class BugAsyncClient {
   const BugAsyncClient(this.transport);
 
   Future<Task> reportBug(BugReportRequest request) async {
-    final csilResp = await transport.call('bug', 'ReportBug', request.toCbor());
+    final csilResp = await transport.call(
+      'BugService',
+      'report-bug',
+      request.toCbor(),
+    );
     return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the AuditService service. The client owns
@@ -701,10 +1259,13 @@ final class AuditAsyncClient {
   const AuditAsyncClient(this.transport);
 
   Future<AuditPage> queryAudit(AuditQuery request) async {
-    final csilResp = await transport.call('audit', 'QueryAudit', request.toCbor());
+    final csilResp = await transport.call(
+      'AuditService',
+      'query-audit',
+      request.toCbor(),
+    );
     return AuditPage.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the TrashService service. The client owns
@@ -714,19 +1275,29 @@ final class TrashAsyncClient {
   const TrashAsyncClient(this.transport);
 
   Future<TrashPage> listTrash(HouseScopedListRequest request) async {
-    final csilResp = await transport.call('trash', 'ListTrash', request.toCbor());
+    final csilResp = await transport.call(
+      'TrashService',
+      'list-trash',
+      request.toCbor(),
+    );
     return TrashPage.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> restore(RestoreRequest request) async {
-    final csilResp = await transport.call('trash', 'Restore', request.toCbor());
+    final csilResp = await transport.call(
+      'TrashService',
+      'restore',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<EmptyResponse> purge(PurgeRequest request) async {
-    final csilResp = await transport.call('trash', 'Purge', request.toCbor());
+    final csilResp = await transport.call(
+      'TrashService',
+      'purge',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
-

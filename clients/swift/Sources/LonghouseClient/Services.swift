@@ -15,6 +15,14 @@ public protocol AuthService {
     func refresh(_ request: EmptyRequest) throws -> LoginResponse
     func logout(_ request: EmptyRequest) throws -> EmptyResponse
     func me(_ request: EmptyRequest) throws -> MeResponse
+    func beginCliLogin(_ request: BeginCliLoginRequest) throws -> BeginCliLoginResponse
+    func inspectCliLogin(_ request: ApproveCliLoginRequest) throws -> CliLoginRequestInfo
+    func approveCliLogin(_ request: ApproveCliLoginRequest) throws -> EmptyResponse
+    func denyCliLogin(_ request: DenyCliLoginRequest) throws -> EmptyResponse
+    func exchangeCliLogin(_ request: ExchangeCliLoginRequest) throws -> ExchangeCliLoginResponse
+    func refreshSession(_ request: RefreshSessionRequest) throws -> CliTokenResponse
+    func listSessions(_ request: EmptyRequest) throws -> CliSessionsResponse
+    func revokeSession(_ request: RevokeSessionRequest) throws -> EmptyResponse
 }
 
 /// DevAuthService is the server-side handler seam.

@@ -37,6 +37,8 @@ public typealias NotificationId = String
 
 public typealias NotificationEventId = String
 
+public typealias CliSessionId = String
+
 public typealias Timestamp = String
 
 /// TaskStatus is a generated CSIL string enum (a closed set of wire values).
@@ -102,6 +104,14 @@ public enum MilestoneState: String, Equatable, Sendable, CaseIterable {
     case done = "done"
     case current = "current"
     case future = "future"
+}
+
+/// CliLoginStatus is a generated CSIL string enum (a closed set of wire values).
+public enum CliLoginStatus: String, Equatable, Sendable, CaseIterable {
+    case pending = "pending"
+    case denied = "denied"
+    case expired = "expired"
+    case complete = "complete"
 }
 
 /// House is a generated CSIL record type.
@@ -1098,6 +1108,267 @@ public struct LoginResponse: Equatable, Sendable {
         "userId": "user_id",
         "displayName": "display_name",
         "expiresAt": "expires_at"
+    ]
+}
+
+/// CliTokenResponse is a generated CSIL record type.
+public struct CliTokenResponse: Equatable, Sendable {
+    public let token: String
+    public let domain: String
+    /// wire key: user_id
+    public let userId: String
+    /// wire key: display_name
+    public let displayName: String?
+    /// wire key: expires_at
+    public let expiresAt: Timestamp
+    /// wire key: refresh_token
+    public let refreshToken: String
+    /// wire key: refresh_expires_at
+    public let refreshExpiresAt: Timestamp
+    /// wire key: session_id
+    public let sessionId: CliSessionId
+
+    public init(token: String, domain: String, userId: String, displayName: String? = nil, expiresAt: Timestamp, refreshToken: String, refreshExpiresAt: Timestamp, sessionId: CliSessionId) {
+        self.token = token
+        self.domain = domain
+        self.userId = userId
+        self.displayName = displayName
+        self.expiresAt = expiresAt
+        self.refreshToken = refreshToken
+        self.refreshExpiresAt = refreshExpiresAt
+        self.sessionId = sessionId
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "token": "token",
+        "domain": "domain",
+        "userId": "user_id",
+        "displayName": "display_name",
+        "expiresAt": "expires_at",
+        "refreshToken": "refresh_token",
+        "refreshExpiresAt": "refresh_expires_at",
+        "sessionId": "session_id"
+    ]
+}
+
+/// BeginCliLoginRequest is a generated CSIL record type.
+public struct BeginCliLoginRequest: Equatable, Sendable {
+    /// wire key: client_name
+    public let clientName: String
+
+    public init(clientName: String) {
+        self.clientName = clientName
+    }
+
+    /// Validate field constraints, throwing CsilValidationError on the first failure.
+    public func validate() throws {
+        if self.clientName.count < 1 {
+            throw CsilValidationError("field 'clientName' must have at least 1 elements")
+        }
+        if self.clientName.count > 128 {
+            throw CsilValidationError("field 'clientName' must have at most 128 elements")
+        }
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "clientName": "client_name"
+    ]
+}
+
+/// BeginCliLoginResponse is a generated CSIL record type.
+public struct BeginCliLoginResponse: Equatable, Sendable {
+    /// wire key: device_code
+    public let deviceCode: String
+    /// wire key: user_code
+    public let userCode: String
+    /// wire key: verification_url
+    public let verificationUrl: String
+    /// wire key: expires_at
+    public let expiresAt: Timestamp
+    /// wire key: interval_seconds
+    public let intervalSeconds: UInt64
+
+    public init(deviceCode: String, userCode: String, verificationUrl: String, expiresAt: Timestamp, intervalSeconds: UInt64) {
+        self.deviceCode = deviceCode
+        self.userCode = userCode
+        self.verificationUrl = verificationUrl
+        self.expiresAt = expiresAt
+        self.intervalSeconds = intervalSeconds
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "deviceCode": "device_code",
+        "userCode": "user_code",
+        "verificationUrl": "verification_url",
+        "expiresAt": "expires_at",
+        "intervalSeconds": "interval_seconds"
+    ]
+}
+
+/// ApproveCliLoginRequest is a generated CSIL record type.
+public struct ApproveCliLoginRequest: Equatable, Sendable {
+    /// wire key: user_code
+    public let userCode: String
+
+    public init(userCode: String) {
+        self.userCode = userCode
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "userCode": "user_code"
+    ]
+}
+
+/// CliLoginRequestInfo is a generated CSIL record type.
+public struct CliLoginRequestInfo: Equatable, Sendable {
+    /// wire key: user_code
+    public let userCode: String
+    /// wire key: client_name
+    public let clientName: String
+    /// wire key: expires_at
+    public let expiresAt: Timestamp
+
+    public init(userCode: String, clientName: String, expiresAt: Timestamp) {
+        self.userCode = userCode
+        self.clientName = clientName
+        self.expiresAt = expiresAt
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "userCode": "user_code",
+        "clientName": "client_name",
+        "expiresAt": "expires_at"
+    ]
+}
+
+/// DenyCliLoginRequest is a generated CSIL record type.
+public struct DenyCliLoginRequest: Equatable, Sendable {
+    /// wire key: user_code
+    public let userCode: String
+
+    public init(userCode: String) {
+        self.userCode = userCode
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "userCode": "user_code"
+    ]
+}
+
+/// ExchangeCliLoginRequest is a generated CSIL record type.
+public struct ExchangeCliLoginRequest: Equatable, Sendable {
+    /// wire key: device_code
+    public let deviceCode: String
+
+    public init(deviceCode: String) {
+        self.deviceCode = deviceCode
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "deviceCode": "device_code"
+    ]
+}
+
+/// ExchangeCliLoginResponse is a generated CSIL record type.
+public struct ExchangeCliLoginResponse: Equatable, Sendable {
+    public let status: CliLoginStatus
+    public let session: CliTokenResponse?
+
+    public init(status: CliLoginStatus, session: CliTokenResponse? = nil) {
+        self.status = status
+        self.session = session
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "status": "status",
+        "session": "session"
+    ]
+}
+
+/// RefreshSessionRequest is a generated CSIL record type.
+public struct RefreshSessionRequest: Equatable, Sendable {
+    /// wire key: refresh_token
+    public let refreshToken: String
+
+    public init(refreshToken: String) {
+        self.refreshToken = refreshToken
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "refreshToken": "refresh_token"
+    ]
+}
+
+/// CliSessionSummary is a generated CSIL record type.
+public struct CliSessionSummary: Equatable, Sendable {
+    /// wire key: session_id
+    public let sessionId: CliSessionId
+    /// wire key: client_name
+    public let clientName: String
+    /// wire key: created_at
+    public let createdAt: Timestamp
+    /// wire key: last_used_at
+    public let lastUsedAt: Timestamp
+    /// wire key: expires_at
+    public let expiresAt: Timestamp
+    /// wire key: revoked_at
+    public let revokedAt: Timestamp?
+
+    public init(sessionId: CliSessionId, clientName: String, createdAt: Timestamp, lastUsedAt: Timestamp, expiresAt: Timestamp, revokedAt: Timestamp? = nil) {
+        self.sessionId = sessionId
+        self.clientName = clientName
+        self.createdAt = createdAt
+        self.lastUsedAt = lastUsedAt
+        self.expiresAt = expiresAt
+        self.revokedAt = revokedAt
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "sessionId": "session_id",
+        "clientName": "client_name",
+        "createdAt": "created_at",
+        "lastUsedAt": "last_used_at",
+        "expiresAt": "expires_at",
+        "revokedAt": "revoked_at"
+    ]
+}
+
+/// CliSessionsResponse is a generated CSIL record type.
+public struct CliSessionsResponse: Equatable, Sendable {
+    public let sessions: [CliSessionSummary]
+
+    public init(sessions: [CliSessionSummary]) {
+        self.sessions = sessions
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "sessions": "sessions"
+    ]
+}
+
+/// RevokeSessionRequest is a generated CSIL record type.
+public struct RevokeSessionRequest: Equatable, Sendable {
+    /// wire key: session_id
+    public let sessionId: CliSessionId
+
+    public init(sessionId: CliSessionId) {
+        self.sessionId = sessionId
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "sessionId": "session_id"
     ]
 }
 

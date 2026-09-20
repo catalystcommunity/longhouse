@@ -36,6 +36,8 @@ NotificationId = str
 
 NotificationEventId = str
 
+CliSessionId = str
+
 Timestamp = str
 
 TaskStatus = Union[str, str, str, str]
@@ -55,6 +57,8 @@ DependencyNodeType = Union[str, str]
 RecurrenceFreq = Union[str, str, str, str, str, str]
 
 MilestoneState = Union[str, str, str]
+
+CliLoginStatus = Union[str, str, str, str]
 
 @dataclass
 class House:
@@ -685,7 +689,7 @@ class Event:
     location: Optional[str] = None
     starts_at: Optional[Timestamp] = None
     ends_at: Optional[Timestamp] = None
-    all_day: Optional[bool] = false
+    all_day: Optional[bool] = False
     recurrence_freq: Optional[RecurrenceFreq] = None
     recurrence_interval: Optional[int] = 1
     recurrence_by_weekday: Optional[List[int]] = None
@@ -1135,6 +1139,375 @@ class LoginResponse:
 
 
 @dataclass
+class CliTokenResponse:
+    token: str
+    domain: str
+    user_id: str
+    expires_at: Timestamp
+    refresh_token: str
+    refresh_expires_at: Timestamp
+    session_id: CliSessionId
+    display_name: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'token') and self.token is not None:
+            result['token'] = self.token
+        if hasattr(self, 'domain') and self.domain is not None:
+            result['domain'] = self.domain
+        if hasattr(self, 'user_id') and self.user_id is not None:
+            result['user_id'] = self.user_id
+        if hasattr(self, 'display_name') and self.display_name is not None:
+            result['display_name'] = self.display_name
+        if hasattr(self, 'expires_at') and self.expires_at is not None:
+            result['expires_at'] = self.expires_at
+        if hasattr(self, 'refresh_token') and self.refresh_token is not None:
+            result['refresh_token'] = self.refresh_token
+        if hasattr(self, 'refresh_expires_at') and self.refresh_expires_at is not None:
+            result['refresh_expires_at'] = self.refresh_expires_at
+        if hasattr(self, 'session_id') and self.session_id is not None:
+            result['session_id'] = self.session_id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CliTokenResponse':
+        """Create instance from dictionary."""
+        return cls(token=data.get('token'), domain=data.get('domain'), user_id=data.get('user_id'), display_name=data.get('display_name'), expires_at=data.get('expires_at'), refresh_token=data.get('refresh_token'), refresh_expires_at=data.get('refresh_expires_at'), session_id=data.get('session_id'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CliTokenResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class BeginCliLoginRequest:
+    client_name: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'client_name') and self.client_name is not None:
+            result['client_name'] = self.client_name
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'BeginCliLoginRequest':
+        """Create instance from dictionary."""
+        return cls(client_name=data.get('client_name'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'BeginCliLoginRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+    def validate(self) -> bool:
+        """Validate field dependencies and constraints."""
+        if self.client_name is not None and len(self.client_name) < 1:
+            raise ValueError("Field 'client_name' must have length >= 1")
+        if self.client_name is not None and len(self.client_name) > 128:
+            raise ValueError("Field 'client_name' must have length <= 128")
+        return True
+
+    def __post_init__(self):
+        """Validate object after initialization."""
+        self.validate()
+
+
+@dataclass
+class BeginCliLoginResponse:
+    device_code: str
+    user_code: str
+    verification_url: str
+    expires_at: Timestamp
+    interval_seconds: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'device_code') and self.device_code is not None:
+            result['device_code'] = self.device_code
+        if hasattr(self, 'user_code') and self.user_code is not None:
+            result['user_code'] = self.user_code
+        if hasattr(self, 'verification_url') and self.verification_url is not None:
+            result['verification_url'] = self.verification_url
+        if hasattr(self, 'expires_at') and self.expires_at is not None:
+            result['expires_at'] = self.expires_at
+        if hasattr(self, 'interval_seconds') and self.interval_seconds is not None:
+            result['interval_seconds'] = self.interval_seconds
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'BeginCliLoginResponse':
+        """Create instance from dictionary."""
+        return cls(device_code=data.get('device_code'), user_code=data.get('user_code'), verification_url=data.get('verification_url'), expires_at=data.get('expires_at'), interval_seconds=data.get('interval_seconds'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'BeginCliLoginResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ApproveCliLoginRequest:
+    user_code: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'user_code') and self.user_code is not None:
+            result['user_code'] = self.user_code
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ApproveCliLoginRequest':
+        """Create instance from dictionary."""
+        return cls(user_code=data.get('user_code'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ApproveCliLoginRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class CliLoginRequestInfo:
+    user_code: str
+    client_name: str
+    expires_at: Timestamp
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'user_code') and self.user_code is not None:
+            result['user_code'] = self.user_code
+        if hasattr(self, 'client_name') and self.client_name is not None:
+            result['client_name'] = self.client_name
+        if hasattr(self, 'expires_at') and self.expires_at is not None:
+            result['expires_at'] = self.expires_at
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CliLoginRequestInfo':
+        """Create instance from dictionary."""
+        return cls(user_code=data.get('user_code'), client_name=data.get('client_name'), expires_at=data.get('expires_at'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CliLoginRequestInfo':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class DenyCliLoginRequest:
+    user_code: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'user_code') and self.user_code is not None:
+            result['user_code'] = self.user_code
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DenyCliLoginRequest':
+        """Create instance from dictionary."""
+        return cls(user_code=data.get('user_code'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'DenyCliLoginRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ExchangeCliLoginRequest:
+    device_code: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'device_code') and self.device_code is not None:
+            result['device_code'] = self.device_code
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ExchangeCliLoginRequest':
+        """Create instance from dictionary."""
+        return cls(device_code=data.get('device_code'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ExchangeCliLoginRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ExchangeCliLoginResponse:
+    status: CliLoginStatus
+    session: Optional[CliTokenResponse] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'status') and self.status is not None:
+            result['status'] = self.status
+        if hasattr(self, 'session') and self.session is not None:
+            result['session'] = self.session
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ExchangeCliLoginResponse':
+        """Create instance from dictionary."""
+        return cls(status=data.get('status'), session=data.get('session'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ExchangeCliLoginResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RefreshSessionRequest:
+    refresh_token: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'refresh_token') and self.refresh_token is not None:
+            result['refresh_token'] = self.refresh_token
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RefreshSessionRequest':
+        """Create instance from dictionary."""
+        return cls(refresh_token=data.get('refresh_token'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RefreshSessionRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class CliSessionSummary:
+    session_id: CliSessionId
+    client_name: str
+    created_at: Timestamp
+    last_used_at: Timestamp
+    expires_at: Timestamp
+    revoked_at: Optional[Timestamp] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'session_id') and self.session_id is not None:
+            result['session_id'] = self.session_id
+        if hasattr(self, 'client_name') and self.client_name is not None:
+            result['client_name'] = self.client_name
+        if hasattr(self, 'created_at') and self.created_at is not None:
+            result['created_at'] = self.created_at
+        if hasattr(self, 'last_used_at') and self.last_used_at is not None:
+            result['last_used_at'] = self.last_used_at
+        if hasattr(self, 'expires_at') and self.expires_at is not None:
+            result['expires_at'] = self.expires_at
+        if hasattr(self, 'revoked_at') and self.revoked_at is not None:
+            result['revoked_at'] = self.revoked_at
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CliSessionSummary':
+        """Create instance from dictionary."""
+        return cls(session_id=data.get('session_id'), client_name=data.get('client_name'), created_at=data.get('created_at'), last_used_at=data.get('last_used_at'), expires_at=data.get('expires_at'), revoked_at=data.get('revoked_at'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CliSessionSummary':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class CliSessionsResponse:
+    sessions: List[CliSessionSummary]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'sessions') and self.sessions is not None:
+            result['sessions'] = self.sessions
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CliSessionsResponse':
+        """Create instance from dictionary."""
+        return cls(sessions=data.get('sessions'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CliSessionsResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RevokeSessionRequest:
+    session_id: CliSessionId
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'session_id') and self.session_id is not None:
+            result['session_id'] = self.session_id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RevokeSessionRequest':
+        """Create instance from dictionary."""
+        return cls(session_id=data.get('session_id'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RevokeSessionRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class DevUserEntry:
     member_id: MemberId
     house_id: HouseId
@@ -1578,7 +1951,7 @@ class Notification:
 @dataclass
 class NotificationListRequest:
     house_id: HouseId
-    unread_only: Optional[bool] = false
+    unread_only: Optional[bool] = False
     limit: Optional[int] = 50
     offset: Optional[int] = 0
     def to_dict(self) -> Dict[str, Any]:
@@ -2262,7 +2635,7 @@ class SetProjectVisibilityRequest:
 
 @dataclass
 class EffectiveSettings:
-    bug_reports_enabled: Optional[bool] = false
+    bug_reports_enabled: Optional[bool] = False
     bug_reports_project_id: Optional[ProjectId] = None
     default_project_visibility: Optional[AccessLevel] = "read"
     def to_dict(self) -> Dict[str, Any]:

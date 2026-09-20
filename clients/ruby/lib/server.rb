@@ -29,6 +29,46 @@ class AuthHandlers
   def me(req)
     raise NotImplementedError, "AuthHandlers#me"
   end
+
+  # begin-cli-login
+  def begin_cli_login(req)
+    raise NotImplementedError, "AuthHandlers#begin_cli_login"
+  end
+
+  # inspect-cli-login
+  def inspect_cli_login(req)
+    raise NotImplementedError, "AuthHandlers#inspect_cli_login"
+  end
+
+  # approve-cli-login
+  def approve_cli_login(req)
+    raise NotImplementedError, "AuthHandlers#approve_cli_login"
+  end
+
+  # deny-cli-login
+  def deny_cli_login(req)
+    raise NotImplementedError, "AuthHandlers#deny_cli_login"
+  end
+
+  # exchange-cli-login
+  def exchange_cli_login(req)
+    raise NotImplementedError, "AuthHandlers#exchange_cli_login"
+  end
+
+  # refresh-session
+  def refresh_session(req)
+    raise NotImplementedError, "AuthHandlers#refresh_session"
+  end
+
+  # list-sessions
+  def list_sessions(req)
+    raise NotImplementedError, "AuthHandlers#list_sessions"
+  end
+
+  # revoke-session
+  def revoke_session(req)
+    raise NotImplementedError, "AuthHandlers#revoke_session"
+  end
 end
 
 # Server-side handlers for the DevAuthService service. Subclass and override each

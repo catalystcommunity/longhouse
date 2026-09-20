@@ -52,7 +52,7 @@ func TestServeRPC_SuccessRoundTrip(t *testing.T) {
 			return csil.BoolResponse{Value: string(in) == "h-1"}, nil
 		},
 		csil.DecodeTrustedDomainListTrustedDomainsRequest,
-		csil.EncodeTrustedDomainIsDomainTrustedResponse,
+		csil.EncodeBoolResponse,
 	))
 
 	payload := csil.EncodeTrustedDomainListTrustedDomainsRequest(csil.HouseID("h-1"))
@@ -76,17 +76,32 @@ func TestServeRPC_SuccessRoundTrip(t *testing.T) {
 	}
 }
 
+func TestServeRPC_AcceptsGeneratedServiceName(t *testing.T) {
+	d := New(nil)
+	d.RegisterTypedPublic("widget", "GetWidget", Route(
+		func(_ context.Context, _ csil.EmptyRequest) (csil.EmptyResponse, error) {
+			return csil.EmptyResponse{}, nil
+		},
+		csil.DecodeEmptyRequest,
+		csil.EncodeEmptyResponse,
+	))
+	resp := serveRPC(t, d, transport.NewRpcRequest("WidgetService", "get-widget", csil.EncodeEmptyRequest(csil.EmptyRequest{})), "")
+	if !resp.Status.IsOk() {
+		t.Fatalf("status: got %v want ok", resp.Status.Name())
+	}
+}
+
 func TestServeRPC_ApplicationErrorIsServiceErrorArm(t *testing.T) {
 	d := New(nil)
 	d.RegisterTypedPublic("widget", "GetWidget", Route(
 		func(_ context.Context, _ csil.EmptyRequest) (csil.EmptyResponse, error) {
 			return csil.EmptyResponse{}, NotFound("no such widget")
 		},
-		csil.DecodeAuthMeRequest,
-		csil.EncodeAuthLogoutResponse,
+		csil.DecodeEmptyRequest,
+		csil.EncodeEmptyResponse,
 	))
 
-	payload := csil.EncodeAuthMeRequest(csil.EmptyRequest{})
+	payload := csil.EncodeEmptyRequest(csil.EmptyRequest{})
 	resp := serveRPC(t, d, transport.NewRpcRequest("widget", "get-widget", payload), "")
 
 	// Application errors ride at status 0 with the ServiceError variant — never a
@@ -137,8 +152,8 @@ func TestServeRPC_UnauthenticatedWhenNoBearer(t *testing.T) {
 		func(_ context.Context, _ csil.EmptyRequest) (csil.EmptyResponse, error) {
 			return csil.EmptyResponse{}, nil
 		},
-		csil.DecodeAuthMeRequest,
-		csil.EncodeAuthLogoutResponse,
+		csil.DecodeEmptyRequest,
+		csil.EncodeEmptyResponse,
 	))
 	resp := serveRPC(t, d, transport.NewRpcRequest("widget", "get-widget", []byte{}), "")
 	if resp.Status.Code() != transport.StatusUnauthenticated.Code() {

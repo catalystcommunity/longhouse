@@ -21,17 +21,41 @@ module Auth_service = struct
     logout : bytes -> outcome;
     (* request payload decodes to: empty_request *)
     me : bytes -> outcome;
+    (* request payload decodes to: begin_cli_login_request *)
+    begin_cli_login : bytes -> outcome;
+    (* request payload decodes to: approve_cli_login_request *)
+    inspect_cli_login : bytes -> outcome;
+    (* request payload decodes to: approve_cli_login_request *)
+    approve_cli_login : bytes -> outcome;
+    (* request payload decodes to: deny_cli_login_request *)
+    deny_cli_login : bytes -> outcome;
+    (* request payload decodes to: exchange_cli_login_request *)
+    exchange_cli_login : bytes -> outcome;
+    (* request payload decodes to: refresh_session_request *)
+    refresh_session : bytes -> outcome;
+    (* request payload decodes to: empty_request *)
+    list_sessions : bytes -> outcome;
+    (* request payload decodes to: revoke_session_request *)
+    revoke_session : bytes -> outcome;
   }
 
   (* Verbose router: dispatch one request by operation name to its handler
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "Login" -> h.login payload
-    | "Complete" -> h.complete payload
-    | "Refresh" -> h.refresh payload
-    | "Logout" -> h.logout payload
-    | "Me" -> h.me payload
+    | "login" -> h.login payload
+    | "complete" -> h.complete payload
+    | "refresh" -> h.refresh payload
+    | "logout" -> h.logout payload
+    | "me" -> h.me payload
+    | "begin-cli-login" -> h.begin_cli_login payload
+    | "inspect-cli-login" -> h.inspect_cli_login payload
+    | "approve-cli-login" -> h.approve_cli_login payload
+    | "deny-cli-login" -> h.deny_cli_login payload
+    | "exchange-cli-login" -> h.exchange_cli_login payload
+    | "refresh-session" -> h.refresh_session payload
+    | "list-sessions" -> h.list_sessions payload
+    | "revoke-session" -> h.revoke_session payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -47,8 +71,8 @@ module Dev_auth_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "ListDevUsers" -> h.list_dev_users payload
-    | "DevLogin" -> h.dev_login payload
+    | "list-dev-users" -> h.list_dev_users payload
+    | "dev-login" -> h.dev_login payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -70,11 +94,11 @@ module House_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "CreateHouse" -> h.create_house payload
-    | "GetHouse" -> h.get_house payload
-    | "UpdateHouse" -> h.update_house payload
-    | "DeleteHouse" -> h.delete_house payload
-    | "ListHouses" -> h.list_houses payload
+    | "create-house" -> h.create_house payload
+    | "get-house" -> h.get_house payload
+    | "update-house" -> h.update_house payload
+    | "delete-house" -> h.delete_house payload
+    | "list-houses" -> h.list_houses payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -100,13 +124,13 @@ module Member_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "CreateMember" -> h.create_member payload
-    | "GetMember" -> h.get_member payload
-    | "GetMemberByIdentity" -> h.get_member_by_identity payload
-    | "UpdateMember" -> h.update_member payload
-    | "DeactivateMember" -> h.deactivate_member payload
-    | "ReactivateMember" -> h.reactivate_member payload
-    | "ListMembers" -> h.list_members payload
+    | "create-member" -> h.create_member payload
+    | "get-member" -> h.get_member payload
+    | "get-member-by-identity" -> h.get_member_by_identity payload
+    | "update-member" -> h.update_member payload
+    | "deactivate-member" -> h.deactivate_member payload
+    | "reactivate-member" -> h.reactivate_member payload
+    | "list-members" -> h.list_members payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -126,10 +150,10 @@ module Trusted_domain_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "AddTrustedDomain" -> h.add_trusted_domain payload
-    | "RemoveTrustedDomain" -> h.remove_trusted_domain payload
-    | "ListTrustedDomains" -> h.list_trusted_domains payload
-    | "IsDomainTrusted" -> h.is_domain_trusted payload
+    | "add-trusted-domain" -> h.add_trusted_domain payload
+    | "remove-trusted-domain" -> h.remove_trusted_domain payload
+    | "list-trusted-domains" -> h.list_trusted_domains payload
+    | "is-domain-trusted" -> h.is_domain_trusted payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -155,13 +179,13 @@ module Role_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "CreateRole" -> h.create_role payload
-    | "UpdateRole" -> h.update_role payload
-    | "DeleteRole" -> h.delete_role payload
-    | "ListRoles" -> h.list_roles payload
-    | "GrantRole" -> h.grant_role payload
-    | "RevokeRole" -> h.revoke_role payload
-    | "ListMemberRoles" -> h.list_member_roles payload
+    | "create-role" -> h.create_role payload
+    | "update-role" -> h.update_role payload
+    | "delete-role" -> h.delete_role payload
+    | "list-roles" -> h.list_roles payload
+    | "grant-role" -> h.grant_role payload
+    | "revoke-role" -> h.revoke_role payload
+    | "list-member-roles" -> h.list_member_roles payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -193,16 +217,16 @@ module Skill_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "CreateSkill" -> h.create_skill payload
-    | "UpdateSkill" -> h.update_skill payload
-    | "DeleteSkill" -> h.delete_skill payload
-    | "ListSkills" -> h.list_skills payload
-    | "AddMemberSkill" -> h.add_member_skill payload
-    | "RemoveMemberSkill" -> h.remove_member_skill payload
-    | "ListMemberSkills" -> h.list_member_skills payload
-    | "AddGroupSkill" -> h.add_group_skill payload
-    | "RemoveGroupSkill" -> h.remove_group_skill payload
-    | "ListGroupSkills" -> h.list_group_skills payload
+    | "create-skill" -> h.create_skill payload
+    | "update-skill" -> h.update_skill payload
+    | "delete-skill" -> h.delete_skill payload
+    | "list-skills" -> h.list_skills payload
+    | "add-member-skill" -> h.add_member_skill payload
+    | "remove-member-skill" -> h.remove_member_skill payload
+    | "list-member-skills" -> h.list_member_skills payload
+    | "add-group-skill" -> h.add_group_skill payload
+    | "remove-group-skill" -> h.remove_group_skill payload
+    | "list-group-skills" -> h.list_group_skills payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -228,13 +252,13 @@ module Group_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "CreateGroup" -> h.create_group payload
-    | "UpdateGroup" -> h.update_group payload
-    | "DeleteGroup" -> h.delete_group payload
-    | "ListGroups" -> h.list_groups payload
-    | "AddGroupMember" -> h.add_group_member payload
-    | "RemoveGroupMember" -> h.remove_group_member payload
-    | "ListGroupMembers" -> h.list_group_members payload
+    | "create-group" -> h.create_group payload
+    | "update-group" -> h.update_group payload
+    | "delete-group" -> h.delete_group payload
+    | "list-groups" -> h.list_groups payload
+    | "add-group-member" -> h.add_group_member payload
+    | "remove-group-member" -> h.remove_group_member payload
+    | "list-group-members" -> h.list_group_members payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -292,29 +316,29 @@ module Project_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "CreateProject" -> h.create_project payload
-    | "GetProject" -> h.get_project payload
-    | "UpdateProject" -> h.update_project payload
-    | "DeleteProject" -> h.delete_project payload
-    | "ListProjects" -> h.list_projects payload
-    | "ListProjectTasks" -> h.list_project_tasks payload
-    | "AddProjectTask" -> h.add_project_task payload
-    | "RemoveProjectTask" -> h.remove_project_task payload
-    | "SetProjectTaskPosition" -> h.set_project_task_position payload
-    | "ListProjectMembers" -> h.list_project_members payload
-    | "AddProjectMember" -> h.add_project_member payload
-    | "RemoveProjectMember" -> h.remove_project_member payload
-    | "ListProjectOwners" -> h.list_project_owners payload
-    | "AddProjectOwner" -> h.add_project_owner payload
-    | "RemoveProjectOwner" -> h.remove_project_owner payload
-    | "ListMilestones" -> h.list_milestones payload
-    | "CreateMilestone" -> h.create_milestone payload
-    | "UpdateMilestone" -> h.update_milestone payload
-    | "DeleteMilestone" -> h.delete_milestone payload
-    | "SetProjectVisibility" -> h.set_project_visibility payload
-    | "ListProjectGrants" -> h.list_project_grants payload
-    | "PutProjectGrant" -> h.put_project_grant payload
-    | "DeleteProjectGrant" -> h.delete_project_grant payload
+    | "create-project" -> h.create_project payload
+    | "get-project" -> h.get_project payload
+    | "update-project" -> h.update_project payload
+    | "delete-project" -> h.delete_project payload
+    | "list-projects" -> h.list_projects payload
+    | "list-project-tasks" -> h.list_project_tasks payload
+    | "add-project-task" -> h.add_project_task payload
+    | "remove-project-task" -> h.remove_project_task payload
+    | "set-project-task-position" -> h.set_project_task_position payload
+    | "list-project-members" -> h.list_project_members payload
+    | "add-project-member" -> h.add_project_member payload
+    | "remove-project-member" -> h.remove_project_member payload
+    | "list-project-owners" -> h.list_project_owners payload
+    | "add-project-owner" -> h.add_project_owner payload
+    | "remove-project-owner" -> h.remove_project_owner payload
+    | "list-milestones" -> h.list_milestones payload
+    | "create-milestone" -> h.create_milestone payload
+    | "update-milestone" -> h.update_milestone payload
+    | "delete-milestone" -> h.delete_milestone payload
+    | "set-project-visibility" -> h.set_project_visibility payload
+    | "list-project-grants" -> h.list_project_grants payload
+    | "put-project-grant" -> h.put_project_grant payload
+    | "delete-project-grant" -> h.delete_project_grant payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -342,14 +366,14 @@ module Event_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "CreateEvent" -> h.create_event payload
-    | "GetEvent" -> h.get_event payload
-    | "UpdateEvent" -> h.update_event payload
-    | "DeleteEvent" -> h.delete_event payload
-    | "DeleteEventAndFuture" -> h.delete_event_and_future payload
-    | "ListEvents" -> h.list_events payload
-    | "GetCalendarView" -> h.get_calendar_view payload
-    | "SetCalendarView" -> h.set_calendar_view payload
+    | "create-event" -> h.create_event payload
+    | "get-event" -> h.get_event payload
+    | "update-event" -> h.update_event payload
+    | "delete-event" -> h.delete_event payload
+    | "delete-event-and-future" -> h.delete_event_and_future payload
+    | "list-events" -> h.list_events payload
+    | "get-calendar-view" -> h.get_calendar_view payload
+    | "set-calendar-view" -> h.set_calendar_view payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -379,15 +403,15 @@ module Task_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "CreateTask" -> h.create_task payload
-    | "GetTask" -> h.get_task payload
-    | "UpdateTask" -> h.update_task payload
-    | "DeleteTask" -> h.delete_task payload
-    | "ListTasks" -> h.list_tasks payload
-    | "SetTaskVisibility" -> h.set_task_visibility payload
-    | "ListTaskGrants" -> h.list_task_grants payload
-    | "PutTaskGrant" -> h.put_task_grant payload
-    | "DeleteTaskGrant" -> h.delete_task_grant payload
+    | "create-task" -> h.create_task payload
+    | "get-task" -> h.get_task payload
+    | "update-task" -> h.update_task payload
+    | "delete-task" -> h.delete_task payload
+    | "list-tasks" -> h.list_tasks payload
+    | "set-task-visibility" -> h.set_task_visibility payload
+    | "list-task-grants" -> h.list_task_grants payload
+    | "put-task-grant" -> h.put_task_grant payload
+    | "delete-task-grant" -> h.delete_task_grant payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -405,9 +429,9 @@ module Dependency_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "AddDependency" -> h.add_dependency payload
-    | "RemoveDependency" -> h.remove_dependency payload
-    | "GetDependencies" -> h.get_dependencies payload
+    | "add-dependency" -> h.add_dependency payload
+    | "remove-dependency" -> h.remove_dependency payload
+    | "get-dependencies" -> h.get_dependencies payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -429,11 +453,11 @@ module Comment_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "CreateComment" -> h.create_comment payload
-    | "GetComment" -> h.get_comment payload
-    | "UpdateComment" -> h.update_comment payload
-    | "DeleteComment" -> h.delete_comment payload
-    | "ListComments" -> h.list_comments payload
+    | "create-comment" -> h.create_comment payload
+    | "get-comment" -> h.get_comment payload
+    | "update-comment" -> h.update_comment payload
+    | "delete-comment" -> h.delete_comment payload
+    | "list-comments" -> h.list_comments payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -453,10 +477,10 @@ module Notification_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "ListNotifications" -> h.list_notifications payload
-    | "UnreadCount" -> h.unread_count payload
-    | "MarkRead" -> h.mark_read payload
-    | "MarkAllRead" -> h.mark_all_read payload
+    | "list-notifications" -> h.list_notifications payload
+    | "unread-count" -> h.unread_count payload
+    | "mark-read" -> h.mark_read payload
+    | "mark-all-read" -> h.mark_all_read payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -476,10 +500,10 @@ module Share_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "CreateShare" -> h.create_share payload
-    | "DeleteShare" -> h.delete_share payload
-    | "ListSharesByResource" -> h.list_shares_by_resource payload
-    | "CheckAccess" -> h.check_access payload
+    | "create-share" -> h.create_share payload
+    | "delete-share" -> h.delete_share payload
+    | "list-shares-by-resource" -> h.list_shares_by_resource payload
+    | "check-access" -> h.check_access payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -493,7 +517,7 @@ module Member_audit_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "ListAuditsForMember" -> h.list_audits_for_member payload
+    | "list-audits-for-member" -> h.list_audits_for_member payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -509,8 +533,8 @@ module Settings_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "GetSettings" -> h.get_settings payload
-    | "UpdateSettings" -> h.update_settings payload
+    | "get-settings" -> h.get_settings payload
+    | "update-settings" -> h.update_settings payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -524,7 +548,7 @@ module Bug_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "ReportBug" -> h.report_bug payload
+    | "report-bug" -> h.report_bug payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -538,7 +562,7 @@ module Audit_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "QueryAudit" -> h.query_audit payload
+    | "query-audit" -> h.query_audit payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -556,8 +580,8 @@ module Trash_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "ListTrash" -> h.list_trash payload
-    | "Restore" -> h.restore payload
-    | "Purge" -> h.purge payload
+    | "list-trash" -> h.list_trash payload
+    | "restore" -> h.restore payload
+    | "purge" -> h.purge payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end

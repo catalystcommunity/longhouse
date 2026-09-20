@@ -47,12 +47,13 @@ type HouseRoles struct {
 // (a linkkeys identity) and carries their full per-house membership + roles
 // so authorization is self-contained. ExpiresAt is Unix seconds.
 type Identity struct {
-	Domain      string       `cbor:"domain"`
-	UserID      string       `cbor:"user_id"`
-	DisplayName string       `cbor:"display_name,omitempty"`
-	Houses      []HouseRoles `cbor:"houses"`
-	IssuedAt    int64        `cbor:"iat"`
-	ExpiresAt   int64        `cbor:"exp"`
+	Domain       string       `cbor:"domain"`
+	UserID       string       `cbor:"user_id"`
+	DisplayName  string       `cbor:"display_name,omitempty"`
+	Houses       []HouseRoles `cbor:"houses"`
+	CliSessionID string       `cbor:"cli_session_id,omitempty"`
+	IssuedAt     int64        `cbor:"iat"`
+	ExpiresAt    int64        `cbor:"exp"`
 }
 
 // House returns the caller's membership entry for houseID, or nil if the
@@ -100,7 +101,8 @@ func (m *MemberContext) HasRole(name string) bool {
 //
 // Roles embedded here are a mint-time snapshot: a revoked role keeps working
 // until the token expires or is refreshed. Keep TTLs short in production and
-// re-mint via /auth/refresh to bound the staleness window.
+// Browser sessions can re-mint through AuthService.Refresh. CLI sessions must
+// use their rotating refresh token.
 func Mint(secret []byte, id Identity, ttl time.Duration) (string, error) {
 	if ttl == 0 {
 		ttl = DefaultTTL

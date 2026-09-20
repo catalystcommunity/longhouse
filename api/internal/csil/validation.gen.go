@@ -106,6 +106,17 @@ func (v *Comment) Validate() error {
 	return nil
 }
 
+// ValidateBeginCliLoginRequest validates the BeginCliLoginRequest struct
+func (v *BeginCliLoginRequest) Validate() error {
+	if len(v.ClientName) < 1 {
+		return fmt.Errorf("field 'ClientName' must have at least 1 elements")
+	}
+	if len(v.ClientName) > 128 {
+		return fmt.Errorf("field 'ClientName' must have at most 128 elements")
+	}
+	return nil
+}
+
 // ValidateBugReportRequest validates the BugReportRequest struct
 func (v *BugReportRequest) Validate() error {
 	if len(v.Title) < 1 {

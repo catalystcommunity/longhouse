@@ -18,9 +18,9 @@ type TrashService struct {
 }
 
 func (s *TrashService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("trash", "ListTrash", csilrpc.Route(s.ListTrash, csil.DecodeTrashListTrashRequest, csil.EncodeTrashListTrashResponse))
-	d.RegisterTyped("trash", "Restore", csilrpc.Route(s.Restore, csil.DecodeTrashRestoreRequest, csil.EncodeTrashRestoreResponse))
-	d.RegisterTyped("trash", "Purge", csilrpc.Route(s.Purge, csil.DecodeTrashPurgeRequest, csil.EncodeTrashPurgeResponse))
+	d.RegisterTyped("trash", "ListTrash", csilrpc.Route(s.ListTrash, csil.DecodeHouseScopedListRequest, csil.EncodeTrashPage))
+	d.RegisterTyped("trash", "Restore", csilrpc.Route(s.Restore, csil.DecodeRestoreRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("trash", "Purge", csilrpc.Route(s.Purge, csil.DecodePurgeRequest, csil.EncodeEmptyResponse))
 }
 
 func (s *TrashService) ListTrash(ctx context.Context, req csil.HouseScopedListRequest) (csil.TrashPage, error) {

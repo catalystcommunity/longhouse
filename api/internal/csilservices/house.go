@@ -24,11 +24,11 @@ import (
 type HouseService struct{ Store store.Store }
 
 func (s *HouseService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("house", "CreateHouse", csilrpc.Route(s.CreateHouse, csil.DecodeHouseCreateHouseRequest, csil.EncodeHouseCreateHouseResponse))
-	d.RegisterTyped("house", "GetHouse", csilrpc.Route(s.GetHouse, csil.DecodeHouseGetHouseRequest, csil.EncodeHouseGetHouseResponse))
-	d.RegisterTyped("house", "UpdateHouse", csilrpc.Route(s.UpdateHouse, csil.DecodeHouseUpdateHouseRequest, csil.EncodeHouseUpdateHouseResponse))
-	d.RegisterTyped("house", "DeleteHouse", csilrpc.Route(s.DeleteHouse, csil.DecodeHouseDeleteHouseRequest, csil.EncodeHouseDeleteHouseResponse))
-	d.RegisterTyped("house", "ListHouses", csilrpc.Route(s.ListHouses, csil.DecodeHouseListHousesRequest, csil.EncodeHouseListHousesResponse))
+	d.RegisterTyped("house", "CreateHouse", csilrpc.Route(s.CreateHouse, csil.DecodeHouse, csil.EncodeHouse))
+	d.RegisterTyped("house", "GetHouse", csilrpc.Route(s.GetHouse, csil.DecodeHouseGetHouseRequest, csil.EncodeHouse))
+	d.RegisterTyped("house", "UpdateHouse", csilrpc.Route(s.UpdateHouse, csil.DecodeHouse, csil.EncodeHouse))
+	d.RegisterTyped("house", "DeleteHouse", csilrpc.Route(s.DeleteHouse, csil.DecodeHouseDeleteHouseRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("house", "ListHouses", csilrpc.Route(s.ListHouses, csil.DecodeHouseListRequest, csil.EncodeHouseListHousesResponse))
 }
 
 func (s *HouseService) CreateHouse(ctx context.Context, in csil.House) (csil.House, error) {

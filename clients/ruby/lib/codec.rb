@@ -79,13 +79,17 @@ module CsilCbor
   # Decode a binary String to a Ruby value tree.
   def decode(bytes)
     bin = bytes.b
-    value, pos = take(bin, 0)
+    value, pos = take(bin, 0, 0)
     raise ArgumentError, "csilgen: trailing bytes" unless pos == bin.bytesize
 
     value
   end
 
   def read_arg(bin, pos, low)
+    width = { 24 => 1, 25 => 2, 26 => 4, 27 => 8 }[low]
+    if low >= 24 && (width.nil? || bin.bytesize - pos - 1 < width)
+      raise ArgumentError, "csilgen: truncated argument"
+    end
     if low < 24
       [low, pos + 1]
     elsif low == 24
@@ -102,7 +106,9 @@ module CsilCbor
     end
   end
 
-  def take(bin, pos)
+  def take(bin, pos, depth)
+    raise ArgumentError, "csilgen: nesting limit exceeded" if depth > 64
+    raise ArgumentError, "csilgen: unexpected end of input" if pos >= bin.bytesize
     ib = bin.getbyte(pos)
     major = ib >> 5
     low = ib & 0x1f
@@ -123,26 +129,32 @@ module CsilCbor
       when 1
         [-1 - arg, p]
       when 2
+        raise ArgumentError, "csilgen: truncated byte string" if arg > bin.bytesize - p
         [bin[p, arg].b, p + arg]
       when 3
-        [bin[p, arg].dup.force_encoding(Encoding::UTF_8), p + arg]
+        raise ArgumentError, "csilgen: truncated text string" if arg > bin.bytesize - p
+        text = bin[p, arg].dup.force_encoding(Encoding::UTF_8)
+        raise ArgumentError, "csilgen: invalid utf-8" unless text.valid_encoding?
+        [text, p + arg]
       when 4
+        raise ArgumentError, "csilgen: array length exceeds remaining input" if arg > bin.bytesize - p
         items = []
         arg.times do
-          item, p = take(bin, p)
+          item, p = take(bin, p, depth + 1)
           items << item
         end
         [items, p]
       when 5
+        raise ArgumentError, "csilgen: map length exceeds remaining input" if arg > bin.bytesize - p
         hash = {}
         arg.times do
-          k, p = take(bin, p)
-          v, p = take(bin, p)
+          k, p = take(bin, p, depth + 1)
+          v, p = take(bin, p, depth + 1)
           hash[k] = v
         end
         [hash, p]
       when 6
-        inner, p = take(bin, p)
+        inner, p = take(bin, p, depth + 1)
         [Tag.new(arg, inner), p]
       else
         raise ArgumentError, "csilgen: bad major"
@@ -548,8 +560,20 @@ class Project
       name: node["name"],
       description: (node.key?("description") ? node["description"] : nil),
       category: (node.key?("category") ? node["category"] : nil),
-      status: (node.key?("status") ? node["status"] : nil),
-      visibility: (node.key?("visibility") ? node["visibility"] : nil),
+      status: (node.key?("status") ? (case (node["status"])
+when "active" then "active"
+when "archived" then "archived"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["status"]).inspect}"
+end) : nil),
+      visibility: (node.key?("visibility") ? (case (node["visibility"])
+when "none" then "none"
+when "read" then "read"
+when "edit" then "edit"
+when "full" then "full"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["visibility"]).inspect}"
+end) : nil),
       created_by_member_id: (node.key?("created_by_member_id") ? node["created_by_member_id"] : nil),
       created_at: node["created_at"],
       updated_at: node["updated_at"]
@@ -673,7 +697,13 @@ class Milestone
       project_id: node["project_id"],
       label: node["label"],
       when_label: node["when_label"],
-      state: node["state"],
+      state: (case (node["state"])
+when "done" then "done"
+when "current" then "current"
+when "future" then "future"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["state"]).inspect}"
+end),
       position: node["position"],
       created_at: node["created_at"],
       updated_at: node["updated_at"]
@@ -725,7 +755,16 @@ class Event
       starts_at: (node.key?("starts_at") ? node["starts_at"] : nil),
       ends_at: (node.key?("ends_at") ? node["ends_at"] : nil),
       all_day: (node.key?("all_day") ? node["all_day"] : nil),
-      recurrence_freq: (node.key?("recurrence_freq") ? node["recurrence_freq"] : nil),
+      recurrence_freq: (node.key?("recurrence_freq") ? (case (node["recurrence_freq"])
+when "hourly" then "hourly"
+when "daily" then "daily"
+when "weekly" then "weekly"
+when "monthly" then "monthly"
+when "quarterly" then "quarterly"
+when "yearly" then "yearly"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["recurrence_freq"]).inspect}"
+end) : nil),
       recurrence_interval: (node.key?("recurrence_interval") ? node["recurrence_interval"] : nil),
       recurrence_by_weekday: (node.key?("recurrence_by_weekday") ? (node["recurrence_by_weekday"]).map { |csil_e| csil_e } : nil),
       recurrence_by_setpos: (node.key?("recurrence_by_setpos") ? node["recurrence_by_setpos"] : nil),
@@ -783,14 +822,37 @@ class Task
       assignees: (node.key?("assignees") ? (node["assignees"]).map { |csil_e| csil_e } : nil),
       assigned_to_skill_id: (node.key?("assigned_to_skill_id") ? node["assigned_to_skill_id"] : nil),
       parent_task_id: (node.key?("parent_task_id") ? node["parent_task_id"] : nil),
-      visibility: (node.key?("visibility") ? node["visibility"] : nil),
+      visibility: (node.key?("visibility") ? (case (node["visibility"])
+when "none" then "none"
+when "read" then "read"
+when "edit" then "edit"
+when "full" then "full"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["visibility"]).inspect}"
+end) : nil),
       title: node["title"],
       description: (node.key?("description") ? node["description"] : nil),
-      status: (node.key?("status") ? node["status"] : nil),
+      status: (node.key?("status") ? (case (node["status"])
+when "open" then "open"
+when "in_progress" then "in_progress"
+when "done" then "done"
+when "cancelled" then "cancelled"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["status"]).inspect}"
+end) : nil),
       due_at: (node.key?("due_at") ? node["due_at"] : nil),
       tag: (node.key?("tag") ? node["tag"] : nil),
       estimate_minutes: (node.key?("estimate_minutes") ? node["estimate_minutes"] : nil),
-      recurrence_freq: (node.key?("recurrence_freq") ? node["recurrence_freq"] : nil),
+      recurrence_freq: (node.key?("recurrence_freq") ? (case (node["recurrence_freq"])
+when "hourly" then "hourly"
+when "daily" then "daily"
+when "weekly" then "weekly"
+when "monthly" then "monthly"
+when "quarterly" then "quarterly"
+when "yearly" then "yearly"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["recurrence_freq"]).inspect}"
+end) : nil),
       recurrence_interval: (node.key?("recurrence_interval") ? node["recurrence_interval"] : nil),
       recurrence_by_weekday: (node.key?("recurrence_by_weekday") ? (node["recurrence_by_weekday"]).map { |csil_e| csil_e } : nil),
       recurrence_by_setpos: (node.key?("recurrence_by_setpos") ? node["recurrence_by_setpos"] : nil),
@@ -832,7 +894,13 @@ class Comment
       comment_id: node["comment_id"],
       house_id: node["house_id"],
       member_id: node["member_id"],
-      target_type: node["target_type"],
+      target_type: (case (node["target_type"])
+when "event" then "event"
+when "task" then "task"
+when "project" then "project"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["target_type"]).inspect}"
+end),
       target_id: node["target_id"],
       body: node["body"],
       created_at: node["created_at"],
@@ -874,9 +942,22 @@ class Share
       shared_by: node["shared_by"],
       linkkeys_domain: node["linkkeys_domain"],
       linkkeys_user_id: node["linkkeys_user_id"],
-      resource_type: node["resource_type"],
+      resource_type: (case (node["resource_type"])
+when "event" then "event"
+when "task" then "task"
+when "house" then "house"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["resource_type"]).inspect}"
+end),
       resource_id: node["resource_id"],
-      access_level: (node.key?("access_level") ? node["access_level"] : nil),
+      access_level: (node.key?("access_level") ? (case (node["access_level"])
+when "none" then "none"
+when "read" then "read"
+when "edit" then "edit"
+when "full" then "full"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["access_level"]).inspect}"
+end) : nil),
       created_at: node["created_at"],
       expires_at: (node.key?("expires_at") ? node["expires_at"] : nil)
     )
@@ -1051,6 +1132,339 @@ class LoginResponse
       user_id: node["user_id"],
       display_name: (node.key?("display_name") ? node["display_name"] : nil),
       expires_at: node["expires_at"]
+    )
+  end
+end
+
+# CBOR codec for CliTokenResponse: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class CliTokenResponse
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["token"] = token
+    csil_map["domain"] = domain
+    csil_map["user_id"] = user_id
+    csil_map["expires_at"] = expires_at
+    csil_map["session_id"] = session_id
+    csil_map["display_name"] = display_name unless display_name.nil?
+    csil_map["refresh_token"] = refresh_token
+    csil_map["refresh_expires_at"] = refresh_expires_at
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      token: node["token"],
+      domain: node["domain"],
+      user_id: node["user_id"],
+      display_name: (node.key?("display_name") ? node["display_name"] : nil),
+      expires_at: node["expires_at"],
+      refresh_token: node["refresh_token"],
+      refresh_expires_at: node["refresh_expires_at"],
+      session_id: node["session_id"]
+    )
+  end
+end
+
+# CBOR codec for BeginCliLoginRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class BeginCliLoginRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["client_name"] = client_name
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      client_name: node["client_name"]
+    )
+  end
+end
+
+# CBOR codec for BeginCliLoginResponse: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class BeginCliLoginResponse
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["user_code"] = user_code
+    csil_map["expires_at"] = expires_at
+    csil_map["device_code"] = device_code
+    csil_map["interval_seconds"] = interval_seconds
+    csil_map["verification_url"] = verification_url
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      device_code: node["device_code"],
+      user_code: node["user_code"],
+      verification_url: node["verification_url"],
+      expires_at: node["expires_at"],
+      interval_seconds: node["interval_seconds"]
+    )
+  end
+end
+
+# CBOR codec for ApproveCliLoginRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ApproveCliLoginRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["user_code"] = user_code
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      user_code: node["user_code"]
+    )
+  end
+end
+
+# CBOR codec for CliLoginRequestInfo: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class CliLoginRequestInfo
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["user_code"] = user_code
+    csil_map["expires_at"] = expires_at
+    csil_map["client_name"] = client_name
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      user_code: node["user_code"],
+      client_name: node["client_name"],
+      expires_at: node["expires_at"]
+    )
+  end
+end
+
+# CBOR codec for DenyCliLoginRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class DenyCliLoginRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["user_code"] = user_code
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      user_code: node["user_code"]
+    )
+  end
+end
+
+# CBOR codec for ExchangeCliLoginRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ExchangeCliLoginRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["device_code"] = device_code
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      device_code: node["device_code"]
+    )
+  end
+end
+
+# CBOR codec for ExchangeCliLoginResponse: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ExchangeCliLoginResponse
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["status"] = (status)
+    csil_map["session"] = (session).csil_to_tree unless session.nil?
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      status: (case (node["status"])
+when "pending" then "pending"
+when "denied" then "denied"
+when "expired" then "expired"
+when "complete" then "complete"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["status"]).inspect}"
+end),
+      session: (node.key?("session") ? CliTokenResponse.csil_from_tree(node["session"]) : nil)
+    )
+  end
+end
+
+# CBOR codec for RefreshSessionRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class RefreshSessionRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["refresh_token"] = refresh_token
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      refresh_token: node["refresh_token"]
+    )
+  end
+end
+
+# CBOR codec for CliSessionSummary: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class CliSessionSummary
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["created_at"] = created_at
+    csil_map["expires_at"] = expires_at
+    csil_map["revoked_at"] = revoked_at unless revoked_at.nil?
+    csil_map["session_id"] = session_id
+    csil_map["client_name"] = client_name
+    csil_map["last_used_at"] = last_used_at
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      session_id: node["session_id"],
+      client_name: node["client_name"],
+      created_at: node["created_at"],
+      last_used_at: node["last_used_at"],
+      expires_at: node["expires_at"],
+      revoked_at: (node.key?("revoked_at") ? node["revoked_at"] : nil)
+    )
+  end
+end
+
+# CBOR codec for CliSessionsResponse: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class CliSessionsResponse
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["sessions"] = (sessions).map { |csil_e| (csil_e).csil_to_tree }
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      sessions: (node["sessions"]).map { |csil_e| CliSessionSummary.csil_from_tree(csil_e) }
+    )
+  end
+end
+
+# CBOR codec for RevokeSessionRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class RevokeSessionRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["session_id"] = session_id
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      session_id: node["session_id"]
     )
   end
 end
@@ -1425,7 +1839,13 @@ class CommentListRequest
 
   def self.csil_from_tree(node)
     new(
-      target_type: node["target_type"],
+      target_type: (case (node["target_type"])
+when "event" then "event"
+when "task" then "task"
+when "project" then "project"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["target_type"]).inspect}"
+end),
       target_id: node["target_id"],
       limit: (node.key?("limit") ? node["limit"] : nil),
       offset: (node.key?("offset") ? node["offset"] : nil)
@@ -1559,7 +1979,13 @@ class ShareAccessRequest
     new(
       linkkeys_domain: node["linkkeys_domain"],
       linkkeys_user_id: node["linkkeys_user_id"],
-      resource_type: node["resource_type"],
+      resource_type: (case (node["resource_type"])
+when "event" then "event"
+when "task" then "task"
+when "house" then "house"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["resource_type"]).inspect}"
+end),
       resource_id: node["resource_id"]
     )
   end
@@ -1585,7 +2011,13 @@ class ResourceRef
 
   def self.csil_from_tree(node)
     new(
-      resource_type: node["resource_type"],
+      resource_type: (case (node["resource_type"])
+when "event" then "event"
+when "task" then "task"
+when "house" then "house"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["resource_type"]).inspect}"
+end),
       resource_id: node["resource_id"]
     )
   end
@@ -1823,9 +2255,19 @@ class DependencyRef
 
   def self.csil_from_tree(node)
     new(
-      dependent_type: node["dependent_type"],
+      dependent_type: (case (node["dependent_type"])
+when "task" then "task"
+when "project" then "project"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["dependent_type"]).inspect}"
+end),
       dependent_id: node["dependent_id"],
-      dependency_type: node["dependency_type"],
+      dependency_type: (case (node["dependency_type"])
+when "task" then "task"
+when "project" then "project"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["dependency_type"]).inspect}"
+end),
       dependency_id: node["dependency_id"]
     )
   end
@@ -1851,7 +2293,12 @@ class DependencyTarget
 
   def self.csil_from_tree(node)
     new(
-      type: node["type"],
+      type: (case (node["type"])
+when "task" then "task"
+when "project" then "project"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["type"]).inspect}"
+end),
       id: node["id"]
     )
   end
@@ -1879,7 +2326,12 @@ class DependencyNode
 
   def self.csil_from_tree(node)
     new(
-      type: node["type"],
+      type: (case (node["type"])
+when "task" then "task"
+when "project" then "project"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["type"]).inspect}"
+end),
       id: node["id"],
       title: node["title"],
       status: (node.key?("status") ? node["status"] : nil)
@@ -1934,9 +2386,21 @@ class Grant
 
   def self.csil_from_tree(node)
     new(
-      grantee_type: node["grantee_type"],
+      grantee_type: (case (node["grantee_type"])
+when "member" then "member"
+when "group" then "group"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["grantee_type"]).inspect}"
+end),
       grantee_id: node["grantee_id"],
-      access_level: node["access_level"]
+      access_level: (case (node["access_level"])
+when "none" then "none"
+when "read" then "read"
+when "edit" then "edit"
+when "full" then "full"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["access_level"]).inspect}"
+end)
     )
   end
 end
@@ -1963,7 +2427,12 @@ class TaskGrantRef
   def self.csil_from_tree(node)
     new(
       task_id: node["task_id"],
-      grantee_type: node["grantee_type"],
+      grantee_type: (case (node["grantee_type"])
+when "member" then "member"
+when "group" then "group"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["grantee_type"]).inspect}"
+end),
       grantee_id: node["grantee_id"]
     )
   end
@@ -1992,9 +2461,21 @@ class PutTaskGrantRequest
   def self.csil_from_tree(node)
     new(
       task_id: node["task_id"],
-      grantee_type: node["grantee_type"],
+      grantee_type: (case (node["grantee_type"])
+when "member" then "member"
+when "group" then "group"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["grantee_type"]).inspect}"
+end),
       grantee_id: node["grantee_id"],
-      access_level: node["access_level"]
+      access_level: (case (node["access_level"])
+when "none" then "none"
+when "read" then "read"
+when "edit" then "edit"
+when "full" then "full"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["access_level"]).inspect}"
+end)
     )
   end
 end
@@ -2020,7 +2501,14 @@ class SetTaskVisibilityRequest
   def self.csil_from_tree(node)
     new(
       task_id: node["task_id"],
-      visibility: node["visibility"]
+      visibility: (case (node["visibility"])
+when "none" then "none"
+when "read" then "read"
+when "edit" then "edit"
+when "full" then "full"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["visibility"]).inspect}"
+end)
     )
   end
 end
@@ -2047,7 +2535,12 @@ class ProjectGrantRef
   def self.csil_from_tree(node)
     new(
       project_id: node["project_id"],
-      grantee_type: node["grantee_type"],
+      grantee_type: (case (node["grantee_type"])
+when "member" then "member"
+when "group" then "group"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["grantee_type"]).inspect}"
+end),
       grantee_id: node["grantee_id"]
     )
   end
@@ -2076,9 +2569,21 @@ class PutProjectGrantRequest
   def self.csil_from_tree(node)
     new(
       project_id: node["project_id"],
-      grantee_type: node["grantee_type"],
+      grantee_type: (case (node["grantee_type"])
+when "member" then "member"
+when "group" then "group"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["grantee_type"]).inspect}"
+end),
       grantee_id: node["grantee_id"],
-      access_level: node["access_level"]
+      access_level: (case (node["access_level"])
+when "none" then "none"
+when "read" then "read"
+when "edit" then "edit"
+when "full" then "full"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["access_level"]).inspect}"
+end)
     )
   end
 end
@@ -2104,7 +2609,14 @@ class SetProjectVisibilityRequest
   def self.csil_from_tree(node)
     new(
       project_id: node["project_id"],
-      visibility: node["visibility"]
+      visibility: (case (node["visibility"])
+when "none" then "none"
+when "read" then "read"
+when "edit" then "edit"
+when "full" then "full"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["visibility"]).inspect}"
+end)
     )
   end
 end
@@ -2132,7 +2644,14 @@ class EffectiveSettings
     new(
       bug_reports_enabled: (node.key?("bug_reports_enabled") ? node["bug_reports_enabled"] : nil),
       bug_reports_project_id: (node.key?("bug_reports_project_id") ? node["bug_reports_project_id"] : nil),
-      default_project_visibility: (node.key?("default_project_visibility") ? node["default_project_visibility"] : nil)
+      default_project_visibility: (node.key?("default_project_visibility") ? (case (node["default_project_visibility"])
+when "none" then "none"
+when "read" then "read"
+when "edit" then "edit"
+when "full" then "full"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["default_project_visibility"]).inspect}"
+end) : nil)
     )
   end
 end
@@ -2284,7 +2803,7 @@ class AuditEntry
     csil_map["action"] = action
     csil_map["before"] = before unless before.nil?
     csil_map["detail"] = detail unless detail.nil?
-    csil_map["method"] = method
+    csil_map["method"] = method_
     csil_map["outcome"] = outcome
     csil_map["audit_id"] = audit_id
     csil_map["house_id"] = house_id unless house_id.nil?
@@ -2310,7 +2829,7 @@ class AuditEntry
       actor_domain: node["actor_domain"],
       actor_user_id: node["actor_user_id"],
       service_name: node["service_name"],
-      method: node["method"],
+      method_: node["method"],
       action: node["action"],
       resource_type: (node.key?("resource_type") ? node["resource_type"] : nil),
       resource_id: (node.key?("resource_id") ? node["resource_id"] : nil),

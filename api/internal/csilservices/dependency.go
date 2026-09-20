@@ -18,9 +18,9 @@ import (
 type DependencyService struct{ Store store.Store }
 
 func (s *DependencyService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("dependency", "AddDependency", csilrpc.Route(s.AddDependency, csil.DecodeDependencyAddDependencyRequest, csil.EncodeDependencyAddDependencyResponse))
-	d.RegisterTyped("dependency", "RemoveDependency", csilrpc.Route(s.RemoveDependency, csil.DecodeDependencyRemoveDependencyRequest, csil.EncodeDependencyRemoveDependencyResponse))
-	d.RegisterTyped("dependency", "GetDependencies", csilrpc.Route(s.GetDependencies, csil.DecodeDependencyGetDependenciesRequest, csil.EncodeDependencyGetDependenciesResponse))
+	d.RegisterTyped("dependency", "AddDependency", csilrpc.Route(s.AddDependency, csil.DecodeDependencyRef, csil.EncodeEmptyResponse))
+	d.RegisterTyped("dependency", "RemoveDependency", csilrpc.Route(s.RemoveDependency, csil.DecodeDependencyRef, csil.EncodeEmptyResponse))
+	d.RegisterTyped("dependency", "GetDependencies", csilrpc.Route(s.GetDependencies, csil.DecodeDependencyTarget, csil.EncodeDependencyGraph))
 }
 
 // depNode is a resolved edge endpoint: exactly one of task/proj is set.

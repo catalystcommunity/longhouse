@@ -34,6 +34,9 @@ and encode_recurrence_freq (v : recurrence_freq) : Cbor.t =
 and encode_milestone_state (v : milestone_state) : Cbor.t =
   match v with Done -> Cbor.Text "done" | Current -> Cbor.Text "current" | Future -> Cbor.Text "future"
 
+and encode_cli_login_status (v : cli_login_status) : Cbor.t =
+  match v with Pending -> Cbor.Text "pending" | Denied -> Cbor.Text "denied" | Expired -> Cbor.Text "expired" | Complete -> Cbor.Text "complete"
+
 and encode_house (v : house) : Cbor.t =
   Cbor.Map
     (List.filter_map
@@ -380,6 +383,121 @@ and encode_login_response (v : login_response) : Cbor.t =
          Some (Cbor.Text "user_id", (Cbor.Text v.user_id));
          Some (Cbor.Text "expires_at", (Cbor.Text v.expires_at));
          (match v.display_name with Some csil_x -> Some (Cbor.Text "display_name", (Cbor.Text csil_x)) | None -> None);
+       ])
+
+and encode_cli_token_response (v : cli_token_response) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "token", (Cbor.Text v.token));
+         Some (Cbor.Text "domain", (Cbor.Text v.domain));
+         Some (Cbor.Text "user_id", (Cbor.Text v.user_id));
+         Some (Cbor.Text "expires_at", (Cbor.Text v.expires_at));
+         Some (Cbor.Text "session_id", (Cbor.Text v.session_id));
+         (match v.display_name with Some csil_x -> Some (Cbor.Text "display_name", (Cbor.Text csil_x)) | None -> None);
+         Some (Cbor.Text "refresh_token", (Cbor.Text v.refresh_token));
+         Some (Cbor.Text "refresh_expires_at", (Cbor.Text v.refresh_expires_at));
+       ])
+
+and encode_begin_cli_login_request (v : begin_cli_login_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "client_name", (Cbor.Text v.client_name));
+       ])
+
+and encode_begin_cli_login_response (v : begin_cli_login_response) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "user_code", (Cbor.Text v.user_code));
+         Some (Cbor.Text "expires_at", (Cbor.Text v.expires_at));
+         Some (Cbor.Text "device_code", (Cbor.Text v.device_code));
+         Some (Cbor.Text "interval_seconds", (Cbor.int64 v.interval_seconds));
+         Some (Cbor.Text "verification_url", (Cbor.Text v.verification_url));
+       ])
+
+and encode_approve_cli_login_request (v : approve_cli_login_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "user_code", (Cbor.Text v.user_code));
+       ])
+
+and encode_cli_login_request_info (v : cli_login_request_info) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "user_code", (Cbor.Text v.user_code));
+         Some (Cbor.Text "expires_at", (Cbor.Text v.expires_at));
+         Some (Cbor.Text "client_name", (Cbor.Text v.client_name));
+       ])
+
+and encode_deny_cli_login_request (v : deny_cli_login_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "user_code", (Cbor.Text v.user_code));
+       ])
+
+and encode_exchange_cli_login_request (v : exchange_cli_login_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "device_code", (Cbor.Text v.device_code));
+       ])
+
+and encode_exchange_cli_login_response (v : exchange_cli_login_response) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "status", (encode_cli_login_status v.status));
+         (match v.session with Some csil_x -> Some (Cbor.Text "session", (encode_cli_token_response csil_x)) | None -> None);
+       ])
+
+and encode_refresh_session_request (v : refresh_session_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "refresh_token", (Cbor.Text v.refresh_token));
+       ])
+
+and encode_cli_session_summary (v : cli_session_summary) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "created_at", (Cbor.Text v.created_at));
+         Some (Cbor.Text "expires_at", (Cbor.Text v.expires_at));
+         (match v.revoked_at with Some csil_x -> Some (Cbor.Text "revoked_at", (Cbor.Text csil_x)) | None -> None);
+         Some (Cbor.Text "session_id", (Cbor.Text v.session_id));
+         Some (Cbor.Text "client_name", (Cbor.Text v.client_name));
+         Some (Cbor.Text "last_used_at", (Cbor.Text v.last_used_at));
+       ])
+
+and encode_cli_sessions_response (v : cli_sessions_response) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "sessions", (Cbor.Array (List.map (fun csil_e -> (encode_cli_session_summary csil_e)) v.sessions)));
+       ])
+
+and encode_revoke_session_request (v : revoke_session_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "session_id", (Cbor.Text v.session_id));
        ])
 
 and encode_dev_user_entry (v : dev_user_entry) : Cbor.t =
@@ -922,6 +1040,9 @@ and decode_recurrence_freq (csil_c : Cbor.t) : recurrence_freq =
 and decode_milestone_state (csil_c : Cbor.t) : milestone_state =
   match Cbor.to_text csil_c with "done" -> Done | "current" -> Current | "future" -> Future | csil_s -> failwith ("csilgen: unknown enum literal " ^ csil_s)
 
+and decode_cli_login_status (csil_c : Cbor.t) : cli_login_status =
+  match Cbor.to_text csil_c with "pending" -> Pending | "denied" -> Denied | "expired" -> Expired | "complete" -> Complete | csil_s -> failwith ("csilgen: unknown enum literal " ^ csil_s)
+
 and decode_house (csil_c : Cbor.t) : house =
   match csil_c with
   | Cbor.Map csil_kvs ->
@@ -1399,6 +1520,181 @@ and decode_login_response (csil_c : Cbor.t) : login_response =
         display_name = (match csil_field "display_name" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
       }
   | _ -> failwith "csilgen: expected map for login_response"
+
+and decode_cli_token_response (csil_c : Cbor.t) : cli_token_response =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        token = (Cbor.to_text (csil_req "token"));
+        domain = (Cbor.to_text (csil_req "domain"));
+        user_id = (Cbor.to_text (csil_req "user_id"));
+        expires_at = (Cbor.to_text (csil_req "expires_at"));
+        session_id = (Cbor.to_text (csil_req "session_id"));
+        display_name = (match csil_field "display_name" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        refresh_token = (Cbor.to_text (csil_req "refresh_token"));
+        refresh_expires_at = (Cbor.to_text (csil_req "refresh_expires_at"));
+      }
+  | _ -> failwith "csilgen: expected map for cli_token_response"
+
+and decode_begin_cli_login_request (csil_c : Cbor.t) : begin_cli_login_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        client_name = (Cbor.to_text (csil_req "client_name"));
+      }
+  | _ -> failwith "csilgen: expected map for begin_cli_login_request"
+
+and decode_begin_cli_login_response (csil_c : Cbor.t) : begin_cli_login_response =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        user_code = (Cbor.to_text (csil_req "user_code"));
+        expires_at = (Cbor.to_text (csil_req "expires_at"));
+        device_code = (Cbor.to_text (csil_req "device_code"));
+        interval_seconds = (Cbor.to_i64 (csil_req "interval_seconds"));
+        verification_url = (Cbor.to_text (csil_req "verification_url"));
+      }
+  | _ -> failwith "csilgen: expected map for begin_cli_login_response"
+
+and decode_approve_cli_login_request (csil_c : Cbor.t) : approve_cli_login_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        user_code = (Cbor.to_text (csil_req "user_code"));
+      }
+  | _ -> failwith "csilgen: expected map for approve_cli_login_request"
+
+and decode_cli_login_request_info (csil_c : Cbor.t) : cli_login_request_info =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        user_code = (Cbor.to_text (csil_req "user_code"));
+        expires_at = (Cbor.to_text (csil_req "expires_at"));
+        client_name = (Cbor.to_text (csil_req "client_name"));
+      }
+  | _ -> failwith "csilgen: expected map for cli_login_request_info"
+
+and decode_deny_cli_login_request (csil_c : Cbor.t) : deny_cli_login_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        user_code = (Cbor.to_text (csil_req "user_code"));
+      }
+  | _ -> failwith "csilgen: expected map for deny_cli_login_request"
+
+and decode_exchange_cli_login_request (csil_c : Cbor.t) : exchange_cli_login_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        device_code = (Cbor.to_text (csil_req "device_code"));
+      }
+  | _ -> failwith "csilgen: expected map for exchange_cli_login_request"
+
+and decode_exchange_cli_login_response (csil_c : Cbor.t) : exchange_cli_login_response =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        status = (decode_cli_login_status (csil_req "status"));
+        session = (match csil_field "session" with Some csil_v -> Some (decode_cli_token_response csil_v) | None -> None);
+      }
+  | _ -> failwith "csilgen: expected map for exchange_cli_login_response"
+
+and decode_refresh_session_request (csil_c : Cbor.t) : refresh_session_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        refresh_token = (Cbor.to_text (csil_req "refresh_token"));
+      }
+  | _ -> failwith "csilgen: expected map for refresh_session_request"
+
+and decode_cli_session_summary (csil_c : Cbor.t) : cli_session_summary =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        created_at = (Cbor.to_text (csil_req "created_at"));
+        expires_at = (Cbor.to_text (csil_req "expires_at"));
+        revoked_at = (match csil_field "revoked_at" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        session_id = (Cbor.to_text (csil_req "session_id"));
+        client_name = (Cbor.to_text (csil_req "client_name"));
+        last_used_at = (Cbor.to_text (csil_req "last_used_at"));
+      }
+  | _ -> failwith "csilgen: expected map for cli_session_summary"
+
+and decode_cli_sessions_response (csil_c : Cbor.t) : cli_sessions_response =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        sessions = (match (csil_req "sessions") with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_cli_session_summary csil_e)) csil_xs | _ -> failwith "csilgen: expected array");
+      }
+  | _ -> failwith "csilgen: expected map for cli_sessions_response"
+
+and decode_revoke_session_request (csil_c : Cbor.t) : revoke_session_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        session_id = (Cbor.to_text (csil_req "session_id"));
+      }
+  | _ -> failwith "csilgen: expected map for revoke_session_request"
 
 and decode_dev_user_entry (csil_c : Cbor.t) : dev_user_entry =
   match csil_c with
@@ -2196,6 +2492,10 @@ let encode_milestone_state_bytes (v : milestone_state) : bytes = Cbor.encode (en
 let decode_milestone_state_bytes (b : bytes) : milestone_state =
   match Cbor.decode b with Ok c -> decode_milestone_state c | Error e -> failwith e
 
+let encode_cli_login_status_bytes (v : cli_login_status) : bytes = Cbor.encode (encode_cli_login_status v)
+let decode_cli_login_status_bytes (b : bytes) : cli_login_status =
+  match Cbor.decode b with Ok c -> decode_cli_login_status c | Error e -> failwith e
+
 let encode_house_bytes (v : house) : bytes = Cbor.encode (encode_house v)
 let decode_house_bytes (b : bytes) : house =
   match Cbor.decode b with Ok c -> decode_house c | Error e -> failwith e
@@ -2299,6 +2599,54 @@ let decode_complete_request_bytes (b : bytes) : complete_request =
 let encode_login_response_bytes (v : login_response) : bytes = Cbor.encode (encode_login_response v)
 let decode_login_response_bytes (b : bytes) : login_response =
   match Cbor.decode b with Ok c -> decode_login_response c | Error e -> failwith e
+
+let encode_cli_token_response_bytes (v : cli_token_response) : bytes = Cbor.encode (encode_cli_token_response v)
+let decode_cli_token_response_bytes (b : bytes) : cli_token_response =
+  match Cbor.decode b with Ok c -> decode_cli_token_response c | Error e -> failwith e
+
+let encode_begin_cli_login_request_bytes (v : begin_cli_login_request) : bytes = Cbor.encode (encode_begin_cli_login_request v)
+let decode_begin_cli_login_request_bytes (b : bytes) : begin_cli_login_request =
+  match Cbor.decode b with Ok c -> decode_begin_cli_login_request c | Error e -> failwith e
+
+let encode_begin_cli_login_response_bytes (v : begin_cli_login_response) : bytes = Cbor.encode (encode_begin_cli_login_response v)
+let decode_begin_cli_login_response_bytes (b : bytes) : begin_cli_login_response =
+  match Cbor.decode b with Ok c -> decode_begin_cli_login_response c | Error e -> failwith e
+
+let encode_approve_cli_login_request_bytes (v : approve_cli_login_request) : bytes = Cbor.encode (encode_approve_cli_login_request v)
+let decode_approve_cli_login_request_bytes (b : bytes) : approve_cli_login_request =
+  match Cbor.decode b with Ok c -> decode_approve_cli_login_request c | Error e -> failwith e
+
+let encode_cli_login_request_info_bytes (v : cli_login_request_info) : bytes = Cbor.encode (encode_cli_login_request_info v)
+let decode_cli_login_request_info_bytes (b : bytes) : cli_login_request_info =
+  match Cbor.decode b with Ok c -> decode_cli_login_request_info c | Error e -> failwith e
+
+let encode_deny_cli_login_request_bytes (v : deny_cli_login_request) : bytes = Cbor.encode (encode_deny_cli_login_request v)
+let decode_deny_cli_login_request_bytes (b : bytes) : deny_cli_login_request =
+  match Cbor.decode b with Ok c -> decode_deny_cli_login_request c | Error e -> failwith e
+
+let encode_exchange_cli_login_request_bytes (v : exchange_cli_login_request) : bytes = Cbor.encode (encode_exchange_cli_login_request v)
+let decode_exchange_cli_login_request_bytes (b : bytes) : exchange_cli_login_request =
+  match Cbor.decode b with Ok c -> decode_exchange_cli_login_request c | Error e -> failwith e
+
+let encode_exchange_cli_login_response_bytes (v : exchange_cli_login_response) : bytes = Cbor.encode (encode_exchange_cli_login_response v)
+let decode_exchange_cli_login_response_bytes (b : bytes) : exchange_cli_login_response =
+  match Cbor.decode b with Ok c -> decode_exchange_cli_login_response c | Error e -> failwith e
+
+let encode_refresh_session_request_bytes (v : refresh_session_request) : bytes = Cbor.encode (encode_refresh_session_request v)
+let decode_refresh_session_request_bytes (b : bytes) : refresh_session_request =
+  match Cbor.decode b with Ok c -> decode_refresh_session_request c | Error e -> failwith e
+
+let encode_cli_session_summary_bytes (v : cli_session_summary) : bytes = Cbor.encode (encode_cli_session_summary v)
+let decode_cli_session_summary_bytes (b : bytes) : cli_session_summary =
+  match Cbor.decode b with Ok c -> decode_cli_session_summary c | Error e -> failwith e
+
+let encode_cli_sessions_response_bytes (v : cli_sessions_response) : bytes = Cbor.encode (encode_cli_sessions_response v)
+let decode_cli_sessions_response_bytes (b : bytes) : cli_sessions_response =
+  match Cbor.decode b with Ok c -> decode_cli_sessions_response c | Error e -> failwith e
+
+let encode_revoke_session_request_bytes (v : revoke_session_request) : bytes = Cbor.encode (encode_revoke_session_request v)
+let decode_revoke_session_request_bytes (b : bytes) : revoke_session_request =
+  match Cbor.decode b with Ok c -> decode_revoke_session_request c | Error e -> failwith e
 
 let encode_dev_user_entry_bytes (v : dev_user_entry) : bytes = Cbor.encode (encode_dev_user_entry v)
 let decode_dev_user_entry_bytes (b : bytes) : dev_user_entry =

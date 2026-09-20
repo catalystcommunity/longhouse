@@ -10,7 +10,7 @@
 import { Show, createSignal, onMount } from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import { authClient } from "~/data/clients";
-import { finishLogin } from "~/lib/session";
+import { finishLogin, takeAuthReturnTo } from "~/lib/session";
 
 export const AuthCallback = () => {
   const [params] = useSearchParams();
@@ -26,7 +26,7 @@ export const AuthCallback = () => {
     try {
       const resp = await authClient.complete({ encryptedToken: token });
       await finishLogin(resp);
-      navigate("/", { replace: true });
+      navigate(takeAuthReturnTo(), { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }

@@ -9,6 +9,8 @@ import { authClient } from "~/data/clients";
 import { setHouses, signIn } from "~/stores/auth";
 import type { LoginResponse } from "@longhouse/client";
 
+const AUTH_RETURN_KEY = "longhouse.auth.return_to";
+
 /** Store the session from a login response, then load the caller's houses.
  *  Shared by the browser callback and the dev-login shortcut. */
 export async function finishLogin(resp: LoginResponse): Promise<void> {
@@ -33,6 +35,24 @@ export async function loadHouses(): Promise<void> {
       roles: h.roles ?? [],
     })),
   );
+}
+
+/** Remember one safe, same-origin route across the external Linkkeys redirect. */
+export function rememberAuthReturnTo(path: string): void {
+  try {
+    const target = new URL(path, window.location.origin);
+    if (target.origin !== window.location.origin || target.pathname === "/auth/callback") return;
+    sessionStorage.setItem(AUTH_RETURN_KEY, `${target.pathname}${target.search}${target.hash}`);
+  } catch {
+    // Ignore an invalid return route. The callback will use the dashboard.
+  }
+}
+
+/** Read and remove the route that started the browser login. */
+export function takeAuthReturnTo(): string {
+  const target = sessionStorage.getItem(AUTH_RETURN_KEY) ?? "/";
+  sessionStorage.removeItem(AUTH_RETURN_KEY);
+  return target.startsWith("/") && !target.startsWith("//") ? target : "/";
 }
 
 export type { LoginResponse };

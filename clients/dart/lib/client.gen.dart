@@ -21,30 +21,105 @@ final class AuthClient {
   const AuthClient(this.transport);
 
   LoginResponse login(LoginRequest request) {
-    final csilResp = transport.call('auth', 'Login', request.toCbor());
+    final csilResp = transport.call('AuthService', 'login', request.toCbor());
     return LoginResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   LoginResponse complete(CompleteRequest request) {
-    final csilResp = transport.call('auth', 'Complete', request.toCbor());
+    final csilResp = transport.call(
+      'AuthService',
+      'complete',
+      request.toCbor(),
+    );
     return LoginResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   LoginResponse refresh(EmptyRequest request) {
-    final csilResp = transport.call('auth', 'Refresh', request.toCbor());
+    final csilResp = transport.call('AuthService', 'refresh', request.toCbor());
     return LoginResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse logout(EmptyRequest request) {
-    final csilResp = transport.call('auth', 'Logout', request.toCbor());
+    final csilResp = transport.call('AuthService', 'logout', request.toCbor());
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   MeResponse me(EmptyRequest request) {
-    final csilResp = transport.call('auth', 'Me', request.toCbor());
+    final csilResp = transport.call('AuthService', 'me', request.toCbor());
     return MeResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
+  BeginCliLoginResponse beginCliLogin(BeginCliLoginRequest request) {
+    final csilResp = transport.call(
+      'AuthService',
+      'begin-cli-login',
+      request.toCbor(),
+    );
+    return BeginCliLoginResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  CliLoginRequestInfo inspectCliLogin(ApproveCliLoginRequest request) {
+    final csilResp = transport.call(
+      'AuthService',
+      'inspect-cli-login',
+      request.toCbor(),
+    );
+    return CliLoginRequestInfo.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  EmptyResponse approveCliLogin(ApproveCliLoginRequest request) {
+    final csilResp = transport.call(
+      'AuthService',
+      'approve-cli-login',
+      request.toCbor(),
+    );
+    return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  EmptyResponse denyCliLogin(DenyCliLoginRequest request) {
+    final csilResp = transport.call(
+      'AuthService',
+      'deny-cli-login',
+      request.toCbor(),
+    );
+    return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  ExchangeCliLoginResponse exchangeCliLogin(ExchangeCliLoginRequest request) {
+    final csilResp = transport.call(
+      'AuthService',
+      'exchange-cli-login',
+      request.toCbor(),
+    );
+    return ExchangeCliLoginResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  CliTokenResponse refreshSession(RefreshSessionRequest request) {
+    final csilResp = transport.call(
+      'AuthService',
+      'refresh-session',
+      request.toCbor(),
+    );
+    return CliTokenResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  CliSessionsResponse listSessions(EmptyRequest request) {
+    final csilResp = transport.call(
+      'AuthService',
+      'list-sessions',
+      request.toCbor(),
+    );
+    return CliSessionsResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  EmptyResponse revokeSession(RevokeSessionRequest request) {
+    final csilResp = transport.call(
+      'AuthService',
+      'revoke-session',
+      request.toCbor(),
+    );
+    return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
 }
 
 /// A typed, transport-agnostic client for the DevAuthService service. The client owns
@@ -54,15 +129,22 @@ final class DevAuthClient {
   const DevAuthClient(this.transport);
 
   DevUsersResponse listDevUsers(EmptyRequest request) {
-    final csilResp = transport.call('devauth', 'ListDevUsers', request.toCbor());
+    final csilResp = transport.call(
+      'DevAuthService',
+      'list-dev-users',
+      request.toCbor(),
+    );
     return DevUsersResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   LoginResponse devLogin(DevLoginRequest request) {
-    final csilResp = transport.call('devauth', 'DevLogin', request.toCbor());
+    final csilResp = transport.call(
+      'DevAuthService',
+      'dev-login',
+      request.toCbor(),
+    );
     return LoginResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the HouseService service. The client owns
@@ -72,30 +154,52 @@ final class HouseClient {
   const HouseClient(this.transport);
 
   House createHouse(House request) {
-    final csilResp = transport.call('house', 'CreateHouse', request.toCbor());
+    final csilResp = transport.call(
+      'HouseService',
+      'create-house',
+      request.toCbor(),
+    );
     return House.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   House getHouse(HouseId request) {
-    final csilResp = transport.call('house', 'GetHouse', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'HouseService',
+      'get-house',
+      CsilCbor.encodeValue(request),
+    );
     return House.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   House updateHouse(House request) {
-    final csilResp = transport.call('house', 'UpdateHouse', request.toCbor());
+    final csilResp = transport.call(
+      'HouseService',
+      'update-house',
+      request.toCbor(),
+    );
     return House.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteHouse(HouseId request) {
-    final csilResp = transport.call('house', 'DeleteHouse', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'HouseService',
+      'delete-house',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<House> listHouses(HouseListRequest request) {
-    final csilResp = transport.call('house', 'ListHouses', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => House.fromCborValue(csilE)).cast<House>().toList();
+    final csilResp = transport.call(
+      'HouseService',
+      'list-houses',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => House.fromCborValue(csilE))
+        .cast<House>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the MemberService service. The client owns
@@ -105,40 +209,70 @@ final class MemberClient {
   const MemberClient(this.transport);
 
   Member createMember(Member request) {
-    final csilResp = transport.call('member', 'CreateMember', request.toCbor());
+    final csilResp = transport.call(
+      'MemberService',
+      'create-member',
+      request.toCbor(),
+    );
     return Member.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Member getMember(MemberId request) {
-    final csilResp = transport.call('member', 'GetMember', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'MemberService',
+      'get-member',
+      CsilCbor.encodeValue(request),
+    );
     return Member.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Member getMemberByIdentity(Member request) {
-    final csilResp = transport.call('member', 'GetMemberByIdentity', request.toCbor());
+    final csilResp = transport.call(
+      'MemberService',
+      'get-member-by-identity',
+      request.toCbor(),
+    );
     return Member.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Member updateMember(Member request) {
-    final csilResp = transport.call('member', 'UpdateMember', request.toCbor());
+    final csilResp = transport.call(
+      'MemberService',
+      'update-member',
+      request.toCbor(),
+    );
     return Member.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deactivateMember(MemberId request) {
-    final csilResp = transport.call('member', 'DeactivateMember', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'MemberService',
+      'deactivate-member',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse reactivateMember(MemberId request) {
-    final csilResp = transport.call('member', 'ReactivateMember', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'MemberService',
+      'reactivate-member',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Member> listMembers(HouseScopedListRequest request) {
-    final csilResp = transport.call('member', 'ListMembers', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Member.fromCborValue(csilE)).cast<Member>().toList();
+    final csilResp = transport.call(
+      'MemberService',
+      'list-members',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Member.fromCborValue(csilE))
+        .cast<Member>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the TrustedDomainService service. The client owns
@@ -148,25 +282,43 @@ final class TrustedDomainClient {
   const TrustedDomainClient(this.transport);
 
   TrustedDomain addTrustedDomain(TrustedDomain request) {
-    final csilResp = transport.call('trusteddomain', 'AddTrustedDomain', request.toCbor());
+    final csilResp = transport.call(
+      'TrustedDomainService',
+      'add-trusted-domain',
+      request.toCbor(),
+    );
     return TrustedDomain.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse removeTrustedDomain(TrustedDomainId request) {
-    final csilResp = transport.call('trusteddomain', 'RemoveTrustedDomain', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'TrustedDomainService',
+      'remove-trusted-domain',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<TrustedDomain> listTrustedDomains(HouseId request) {
-    final csilResp = transport.call('trusteddomain', 'ListTrustedDomains', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => TrustedDomain.fromCborValue(csilE)).cast<TrustedDomain>().toList();
+    final csilResp = transport.call(
+      'TrustedDomainService',
+      'list-trusted-domains',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => TrustedDomain.fromCborValue(csilE))
+        .cast<TrustedDomain>()
+        .toList();
   }
 
   BoolResponse isDomainTrusted(TrustedDomain request) {
-    final csilResp = transport.call('trusteddomain', 'IsDomainTrusted', request.toCbor());
+    final csilResp = transport.call(
+      'TrustedDomainService',
+      'is-domain-trusted',
+      request.toCbor(),
+    );
     return BoolResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the RoleService service. The client owns
@@ -176,40 +328,73 @@ final class RoleClient {
   const RoleClient(this.transport);
 
   Role createRole(Role request) {
-    final csilResp = transport.call('role', 'CreateRole', request.toCbor());
+    final csilResp = transport.call(
+      'RoleService',
+      'create-role',
+      request.toCbor(),
+    );
     return Role.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Role updateRole(Role request) {
-    final csilResp = transport.call('role', 'UpdateRole', request.toCbor());
+    final csilResp = transport.call(
+      'RoleService',
+      'update-role',
+      request.toCbor(),
+    );
     return Role.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteRole(RoleId request) {
-    final csilResp = transport.call('role', 'DeleteRole', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'RoleService',
+      'delete-role',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Role> listRoles(HouseScopedListRequest request) {
-    final csilResp = transport.call('role', 'ListRoles', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Role.fromCborValue(csilE)).cast<Role>().toList();
+    final csilResp = transport.call(
+      'RoleService',
+      'list-roles',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Role.fromCborValue(csilE))
+        .cast<Role>()
+        .toList();
   }
 
   EmptyResponse grantRole(MemberRoleRef request) {
-    final csilResp = transport.call('role', 'GrantRole', request.toCbor());
+    final csilResp = transport.call(
+      'RoleService',
+      'grant-role',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse revokeRole(MemberRoleRef request) {
-    final csilResp = transport.call('role', 'RevokeRole', request.toCbor());
+    final csilResp = transport.call(
+      'RoleService',
+      'revoke-role',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Role> listMemberRoles(MemberScopedListRequest request) {
-    final csilResp = transport.call('role', 'ListMemberRoles', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Role.fromCborValue(csilE)).cast<Role>().toList();
+    final csilResp = transport.call(
+      'RoleService',
+      'list-member-roles',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Role.fromCborValue(csilE))
+        .cast<Role>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the SkillService service. The client owns
@@ -219,55 +404,103 @@ final class SkillClient {
   const SkillClient(this.transport);
 
   Skill createSkill(Skill request) {
-    final csilResp = transport.call('skill', 'CreateSkill', request.toCbor());
+    final csilResp = transport.call(
+      'SkillService',
+      'create-skill',
+      request.toCbor(),
+    );
     return Skill.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Skill updateSkill(Skill request) {
-    final csilResp = transport.call('skill', 'UpdateSkill', request.toCbor());
+    final csilResp = transport.call(
+      'SkillService',
+      'update-skill',
+      request.toCbor(),
+    );
     return Skill.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteSkill(SkillId request) {
-    final csilResp = transport.call('skill', 'DeleteSkill', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'SkillService',
+      'delete-skill',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Skill> listSkills(HouseScopedListRequest request) {
-    final csilResp = transport.call('skill', 'ListSkills', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Skill.fromCborValue(csilE)).cast<Skill>().toList();
+    final csilResp = transport.call(
+      'SkillService',
+      'list-skills',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Skill.fromCborValue(csilE))
+        .cast<Skill>()
+        .toList();
   }
 
   EmptyResponse addMemberSkill(MemberSkillRef request) {
-    final csilResp = transport.call('skill', 'AddMemberSkill', request.toCbor());
+    final csilResp = transport.call(
+      'SkillService',
+      'add-member-skill',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse removeMemberSkill(MemberSkillRef request) {
-    final csilResp = transport.call('skill', 'RemoveMemberSkill', request.toCbor());
+    final csilResp = transport.call(
+      'SkillService',
+      'remove-member-skill',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Skill> listMemberSkills(MemberScopedListRequest request) {
-    final csilResp = transport.call('skill', 'ListMemberSkills', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Skill.fromCborValue(csilE)).cast<Skill>().toList();
+    final csilResp = transport.call(
+      'SkillService',
+      'list-member-skills',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Skill.fromCborValue(csilE))
+        .cast<Skill>()
+        .toList();
   }
 
   EmptyResponse addGroupSkill(GroupSkillRef request) {
-    final csilResp = transport.call('skill', 'AddGroupSkill', request.toCbor());
+    final csilResp = transport.call(
+      'SkillService',
+      'add-group-skill',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse removeGroupSkill(GroupSkillRef request) {
-    final csilResp = transport.call('skill', 'RemoveGroupSkill', request.toCbor());
+    final csilResp = transport.call(
+      'SkillService',
+      'remove-group-skill',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Skill> listGroupSkills(GroupId request) {
-    final csilResp = transport.call('skill', 'ListGroupSkills', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Skill.fromCborValue(csilE)).cast<Skill>().toList();
+    final csilResp = transport.call(
+      'SkillService',
+      'list-group-skills',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Skill.fromCborValue(csilE))
+        .cast<Skill>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the GroupService service. The client owns
@@ -277,40 +510,73 @@ final class GroupClient {
   const GroupClient(this.transport);
 
   Group createGroup(Group request) {
-    final csilResp = transport.call('group', 'CreateGroup', request.toCbor());
+    final csilResp = transport.call(
+      'GroupService',
+      'create-group',
+      request.toCbor(),
+    );
     return Group.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Group updateGroup(Group request) {
-    final csilResp = transport.call('group', 'UpdateGroup', request.toCbor());
+    final csilResp = transport.call(
+      'GroupService',
+      'update-group',
+      request.toCbor(),
+    );
     return Group.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteGroup(GroupId request) {
-    final csilResp = transport.call('group', 'DeleteGroup', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'GroupService',
+      'delete-group',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Group> listGroups(HouseScopedListRequest request) {
-    final csilResp = transport.call('group', 'ListGroups', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Group.fromCborValue(csilE)).cast<Group>().toList();
+    final csilResp = transport.call(
+      'GroupService',
+      'list-groups',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Group.fromCborValue(csilE))
+        .cast<Group>()
+        .toList();
   }
 
   EmptyResponse addGroupMember(GroupMemberRef request) {
-    final csilResp = transport.call('group', 'AddGroupMember', request.toCbor());
+    final csilResp = transport.call(
+      'GroupService',
+      'add-group-member',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse removeGroupMember(GroupMemberRef request) {
-    final csilResp = transport.call('group', 'RemoveGroupMember', request.toCbor());
+    final csilResp = transport.call(
+      'GroupService',
+      'remove-group-member',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Member> listGroupMembers(MemberScopedListRequest request) {
-    final csilResp = transport.call('group', 'ListGroupMembers', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Member.fromCborValue(csilE)).cast<Member>().toList();
+    final csilResp = transport.call(
+      'GroupService',
+      'list-group-members',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Member.fromCborValue(csilE))
+        .cast<Member>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the ProjectService service. The client owns
@@ -320,120 +586,223 @@ final class ProjectClient {
   const ProjectClient(this.transport);
 
   Project createProject(Project request) {
-    final csilResp = transport.call('project', 'CreateProject', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'create-project',
+      request.toCbor(),
+    );
     return Project.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Project getProject(ProjectId request) {
-    final csilResp = transport.call('project', 'GetProject', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'ProjectService',
+      'get-project',
+      CsilCbor.encodeValue(request),
+    );
     return Project.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Project updateProject(Project request) {
-    final csilResp = transport.call('project', 'UpdateProject', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'update-project',
+      request.toCbor(),
+    );
     return Project.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteProject(ProjectId request) {
-    final csilResp = transport.call('project', 'DeleteProject', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'ProjectService',
+      'delete-project',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   ProjectList listProjects(HouseScopedListRequest request) {
-    final csilResp = transport.call('project', 'ListProjects', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'list-projects',
+      request.toCbor(),
+    );
     return ProjectList.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   TaskList listProjectTasks(ProjectScopedListRequest request) {
-    final csilResp = transport.call('project', 'ListProjectTasks', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'list-project-tasks',
+      request.toCbor(),
+    );
     return TaskList.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse addProjectTask(ProjectTaskOrderRequest request) {
-    final csilResp = transport.call('project', 'AddProjectTask', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'add-project-task',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse removeProjectTask(ProjectTaskRef request) {
-    final csilResp = transport.call('project', 'RemoveProjectTask', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'remove-project-task',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse setProjectTaskPosition(ProjectTaskOrderRequest request) {
-    final csilResp = transport.call('project', 'SetProjectTaskPosition', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'set-project-task-position',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Member> listProjectMembers(ProjectId request) {
-    final csilResp = transport.call('project', 'ListProjectMembers', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Member.fromCborValue(csilE)).cast<Member>().toList();
+    final csilResp = transport.call(
+      'ProjectService',
+      'list-project-members',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Member.fromCborValue(csilE))
+        .cast<Member>()
+        .toList();
   }
 
   EmptyResponse addProjectMember(ProjectMemberRef request) {
-    final csilResp = transport.call('project', 'AddProjectMember', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'add-project-member',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse removeProjectMember(ProjectMemberRef request) {
-    final csilResp = transport.call('project', 'RemoveProjectMember', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'remove-project-member',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Member> listProjectOwners(ProjectId request) {
-    final csilResp = transport.call('project', 'ListProjectOwners', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Member.fromCborValue(csilE)).cast<Member>().toList();
+    final csilResp = transport.call(
+      'ProjectService',
+      'list-project-owners',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Member.fromCborValue(csilE))
+        .cast<Member>()
+        .toList();
   }
 
   EmptyResponse addProjectOwner(ProjectOwnerRef request) {
-    final csilResp = transport.call('project', 'AddProjectOwner', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'add-project-owner',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse removeProjectOwner(ProjectOwnerRef request) {
-    final csilResp = transport.call('project', 'RemoveProjectOwner', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'remove-project-owner',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Milestone> listMilestones(ProjectId request) {
-    final csilResp = transport.call('project', 'ListMilestones', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Milestone.fromCborValue(csilE)).cast<Milestone>().toList();
+    final csilResp = transport.call(
+      'ProjectService',
+      'list-milestones',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Milestone.fromCborValue(csilE))
+        .cast<Milestone>()
+        .toList();
   }
 
   Milestone createMilestone(Milestone request) {
-    final csilResp = transport.call('project', 'CreateMilestone', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'create-milestone',
+      request.toCbor(),
+    );
     return Milestone.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Milestone updateMilestone(Milestone request) {
-    final csilResp = transport.call('project', 'UpdateMilestone', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'update-milestone',
+      request.toCbor(),
+    );
     return Milestone.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteMilestone(MilestoneId request) {
-    final csilResp = transport.call('project', 'DeleteMilestone', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'ProjectService',
+      'delete-milestone',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Project setProjectVisibility(SetProjectVisibilityRequest request) {
-    final csilResp = transport.call('project', 'SetProjectVisibility', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'set-project-visibility',
+      request.toCbor(),
+    );
     return Project.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Grant> listProjectGrants(ProjectId request) {
-    final csilResp = transport.call('project', 'ListProjectGrants', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Grant.fromCborValue(csilE)).cast<Grant>().toList();
+    final csilResp = transport.call(
+      'ProjectService',
+      'list-project-grants',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Grant.fromCborValue(csilE))
+        .cast<Grant>()
+        .toList();
   }
 
   EmptyResponse putProjectGrant(PutProjectGrantRequest request) {
-    final csilResp = transport.call('project', 'PutProjectGrant', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'put-project-grant',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteProjectGrant(ProjectGrantRef request) {
-    final csilResp = transport.call('project', 'DeleteProjectGrant', request.toCbor());
+    final csilResp = transport.call(
+      'ProjectService',
+      'delete-project-grant',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the EventService service. The client owns
@@ -443,45 +812,79 @@ final class EventClient {
   const EventClient(this.transport);
 
   Event createEvent(Event request) {
-    final csilResp = transport.call('event', 'CreateEvent', request.toCbor());
+    final csilResp = transport.call(
+      'EventService',
+      'create-event',
+      request.toCbor(),
+    );
     return Event.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Event getEvent(EventId request) {
-    final csilResp = transport.call('event', 'GetEvent', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'EventService',
+      'get-event',
+      CsilCbor.encodeValue(request),
+    );
     return Event.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Event updateEvent(Event request) {
-    final csilResp = transport.call('event', 'UpdateEvent', request.toCbor());
+    final csilResp = transport.call(
+      'EventService',
+      'update-event',
+      request.toCbor(),
+    );
     return Event.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteEvent(EventId request) {
-    final csilResp = transport.call('event', 'DeleteEvent', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'EventService',
+      'delete-event',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteEventAndFuture(EventId request) {
-    final csilResp = transport.call('event', 'DeleteEventAndFuture', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'EventService',
+      'delete-event-and-future',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Event> listEvents(HouseScopedListRequest request) {
-    final csilResp = transport.call('event', 'ListEvents', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Event.fromCborValue(csilE)).cast<Event>().toList();
+    final csilResp = transport.call(
+      'EventService',
+      'list-events',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Event.fromCborValue(csilE))
+        .cast<Event>()
+        .toList();
   }
 
   CalendarView getCalendarView(HouseId request) {
-    final csilResp = transport.call('event', 'GetCalendarView', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'EventService',
+      'get-calendar-view',
+      CsilCbor.encodeValue(request),
+    );
     return CalendarView.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   CalendarView setCalendarView(CalendarView request) {
-    final csilResp = transport.call('event', 'SetCalendarView', request.toCbor());
+    final csilResp = transport.call(
+      'EventService',
+      'set-calendar-view',
+      request.toCbor(),
+    );
     return CalendarView.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the TaskService service. The client owns
@@ -491,50 +894,88 @@ final class TaskClient {
   const TaskClient(this.transport);
 
   Task createTask(Task request) {
-    final csilResp = transport.call('task', 'CreateTask', request.toCbor());
+    final csilResp = transport.call(
+      'TaskService',
+      'create-task',
+      request.toCbor(),
+    );
     return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Task getTask(TaskId request) {
-    final csilResp = transport.call('task', 'GetTask', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'TaskService',
+      'get-task',
+      CsilCbor.encodeValue(request),
+    );
     return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Task updateTask(Task request) {
-    final csilResp = transport.call('task', 'UpdateTask', request.toCbor());
+    final csilResp = transport.call(
+      'TaskService',
+      'update-task',
+      request.toCbor(),
+    );
     return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteTask(TaskId request) {
-    final csilResp = transport.call('task', 'DeleteTask', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'TaskService',
+      'delete-task',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   TaskList listTasks(HouseScopedListRequest request) {
-    final csilResp = transport.call('task', 'ListTasks', request.toCbor());
+    final csilResp = transport.call(
+      'TaskService',
+      'list-tasks',
+      request.toCbor(),
+    );
     return TaskList.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Task setTaskVisibility(SetTaskVisibilityRequest request) {
-    final csilResp = transport.call('task', 'SetTaskVisibility', request.toCbor());
+    final csilResp = transport.call(
+      'TaskService',
+      'set-task-visibility',
+      request.toCbor(),
+    );
     return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Grant> listTaskGrants(TaskId request) {
-    final csilResp = transport.call('task', 'ListTaskGrants', CsilCbor.encodeValue(request));
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Grant.fromCborValue(csilE)).cast<Grant>().toList();
+    final csilResp = transport.call(
+      'TaskService',
+      'list-task-grants',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Grant.fromCborValue(csilE))
+        .cast<Grant>()
+        .toList();
   }
 
   EmptyResponse putTaskGrant(PutTaskGrantRequest request) {
-    final csilResp = transport.call('task', 'PutTaskGrant', request.toCbor());
+    final csilResp = transport.call(
+      'TaskService',
+      'put-task-grant',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteTaskGrant(TaskGrantRef request) {
-    final csilResp = transport.call('task', 'DeleteTaskGrant', request.toCbor());
+    final csilResp = transport.call(
+      'TaskService',
+      'delete-task-grant',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the DependencyService service. The client owns
@@ -544,20 +985,31 @@ final class DependencyClient {
   const DependencyClient(this.transport);
 
   EmptyResponse addDependency(DependencyRef request) {
-    final csilResp = transport.call('dependency', 'AddDependency', request.toCbor());
+    final csilResp = transport.call(
+      'DependencyService',
+      'add-dependency',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse removeDependency(DependencyRef request) {
-    final csilResp = transport.call('dependency', 'RemoveDependency', request.toCbor());
+    final csilResp = transport.call(
+      'DependencyService',
+      'remove-dependency',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   DependencyGraph getDependencies(DependencyTarget request) {
-    final csilResp = transport.call('dependency', 'GetDependencies', request.toCbor());
+    final csilResp = transport.call(
+      'DependencyService',
+      'get-dependencies',
+      request.toCbor(),
+    );
     return DependencyGraph.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the CommentService service. The client owns
@@ -567,30 +1019,52 @@ final class CommentClient {
   const CommentClient(this.transport);
 
   Comment createComment(Comment request) {
-    final csilResp = transport.call('comment', 'CreateComment', request.toCbor());
+    final csilResp = transport.call(
+      'CommentService',
+      'create-comment',
+      request.toCbor(),
+    );
     return Comment.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Comment getComment(CommentId request) {
-    final csilResp = transport.call('comment', 'GetComment', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'CommentService',
+      'get-comment',
+      CsilCbor.encodeValue(request),
+    );
     return Comment.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Comment updateComment(Comment request) {
-    final csilResp = transport.call('comment', 'UpdateComment', request.toCbor());
+    final csilResp = transport.call(
+      'CommentService',
+      'update-comment',
+      request.toCbor(),
+    );
     return Comment.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteComment(CommentId request) {
-    final csilResp = transport.call('comment', 'DeleteComment', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'CommentService',
+      'delete-comment',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Comment> listComments(CommentListRequest request) {
-    final csilResp = transport.call('comment', 'ListComments', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Comment.fromCborValue(csilE)).cast<Comment>().toList();
+    final csilResp = transport.call(
+      'CommentService',
+      'list-comments',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Comment.fromCborValue(csilE))
+        .cast<Comment>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the NotificationService service. The client owns
@@ -600,25 +1074,43 @@ final class NotificationClient {
   const NotificationClient(this.transport);
 
   List<Notification> listNotifications(NotificationListRequest request) {
-    final csilResp = transport.call('notification', 'ListNotifications', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Notification.fromCborValue(csilE)).cast<Notification>().toList();
+    final csilResp = transport.call(
+      'NotificationService',
+      'list-notifications',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Notification.fromCborValue(csilE))
+        .cast<Notification>()
+        .toList();
   }
 
   NotificationUnreadCount unreadCount(HouseId request) {
-    final csilResp = transport.call('notification', 'UnreadCount', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'NotificationService',
+      'unread-count',
+      CsilCbor.encodeValue(request),
+    );
     return NotificationUnreadCount.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Notification markRead(NotificationId request) {
-    final csilResp = transport.call('notification', 'MarkRead', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'NotificationService',
+      'mark-read',
+      CsilCbor.encodeValue(request),
+    );
     return Notification.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse markAllRead(HouseId request) {
-    final csilResp = transport.call('notification', 'MarkAllRead', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'NotificationService',
+      'mark-all-read',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the ShareService service. The client owns
@@ -628,25 +1120,43 @@ final class ShareClient {
   const ShareClient(this.transport);
 
   Share createShare(Share request) {
-    final csilResp = transport.call('share', 'CreateShare', request.toCbor());
+    final csilResp = transport.call(
+      'ShareService',
+      'create-share',
+      request.toCbor(),
+    );
     return Share.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse deleteShare(ShareId request) {
-    final csilResp = transport.call('share', 'DeleteShare', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'ShareService',
+      'delete-share',
+      CsilCbor.encodeValue(request),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   List<Share> listSharesByResource(ResourceRef request) {
-    final csilResp = transport.call('share', 'ListSharesByResource', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => Share.fromCborValue(csilE)).cast<Share>().toList();
+    final csilResp = transport.call(
+      'ShareService',
+      'list-shares-by-resource',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Share.fromCborValue(csilE))
+        .cast<Share>()
+        .toList();
   }
 
   Share checkAccess(ShareAccessRequest request) {
-    final csilResp = transport.call('share', 'CheckAccess', request.toCbor());
+    final csilResp = transport.call(
+      'ShareService',
+      'check-access',
+      request.toCbor(),
+    );
     return Share.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the MemberAuditService service. The client owns
@@ -656,10 +1166,16 @@ final class MemberAuditClient {
   const MemberAuditClient(this.transport);
 
   List<MemberAudit> listAuditsForMember(MemberScopedListRequest request) {
-    final csilResp = transport.call('memberaudit', 'ListAuditsForMember', request.toCbor());
-    return (CsilCbor.decode(csilResp) as List).map((csilE) => MemberAudit.fromCborValue(csilE)).cast<MemberAudit>().toList();
+    final csilResp = transport.call(
+      'MemberAuditService',
+      'list-audits-for-member',
+      request.toCbor(),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => MemberAudit.fromCborValue(csilE))
+        .cast<MemberAudit>()
+        .toList();
   }
-
 }
 
 /// A typed, transport-agnostic client for the SettingsService service. The client owns
@@ -669,15 +1185,22 @@ final class SettingsClient {
   const SettingsClient(this.transport);
 
   EffectiveSettings getSettings(HouseId request) {
-    final csilResp = transport.call('settings', 'GetSettings', CsilCbor.encodeValue(request));
+    final csilResp = transport.call(
+      'SettingsService',
+      'get-settings',
+      CsilCbor.encodeValue(request),
+    );
     return EffectiveSettings.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EffectiveSettings updateSettings(UpdateSettingsRequest request) {
-    final csilResp = transport.call('settings', 'UpdateSettings', request.toCbor());
+    final csilResp = transport.call(
+      'SettingsService',
+      'update-settings',
+      request.toCbor(),
+    );
     return EffectiveSettings.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the BugService service. The client owns
@@ -687,10 +1210,13 @@ final class BugClient {
   const BugClient(this.transport);
 
   Task reportBug(BugReportRequest request) {
-    final csilResp = transport.call('bug', 'ReportBug', request.toCbor());
+    final csilResp = transport.call(
+      'BugService',
+      'report-bug',
+      request.toCbor(),
+    );
     return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the AuditService service. The client owns
@@ -700,10 +1226,13 @@ final class AuditClient {
   const AuditClient(this.transport);
 
   AuditPage queryAudit(AuditQuery request) {
-    final csilResp = transport.call('audit', 'QueryAudit', request.toCbor());
+    final csilResp = transport.call(
+      'AuditService',
+      'query-audit',
+      request.toCbor(),
+    );
     return AuditPage.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
 
 /// A typed, transport-agnostic client for the TrashService service. The client owns
@@ -713,19 +1242,25 @@ final class TrashClient {
   const TrashClient(this.transport);
 
   TrashPage listTrash(HouseScopedListRequest request) {
-    final csilResp = transport.call('trash', 'ListTrash', request.toCbor());
+    final csilResp = transport.call(
+      'TrashService',
+      'list-trash',
+      request.toCbor(),
+    );
     return TrashPage.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse restore(RestoreRequest request) {
-    final csilResp = transport.call('trash', 'Restore', request.toCbor());
+    final csilResp = transport.call(
+      'TrashService',
+      'restore',
+      request.toCbor(),
+    );
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   EmptyResponse purge(PurgeRequest request) {
-    final csilResp = transport.call('trash', 'Purge', request.toCbor());
+    final csilResp = transport.call('TrashService', 'purge', request.toCbor());
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
-
 }
-

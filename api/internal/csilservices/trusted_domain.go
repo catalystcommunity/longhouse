@@ -20,10 +20,10 @@ import (
 type TrustedDomainService struct{ Store store.Store }
 
 func (s *TrustedDomainService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("trusteddomain", "AddTrustedDomain", csilrpc.Route(s.AddTrustedDomain, csil.DecodeTrustedDomainAddTrustedDomainRequest, csil.EncodeTrustedDomainAddTrustedDomainResponse))
-	d.RegisterTyped("trusteddomain", "RemoveTrustedDomain", csilrpc.Route(s.RemoveTrustedDomain, csil.DecodeTrustedDomainRemoveTrustedDomainRequest, csil.EncodeTrustedDomainRemoveTrustedDomainResponse))
+	d.RegisterTyped("trusteddomain", "AddTrustedDomain", csilrpc.Route(s.AddTrustedDomain, csil.DecodeTrustedDomain, csil.EncodeTrustedDomain))
+	d.RegisterTyped("trusteddomain", "RemoveTrustedDomain", csilrpc.Route(s.RemoveTrustedDomain, csil.DecodeTrustedDomainRemoveTrustedDomainRequest, csil.EncodeEmptyResponse))
 	d.RegisterTyped("trusteddomain", "ListTrustedDomains", csilrpc.Route(s.ListTrustedDomains, csil.DecodeTrustedDomainListTrustedDomainsRequest, csil.EncodeTrustedDomainListTrustedDomainsResponse))
-	d.RegisterTyped("trusteddomain", "IsDomainTrusted", csilrpc.Route(s.IsDomainTrusted, csil.DecodeTrustedDomainIsDomainTrustedRequest, csil.EncodeTrustedDomainIsDomainTrustedResponse))
+	d.RegisterTyped("trusteddomain", "IsDomainTrusted", csilrpc.Route(s.IsDomainTrusted, csil.DecodeTrustedDomain, csil.EncodeBoolResponse))
 }
 
 func (s *TrustedDomainService) AddTrustedDomain(ctx context.Context, in csil.TrustedDomain) (csil.TrustedDomain, error) {

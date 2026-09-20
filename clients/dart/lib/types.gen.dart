@@ -35,6 +35,8 @@ typedef NotificationId = String;
 
 typedef NotificationEventId = String;
 
+typedef CliSessionId = String;
+
 typedef Timestamp = String;
 
 typedef TaskStatus = String;
@@ -54,6 +56,8 @@ typedef DependencyNodeType = String;
 typedef RecurrenceFreq = String;
 
 typedef MilestoneState = String;
+
+typedef CliLoginStatus = String;
 
 final class House {
   final HouseId houseId;
@@ -108,7 +112,8 @@ final class House {
   }
 
   @override
-  int get hashCode => Object.hashAll([houseId, name, description, createdAt, updatedAt]);
+  int get hashCode =>
+      Object.hashAll([houseId, name, description, createdAt, updatedAt]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -124,7 +129,9 @@ final class House {
     return House(
       houseId: map['house_id'] as String,
       name: map['name'] as String,
-      description: map['description'] == null ? null : map['description'] as String,
+      description: map['description'] == null
+          ? null
+          : map['description'] as String,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
     );
@@ -217,7 +224,21 @@ final class Member {
   }
 
   @override
-  int get hashCode => Object.hashAll([memberId, houseId, linkkeysDomain, linkkeysUserId, displayName, email, avatarUrl, handle, cachedPublicKey == null ? null : Object.hashAll(cachedPublicKey!), createdAt, updatedAt, lastSeenAt, deactivatedAt]);
+  int get hashCode => Object.hashAll([
+    memberId,
+    houseId,
+    linkkeysDomain,
+    linkkeysUserId,
+    displayName,
+    email,
+    avatarUrl,
+    handle,
+    cachedPublicKey == null ? null : Object.hashAll(cachedPublicKey!),
+    createdAt,
+    updatedAt,
+    lastSeenAt,
+    deactivatedAt,
+  ]);
 
   static bool _bytesEqual(Uint8List? a, Uint8List? b) {
     if (a == null || b == null) return a == b;
@@ -248,15 +269,23 @@ final class Member {
       houseId: map['house_id'] as String,
       linkkeysDomain: map['linkkeys_domain'] as String,
       linkkeysUserId: map['linkkeys_user_id'] as String,
-      displayName: map['display_name'] == null ? null : map['display_name'] as String,
+      displayName: map['display_name'] == null
+          ? null
+          : map['display_name'] as String,
       email: map['email'] == null ? null : map['email'] as String,
       avatarUrl: map['avatar_url'] == null ? null : map['avatar_url'] as String,
       handle: map['handle'] == null ? null : map['handle'] as String,
-      cachedPublicKey: map['cached_public_key'] == null ? null : map['cached_public_key'] as Uint8List,
+      cachedPublicKey: map['cached_public_key'] == null
+          ? null
+          : map['cached_public_key'] as Uint8List,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
-      lastSeenAt: map['last_seen_at'] == null ? null : map['last_seen_at'] as String,
-      deactivatedAt: map['deactivated_at'] == null ? null : map['deactivated_at'] as String,
+      lastSeenAt: map['last_seen_at'] == null
+          ? null
+          : map['last_seen_at'] as String,
+      deactivatedAt: map['deactivated_at'] == null
+          ? null
+          : map['deactivated_at'] as String,
     );
   }
 
@@ -307,7 +336,8 @@ final class TrustedDomain {
   }
 
   @override
-  int get hashCode => Object.hashAll([trustedDomainId, houseId, domain, createdAt]);
+  int get hashCode =>
+      Object.hashAll([trustedDomainId, houseId, domain, createdAt]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -394,7 +424,14 @@ final class Role {
   }
 
   @override
-  int get hashCode => Object.hashAll([roleId, houseId, name, description, createdAt, updatedAt]);
+  int get hashCode => Object.hashAll([
+    roleId,
+    houseId,
+    name,
+    description,
+    createdAt,
+    updatedAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -412,7 +449,9 @@ final class Role {
       roleId: map['role_id'] as String,
       houseId: map['house_id'] as String,
       name: map['name'] as String,
-      description: map['description'] == null ? null : map['description'] as String,
+      description: map['description'] == null
+          ? null
+          : map['description'] as String,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
     );
@@ -553,7 +592,17 @@ final class MemberAudit {
   }
 
   @override
-  int get hashCode => Object.hashAll([auditId, houseId, subjectMemberId, actorMemberId, action, targetType, targetId, detail, createdAt]);
+  int get hashCode => Object.hashAll([
+    auditId,
+    houseId,
+    subjectMemberId,
+    actorMemberId,
+    action,
+    targetType,
+    targetId,
+    detail,
+    createdAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -575,9 +624,13 @@ final class MemberAudit {
       auditId: map['audit_id'] as String,
       houseId: map['house_id'] as String,
       subjectMemberId: map['subject_member_id'] as String,
-      actorMemberId: map['actor_member_id'] == null ? null : map['actor_member_id'] as String,
+      actorMemberId: map['actor_member_id'] == null
+          ? null
+          : map['actor_member_id'] as String,
       action: map['action'] as String,
-      targetType: map['target_type'] == null ? null : map['target_type'] as String,
+      targetType: map['target_type'] == null
+          ? null
+          : map['target_type'] as String,
       targetId: map['target_id'] == null ? null : map['target_id'] as String,
       detail: map['detail'] == null ? null : map['detail'] as String,
       createdAt: map['created_at'] as String,
@@ -650,7 +703,14 @@ final class Skill {
   }
 
   @override
-  int get hashCode => Object.hashAll([skillId, houseId, name, description, createdAt, updatedAt]);
+  int get hashCode => Object.hashAll([
+    skillId,
+    houseId,
+    name,
+    description,
+    createdAt,
+    updatedAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -668,7 +728,9 @@ final class Skill {
       skillId: map['skill_id'] as String,
       houseId: map['house_id'] as String,
       name: map['name'] as String,
-      description: map['description'] == null ? null : map['description'] as String,
+      description: map['description'] == null
+          ? null
+          : map['description'] as String,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
     );
@@ -866,7 +928,14 @@ final class Group {
   }
 
   @override
-  int get hashCode => Object.hashAll([groupId, houseId, name, description, createdAt, updatedAt]);
+  int get hashCode => Object.hashAll([
+    groupId,
+    houseId,
+    name,
+    description,
+    createdAt,
+    updatedAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -884,7 +953,9 @@ final class Group {
       groupId: map['group_id'] as String,
       houseId: map['house_id'] as String,
       name: map['name'] as String,
-      description: map['description'] == null ? null : map['description'] as String,
+      description: map['description'] == null
+          ? null
+          : map['description'] as String,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
     );
@@ -1038,7 +1109,18 @@ final class Project {
   }
 
   @override
-  int get hashCode => Object.hashAll([projectId, houseId, name, description, category, status, visibility, createdByMemberId, createdAt, updatedAt]);
+  int get hashCode => Object.hashAll([
+    projectId,
+    houseId,
+    name,
+    description,
+    category,
+    status,
+    visibility,
+    createdByMemberId,
+    createdAt,
+    updatedAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -1059,11 +1141,27 @@ final class Project {
       projectId: map['project_id'] as String,
       houseId: map['house_id'] as String,
       name: map['name'] as String,
-      description: map['description'] == null ? null : map['description'] as String,
+      description: map['description'] == null
+          ? null
+          : map['description'] as String,
       category: map['category'] == null ? null : map['category'] as String,
-      status: map['status'] == null ? null : map['status'],
-      visibility: map['visibility'] == null ? null : map['visibility'],
-      createdByMemberId: map['created_by_member_id'] == null ? null : map['created_by_member_id'] as String,
+      status: map['status'] == null
+          ? null
+          : CsilCbor.expectOneOf<String>(map['status'], const [
+              'active',
+              'archived',
+            ]),
+      visibility: map['visibility'] == null
+          ? null
+          : CsilCbor.expectOneOf<String>(map['visibility'], const [
+              'none',
+              'read',
+              'edit',
+              'full',
+            ]),
+      createdByMemberId: map['created_by_member_id'] == null
+          ? null
+          : map['created_by_member_id'] as String,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
     );
@@ -1341,7 +1439,16 @@ final class Milestone {
   }
 
   @override
-  int get hashCode => Object.hashAll([milestoneId, projectId, label, whenLabel, state, position, createdAt, updatedAt]);
+  int get hashCode => Object.hashAll([
+    milestoneId,
+    projectId,
+    label,
+    whenLabel,
+    state,
+    position,
+    createdAt,
+    updatedAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -1362,7 +1469,11 @@ final class Milestone {
       projectId: map['project_id'] as String,
       label: map['label'] as String,
       whenLabel: map['when_label'] as String,
-      state: map['state'],
+      state: CsilCbor.expectOneOf<String>(map['state'], const [
+        'done',
+        'current',
+        'future',
+      ]),
       position: map['position'] as int,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
@@ -1427,11 +1538,15 @@ final class Event {
     if (endsAt != null) map['ends_at'] = endsAt;
     if (allDay != null) map['all_day'] = allDay;
     if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq;
-    if (recurrenceInterval != null) map['recurrence_interval'] = recurrenceInterval;
-    if (recurrenceByWeekday != null) map['recurrence_by_weekday'] = recurrenceByWeekday;
-    if (recurrenceBySetpos != null) map['recurrence_by_setpos'] = recurrenceBySetpos;
+    if (recurrenceInterval != null)
+      map['recurrence_interval'] = recurrenceInterval;
+    if (recurrenceByWeekday != null)
+      map['recurrence_by_weekday'] = recurrenceByWeekday;
+    if (recurrenceBySetpos != null)
+      map['recurrence_by_setpos'] = recurrenceBySetpos;
     if (nextRecurrenceAt != null) map['next_recurrence_at'] = nextRecurrenceAt;
-    if (recurrenceRootEventId != null) map['recurrence_root_event_id'] = recurrenceRootEventId;
+    if (recurrenceRootEventId != null)
+      map['recurrence_root_event_id'] = recurrenceRootEventId;
     return map;
   }
 
@@ -1490,7 +1605,25 @@ final class Event {
   }
 
   @override
-  int get hashCode => Object.hashAll([eventId, houseId, ownerMemberId, title, description, location, startsAt, endsAt, allDay, recurrenceFreq, recurrenceInterval, recurrenceByWeekday, recurrenceBySetpos, nextRecurrenceAt, recurrenceRootEventId, createdAt, updatedAt]);
+  int get hashCode => Object.hashAll([
+    eventId,
+    houseId,
+    ownerMemberId,
+    title,
+    description,
+    location,
+    startsAt,
+    endsAt,
+    allDay,
+    recurrenceFreq,
+    recurrenceInterval,
+    recurrenceByWeekday,
+    recurrenceBySetpos,
+    nextRecurrenceAt,
+    recurrenceRootEventId,
+    createdAt,
+    updatedAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -1504,11 +1637,15 @@ final class Event {
     if (endsAt != null) map['ends_at'] = endsAt!;
     if (allDay != null) map['all_day'] = allDay!;
     if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq!;
-    if (recurrenceInterval != null) map['recurrence_interval'] = recurrenceInterval!;
-    if (recurrenceByWeekday != null) map['recurrence_by_weekday'] = recurrenceByWeekday!;
-    if (recurrenceBySetpos != null) map['recurrence_by_setpos'] = recurrenceBySetpos!;
+    if (recurrenceInterval != null)
+      map['recurrence_interval'] = recurrenceInterval!;
+    if (recurrenceByWeekday != null)
+      map['recurrence_by_weekday'] = recurrenceByWeekday!;
+    if (recurrenceBySetpos != null)
+      map['recurrence_by_setpos'] = recurrenceBySetpos!;
     if (nextRecurrenceAt != null) map['next_recurrence_at'] = nextRecurrenceAt!;
-    if (recurrenceRootEventId != null) map['recurrence_root_event_id'] = recurrenceRootEventId!;
+    if (recurrenceRootEventId != null)
+      map['recurrence_root_event_id'] = recurrenceRootEventId!;
     return map;
   }
 
@@ -1520,17 +1657,41 @@ final class Event {
       houseId: map['house_id'] as String,
       ownerMemberId: map['owner_member_id'] as String,
       title: map['title'] as String,
-      description: map['description'] == null ? null : map['description'] as String,
+      description: map['description'] == null
+          ? null
+          : map['description'] as String,
       location: map['location'] == null ? null : map['location'] as String,
       startsAt: map['starts_at'] == null ? null : map['starts_at'] as String,
       endsAt: map['ends_at'] == null ? null : map['ends_at'] as String,
       allDay: map['all_day'] == null ? null : map['all_day'] as bool,
-      recurrenceFreq: map['recurrence_freq'] == null ? null : map['recurrence_freq'],
-      recurrenceInterval: map['recurrence_interval'] == null ? null : map['recurrence_interval'] as int,
-      recurrenceByWeekday: map['recurrence_by_weekday'] == null ? null : (map['recurrence_by_weekday'] as List).map((csilE) => csilE as int).cast<int>().toList(),
-      recurrenceBySetpos: map['recurrence_by_setpos'] == null ? null : map['recurrence_by_setpos'] as int,
-      nextRecurrenceAt: map['next_recurrence_at'] == null ? null : map['next_recurrence_at'] as String,
-      recurrenceRootEventId: map['recurrence_root_event_id'] == null ? null : map['recurrence_root_event_id'] as String,
+      recurrenceFreq: map['recurrence_freq'] == null
+          ? null
+          : CsilCbor.expectOneOf<String>(map['recurrence_freq'], const [
+              'hourly',
+              'daily',
+              'weekly',
+              'monthly',
+              'quarterly',
+              'yearly',
+            ]),
+      recurrenceInterval: map['recurrence_interval'] == null
+          ? null
+          : map['recurrence_interval'] as int,
+      recurrenceByWeekday: map['recurrence_by_weekday'] == null
+          ? null
+          : (map['recurrence_by_weekday'] as List)
+                .map((csilE) => csilE as int)
+                .cast<int>()
+                .toList(),
+      recurrenceBySetpos: map['recurrence_by_setpos'] == null
+          ? null
+          : map['recurrence_by_setpos'] as int,
+      nextRecurrenceAt: map['next_recurrence_at'] == null
+          ? null
+          : map['next_recurrence_at'] as String,
+      recurrenceRootEventId: map['recurrence_root_event_id'] == null
+          ? null
+          : map['recurrence_root_event_id'] as String,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
     );
@@ -1598,7 +1759,8 @@ final class Task {
     map['house_id'] = houseId;
     map['owner_member_id'] = ownerMemberId;
     if (assignees != null) map['assignees'] = assignees;
-    if (assignedToSkillId != null) map['assigned_to_skill_id'] = assignedToSkillId;
+    if (assignedToSkillId != null)
+      map['assigned_to_skill_id'] = assignedToSkillId;
     if (parentTaskId != null) map['parent_task_id'] = parentTaskId;
     if (visibility != null) map['visibility'] = visibility;
     map['title'] = title;
@@ -1608,11 +1770,15 @@ final class Task {
     if (tag != null) map['tag'] = tag;
     if (estimateMinutes != null) map['estimate_minutes'] = estimateMinutes;
     if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq;
-    if (recurrenceInterval != null) map['recurrence_interval'] = recurrenceInterval;
-    if (recurrenceByWeekday != null) map['recurrence_by_weekday'] = recurrenceByWeekday;
-    if (recurrenceBySetpos != null) map['recurrence_by_setpos'] = recurrenceBySetpos;
+    if (recurrenceInterval != null)
+      map['recurrence_interval'] = recurrenceInterval;
+    if (recurrenceByWeekday != null)
+      map['recurrence_by_weekday'] = recurrenceByWeekday;
+    if (recurrenceBySetpos != null)
+      map['recurrence_by_setpos'] = recurrenceBySetpos;
     if (nextRecurrenceAt != null) map['next_recurrence_at'] = nextRecurrenceAt;
-    if (recurrenceRootTaskId != null) map['recurrence_root_task_id'] = recurrenceRootTaskId;
+    if (recurrenceRootTaskId != null)
+      map['recurrence_root_task_id'] = recurrenceRootTaskId;
     if (deletedAt != null) map['deleted_at'] = deletedAt;
     return map;
   }
@@ -1682,7 +1848,30 @@ final class Task {
   }
 
   @override
-  int get hashCode => Object.hashAll([taskId, houseId, ownerMemberId, assignees, assignedToSkillId, parentTaskId, visibility, title, description, status, dueAt, tag, estimateMinutes, recurrenceFreq, recurrenceInterval, recurrenceByWeekday, recurrenceBySetpos, nextRecurrenceAt, recurrenceRootTaskId, deletedAt, createdAt, updatedAt]);
+  int get hashCode => Object.hashAll([
+    taskId,
+    houseId,
+    ownerMemberId,
+    assignees,
+    assignedToSkillId,
+    parentTaskId,
+    visibility,
+    title,
+    description,
+    status,
+    dueAt,
+    tag,
+    estimateMinutes,
+    recurrenceFreq,
+    recurrenceInterval,
+    recurrenceByWeekday,
+    recurrenceBySetpos,
+    nextRecurrenceAt,
+    recurrenceRootTaskId,
+    deletedAt,
+    createdAt,
+    updatedAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -1690,7 +1879,8 @@ final class Task {
     map['house_id'] = houseId;
     map['owner_member_id'] = ownerMemberId;
     if (assignees != null) map['assignees'] = assignees!;
-    if (assignedToSkillId != null) map['assigned_to_skill_id'] = assignedToSkillId!;
+    if (assignedToSkillId != null)
+      map['assigned_to_skill_id'] = assignedToSkillId!;
     if (parentTaskId != null) map['parent_task_id'] = parentTaskId!;
     if (visibility != null) map['visibility'] = visibility!;
     map['title'] = title;
@@ -1700,11 +1890,15 @@ final class Task {
     if (tag != null) map['tag'] = tag!;
     if (estimateMinutes != null) map['estimate_minutes'] = estimateMinutes!;
     if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq!;
-    if (recurrenceInterval != null) map['recurrence_interval'] = recurrenceInterval!;
-    if (recurrenceByWeekday != null) map['recurrence_by_weekday'] = recurrenceByWeekday!;
-    if (recurrenceBySetpos != null) map['recurrence_by_setpos'] = recurrenceBySetpos!;
+    if (recurrenceInterval != null)
+      map['recurrence_interval'] = recurrenceInterval!;
+    if (recurrenceByWeekday != null)
+      map['recurrence_by_weekday'] = recurrenceByWeekday!;
+    if (recurrenceBySetpos != null)
+      map['recurrence_by_setpos'] = recurrenceBySetpos!;
     if (nextRecurrenceAt != null) map['next_recurrence_at'] = nextRecurrenceAt!;
-    if (recurrenceRootTaskId != null) map['recurrence_root_task_id'] = recurrenceRootTaskId!;
+    if (recurrenceRootTaskId != null)
+      map['recurrence_root_task_id'] = recurrenceRootTaskId!;
     if (deletedAt != null) map['deleted_at'] = deletedAt!;
     return map;
   }
@@ -1716,22 +1910,71 @@ final class Task {
       taskId: map['task_id'] as String,
       houseId: map['house_id'] as String,
       ownerMemberId: map['owner_member_id'] as String,
-      assignees: map['assignees'] == null ? null : (map['assignees'] as List).map((csilE) => csilE as String).cast<MemberId>().toList(),
-      assignedToSkillId: map['assigned_to_skill_id'] == null ? null : map['assigned_to_skill_id'] as String,
-      parentTaskId: map['parent_task_id'] == null ? null : map['parent_task_id'] as String,
-      visibility: map['visibility'] == null ? null : map['visibility'],
+      assignees: map['assignees'] == null
+          ? null
+          : (map['assignees'] as List)
+                .map((csilE) => csilE as String)
+                .cast<MemberId>()
+                .toList(),
+      assignedToSkillId: map['assigned_to_skill_id'] == null
+          ? null
+          : map['assigned_to_skill_id'] as String,
+      parentTaskId: map['parent_task_id'] == null
+          ? null
+          : map['parent_task_id'] as String,
+      visibility: map['visibility'] == null
+          ? null
+          : CsilCbor.expectOneOf<String>(map['visibility'], const [
+              'none',
+              'read',
+              'edit',
+              'full',
+            ]),
       title: map['title'] as String,
-      description: map['description'] == null ? null : map['description'] as String,
-      status: map['status'] == null ? null : map['status'],
+      description: map['description'] == null
+          ? null
+          : map['description'] as String,
+      status: map['status'] == null
+          ? null
+          : CsilCbor.expectOneOf<String>(map['status'], const [
+              'open',
+              'in_progress',
+              'done',
+              'cancelled',
+            ]),
       dueAt: map['due_at'] == null ? null : map['due_at'] as String,
       tag: map['tag'] == null ? null : map['tag'] as String,
-      estimateMinutes: map['estimate_minutes'] == null ? null : map['estimate_minutes'] as int,
-      recurrenceFreq: map['recurrence_freq'] == null ? null : map['recurrence_freq'],
-      recurrenceInterval: map['recurrence_interval'] == null ? null : map['recurrence_interval'] as int,
-      recurrenceByWeekday: map['recurrence_by_weekday'] == null ? null : (map['recurrence_by_weekday'] as List).map((csilE) => csilE as int).cast<int>().toList(),
-      recurrenceBySetpos: map['recurrence_by_setpos'] == null ? null : map['recurrence_by_setpos'] as int,
-      nextRecurrenceAt: map['next_recurrence_at'] == null ? null : map['next_recurrence_at'] as String,
-      recurrenceRootTaskId: map['recurrence_root_task_id'] == null ? null : map['recurrence_root_task_id'] as String,
+      estimateMinutes: map['estimate_minutes'] == null
+          ? null
+          : map['estimate_minutes'] as int,
+      recurrenceFreq: map['recurrence_freq'] == null
+          ? null
+          : CsilCbor.expectOneOf<String>(map['recurrence_freq'], const [
+              'hourly',
+              'daily',
+              'weekly',
+              'monthly',
+              'quarterly',
+              'yearly',
+            ]),
+      recurrenceInterval: map['recurrence_interval'] == null
+          ? null
+          : map['recurrence_interval'] as int,
+      recurrenceByWeekday: map['recurrence_by_weekday'] == null
+          ? null
+          : (map['recurrence_by_weekday'] as List)
+                .map((csilE) => csilE as int)
+                .cast<int>()
+                .toList(),
+      recurrenceBySetpos: map['recurrence_by_setpos'] == null
+          ? null
+          : map['recurrence_by_setpos'] as int,
+      nextRecurrenceAt: map['next_recurrence_at'] == null
+          ? null
+          : map['next_recurrence_at'] as String,
+      recurrenceRootTaskId: map['recurrence_root_task_id'] == null
+          ? null
+          : map['recurrence_root_task_id'] as String,
       deletedAt: map['deleted_at'] == null ? null : map['deleted_at'] as String,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
@@ -1813,7 +2056,16 @@ final class Comment {
   }
 
   @override
-  int get hashCode => Object.hashAll([commentId, houseId, memberId, targetType, targetId, body, createdAt, updatedAt]);
+  int get hashCode => Object.hashAll([
+    commentId,
+    houseId,
+    memberId,
+    targetType,
+    targetId,
+    body,
+    createdAt,
+    updatedAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -1832,7 +2084,11 @@ final class Comment {
       commentId: map['comment_id'] as String,
       houseId: map['house_id'] as String,
       memberId: map['member_id'] as String,
-      targetType: map['target_type'],
+      targetType: CsilCbor.expectOneOf<String>(map['target_type'], const [
+        'event',
+        'task',
+        'project',
+      ]),
       targetId: map['target_id'] as String,
       body: map['body'] as String,
       createdAt: map['created_at'] as String,
@@ -1916,7 +2172,18 @@ final class Share {
   }
 
   @override
-  int get hashCode => Object.hashAll([shareId, houseId, sharedBy, linkkeysDomain, linkkeysUserId, resourceType, resourceId, accessLevel, createdAt, expiresAt]);
+  int get hashCode => Object.hashAll([
+    shareId,
+    houseId,
+    sharedBy,
+    linkkeysDomain,
+    linkkeysUserId,
+    resourceType,
+    resourceId,
+    accessLevel,
+    createdAt,
+    expiresAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -1940,9 +2207,20 @@ final class Share {
       sharedBy: map['shared_by'] as String,
       linkkeysDomain: map['linkkeys_domain'] as String,
       linkkeysUserId: map['linkkeys_user_id'] as String,
-      resourceType: map['resource_type'],
+      resourceType: CsilCbor.expectOneOf<String>(map['resource_type'], const [
+        'event',
+        'task',
+        'house',
+      ]),
       resourceId: map['resource_id'] as String,
-      accessLevel: map['access_level'] == null ? null : map['access_level'],
+      accessLevel: map['access_level'] == null
+          ? null
+          : CsilCbor.expectOneOf<String>(map['access_level'], const [
+              'none',
+              'read',
+              'edit',
+              'full',
+            ]),
       createdAt: map['created_at'] as String,
       expiresAt: map['expires_at'] == null ? null : map['expires_at'] as String,
     );
@@ -2016,7 +2294,10 @@ final class HouseSummary {
       houseId: map['house_id'] as String,
       name: map['name'] as String,
       memberId: map['member_id'] as String,
-      roles: (map['roles'] as List).map((csilE) => csilE as String).cast<String>().toList(),
+      roles: (map['roles'] as List)
+          .map((csilE) => csilE as String)
+          .cast<String>()
+          .toList(),
     );
   }
 
@@ -2081,7 +2362,10 @@ final class HouseRoles {
     return HouseRoles(
       house: map['house'] as String,
       member: map['member'] as String,
-      roles: (map['roles'] as List).map((csilE) => csilE as String).cast<String>().toList(),
+      roles: (map['roles'] as List)
+          .map((csilE) => csilE as String)
+          .cast<String>()
+          .toList(),
     );
   }
 
@@ -2144,7 +2428,8 @@ final class Identity {
   }
 
   @override
-  int get hashCode => Object.hashAll([domain, userId, displayName, houses, iat, exp]);
+  int get hashCode =>
+      Object.hashAll([domain, userId, displayName, houses, iat, exp]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -2164,8 +2449,13 @@ final class Identity {
     return Identity(
       domain: map['domain'] as String,
       userId: map['user_id'] as String,
-      displayName: map['display_name'] == null ? null : map['display_name'] as String,
-      houses: (map['houses'] as List).map((csilE) => HouseRoles.fromCborValue(csilE)).cast<HouseRoles>().toList(),
+      displayName: map['display_name'] == null
+          ? null
+          : map['display_name'] as String,
+      houses: (map['houses'] as List)
+          .map((csilE) => HouseRoles.fromCborValue(csilE))
+          .cast<HouseRoles>()
+          .toList(),
       iat: map['iat'] as int,
       exp: map['exp'] as int,
     );
@@ -2182,9 +2472,7 @@ final class Identity {
 final class LoginRequest {
   final String signedAssertion;
 
-  const LoginRequest({
-    required this.signedAssertion,
-  });
+  const LoginRequest({required this.signedAssertion});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -2193,9 +2481,7 @@ final class LoginRequest {
   }
 
   factory LoginRequest.fromMap(Map<String, Object?> map) {
-    return LoginRequest(
-      signedAssertion: map['signed_assertion'] as String,
-    );
+    return LoginRequest(signedAssertion: map['signed_assertion'] as String);
   }
 
   @override
@@ -2217,9 +2503,7 @@ final class LoginRequest {
   /// Reconstruct this record from a decoded CBOR dynamic tree.
   factory LoginRequest.fromCborValue(Object? cbor) {
     final map = cbor as Map;
-    return LoginRequest(
-      signedAssertion: map['signed_assertion'] as String,
-    );
+    return LoginRequest(signedAssertion: map['signed_assertion'] as String);
   }
 
   /// Encode this record to canonical CSIL CBOR bytes.
@@ -2233,9 +2517,7 @@ final class LoginRequest {
 final class CompleteRequest {
   final String encryptedToken;
 
-  const CompleteRequest({
-    required this.encryptedToken,
-  });
+  const CompleteRequest({required this.encryptedToken});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -2244,9 +2526,7 @@ final class CompleteRequest {
   }
 
   factory CompleteRequest.fromMap(Map<String, Object?> map) {
-    return CompleteRequest(
-      encryptedToken: map['encrypted_token'] as String,
-    );
+    return CompleteRequest(encryptedToken: map['encrypted_token'] as String);
   }
 
   @override
@@ -2268,9 +2548,7 @@ final class CompleteRequest {
   /// Reconstruct this record from a decoded CBOR dynamic tree.
   factory CompleteRequest.fromCborValue(Object? cbor) {
     final map = cbor as Map;
-    return CompleteRequest(
-      encryptedToken: map['encrypted_token'] as String,
-    );
+    return CompleteRequest(encryptedToken: map['encrypted_token'] as String);
   }
 
   /// Encode this record to canonical CSIL CBOR bytes.
@@ -2327,7 +2605,8 @@ final class LoginResponse {
   }
 
   @override
-  int get hashCode => Object.hashAll([token, domain, userId, displayName, expiresAt]);
+  int get hashCode =>
+      Object.hashAll([token, domain, userId, displayName, expiresAt]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -2347,7 +2626,9 @@ final class LoginResponse {
       token: map['token'] as String,
       domain: map['domain'] as String,
       userId: map['user_id'] as String,
-      displayName: map['display_name'] == null ? null : map['display_name'] as String,
+      displayName: map['display_name'] == null
+          ? null
+          : map['display_name'] as String,
       expiresAt: map['expires_at'] as String,
     );
   }
@@ -2358,6 +2639,753 @@ final class LoginResponse {
   /// Decode a CSIL CBOR byte payload into this record.
   factory LoginResponse.fromCbor(List<int> bytes) =>
       LoginResponse.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class CliTokenResponse {
+  final String token;
+  final String domain;
+  final String userId;
+  final String? displayName;
+  final Timestamp expiresAt;
+  final String refreshToken;
+  final Timestamp refreshExpiresAt;
+  final CliSessionId sessionId;
+
+  const CliTokenResponse({
+    required this.token,
+    required this.domain,
+    required this.userId,
+    this.displayName,
+    required this.expiresAt,
+    required this.refreshToken,
+    required this.refreshExpiresAt,
+    required this.sessionId,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['token'] = token;
+    map['domain'] = domain;
+    map['user_id'] = userId;
+    if (displayName != null) map['display_name'] = displayName;
+    map['expires_at'] = expiresAt;
+    map['refresh_token'] = refreshToken;
+    map['refresh_expires_at'] = refreshExpiresAt;
+    map['session_id'] = sessionId;
+    return map;
+  }
+
+  factory CliTokenResponse.fromMap(Map<String, Object?> map) {
+    return CliTokenResponse(
+      token: map['token'] as String,
+      domain: map['domain'] as String,
+      userId: map['user_id'] as String,
+      displayName: map['display_name'] as String?,
+      expiresAt: map['expires_at'] as Timestamp,
+      refreshToken: map['refresh_token'] as String,
+      refreshExpiresAt: map['refresh_expires_at'] as Timestamp,
+      sessionId: map['session_id'] as CliSessionId,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CliTokenResponse) return false;
+    return token == other.token &&
+        domain == other.domain &&
+        userId == other.userId &&
+        displayName == other.displayName &&
+        expiresAt == other.expiresAt &&
+        refreshToken == other.refreshToken &&
+        refreshExpiresAt == other.refreshExpiresAt &&
+        sessionId == other.sessionId;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    token,
+    domain,
+    userId,
+    displayName,
+    expiresAt,
+    refreshToken,
+    refreshExpiresAt,
+    sessionId,
+  ]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['token'] = token;
+    map['domain'] = domain;
+    map['user_id'] = userId;
+    if (displayName != null) map['display_name'] = displayName!;
+    map['expires_at'] = expiresAt;
+    map['refresh_token'] = refreshToken;
+    map['refresh_expires_at'] = refreshExpiresAt;
+    map['session_id'] = sessionId;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory CliTokenResponse.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return CliTokenResponse(
+      token: map['token'] as String,
+      domain: map['domain'] as String,
+      userId: map['user_id'] as String,
+      displayName: map['display_name'] == null
+          ? null
+          : map['display_name'] as String,
+      expiresAt: map['expires_at'] as String,
+      refreshToken: map['refresh_token'] as String,
+      refreshExpiresAt: map['refresh_expires_at'] as String,
+      sessionId: map['session_id'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory CliTokenResponse.fromCbor(List<int> bytes) =>
+      CliTokenResponse.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class BeginCliLoginRequest {
+  final String clientName;
+
+  const BeginCliLoginRequest({required this.clientName});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['client_name'] = clientName;
+    return map;
+  }
+
+  factory BeginCliLoginRequest.fromMap(Map<String, Object?> map) {
+    return BeginCliLoginRequest(clientName: map['client_name'] as String);
+  }
+
+  /// Throws [ArgumentError] when a field constraint is violated.
+  void validate() {
+    if (clientName.isEmpty) {
+      throw ArgumentError('\'clientName\' must have length >= 1');
+    }
+    if (clientName.length > 128) {
+      throw ArgumentError('\'clientName\' must have length <= 128');
+    }
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! BeginCliLoginRequest) return false;
+    return clientName == other.clientName;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([clientName]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['client_name'] = clientName;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory BeginCliLoginRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return BeginCliLoginRequest(clientName: map['client_name'] as String);
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory BeginCliLoginRequest.fromCbor(List<int> bytes) =>
+      BeginCliLoginRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class BeginCliLoginResponse {
+  final String deviceCode;
+  final String userCode;
+  final String verificationUrl;
+  final Timestamp expiresAt;
+  final int intervalSeconds;
+
+  const BeginCliLoginResponse({
+    required this.deviceCode,
+    required this.userCode,
+    required this.verificationUrl,
+    required this.expiresAt,
+    required this.intervalSeconds,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['device_code'] = deviceCode;
+    map['user_code'] = userCode;
+    map['verification_url'] = verificationUrl;
+    map['expires_at'] = expiresAt;
+    map['interval_seconds'] = intervalSeconds;
+    return map;
+  }
+
+  factory BeginCliLoginResponse.fromMap(Map<String, Object?> map) {
+    return BeginCliLoginResponse(
+      deviceCode: map['device_code'] as String,
+      userCode: map['user_code'] as String,
+      verificationUrl: map['verification_url'] as String,
+      expiresAt: map['expires_at'] as Timestamp,
+      intervalSeconds: map['interval_seconds'] as int,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! BeginCliLoginResponse) return false;
+    return deviceCode == other.deviceCode &&
+        userCode == other.userCode &&
+        verificationUrl == other.verificationUrl &&
+        expiresAt == other.expiresAt &&
+        intervalSeconds == other.intervalSeconds;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    deviceCode,
+    userCode,
+    verificationUrl,
+    expiresAt,
+    intervalSeconds,
+  ]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['device_code'] = deviceCode;
+    map['user_code'] = userCode;
+    map['verification_url'] = verificationUrl;
+    map['expires_at'] = expiresAt;
+    map['interval_seconds'] = intervalSeconds;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory BeginCliLoginResponse.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return BeginCliLoginResponse(
+      deviceCode: map['device_code'] as String,
+      userCode: map['user_code'] as String,
+      verificationUrl: map['verification_url'] as String,
+      expiresAt: map['expires_at'] as String,
+      intervalSeconds: map['interval_seconds'] as int,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory BeginCliLoginResponse.fromCbor(List<int> bytes) =>
+      BeginCliLoginResponse.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class ApproveCliLoginRequest {
+  final String userCode;
+
+  const ApproveCliLoginRequest({required this.userCode});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['user_code'] = userCode;
+    return map;
+  }
+
+  factory ApproveCliLoginRequest.fromMap(Map<String, Object?> map) {
+    return ApproveCliLoginRequest(userCode: map['user_code'] as String);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ApproveCliLoginRequest) return false;
+    return userCode == other.userCode;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([userCode]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['user_code'] = userCode;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ApproveCliLoginRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ApproveCliLoginRequest(userCode: map['user_code'] as String);
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ApproveCliLoginRequest.fromCbor(List<int> bytes) =>
+      ApproveCliLoginRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class CliLoginRequestInfo {
+  final String userCode;
+  final String clientName;
+  final Timestamp expiresAt;
+
+  const CliLoginRequestInfo({
+    required this.userCode,
+    required this.clientName,
+    required this.expiresAt,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['user_code'] = userCode;
+    map['client_name'] = clientName;
+    map['expires_at'] = expiresAt;
+    return map;
+  }
+
+  factory CliLoginRequestInfo.fromMap(Map<String, Object?> map) {
+    return CliLoginRequestInfo(
+      userCode: map['user_code'] as String,
+      clientName: map['client_name'] as String,
+      expiresAt: map['expires_at'] as Timestamp,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CliLoginRequestInfo) return false;
+    return userCode == other.userCode &&
+        clientName == other.clientName &&
+        expiresAt == other.expiresAt;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([userCode, clientName, expiresAt]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['user_code'] = userCode;
+    map['client_name'] = clientName;
+    map['expires_at'] = expiresAt;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory CliLoginRequestInfo.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return CliLoginRequestInfo(
+      userCode: map['user_code'] as String,
+      clientName: map['client_name'] as String,
+      expiresAt: map['expires_at'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory CliLoginRequestInfo.fromCbor(List<int> bytes) =>
+      CliLoginRequestInfo.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class DenyCliLoginRequest {
+  final String userCode;
+
+  const DenyCliLoginRequest({required this.userCode});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['user_code'] = userCode;
+    return map;
+  }
+
+  factory DenyCliLoginRequest.fromMap(Map<String, Object?> map) {
+    return DenyCliLoginRequest(userCode: map['user_code'] as String);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! DenyCliLoginRequest) return false;
+    return userCode == other.userCode;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([userCode]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['user_code'] = userCode;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory DenyCliLoginRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return DenyCliLoginRequest(userCode: map['user_code'] as String);
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory DenyCliLoginRequest.fromCbor(List<int> bytes) =>
+      DenyCliLoginRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class ExchangeCliLoginRequest {
+  final String deviceCode;
+
+  const ExchangeCliLoginRequest({required this.deviceCode});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['device_code'] = deviceCode;
+    return map;
+  }
+
+  factory ExchangeCliLoginRequest.fromMap(Map<String, Object?> map) {
+    return ExchangeCliLoginRequest(deviceCode: map['device_code'] as String);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ExchangeCliLoginRequest) return false;
+    return deviceCode == other.deviceCode;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([deviceCode]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['device_code'] = deviceCode;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ExchangeCliLoginRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ExchangeCliLoginRequest(deviceCode: map['device_code'] as String);
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ExchangeCliLoginRequest.fromCbor(List<int> bytes) =>
+      ExchangeCliLoginRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class ExchangeCliLoginResponse {
+  final CliLoginStatus status;
+  final CliTokenResponse? session;
+
+  const ExchangeCliLoginResponse({required this.status, this.session});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['status'] = status;
+    if (session != null) map['session'] = session;
+    return map;
+  }
+
+  factory ExchangeCliLoginResponse.fromMap(Map<String, Object?> map) {
+    return ExchangeCliLoginResponse(
+      status: map['status'] as CliLoginStatus,
+      session: map['session'] as CliTokenResponse?,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ExchangeCliLoginResponse) return false;
+    return status == other.status && session == other.session;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([status, session]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['status'] = status;
+    if (session != null) map['session'] = session!.toCborValue();
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ExchangeCliLoginResponse.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ExchangeCliLoginResponse(
+      status: CsilCbor.expectOneOf<String>(map['status'], const [
+        'pending',
+        'denied',
+        'expired',
+        'complete',
+      ]),
+      session: map['session'] == null
+          ? null
+          : CliTokenResponse.fromCborValue(map['session']),
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ExchangeCliLoginResponse.fromCbor(List<int> bytes) =>
+      ExchangeCliLoginResponse.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class RefreshSessionRequest {
+  final String refreshToken;
+
+  const RefreshSessionRequest({required this.refreshToken});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['refresh_token'] = refreshToken;
+    return map;
+  }
+
+  factory RefreshSessionRequest.fromMap(Map<String, Object?> map) {
+    return RefreshSessionRequest(refreshToken: map['refresh_token'] as String);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! RefreshSessionRequest) return false;
+    return refreshToken == other.refreshToken;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([refreshToken]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['refresh_token'] = refreshToken;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory RefreshSessionRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return RefreshSessionRequest(refreshToken: map['refresh_token'] as String);
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory RefreshSessionRequest.fromCbor(List<int> bytes) =>
+      RefreshSessionRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class CliSessionSummary {
+  final CliSessionId sessionId;
+  final String clientName;
+  final Timestamp createdAt;
+  final Timestamp lastUsedAt;
+  final Timestamp expiresAt;
+  final Timestamp? revokedAt;
+
+  const CliSessionSummary({
+    required this.sessionId,
+    required this.clientName,
+    required this.createdAt,
+    required this.lastUsedAt,
+    required this.expiresAt,
+    this.revokedAt,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['session_id'] = sessionId;
+    map['client_name'] = clientName;
+    map['created_at'] = createdAt;
+    map['last_used_at'] = lastUsedAt;
+    map['expires_at'] = expiresAt;
+    if (revokedAt != null) map['revoked_at'] = revokedAt;
+    return map;
+  }
+
+  factory CliSessionSummary.fromMap(Map<String, Object?> map) {
+    return CliSessionSummary(
+      sessionId: map['session_id'] as CliSessionId,
+      clientName: map['client_name'] as String,
+      createdAt: map['created_at'] as Timestamp,
+      lastUsedAt: map['last_used_at'] as Timestamp,
+      expiresAt: map['expires_at'] as Timestamp,
+      revokedAt: map['revoked_at'] as Timestamp?,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CliSessionSummary) return false;
+    return sessionId == other.sessionId &&
+        clientName == other.clientName &&
+        createdAt == other.createdAt &&
+        lastUsedAt == other.lastUsedAt &&
+        expiresAt == other.expiresAt &&
+        revokedAt == other.revokedAt;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    sessionId,
+    clientName,
+    createdAt,
+    lastUsedAt,
+    expiresAt,
+    revokedAt,
+  ]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['session_id'] = sessionId;
+    map['client_name'] = clientName;
+    map['created_at'] = createdAt;
+    map['last_used_at'] = lastUsedAt;
+    map['expires_at'] = expiresAt;
+    if (revokedAt != null) map['revoked_at'] = revokedAt!;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory CliSessionSummary.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return CliSessionSummary(
+      sessionId: map['session_id'] as String,
+      clientName: map['client_name'] as String,
+      createdAt: map['created_at'] as String,
+      lastUsedAt: map['last_used_at'] as String,
+      expiresAt: map['expires_at'] as String,
+      revokedAt: map['revoked_at'] == null ? null : map['revoked_at'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory CliSessionSummary.fromCbor(List<int> bytes) =>
+      CliSessionSummary.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class CliSessionsResponse {
+  final List<CliSessionSummary> sessions;
+
+  const CliSessionsResponse({required this.sessions});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['sessions'] = sessions;
+    return map;
+  }
+
+  factory CliSessionsResponse.fromMap(Map<String, Object?> map) {
+    return CliSessionsResponse(
+      sessions: map['sessions'] as List<CliSessionSummary>,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CliSessionsResponse) return false;
+    return sessions == other.sessions;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([sessions]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['sessions'] = sessions.map((csilE) => csilE.toCborValue()).toList();
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory CliSessionsResponse.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return CliSessionsResponse(
+      sessions: (map['sessions'] as List)
+          .map((csilE) => CliSessionSummary.fromCborValue(csilE))
+          .cast<CliSessionSummary>()
+          .toList(),
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory CliSessionsResponse.fromCbor(List<int> bytes) =>
+      CliSessionsResponse.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class RevokeSessionRequest {
+  final CliSessionId sessionId;
+
+  const RevokeSessionRequest({required this.sessionId});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['session_id'] = sessionId;
+    return map;
+  }
+
+  factory RevokeSessionRequest.fromMap(Map<String, Object?> map) {
+    return RevokeSessionRequest(sessionId: map['session_id'] as CliSessionId);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! RevokeSessionRequest) return false;
+    return sessionId == other.sessionId;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([sessionId]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['session_id'] = sessionId;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory RevokeSessionRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return RevokeSessionRequest(sessionId: map['session_id'] as String);
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory RevokeSessionRequest.fromCbor(List<int> bytes) =>
+      RevokeSessionRequest.fromCborValue(CsilCbor.decode(bytes));
 }
 
 final class DevUserEntry {
@@ -2416,7 +3444,15 @@ final class DevUserEntry {
   }
 
   @override
-  int get hashCode => Object.hashAll([memberId, houseId, houseName, displayName, linkkeysDomain, linkkeysUserId, roles]);
+  int get hashCode => Object.hashAll([
+    memberId,
+    houseId,
+    houseName,
+    displayName,
+    linkkeysDomain,
+    linkkeysUserId,
+    roles,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -2438,10 +3474,19 @@ final class DevUserEntry {
       memberId: map['member_id'] as String,
       houseId: map['house_id'] as String,
       houseName: map['house_name'] as String,
-      displayName: map['display_name'] == null ? null : map['display_name'] as String,
-      linkkeysDomain: map['linkkeys_domain'] == null ? null : map['linkkeys_domain'] as String,
-      linkkeysUserId: map['linkkeys_user_id'] == null ? null : map['linkkeys_user_id'] as String,
-      roles: (map['roles'] as List).map((csilE) => csilE as String).cast<String>().toList(),
+      displayName: map['display_name'] == null
+          ? null
+          : map['display_name'] as String,
+      linkkeysDomain: map['linkkeys_domain'] == null
+          ? null
+          : map['linkkeys_domain'] as String,
+      linkkeysUserId: map['linkkeys_user_id'] == null
+          ? null
+          : map['linkkeys_user_id'] as String,
+      roles: (map['roles'] as List)
+          .map((csilE) => csilE as String)
+          .cast<String>()
+          .toList(),
     );
   }
 
@@ -2456,9 +3501,7 @@ final class DevUserEntry {
 final class DevUsersResponse {
   final List<DevUserEntry> users;
 
-  const DevUsersResponse({
-    required this.users,
-  });
+  const DevUsersResponse({required this.users});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -2467,9 +3510,7 @@ final class DevUsersResponse {
   }
 
   factory DevUsersResponse.fromMap(Map<String, Object?> map) {
-    return DevUsersResponse(
-      users: map['users'] as List<DevUserEntry>,
-    );
+    return DevUsersResponse(users: map['users'] as List<DevUserEntry>);
   }
 
   @override
@@ -2492,7 +3533,10 @@ final class DevUsersResponse {
   factory DevUsersResponse.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return DevUsersResponse(
-      users: (map['users'] as List).map((csilE) => DevUserEntry.fromCborValue(csilE)).cast<DevUserEntry>().toList(),
+      users: (map['users'] as List)
+          .map((csilE) => DevUserEntry.fromCborValue(csilE))
+          .cast<DevUserEntry>()
+          .toList(),
     );
   }
 
@@ -2507,9 +3551,7 @@ final class DevUsersResponse {
 final class DevLoginRequest {
   final MemberId memberId;
 
-  const DevLoginRequest({
-    required this.memberId,
-  });
+  const DevLoginRequest({required this.memberId});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -2518,9 +3560,7 @@ final class DevLoginRequest {
   }
 
   factory DevLoginRequest.fromMap(Map<String, Object?> map) {
-    return DevLoginRequest(
-      memberId: map['member_id'] as MemberId,
-    );
+    return DevLoginRequest(memberId: map['member_id'] as MemberId);
   }
 
   @override
@@ -2542,9 +3582,7 @@ final class DevLoginRequest {
   /// Reconstruct this record from a decoded CBOR dynamic tree.
   factory DevLoginRequest.fromCborValue(Object? cbor) {
     final map = cbor as Map;
-    return DevLoginRequest(
-      memberId: map['member_id'] as String,
-    );
+    return DevLoginRequest(memberId: map['member_id'] as String);
   }
 
   /// Encode this record to canonical CSIL CBOR bytes.
@@ -2601,7 +3639,8 @@ final class MeResponse {
   }
 
   @override
-  int get hashCode => Object.hashAll([domain, userId, displayName, expiresAt, houses]);
+  int get hashCode =>
+      Object.hashAll([domain, userId, displayName, expiresAt, houses]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -2620,9 +3659,14 @@ final class MeResponse {
     return MeResponse(
       domain: map['domain'] as String,
       userId: map['user_id'] as String,
-      displayName: map['display_name'] == null ? null : map['display_name'] as String,
+      displayName: map['display_name'] == null
+          ? null
+          : map['display_name'] as String,
       expiresAt: map['expires_at'] as String,
-      houses: (map['houses'] as List).map((csilE) => HouseSummary.fromCborValue(csilE)).cast<HouseSummary>().toList(),
+      houses: (map['houses'] as List)
+          .map((csilE) => HouseSummary.fromCborValue(csilE))
+          .cast<HouseSummary>()
+          .toList(),
     );
   }
 
@@ -2645,8 +3689,7 @@ final class EmptyRequest {
   }
 
   factory EmptyRequest.fromMap(Map<String, Object?> map) {
-    return EmptyRequest(
-    );
+    return EmptyRequest();
   }
 
   @override
@@ -2666,8 +3709,7 @@ final class EmptyRequest {
 
   /// Reconstruct this record from a decoded CBOR dynamic tree.
   factory EmptyRequest.fromCborValue(Object? cbor) {
-    return EmptyRequest(
-    );
+    return EmptyRequest();
   }
 
   /// Encode this record to canonical CSIL CBOR bytes.
@@ -2689,8 +3731,7 @@ final class EmptyResponse {
   }
 
   factory EmptyResponse.fromMap(Map<String, Object?> map) {
-    return EmptyResponse(
-    );
+    return EmptyResponse();
   }
 
   @override
@@ -2710,8 +3751,7 @@ final class EmptyResponse {
 
   /// Reconstruct this record from a decoded CBOR dynamic tree.
   factory EmptyResponse.fromCborValue(Object? cbor) {
-    return EmptyResponse(
-    );
+    return EmptyResponse();
   }
 
   /// Encode this record to canonical CSIL CBOR bytes.
@@ -2725,9 +3765,7 @@ final class EmptyResponse {
 final class BoolResponse {
   final bool value;
 
-  const BoolResponse({
-    required this.value,
-  });
+  const BoolResponse({required this.value});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -2736,9 +3774,7 @@ final class BoolResponse {
   }
 
   factory BoolResponse.fromMap(Map<String, Object?> map) {
-    return BoolResponse(
-      value: map['value'] as bool,
-    );
+    return BoolResponse(value: map['value'] as bool);
   }
 
   @override
@@ -2760,9 +3796,7 @@ final class BoolResponse {
   /// Reconstruct this record from a decoded CBOR dynamic tree.
   factory BoolResponse.fromCborValue(Object? cbor) {
     final map = cbor as Map;
-    return BoolResponse(
-      value: map['value'] as bool,
-    );
+    return BoolResponse(value: map['value'] as bool);
   }
 
   /// Encode this record to canonical CSIL CBOR bytes.
@@ -2777,10 +3811,7 @@ final class HouseListRequest {
   final int? limit;
   final int? offset;
 
-  const HouseListRequest({
-    this.limit,
-    this.offset,
-  });
+  const HouseListRequest({this.limit, this.offset});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -2799,8 +3830,7 @@ final class HouseListRequest {
   @override
   bool operator ==(Object other) {
     if (other is! HouseListRequest) return false;
-    return limit == other.limit &&
-        offset == other.offset;
+    return limit == other.limit && offset == other.offset;
   }
 
   @override
@@ -2900,10 +3930,7 @@ final class TaskList {
   final List<Task> tasks;
   final int hiddenCount;
 
-  const TaskList({
-    required this.tasks,
-    required this.hiddenCount,
-  });
+  const TaskList({required this.tasks, required this.hiddenCount});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -2922,8 +3949,7 @@ final class TaskList {
   @override
   bool operator ==(Object other) {
     if (other is! TaskList) return false;
-    return tasks == other.tasks &&
-        hiddenCount == other.hiddenCount;
+    return tasks == other.tasks && hiddenCount == other.hiddenCount;
   }
 
   @override
@@ -2941,7 +3967,10 @@ final class TaskList {
   factory TaskList.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return TaskList(
-      tasks: (map['tasks'] as List).map((csilE) => Task.fromCborValue(csilE)).cast<Task>().toList(),
+      tasks: (map['tasks'] as List)
+          .map((csilE) => Task.fromCborValue(csilE))
+          .cast<Task>()
+          .toList(),
       hiddenCount: map['hidden_count'] as int,
     );
   }
@@ -2958,10 +3987,7 @@ final class ProjectList {
   final List<Project> projects;
   final int hiddenCount;
 
-  const ProjectList({
-    required this.projects,
-    required this.hiddenCount,
-  });
+  const ProjectList({required this.projects, required this.hiddenCount});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -2980,8 +4006,7 @@ final class ProjectList {
   @override
   bool operator ==(Object other) {
     if (other is! ProjectList) return false;
-    return projects == other.projects &&
-        hiddenCount == other.hiddenCount;
+    return projects == other.projects && hiddenCount == other.hiddenCount;
   }
 
   @override
@@ -2999,7 +4024,10 @@ final class ProjectList {
   factory ProjectList.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return ProjectList(
-      projects: (map['projects'] as List).map((csilE) => Project.fromCborValue(csilE)).cast<Project>().toList(),
+      projects: (map['projects'] as List)
+          .map((csilE) => Project.fromCborValue(csilE))
+          .cast<Project>()
+          .toList(),
       hiddenCount: map['hidden_count'] as int,
     );
   }
@@ -3213,7 +4241,11 @@ final class CommentListRequest {
   factory CommentListRequest.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return CommentListRequest(
-      targetType: map['target_type'],
+      targetType: CsilCbor.expectOneOf<String>(map['target_type'], const [
+        'event',
+        'task',
+        'project',
+      ]),
       targetId: map['target_id'] as String,
       limit: map['limit'] == null ? null : map['limit'] as int,
       offset: map['offset'] == null ? null : map['offset'] as int,
@@ -3314,7 +4346,21 @@ final class Notification {
   }
 
   @override
-  int get hashCode => Object.hashAll([notificationId, houseId, memberId, kind, actorMemberId, actorName, targetType, targetId, targetTitle, body, read, readAt, createdAt]);
+  int get hashCode => Object.hashAll([
+    notificationId,
+    houseId,
+    memberId,
+    kind,
+    actorMemberId,
+    actorName,
+    targetType,
+    targetId,
+    targetTitle,
+    body,
+    read,
+    readAt,
+    createdAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -3343,9 +4389,13 @@ final class Notification {
       houseId: map['house_id'] as String,
       memberId: map['member_id'] as String,
       kind: map['kind'] as String,
-      actorMemberId: map['actor_member_id'] == null ? null : map['actor_member_id'] as String,
+      actorMemberId: map['actor_member_id'] == null
+          ? null
+          : map['actor_member_id'] as String,
       actorName: map['actor_name'] as String,
-      targetType: map['target_type'] == null ? null : map['target_type'] as String,
+      targetType: map['target_type'] == null
+          ? null
+          : map['target_type'] as String,
       targetId: map['target_id'] == null ? null : map['target_id'] as String,
       targetTitle: map['target_title'] as String,
       body: map['body'] as String,
@@ -3421,7 +4471,9 @@ final class NotificationListRequest {
     final map = cbor as Map;
     return NotificationListRequest(
       houseId: map['house_id'] as String,
-      unreadOnly: map['unread_only'] == null ? null : map['unread_only'] as bool,
+      unreadOnly: map['unread_only'] == null
+          ? null
+          : map['unread_only'] as bool,
       limit: map['limit'] == null ? null : map['limit'] as int,
       offset: map['offset'] == null ? null : map['offset'] as int,
     );
@@ -3438,9 +4490,7 @@ final class NotificationListRequest {
 final class NotificationUnreadCount {
   final int count;
 
-  const NotificationUnreadCount({
-    required this.count,
-  });
+  const NotificationUnreadCount({required this.count});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -3449,9 +4499,7 @@ final class NotificationUnreadCount {
   }
 
   factory NotificationUnreadCount.fromMap(Map<String, Object?> map) {
-    return NotificationUnreadCount(
-      count: map['count'] as int,
-    );
+    return NotificationUnreadCount(count: map['count'] as int);
   }
 
   @override
@@ -3473,9 +4521,7 @@ final class NotificationUnreadCount {
   /// Reconstruct this record from a decoded CBOR dynamic tree.
   factory NotificationUnreadCount.fromCborValue(Object? cbor) {
     final map = cbor as Map;
-    return NotificationUnreadCount(
-      count: map['count'] as int,
-    );
+    return NotificationUnreadCount(count: map['count'] as int);
   }
 
   /// Encode this record to canonical CSIL CBOR bytes.
@@ -3527,7 +4573,12 @@ final class ShareAccessRequest {
   }
 
   @override
-  int get hashCode => Object.hashAll([linkkeysDomain, linkkeysUserId, resourceType, resourceId]);
+  int get hashCode => Object.hashAll([
+    linkkeysDomain,
+    linkkeysUserId,
+    resourceType,
+    resourceId,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -3545,7 +4596,11 @@ final class ShareAccessRequest {
     return ShareAccessRequest(
       linkkeysDomain: map['linkkeys_domain'] as String,
       linkkeysUserId: map['linkkeys_user_id'] as String,
-      resourceType: map['resource_type'],
+      resourceType: CsilCbor.expectOneOf<String>(map['resource_type'], const [
+        'event',
+        'task',
+        'house',
+      ]),
       resourceId: map['resource_id'] as String,
     );
   }
@@ -3562,10 +4617,7 @@ final class ResourceRef {
   final ResourceType resourceType;
   final String resourceId;
 
-  const ResourceRef({
-    required this.resourceType,
-    required this.resourceId,
-  });
+  const ResourceRef({required this.resourceType, required this.resourceId});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -3584,8 +4636,7 @@ final class ResourceRef {
   @override
   bool operator ==(Object other) {
     if (other is! ResourceRef) return false;
-    return resourceType == other.resourceType &&
-        resourceId == other.resourceId;
+    return resourceType == other.resourceType && resourceId == other.resourceId;
   }
 
   @override
@@ -3603,7 +4654,11 @@ final class ResourceRef {
   factory ResourceRef.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return ResourceRef(
-      resourceType: map['resource_type'],
+      resourceType: CsilCbor.expectOneOf<String>(map['resource_type'], const [
+        'event',
+        'task',
+        'house',
+      ]),
       resourceId: map['resource_id'] as String,
     );
   }
@@ -3620,10 +4675,7 @@ final class MemberRoleRef {
   final MemberId memberId;
   final RoleId roleId;
 
-  const MemberRoleRef({
-    required this.memberId,
-    required this.roleId,
-  });
+  const MemberRoleRef({required this.memberId, required this.roleId});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -3642,8 +4694,7 @@ final class MemberRoleRef {
   @override
   bool operator ==(Object other) {
     if (other is! MemberRoleRef) return false;
-    return memberId == other.memberId &&
-        roleId == other.roleId;
+    return memberId == other.memberId && roleId == other.roleId;
   }
 
   @override
@@ -3678,10 +4729,7 @@ final class MemberSkillRef {
   final MemberId memberId;
   final SkillId skillId;
 
-  const MemberSkillRef({
-    required this.memberId,
-    required this.skillId,
-  });
+  const MemberSkillRef({required this.memberId, required this.skillId});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -3700,8 +4748,7 @@ final class MemberSkillRef {
   @override
   bool operator ==(Object other) {
     if (other is! MemberSkillRef) return false;
-    return memberId == other.memberId &&
-        skillId == other.skillId;
+    return memberId == other.memberId && skillId == other.skillId;
   }
 
   @override
@@ -3736,10 +4783,7 @@ final class GroupSkillRef {
   final GroupId groupId;
   final SkillId skillId;
 
-  const GroupSkillRef({
-    required this.groupId,
-    required this.skillId,
-  });
+  const GroupSkillRef({required this.groupId, required this.skillId});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -3758,8 +4802,7 @@ final class GroupSkillRef {
   @override
   bool operator ==(Object other) {
     if (other is! GroupSkillRef) return false;
-    return groupId == other.groupId &&
-        skillId == other.skillId;
+    return groupId == other.groupId && skillId == other.skillId;
   }
 
   @override
@@ -3794,10 +4837,7 @@ final class GroupMemberRef {
   final GroupId groupId;
   final MemberId memberId;
 
-  const GroupMemberRef({
-    required this.groupId,
-    required this.memberId,
-  });
+  const GroupMemberRef({required this.groupId, required this.memberId});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -3816,8 +4856,7 @@ final class GroupMemberRef {
   @override
   bool operator ==(Object other) {
     if (other is! GroupMemberRef) return false;
-    return groupId == other.groupId &&
-        memberId == other.memberId;
+    return groupId == other.groupId && memberId == other.memberId;
   }
 
   @override
@@ -3852,10 +4891,7 @@ final class ProjectTaskRef {
   final ProjectId projectId;
   final TaskId taskId;
 
-  const ProjectTaskRef({
-    required this.projectId,
-    required this.taskId,
-  });
+  const ProjectTaskRef({required this.projectId, required this.taskId});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -3874,8 +4910,7 @@ final class ProjectTaskRef {
   @override
   bool operator ==(Object other) {
     if (other is! ProjectTaskRef) return false;
-    return projectId == other.projectId &&
-        taskId == other.taskId;
+    return projectId == other.projectId && taskId == other.taskId;
   }
 
   @override
@@ -3975,10 +5010,7 @@ final class ProjectMemberRef {
   final ProjectId projectId;
   final MemberId memberId;
 
-  const ProjectMemberRef({
-    required this.projectId,
-    required this.memberId,
-  });
+  const ProjectMemberRef({required this.projectId, required this.memberId});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -3997,8 +5029,7 @@ final class ProjectMemberRef {
   @override
   bool operator ==(Object other) {
     if (other is! ProjectMemberRef) return false;
-    return projectId == other.projectId &&
-        memberId == other.memberId;
+    return projectId == other.projectId && memberId == other.memberId;
   }
 
   @override
@@ -4033,10 +5064,7 @@ final class ProjectOwnerRef {
   final ProjectId projectId;
   final MemberId memberId;
 
-  const ProjectOwnerRef({
-    required this.projectId,
-    required this.memberId,
-  });
+  const ProjectOwnerRef({required this.projectId, required this.memberId});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -4055,8 +5083,7 @@ final class ProjectOwnerRef {
   @override
   bool operator ==(Object other) {
     if (other is! ProjectOwnerRef) return false;
-    return projectId == other.projectId &&
-        memberId == other.memberId;
+    return projectId == other.projectId && memberId == other.memberId;
   }
 
   @override
@@ -4128,7 +5155,12 @@ final class DependencyRef {
   }
 
   @override
-  int get hashCode => Object.hashAll([dependentType, dependentId, dependencyType, dependencyId]);
+  int get hashCode => Object.hashAll([
+    dependentType,
+    dependentId,
+    dependencyType,
+    dependencyId,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -4144,9 +5176,15 @@ final class DependencyRef {
   factory DependencyRef.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return DependencyRef(
-      dependentType: map['dependent_type'],
+      dependentType: CsilCbor.expectOneOf<String>(map['dependent_type'], const [
+        'task',
+        'project',
+      ]),
       dependentId: map['dependent_id'] as String,
-      dependencyType: map['dependency_type'],
+      dependencyType: CsilCbor.expectOneOf<String>(
+        map['dependency_type'],
+        const ['task', 'project'],
+      ),
       dependencyId: map['dependency_id'] as String,
     );
   }
@@ -4163,10 +5201,7 @@ final class DependencyTarget {
   final DependencyNodeType type;
   final String id;
 
-  const DependencyTarget({
-    required this.type,
-    required this.id,
-  });
+  const DependencyTarget({required this.type, required this.id});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -4185,8 +5220,7 @@ final class DependencyTarget {
   @override
   bool operator ==(Object other) {
     if (other is! DependencyTarget) return false;
-    return type == other.type &&
-        id == other.id;
+    return type == other.type && id == other.id;
   }
 
   @override
@@ -4204,7 +5238,10 @@ final class DependencyTarget {
   factory DependencyTarget.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return DependencyTarget(
-      type: map['type'],
+      type: CsilCbor.expectOneOf<String>(map['type'], const [
+        'task',
+        'project',
+      ]),
       id: map['id'] as String,
     );
   }
@@ -4270,7 +5307,10 @@ final class DependencyNode {
   factory DependencyNode.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return DependencyNode(
-      type: map['type'],
+      type: CsilCbor.expectOneOf<String>(map['type'], const [
+        'task',
+        'project',
+      ]),
       id: map['id'] as String,
       title: map['title'] as String,
       status: map['status'] == null ? null : map['status'] as String,
@@ -4289,10 +5329,7 @@ final class DependencyGraph {
   final List<DependencyNode> dependencies;
   final List<DependencyNode> dependents;
 
-  const DependencyGraph({
-    required this.dependencies,
-    required this.dependents,
-  });
+  const DependencyGraph({required this.dependencies, required this.dependents});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -4311,8 +5348,7 @@ final class DependencyGraph {
   @override
   bool operator ==(Object other) {
     if (other is! DependencyGraph) return false;
-    return dependencies == other.dependencies &&
-        dependents == other.dependents;
+    return dependencies == other.dependencies && dependents == other.dependents;
   }
 
   @override
@@ -4321,7 +5357,9 @@ final class DependencyGraph {
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
-    map['dependencies'] = dependencies.map((csilE) => csilE.toCborValue()).toList();
+    map['dependencies'] = dependencies
+        .map((csilE) => csilE.toCborValue())
+        .toList();
     map['dependents'] = dependents.map((csilE) => csilE.toCborValue()).toList();
     return map;
   }
@@ -4330,8 +5368,14 @@ final class DependencyGraph {
   factory DependencyGraph.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return DependencyGraph(
-      dependencies: (map['dependencies'] as List).map((csilE) => DependencyNode.fromCborValue(csilE)).cast<DependencyNode>().toList(),
-      dependents: (map['dependents'] as List).map((csilE) => DependencyNode.fromCborValue(csilE)).cast<DependencyNode>().toList(),
+      dependencies: (map['dependencies'] as List)
+          .map((csilE) => DependencyNode.fromCborValue(csilE))
+          .cast<DependencyNode>()
+          .toList(),
+      dependents: (map['dependents'] as List)
+          .map((csilE) => DependencyNode.fromCborValue(csilE))
+          .cast<DependencyNode>()
+          .toList(),
     );
   }
 
@@ -4394,9 +5438,17 @@ final class Grant {
   factory Grant.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return Grant(
-      granteeType: map['grantee_type'],
+      granteeType: CsilCbor.expectOneOf<String>(map['grantee_type'], const [
+        'member',
+        'group',
+      ]),
       granteeId: map['grantee_id'] as String,
-      accessLevel: map['access_level'],
+      accessLevel: CsilCbor.expectOneOf<String>(map['access_level'], const [
+        'none',
+        'read',
+        'edit',
+        'full',
+      ]),
     );
   }
 
@@ -4460,7 +5512,10 @@ final class TaskGrantRef {
     final map = cbor as Map;
     return TaskGrantRef(
       taskId: map['task_id'] as String,
-      granteeType: map['grantee_type'],
+      granteeType: CsilCbor.expectOneOf<String>(map['grantee_type'], const [
+        'member',
+        'group',
+      ]),
       granteeId: map['grantee_id'] as String,
     );
   }
@@ -4514,7 +5569,8 @@ final class PutTaskGrantRequest {
   }
 
   @override
-  int get hashCode => Object.hashAll([taskId, granteeType, granteeId, accessLevel]);
+  int get hashCode =>
+      Object.hashAll([taskId, granteeType, granteeId, accessLevel]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -4531,9 +5587,17 @@ final class PutTaskGrantRequest {
     final map = cbor as Map;
     return PutTaskGrantRequest(
       taskId: map['task_id'] as String,
-      granteeType: map['grantee_type'],
+      granteeType: CsilCbor.expectOneOf<String>(map['grantee_type'], const [
+        'member',
+        'group',
+      ]),
       granteeId: map['grantee_id'] as String,
-      accessLevel: map['access_level'],
+      accessLevel: CsilCbor.expectOneOf<String>(map['access_level'], const [
+        'none',
+        'read',
+        'edit',
+        'full',
+      ]),
     );
   }
 
@@ -4571,8 +5635,7 @@ final class SetTaskVisibilityRequest {
   @override
   bool operator ==(Object other) {
     if (other is! SetTaskVisibilityRequest) return false;
-    return taskId == other.taskId &&
-        visibility == other.visibility;
+    return taskId == other.taskId && visibility == other.visibility;
   }
 
   @override
@@ -4591,7 +5654,12 @@ final class SetTaskVisibilityRequest {
     final map = cbor as Map;
     return SetTaskVisibilityRequest(
       taskId: map['task_id'] as String,
-      visibility: map['visibility'],
+      visibility: CsilCbor.expectOneOf<String>(map['visibility'], const [
+        'none',
+        'read',
+        'edit',
+        'full',
+      ]),
     );
   }
 
@@ -4655,7 +5723,10 @@ final class ProjectGrantRef {
     final map = cbor as Map;
     return ProjectGrantRef(
       projectId: map['project_id'] as String,
-      granteeType: map['grantee_type'],
+      granteeType: CsilCbor.expectOneOf<String>(map['grantee_type'], const [
+        'member',
+        'group',
+      ]),
       granteeId: map['grantee_id'] as String,
     );
   }
@@ -4709,7 +5780,8 @@ final class PutProjectGrantRequest {
   }
 
   @override
-  int get hashCode => Object.hashAll([projectId, granteeType, granteeId, accessLevel]);
+  int get hashCode =>
+      Object.hashAll([projectId, granteeType, granteeId, accessLevel]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -4726,9 +5798,17 @@ final class PutProjectGrantRequest {
     final map = cbor as Map;
     return PutProjectGrantRequest(
       projectId: map['project_id'] as String,
-      granteeType: map['grantee_type'],
+      granteeType: CsilCbor.expectOneOf<String>(map['grantee_type'], const [
+        'member',
+        'group',
+      ]),
       granteeId: map['grantee_id'] as String,
-      accessLevel: map['access_level'],
+      accessLevel: CsilCbor.expectOneOf<String>(map['access_level'], const [
+        'none',
+        'read',
+        'edit',
+        'full',
+      ]),
     );
   }
 
@@ -4766,8 +5846,7 @@ final class SetProjectVisibilityRequest {
   @override
   bool operator ==(Object other) {
     if (other is! SetProjectVisibilityRequest) return false;
-    return projectId == other.projectId &&
-        visibility == other.visibility;
+    return projectId == other.projectId && visibility == other.visibility;
   }
 
   @override
@@ -4786,7 +5865,12 @@ final class SetProjectVisibilityRequest {
     final map = cbor as Map;
     return SetProjectVisibilityRequest(
       projectId: map['project_id'] as String,
-      visibility: map['visibility'],
+      visibility: CsilCbor.expectOneOf<String>(map['visibility'], const [
+        'none',
+        'read',
+        'edit',
+        'full',
+      ]),
     );
   }
 
@@ -4811,9 +5895,12 @@ final class EffectiveSettings {
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
-    if (bugReportsEnabled != null) map['bug_reports_enabled'] = bugReportsEnabled;
-    if (bugReportsProjectId != null) map['bug_reports_project_id'] = bugReportsProjectId;
-    if (defaultProjectVisibility != null) map['default_project_visibility'] = defaultProjectVisibility;
+    if (bugReportsEnabled != null)
+      map['bug_reports_enabled'] = bugReportsEnabled;
+    if (bugReportsProjectId != null)
+      map['bug_reports_project_id'] = bugReportsProjectId;
+    if (defaultProjectVisibility != null)
+      map['default_project_visibility'] = defaultProjectVisibility;
     return map;
   }
 
@@ -4821,7 +5908,8 @@ final class EffectiveSettings {
     return EffectiveSettings(
       bugReportsEnabled: map['bug_reports_enabled'] as bool?,
       bugReportsProjectId: map['bug_reports_project_id'] as ProjectId?,
-      defaultProjectVisibility: map['default_project_visibility'] as AccessLevel?,
+      defaultProjectVisibility:
+          map['default_project_visibility'] as AccessLevel?,
     );
   }
 
@@ -4834,14 +5922,21 @@ final class EffectiveSettings {
   }
 
   @override
-  int get hashCode => Object.hashAll([bugReportsEnabled, bugReportsProjectId, defaultProjectVisibility]);
+  int get hashCode => Object.hashAll([
+    bugReportsEnabled,
+    bugReportsProjectId,
+    defaultProjectVisibility,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
-    if (bugReportsEnabled != null) map['bug_reports_enabled'] = bugReportsEnabled!;
-    if (bugReportsProjectId != null) map['bug_reports_project_id'] = bugReportsProjectId!;
-    if (defaultProjectVisibility != null) map['default_project_visibility'] = defaultProjectVisibility!;
+    if (bugReportsEnabled != null)
+      map['bug_reports_enabled'] = bugReportsEnabled!;
+    if (bugReportsProjectId != null)
+      map['bug_reports_project_id'] = bugReportsProjectId!;
+    if (defaultProjectVisibility != null)
+      map['default_project_visibility'] = defaultProjectVisibility!;
     return map;
   }
 
@@ -4849,9 +5944,18 @@ final class EffectiveSettings {
   factory EffectiveSettings.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return EffectiveSettings(
-      bugReportsEnabled: map['bug_reports_enabled'] == null ? null : map['bug_reports_enabled'] as bool,
-      bugReportsProjectId: map['bug_reports_project_id'] == null ? null : map['bug_reports_project_id'] as String,
-      defaultProjectVisibility: map['default_project_visibility'] == null ? null : map['default_project_visibility'],
+      bugReportsEnabled: map['bug_reports_enabled'] == null
+          ? null
+          : map['bug_reports_enabled'] as bool,
+      bugReportsProjectId: map['bug_reports_project_id'] == null
+          ? null
+          : map['bug_reports_project_id'] as String,
+      defaultProjectVisibility: map['default_project_visibility'] == null
+          ? null
+          : CsilCbor.expectOneOf<String>(
+              map['default_project_visibility'],
+              const ['none', 'read', 'edit', 'full'],
+            ),
     );
   }
 
@@ -4867,10 +5971,7 @@ final class UpdateSettingsRequest {
   final HouseId houseId;
   final EffectiveSettings settings;
 
-  const UpdateSettingsRequest({
-    required this.houseId,
-    required this.settings,
-  });
+  const UpdateSettingsRequest({required this.houseId, required this.settings});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -4889,8 +5990,7 @@ final class UpdateSettingsRequest {
   @override
   bool operator ==(Object other) {
     if (other is! UpdateSettingsRequest) return false;
-    return houseId == other.houseId &&
-        settings == other.settings;
+    return houseId == other.houseId && settings == other.settings;
   }
 
   @override
@@ -4984,7 +6084,9 @@ final class BugReportRequest {
     return BugReportRequest(
       houseId: map['house_id'] as String,
       title: map['title'] as String,
-      description: map['description'] == null ? null : map['description'] as String,
+      description: map['description'] == null
+          ? null
+          : map['description'] as String,
     );
   }
 
@@ -5000,10 +6102,7 @@ final class ServiceError {
   final int code;
   final String message;
 
-  const ServiceError({
-    required this.code,
-    required this.message,
-  });
+  const ServiceError({required this.code, required this.message});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -5022,8 +6121,7 @@ final class ServiceError {
   @override
   bool operator ==(Object other) {
     if (other is! ServiceError) return false;
-    return code == other.code &&
-        message == other.message;
+    return code == other.code && message == other.message;
   }
 
   @override
@@ -5080,8 +6178,7 @@ final class CalendarSubscription {
   @override
   bool operator ==(Object other) {
     if (other is! CalendarSubscription) return false;
-    return subjectMemberId == other.subjectMemberId &&
-        enabled == other.enabled;
+    return subjectMemberId == other.subjectMemberId && enabled == other.enabled;
   }
 
   @override
@@ -5153,7 +6250,10 @@ final class CalendarView {
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
     map['house_id'] = houseId;
-    if (subscriptions != null) map['subscriptions'] = subscriptions!.map((csilE) => csilE.toCborValue()).toList();
+    if (subscriptions != null)
+      map['subscriptions'] = subscriptions!
+          .map((csilE) => csilE.toCborValue())
+          .toList();
     return map;
   }
 
@@ -5163,7 +6263,12 @@ final class CalendarView {
     return CalendarView(
       houseId: map['house_id'] as String,
       viewerMemberId: map['viewer_member_id'] as String,
-      subscriptions: map['subscriptions'] == null ? null : (map['subscriptions'] as List).map((csilE) => CalendarSubscription.fromCborValue(csilE)).cast<CalendarSubscription>().toList(),
+      subscriptions: map['subscriptions'] == null
+          ? null
+          : (map['subscriptions'] as List)
+                .map((csilE) => CalendarSubscription.fromCborValue(csilE))
+                .cast<CalendarSubscription>()
+                .toList(),
     );
   }
 
@@ -5271,7 +6376,23 @@ final class AuditEntry {
   }
 
   @override
-  int get hashCode => Object.hashAll([auditId, houseId, actorMemberId, actorDomain, actorUserId, serviceName, method, action, resourceType, resourceId, outcome, before, after, detail, createdAt]);
+  int get hashCode => Object.hashAll([
+    auditId,
+    houseId,
+    actorMemberId,
+    actorDomain,
+    actorUserId,
+    serviceName,
+    method,
+    action,
+    resourceType,
+    resourceId,
+    outcome,
+    before,
+    after,
+    detail,
+    createdAt,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -5298,14 +6419,20 @@ final class AuditEntry {
     return AuditEntry(
       auditId: map['audit_id'] as String,
       houseId: map['house_id'] == null ? null : map['house_id'] as String,
-      actorMemberId: map['actor_member_id'] == null ? null : map['actor_member_id'] as String,
+      actorMemberId: map['actor_member_id'] == null
+          ? null
+          : map['actor_member_id'] as String,
       actorDomain: map['actor_domain'] as String,
       actorUserId: map['actor_user_id'] as String,
       serviceName: map['service_name'] as String,
       method: map['method'] as String,
       action: map['action'] as String,
-      resourceType: map['resource_type'] == null ? null : map['resource_type'] as String,
-      resourceId: map['resource_id'] == null ? null : map['resource_id'] as String,
+      resourceType: map['resource_type'] == null
+          ? null
+          : map['resource_type'] as String,
+      resourceId: map['resource_id'] == null
+          ? null
+          : map['resource_id'] as String,
       outcome: map['outcome'] as String,
       before: map['before'] == null ? null : map['before'] as String,
       after: map['after'] == null ? null : map['after'] as String,
@@ -5383,7 +6510,16 @@ final class AuditQuery {
   }
 
   @override
-  int get hashCode => Object.hashAll([houseId, actorMemberId, resourceType, action, since, until, cursor, limit]);
+  int get hashCode => Object.hashAll([
+    houseId,
+    actorMemberId,
+    resourceType,
+    action,
+    since,
+    until,
+    cursor,
+    limit,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -5404,8 +6540,12 @@ final class AuditQuery {
     final map = cbor as Map;
     return AuditQuery(
       houseId: map['house_id'] as String,
-      actorMemberId: map['actor_member_id'] == null ? null : map['actor_member_id'] as String,
-      resourceType: map['resource_type'] == null ? null : map['resource_type'] as String,
+      actorMemberId: map['actor_member_id'] == null
+          ? null
+          : map['actor_member_id'] as String,
+      resourceType: map['resource_type'] == null
+          ? null
+          : map['resource_type'] as String,
       action: map['action'] == null ? null : map['action'] as String,
       since: map['since'] == null ? null : map['since'] as String,
       until: map['until'] == null ? null : map['until'] as String,
@@ -5426,10 +6566,7 @@ final class AuditPage {
   final List<AuditEntry> entries;
   final String? nextCursor;
 
-  const AuditPage({
-    required this.entries,
-    this.nextCursor,
-  });
+  const AuditPage({required this.entries, this.nextCursor});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -5448,8 +6585,7 @@ final class AuditPage {
   @override
   bool operator ==(Object other) {
     if (other is! AuditPage) return false;
-    return entries == other.entries &&
-        nextCursor == other.nextCursor;
+    return entries == other.entries && nextCursor == other.nextCursor;
   }
 
   @override
@@ -5467,8 +6603,13 @@ final class AuditPage {
   factory AuditPage.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return AuditPage(
-      entries: (map['entries'] as List).map((csilE) => AuditEntry.fromCborValue(csilE)).cast<AuditEntry>().toList(),
-      nextCursor: map['next_cursor'] == null ? null : map['next_cursor'] as String,
+      entries: (map['entries'] as List)
+          .map((csilE) => AuditEntry.fromCborValue(csilE))
+          .cast<AuditEntry>()
+          .toList(),
+      nextCursor: map['next_cursor'] == null
+          ? null
+          : map['next_cursor'] as String,
     );
   }
 
@@ -5506,7 +6647,8 @@ final class TrashItem {
     map['house_id'] = houseId;
     if (title != null) map['title'] = title;
     map['deleted_at'] = deletedAt;
-    if (deletedByMemberId != null) map['deleted_by_member_id'] = deletedByMemberId;
+    if (deletedByMemberId != null)
+      map['deleted_by_member_id'] = deletedByMemberId;
     map['deleted_op_id'] = deletedOpId;
     return map;
   }
@@ -5536,7 +6678,15 @@ final class TrashItem {
   }
 
   @override
-  int get hashCode => Object.hashAll([resourceType, resourceId, houseId, title, deletedAt, deletedByMemberId, deletedOpId]);
+  int get hashCode => Object.hashAll([
+    resourceType,
+    resourceId,
+    houseId,
+    title,
+    deletedAt,
+    deletedByMemberId,
+    deletedOpId,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -5546,7 +6696,8 @@ final class TrashItem {
     map['house_id'] = houseId;
     if (title != null) map['title'] = title!;
     map['deleted_at'] = deletedAt;
-    if (deletedByMemberId != null) map['deleted_by_member_id'] = deletedByMemberId!;
+    if (deletedByMemberId != null)
+      map['deleted_by_member_id'] = deletedByMemberId!;
     map['deleted_op_id'] = deletedOpId;
     return map;
   }
@@ -5560,7 +6711,9 @@ final class TrashItem {
       houseId: map['house_id'] as String,
       title: map['title'] == null ? null : map['title'] as String,
       deletedAt: map['deleted_at'] as String,
-      deletedByMemberId: map['deleted_by_member_id'] == null ? null : map['deleted_by_member_id'] as String,
+      deletedByMemberId: map['deleted_by_member_id'] == null
+          ? null
+          : map['deleted_by_member_id'] as String,
       deletedOpId: map['deleted_op_id'] as String,
     );
   }
@@ -5577,10 +6730,7 @@ final class TrashPage {
   final List<TrashItem> items;
   final String? nextCursor;
 
-  const TrashPage({
-    required this.items,
-    this.nextCursor,
-  });
+  const TrashPage({required this.items, this.nextCursor});
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
@@ -5599,8 +6749,7 @@ final class TrashPage {
   @override
   bool operator ==(Object other) {
     if (other is! TrashPage) return false;
-    return items == other.items &&
-        nextCursor == other.nextCursor;
+    return items == other.items && nextCursor == other.nextCursor;
   }
 
   @override
@@ -5618,8 +6767,13 @@ final class TrashPage {
   factory TrashPage.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return TrashPage(
-      items: (map['items'] as List).map((csilE) => TrashItem.fromCborValue(csilE)).cast<TrashItem>().toList(),
-      nextCursor: map['next_cursor'] == null ? null : map['next_cursor'] as String,
+      items: (map['items'] as List)
+          .map((csilE) => TrashItem.fromCborValue(csilE))
+          .cast<TrashItem>()
+          .toList(),
+      nextCursor: map['next_cursor'] == null
+          ? null
+          : map['next_cursor'] as String,
     );
   }
 
@@ -5672,7 +6826,8 @@ final class RestoreRequest {
   }
 
   @override
-  int get hashCode => Object.hashAll([houseId, deletedOpId, resourceType, resourceId]);
+  int get hashCode =>
+      Object.hashAll([houseId, deletedOpId, resourceType, resourceId]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -5689,9 +6844,15 @@ final class RestoreRequest {
     final map = cbor as Map;
     return RestoreRequest(
       houseId: map['house_id'] as String,
-      deletedOpId: map['deleted_op_id'] == null ? null : map['deleted_op_id'] as String,
-      resourceType: map['resource_type'] == null ? null : map['resource_type'] as String,
-      resourceId: map['resource_id'] == null ? null : map['resource_id'] as String,
+      deletedOpId: map['deleted_op_id'] == null
+          ? null
+          : map['deleted_op_id'] as String,
+      resourceType: map['resource_type'] == null
+          ? null
+          : map['resource_type'] as String,
+      resourceId: map['resource_id'] == null
+          ? null
+          : map['resource_id'] as String,
     );
   }
 
@@ -5767,4 +6928,3 @@ final class PurgeRequest {
   factory PurgeRequest.fromCbor(List<int> bytes) =>
       PurgeRequest.fromCborValue(CsilCbor.decode(bytes));
 }
-

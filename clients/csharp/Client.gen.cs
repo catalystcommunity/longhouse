@@ -30,15 +30,31 @@ public sealed class CsilClientException : System.Exception
 public sealed class AuthClient(ICsilTransport transport)
 {
     public LoginResponse Login(LoginRequest loginRequest) =>
-        Codec.Decode<LoginResponse>(transport.Call("auth", "Login", Codec.Encode(loginRequest)));
+        Codec.Decode<LoginResponse>(transport.Call("AuthService", "login", Codec.Encode(loginRequest)));
     public LoginResponse Complete(CompleteRequest completeRequest) =>
-        Codec.Decode<LoginResponse>(transport.Call("auth", "Complete", Codec.Encode(completeRequest)));
+        Codec.Decode<LoginResponse>(transport.Call("AuthService", "complete", Codec.Encode(completeRequest)));
     public LoginResponse Refresh(EmptyRequest emptyRequest) =>
-        Codec.Decode<LoginResponse>(transport.Call("auth", "Refresh", Codec.Encode(emptyRequest)));
+        Codec.Decode<LoginResponse>(transport.Call("AuthService", "refresh", Codec.Encode(emptyRequest)));
     public EmptyResponse Logout(EmptyRequest emptyRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("auth", "Logout", Codec.Encode(emptyRequest)));
+        Codec.Decode<EmptyResponse>(transport.Call("AuthService", "logout", Codec.Encode(emptyRequest)));
     public MeResponse Me(EmptyRequest emptyRequest) =>
-        Codec.Decode<MeResponse>(transport.Call("auth", "Me", Codec.Encode(emptyRequest)));
+        Codec.Decode<MeResponse>(transport.Call("AuthService", "me", Codec.Encode(emptyRequest)));
+    public BeginCliLoginResponse BeginCliLogin(BeginCliLoginRequest beginCliLoginRequest) =>
+        Codec.Decode<BeginCliLoginResponse>(transport.Call("AuthService", "begin-cli-login", Codec.Encode(beginCliLoginRequest)));
+    public CliLoginRequestInfo InspectCliLogin(ApproveCliLoginRequest approveCliLoginRequest) =>
+        Codec.Decode<CliLoginRequestInfo>(transport.Call("AuthService", "inspect-cli-login", Codec.Encode(approveCliLoginRequest)));
+    public EmptyResponse ApproveCliLogin(ApproveCliLoginRequest approveCliLoginRequest) =>
+        Codec.Decode<EmptyResponse>(transport.Call("AuthService", "approve-cli-login", Codec.Encode(approveCliLoginRequest)));
+    public EmptyResponse DenyCliLogin(DenyCliLoginRequest denyCliLoginRequest) =>
+        Codec.Decode<EmptyResponse>(transport.Call("AuthService", "deny-cli-login", Codec.Encode(denyCliLoginRequest)));
+    public ExchangeCliLoginResponse ExchangeCliLogin(ExchangeCliLoginRequest exchangeCliLoginRequest) =>
+        Codec.Decode<ExchangeCliLoginResponse>(transport.Call("AuthService", "exchange-cli-login", Codec.Encode(exchangeCliLoginRequest)));
+    public CliTokenResponse RefreshSession(RefreshSessionRequest refreshSessionRequest) =>
+        Codec.Decode<CliTokenResponse>(transport.Call("AuthService", "refresh-session", Codec.Encode(refreshSessionRequest)));
+    public CliSessionsResponse ListSessions(EmptyRequest emptyRequest) =>
+        Codec.Decode<CliSessionsResponse>(transport.Call("AuthService", "list-sessions", Codec.Encode(emptyRequest)));
+    public EmptyResponse RevokeSession(RevokeSessionRequest revokeSessionRequest) =>
+        Codec.Decode<EmptyResponse>(transport.Call("AuthService", "revoke-session", Codec.Encode(revokeSessionRequest)));
 }
 
 /// <summary>Typed RPC client for the DevAuthService service. The client owns
@@ -46,9 +62,9 @@ public sealed class AuthClient(ICsilTransport transport)
 public sealed class DevAuthClient(ICsilTransport transport)
 {
     public DevUsersResponse ListDevUsers(EmptyRequest emptyRequest) =>
-        Codec.Decode<DevUsersResponse>(transport.Call("devauth", "ListDevUsers", Codec.Encode(emptyRequest)));
+        Codec.Decode<DevUsersResponse>(transport.Call("DevAuthService", "list-dev-users", Codec.Encode(emptyRequest)));
     public LoginResponse DevLogin(DevLoginRequest devLoginRequest) =>
-        Codec.Decode<LoginResponse>(transport.Call("devauth", "DevLogin", Codec.Encode(devLoginRequest)));
+        Codec.Decode<LoginResponse>(transport.Call("DevAuthService", "dev-login", Codec.Encode(devLoginRequest)));
 }
 
 /// <summary>Typed RPC client for the HouseService service. The client owns
@@ -56,15 +72,15 @@ public sealed class DevAuthClient(ICsilTransport transport)
 public sealed class HouseClient(ICsilTransport transport)
 {
     public House CreateHouse(House house) =>
-        Codec.Decode<House>(transport.Call("house", "CreateHouse", Codec.Encode(house)));
+        Codec.Decode<House>(transport.Call("HouseService", "create-house", Codec.Encode(house)));
     public House GetHouse(HouseID houseID) =>
-        Codec.Decode<House>(transport.Call("house", "GetHouse", Codec.EncodeHouseGetHouseRequest(houseID)));
+        Codec.Decode<House>(transport.Call("HouseService", "get-house", Codec.EncodeHouseGetHouseRequest(houseID)));
     public House UpdateHouse(House house) =>
-        Codec.Decode<House>(transport.Call("house", "UpdateHouse", Codec.Encode(house)));
+        Codec.Decode<House>(transport.Call("HouseService", "update-house", Codec.Encode(house)));
     public EmptyResponse DeleteHouse(HouseID houseID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("house", "DeleteHouse", Codec.EncodeHouseDeleteHouseRequest(houseID)));
+        Codec.Decode<EmptyResponse>(transport.Call("HouseService", "delete-house", Codec.EncodeHouseDeleteHouseRequest(houseID)));
     public System.Collections.Generic.List<House> ListHouses(HouseListRequest houseListRequest) =>
-        Codec.DecodeHouseListHousesResponse(transport.Call("house", "ListHouses", Codec.Encode(houseListRequest)));
+        Codec.DecodeHouseListHousesResponse(transport.Call("HouseService", "list-houses", Codec.Encode(houseListRequest)));
 }
 
 /// <summary>Typed RPC client for the MemberService service. The client owns
@@ -72,19 +88,19 @@ public sealed class HouseClient(ICsilTransport transport)
 public sealed class MemberClient(ICsilTransport transport)
 {
     public Member CreateMember(Member member) =>
-        Codec.Decode<Member>(transport.Call("member", "CreateMember", Codec.Encode(member)));
+        Codec.Decode<Member>(transport.Call("MemberService", "create-member", Codec.Encode(member)));
     public Member GetMember(MemberID memberID) =>
-        Codec.Decode<Member>(transport.Call("member", "GetMember", Codec.EncodeMemberGetMemberRequest(memberID)));
+        Codec.Decode<Member>(transport.Call("MemberService", "get-member", Codec.EncodeMemberGetMemberRequest(memberID)));
     public Member GetMemberByIdentity(Member member) =>
-        Codec.Decode<Member>(transport.Call("member", "GetMemberByIdentity", Codec.Encode(member)));
+        Codec.Decode<Member>(transport.Call("MemberService", "get-member-by-identity", Codec.Encode(member)));
     public Member UpdateMember(Member member) =>
-        Codec.Decode<Member>(transport.Call("member", "UpdateMember", Codec.Encode(member)));
+        Codec.Decode<Member>(transport.Call("MemberService", "update-member", Codec.Encode(member)));
     public EmptyResponse DeactivateMember(MemberID memberID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("member", "DeactivateMember", Codec.EncodeMemberDeactivateMemberRequest(memberID)));
+        Codec.Decode<EmptyResponse>(transport.Call("MemberService", "deactivate-member", Codec.EncodeMemberDeactivateMemberRequest(memberID)));
     public EmptyResponse ReactivateMember(MemberID memberID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("member", "ReactivateMember", Codec.EncodeMemberReactivateMemberRequest(memberID)));
+        Codec.Decode<EmptyResponse>(transport.Call("MemberService", "reactivate-member", Codec.EncodeMemberReactivateMemberRequest(memberID)));
     public System.Collections.Generic.List<Member> ListMembers(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeMemberListMembersResponse(transport.Call("member", "ListMembers", Codec.Encode(houseScopedListRequest)));
+        Codec.DecodeMemberListMembersResponse(transport.Call("MemberService", "list-members", Codec.Encode(houseScopedListRequest)));
 }
 
 /// <summary>Typed RPC client for the TrustedDomainService service. The client owns
@@ -92,13 +108,13 @@ public sealed class MemberClient(ICsilTransport transport)
 public sealed class TrustedDomainClient(ICsilTransport transport)
 {
     public TrustedDomain AddTrustedDomain(TrustedDomain trustedDomain) =>
-        Codec.Decode<TrustedDomain>(transport.Call("trusteddomain", "AddTrustedDomain", Codec.Encode(trustedDomain)));
+        Codec.Decode<TrustedDomain>(transport.Call("TrustedDomainService", "add-trusted-domain", Codec.Encode(trustedDomain)));
     public EmptyResponse RemoveTrustedDomain(TrustedDomainID trustedDomainID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("trusteddomain", "RemoveTrustedDomain", Codec.EncodeTrustedDomainRemoveTrustedDomainRequest(trustedDomainID)));
+        Codec.Decode<EmptyResponse>(transport.Call("TrustedDomainService", "remove-trusted-domain", Codec.EncodeTrustedDomainRemoveTrustedDomainRequest(trustedDomainID)));
     public System.Collections.Generic.List<TrustedDomain> ListTrustedDomains(HouseID houseID) =>
-        Codec.DecodeTrustedDomainListTrustedDomainsResponse(transport.Call("trusteddomain", "ListTrustedDomains", Codec.EncodeTrustedDomainListTrustedDomainsRequest(houseID)));
+        Codec.DecodeTrustedDomainListTrustedDomainsResponse(transport.Call("TrustedDomainService", "list-trusted-domains", Codec.EncodeTrustedDomainListTrustedDomainsRequest(houseID)));
     public BoolResponse IsDomainTrusted(TrustedDomain trustedDomain) =>
-        Codec.Decode<BoolResponse>(transport.Call("trusteddomain", "IsDomainTrusted", Codec.Encode(trustedDomain)));
+        Codec.Decode<BoolResponse>(transport.Call("TrustedDomainService", "is-domain-trusted", Codec.Encode(trustedDomain)));
 }
 
 /// <summary>Typed RPC client for the RoleService service. The client owns
@@ -106,19 +122,19 @@ public sealed class TrustedDomainClient(ICsilTransport transport)
 public sealed class RoleClient(ICsilTransport transport)
 {
     public Role CreateRole(Role role) =>
-        Codec.Decode<Role>(transport.Call("role", "CreateRole", Codec.Encode(role)));
+        Codec.Decode<Role>(transport.Call("RoleService", "create-role", Codec.Encode(role)));
     public Role UpdateRole(Role role) =>
-        Codec.Decode<Role>(transport.Call("role", "UpdateRole", Codec.Encode(role)));
+        Codec.Decode<Role>(transport.Call("RoleService", "update-role", Codec.Encode(role)));
     public EmptyResponse DeleteRole(RoleID roleID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("role", "DeleteRole", Codec.EncodeRoleDeleteRoleRequest(roleID)));
+        Codec.Decode<EmptyResponse>(transport.Call("RoleService", "delete-role", Codec.EncodeRoleDeleteRoleRequest(roleID)));
     public System.Collections.Generic.List<Role> ListRoles(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeRoleListRolesResponse(transport.Call("role", "ListRoles", Codec.Encode(houseScopedListRequest)));
+        Codec.DecodeRoleListRolesResponse(transport.Call("RoleService", "list-roles", Codec.Encode(houseScopedListRequest)));
     public EmptyResponse GrantRole(MemberRoleRef memberRoleRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("role", "GrantRole", Codec.Encode(memberRoleRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("RoleService", "grant-role", Codec.Encode(memberRoleRef)));
     public EmptyResponse RevokeRole(MemberRoleRef memberRoleRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("role", "RevokeRole", Codec.Encode(memberRoleRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("RoleService", "revoke-role", Codec.Encode(memberRoleRef)));
     public System.Collections.Generic.List<Role> ListMemberRoles(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeRoleListMemberRolesResponse(transport.Call("role", "ListMemberRoles", Codec.Encode(memberScopedListRequest)));
+        Codec.DecodeRoleListMemberRolesResponse(transport.Call("RoleService", "list-member-roles", Codec.Encode(memberScopedListRequest)));
 }
 
 /// <summary>Typed RPC client for the SkillService service. The client owns
@@ -126,25 +142,25 @@ public sealed class RoleClient(ICsilTransport transport)
 public sealed class SkillClient(ICsilTransport transport)
 {
     public Skill CreateSkill(Skill skill) =>
-        Codec.Decode<Skill>(transport.Call("skill", "CreateSkill", Codec.Encode(skill)));
+        Codec.Decode<Skill>(transport.Call("SkillService", "create-skill", Codec.Encode(skill)));
     public Skill UpdateSkill(Skill skill) =>
-        Codec.Decode<Skill>(transport.Call("skill", "UpdateSkill", Codec.Encode(skill)));
+        Codec.Decode<Skill>(transport.Call("SkillService", "update-skill", Codec.Encode(skill)));
     public EmptyResponse DeleteSkill(SkillID skillID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("skill", "DeleteSkill", Codec.EncodeSkillDeleteSkillRequest(skillID)));
+        Codec.Decode<EmptyResponse>(transport.Call("SkillService", "delete-skill", Codec.EncodeSkillDeleteSkillRequest(skillID)));
     public System.Collections.Generic.List<Skill> ListSkills(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeSkillListSkillsResponse(transport.Call("skill", "ListSkills", Codec.Encode(houseScopedListRequest)));
+        Codec.DecodeSkillListSkillsResponse(transport.Call("SkillService", "list-skills", Codec.Encode(houseScopedListRequest)));
     public EmptyResponse AddMemberSkill(MemberSkillRef memberSkillRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("skill", "AddMemberSkill", Codec.Encode(memberSkillRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("SkillService", "add-member-skill", Codec.Encode(memberSkillRef)));
     public EmptyResponse RemoveMemberSkill(MemberSkillRef memberSkillRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("skill", "RemoveMemberSkill", Codec.Encode(memberSkillRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("SkillService", "remove-member-skill", Codec.Encode(memberSkillRef)));
     public System.Collections.Generic.List<Skill> ListMemberSkills(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeSkillListMemberSkillsResponse(transport.Call("skill", "ListMemberSkills", Codec.Encode(memberScopedListRequest)));
+        Codec.DecodeSkillListMemberSkillsResponse(transport.Call("SkillService", "list-member-skills", Codec.Encode(memberScopedListRequest)));
     public EmptyResponse AddGroupSkill(GroupSkillRef groupSkillRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("skill", "AddGroupSkill", Codec.Encode(groupSkillRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("SkillService", "add-group-skill", Codec.Encode(groupSkillRef)));
     public EmptyResponse RemoveGroupSkill(GroupSkillRef groupSkillRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("skill", "RemoveGroupSkill", Codec.Encode(groupSkillRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("SkillService", "remove-group-skill", Codec.Encode(groupSkillRef)));
     public System.Collections.Generic.List<Skill> ListGroupSkills(GroupID groupID) =>
-        Codec.DecodeSkillListGroupSkillsResponse(transport.Call("skill", "ListGroupSkills", Codec.EncodeSkillListGroupSkillsRequest(groupID)));
+        Codec.DecodeSkillListGroupSkillsResponse(transport.Call("SkillService", "list-group-skills", Codec.EncodeSkillListGroupSkillsRequest(groupID)));
 }
 
 /// <summary>Typed RPC client for the GroupService service. The client owns
@@ -152,19 +168,19 @@ public sealed class SkillClient(ICsilTransport transport)
 public sealed class GroupClient(ICsilTransport transport)
 {
     public Group CreateGroup(Group group) =>
-        Codec.Decode<Group>(transport.Call("group", "CreateGroup", Codec.Encode(group)));
+        Codec.Decode<Group>(transport.Call("GroupService", "create-group", Codec.Encode(group)));
     public Group UpdateGroup(Group group) =>
-        Codec.Decode<Group>(transport.Call("group", "UpdateGroup", Codec.Encode(group)));
+        Codec.Decode<Group>(transport.Call("GroupService", "update-group", Codec.Encode(group)));
     public EmptyResponse DeleteGroup(GroupID groupID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("group", "DeleteGroup", Codec.EncodeGroupDeleteGroupRequest(groupID)));
+        Codec.Decode<EmptyResponse>(transport.Call("GroupService", "delete-group", Codec.EncodeGroupDeleteGroupRequest(groupID)));
     public System.Collections.Generic.List<Group> ListGroups(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeGroupListGroupsResponse(transport.Call("group", "ListGroups", Codec.Encode(houseScopedListRequest)));
+        Codec.DecodeGroupListGroupsResponse(transport.Call("GroupService", "list-groups", Codec.Encode(houseScopedListRequest)));
     public EmptyResponse AddGroupMember(GroupMemberRef groupMemberRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("group", "AddGroupMember", Codec.Encode(groupMemberRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("GroupService", "add-group-member", Codec.Encode(groupMemberRef)));
     public EmptyResponse RemoveGroupMember(GroupMemberRef groupMemberRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("group", "RemoveGroupMember", Codec.Encode(groupMemberRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("GroupService", "remove-group-member", Codec.Encode(groupMemberRef)));
     public System.Collections.Generic.List<Member> ListGroupMembers(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeGroupListGroupMembersResponse(transport.Call("group", "ListGroupMembers", Codec.Encode(memberScopedListRequest)));
+        Codec.DecodeGroupListGroupMembersResponse(transport.Call("GroupService", "list-group-members", Codec.Encode(memberScopedListRequest)));
 }
 
 /// <summary>Typed RPC client for the ProjectService service. The client owns
@@ -172,51 +188,51 @@ public sealed class GroupClient(ICsilTransport transport)
 public sealed class ProjectClient(ICsilTransport transport)
 {
     public Project CreateProject(Project project) =>
-        Codec.Decode<Project>(transport.Call("project", "CreateProject", Codec.Encode(project)));
+        Codec.Decode<Project>(transport.Call("ProjectService", "create-project", Codec.Encode(project)));
     public Project GetProject(ProjectID projectID) =>
-        Codec.Decode<Project>(transport.Call("project", "GetProject", Codec.EncodeProjectGetProjectRequest(projectID)));
+        Codec.Decode<Project>(transport.Call("ProjectService", "get-project", Codec.EncodeProjectGetProjectRequest(projectID)));
     public Project UpdateProject(Project project) =>
-        Codec.Decode<Project>(transport.Call("project", "UpdateProject", Codec.Encode(project)));
+        Codec.Decode<Project>(transport.Call("ProjectService", "update-project", Codec.Encode(project)));
     public EmptyResponse DeleteProject(ProjectID projectID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("project", "DeleteProject", Codec.EncodeProjectDeleteProjectRequest(projectID)));
+        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "delete-project", Codec.EncodeProjectDeleteProjectRequest(projectID)));
     public ProjectList ListProjects(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.Decode<ProjectList>(transport.Call("project", "ListProjects", Codec.Encode(houseScopedListRequest)));
+        Codec.Decode<ProjectList>(transport.Call("ProjectService", "list-projects", Codec.Encode(houseScopedListRequest)));
     public TaskList ListProjectTasks(ProjectScopedListRequest projectScopedListRequest) =>
-        Codec.Decode<TaskList>(transport.Call("project", "ListProjectTasks", Codec.Encode(projectScopedListRequest)));
+        Codec.Decode<TaskList>(transport.Call("ProjectService", "list-project-tasks", Codec.Encode(projectScopedListRequest)));
     public EmptyResponse AddProjectTask(ProjectTaskOrderRequest projectTaskOrderRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("project", "AddProjectTask", Codec.Encode(projectTaskOrderRequest)));
+        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "add-project-task", Codec.Encode(projectTaskOrderRequest)));
     public EmptyResponse RemoveProjectTask(ProjectTaskRef projectTaskRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("project", "RemoveProjectTask", Codec.Encode(projectTaskRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "remove-project-task", Codec.Encode(projectTaskRef)));
     public EmptyResponse SetProjectTaskPosition(ProjectTaskOrderRequest projectTaskOrderRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("project", "SetProjectTaskPosition", Codec.Encode(projectTaskOrderRequest)));
+        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "set-project-task-position", Codec.Encode(projectTaskOrderRequest)));
     public System.Collections.Generic.List<Member> ListProjectMembers(ProjectID projectID) =>
-        Codec.DecodeProjectListProjectMembersResponse(transport.Call("project", "ListProjectMembers", Codec.EncodeProjectListProjectMembersRequest(projectID)));
+        Codec.DecodeProjectListProjectMembersResponse(transport.Call("ProjectService", "list-project-members", Codec.EncodeProjectListProjectMembersRequest(projectID)));
     public EmptyResponse AddProjectMember(ProjectMemberRef projectMemberRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("project", "AddProjectMember", Codec.Encode(projectMemberRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "add-project-member", Codec.Encode(projectMemberRef)));
     public EmptyResponse RemoveProjectMember(ProjectMemberRef projectMemberRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("project", "RemoveProjectMember", Codec.Encode(projectMemberRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "remove-project-member", Codec.Encode(projectMemberRef)));
     public System.Collections.Generic.List<Member> ListProjectOwners(ProjectID projectID) =>
-        Codec.DecodeProjectListProjectOwnersResponse(transport.Call("project", "ListProjectOwners", Codec.EncodeProjectListProjectOwnersRequest(projectID)));
+        Codec.DecodeProjectListProjectOwnersResponse(transport.Call("ProjectService", "list-project-owners", Codec.EncodeProjectListProjectOwnersRequest(projectID)));
     public EmptyResponse AddProjectOwner(ProjectOwnerRef projectOwnerRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("project", "AddProjectOwner", Codec.Encode(projectOwnerRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "add-project-owner", Codec.Encode(projectOwnerRef)));
     public EmptyResponse RemoveProjectOwner(ProjectOwnerRef projectOwnerRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("project", "RemoveProjectOwner", Codec.Encode(projectOwnerRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "remove-project-owner", Codec.Encode(projectOwnerRef)));
     public System.Collections.Generic.List<Milestone> ListMilestones(ProjectID projectID) =>
-        Codec.DecodeProjectListMilestonesResponse(transport.Call("project", "ListMilestones", Codec.EncodeProjectListMilestonesRequest(projectID)));
+        Codec.DecodeProjectListMilestonesResponse(transport.Call("ProjectService", "list-milestones", Codec.EncodeProjectListMilestonesRequest(projectID)));
     public Milestone CreateMilestone(Milestone milestone) =>
-        Codec.Decode<Milestone>(transport.Call("project", "CreateMilestone", Codec.Encode(milestone)));
+        Codec.Decode<Milestone>(transport.Call("ProjectService", "create-milestone", Codec.Encode(milestone)));
     public Milestone UpdateMilestone(Milestone milestone) =>
-        Codec.Decode<Milestone>(transport.Call("project", "UpdateMilestone", Codec.Encode(milestone)));
+        Codec.Decode<Milestone>(transport.Call("ProjectService", "update-milestone", Codec.Encode(milestone)));
     public EmptyResponse DeleteMilestone(MilestoneID milestoneID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("project", "DeleteMilestone", Codec.EncodeProjectDeleteMilestoneRequest(milestoneID)));
+        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "delete-milestone", Codec.EncodeProjectDeleteMilestoneRequest(milestoneID)));
     public Project SetProjectVisibility(SetProjectVisibilityRequest setProjectVisibilityRequest) =>
-        Codec.Decode<Project>(transport.Call("project", "SetProjectVisibility", Codec.Encode(setProjectVisibilityRequest)));
+        Codec.Decode<Project>(transport.Call("ProjectService", "set-project-visibility", Codec.Encode(setProjectVisibilityRequest)));
     public System.Collections.Generic.List<Grant> ListProjectGrants(ProjectID projectID) =>
-        Codec.DecodeProjectListProjectGrantsResponse(transport.Call("project", "ListProjectGrants", Codec.EncodeProjectListProjectGrantsRequest(projectID)));
+        Codec.DecodeProjectListProjectGrantsResponse(transport.Call("ProjectService", "list-project-grants", Codec.EncodeProjectListProjectGrantsRequest(projectID)));
     public EmptyResponse PutProjectGrant(PutProjectGrantRequest putProjectGrantRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("project", "PutProjectGrant", Codec.Encode(putProjectGrantRequest)));
+        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "put-project-grant", Codec.Encode(putProjectGrantRequest)));
     public EmptyResponse DeleteProjectGrant(ProjectGrantRef projectGrantRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("project", "DeleteProjectGrant", Codec.Encode(projectGrantRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "delete-project-grant", Codec.Encode(projectGrantRef)));
 }
 
 /// <summary>Typed RPC client for the EventService service. The client owns
@@ -224,21 +240,21 @@ public sealed class ProjectClient(ICsilTransport transport)
 public sealed class EventClient(ICsilTransport transport)
 {
     public Event CreateEvent(Event @event) =>
-        Codec.Decode<Event>(transport.Call("event", "CreateEvent", Codec.Encode(@event)));
+        Codec.Decode<Event>(transport.Call("EventService", "create-event", Codec.Encode(@event)));
     public Event GetEvent(EventID eventID) =>
-        Codec.Decode<Event>(transport.Call("event", "GetEvent", Codec.EncodeEventGetEventRequest(eventID)));
+        Codec.Decode<Event>(transport.Call("EventService", "get-event", Codec.EncodeEventGetEventRequest(eventID)));
     public Event UpdateEvent(Event @event) =>
-        Codec.Decode<Event>(transport.Call("event", "UpdateEvent", Codec.Encode(@event)));
+        Codec.Decode<Event>(transport.Call("EventService", "update-event", Codec.Encode(@event)));
     public EmptyResponse DeleteEvent(EventID eventID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("event", "DeleteEvent", Codec.EncodeEventDeleteEventRequest(eventID)));
+        Codec.Decode<EmptyResponse>(transport.Call("EventService", "delete-event", Codec.EncodeEventDeleteEventRequest(eventID)));
     public EmptyResponse DeleteEventAndFuture(EventID eventID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("event", "DeleteEventAndFuture", Codec.EncodeEventDeleteEventAndFutureRequest(eventID)));
+        Codec.Decode<EmptyResponse>(transport.Call("EventService", "delete-event-and-future", Codec.EncodeEventDeleteEventAndFutureRequest(eventID)));
     public System.Collections.Generic.List<Event> ListEvents(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeEventListEventsResponse(transport.Call("event", "ListEvents", Codec.Encode(houseScopedListRequest)));
+        Codec.DecodeEventListEventsResponse(transport.Call("EventService", "list-events", Codec.Encode(houseScopedListRequest)));
     public CalendarView GetCalendarView(HouseID houseID) =>
-        Codec.Decode<CalendarView>(transport.Call("event", "GetCalendarView", Codec.EncodeEventGetCalendarViewRequest(houseID)));
+        Codec.Decode<CalendarView>(transport.Call("EventService", "get-calendar-view", Codec.EncodeEventGetCalendarViewRequest(houseID)));
     public CalendarView SetCalendarView(CalendarView calendarView) =>
-        Codec.Decode<CalendarView>(transport.Call("event", "SetCalendarView", Codec.Encode(calendarView)));
+        Codec.Decode<CalendarView>(transport.Call("EventService", "set-calendar-view", Codec.Encode(calendarView)));
 }
 
 /// <summary>Typed RPC client for the TaskService service. The client owns
@@ -246,23 +262,23 @@ public sealed class EventClient(ICsilTransport transport)
 public sealed class TaskClient(ICsilTransport transport)
 {
     public Task CreateTask(Task task) =>
-        Codec.Decode<Task>(transport.Call("task", "CreateTask", Codec.Encode(task)));
+        Codec.Decode<Task>(transport.Call("TaskService", "create-task", Codec.Encode(task)));
     public Task GetTask(TaskID taskID) =>
-        Codec.Decode<Task>(transport.Call("task", "GetTask", Codec.EncodeTaskGetTaskRequest(taskID)));
+        Codec.Decode<Task>(transport.Call("TaskService", "get-task", Codec.EncodeTaskGetTaskRequest(taskID)));
     public Task UpdateTask(Task task) =>
-        Codec.Decode<Task>(transport.Call("task", "UpdateTask", Codec.Encode(task)));
+        Codec.Decode<Task>(transport.Call("TaskService", "update-task", Codec.Encode(task)));
     public EmptyResponse DeleteTask(TaskID taskID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("task", "DeleteTask", Codec.EncodeTaskDeleteTaskRequest(taskID)));
+        Codec.Decode<EmptyResponse>(transport.Call("TaskService", "delete-task", Codec.EncodeTaskDeleteTaskRequest(taskID)));
     public TaskList ListTasks(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.Decode<TaskList>(transport.Call("task", "ListTasks", Codec.Encode(houseScopedListRequest)));
+        Codec.Decode<TaskList>(transport.Call("TaskService", "list-tasks", Codec.Encode(houseScopedListRequest)));
     public Task SetTaskVisibility(SetTaskVisibilityRequest setTaskVisibilityRequest) =>
-        Codec.Decode<Task>(transport.Call("task", "SetTaskVisibility", Codec.Encode(setTaskVisibilityRequest)));
+        Codec.Decode<Task>(transport.Call("TaskService", "set-task-visibility", Codec.Encode(setTaskVisibilityRequest)));
     public System.Collections.Generic.List<Grant> ListTaskGrants(TaskID taskID) =>
-        Codec.DecodeTaskListTaskGrantsResponse(transport.Call("task", "ListTaskGrants", Codec.EncodeTaskListTaskGrantsRequest(taskID)));
+        Codec.DecodeTaskListTaskGrantsResponse(transport.Call("TaskService", "list-task-grants", Codec.EncodeTaskListTaskGrantsRequest(taskID)));
     public EmptyResponse PutTaskGrant(PutTaskGrantRequest putTaskGrantRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("task", "PutTaskGrant", Codec.Encode(putTaskGrantRequest)));
+        Codec.Decode<EmptyResponse>(transport.Call("TaskService", "put-task-grant", Codec.Encode(putTaskGrantRequest)));
     public EmptyResponse DeleteTaskGrant(TaskGrantRef taskGrantRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("task", "DeleteTaskGrant", Codec.Encode(taskGrantRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("TaskService", "delete-task-grant", Codec.Encode(taskGrantRef)));
 }
 
 /// <summary>Typed RPC client for the DependencyService service. The client owns
@@ -270,11 +286,11 @@ public sealed class TaskClient(ICsilTransport transport)
 public sealed class DependencyClient(ICsilTransport transport)
 {
     public EmptyResponse AddDependency(DependencyRef dependencyRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("dependency", "AddDependency", Codec.Encode(dependencyRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("DependencyService", "add-dependency", Codec.Encode(dependencyRef)));
     public EmptyResponse RemoveDependency(DependencyRef dependencyRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("dependency", "RemoveDependency", Codec.Encode(dependencyRef)));
+        Codec.Decode<EmptyResponse>(transport.Call("DependencyService", "remove-dependency", Codec.Encode(dependencyRef)));
     public DependencyGraph GetDependencies(DependencyTarget dependencyTarget) =>
-        Codec.Decode<DependencyGraph>(transport.Call("dependency", "GetDependencies", Codec.Encode(dependencyTarget)));
+        Codec.Decode<DependencyGraph>(transport.Call("DependencyService", "get-dependencies", Codec.Encode(dependencyTarget)));
 }
 
 /// <summary>Typed RPC client for the CommentService service. The client owns
@@ -282,15 +298,15 @@ public sealed class DependencyClient(ICsilTransport transport)
 public sealed class CommentClient(ICsilTransport transport)
 {
     public Comment CreateComment(Comment comment) =>
-        Codec.Decode<Comment>(transport.Call("comment", "CreateComment", Codec.Encode(comment)));
+        Codec.Decode<Comment>(transport.Call("CommentService", "create-comment", Codec.Encode(comment)));
     public Comment GetComment(CommentID commentID) =>
-        Codec.Decode<Comment>(transport.Call("comment", "GetComment", Codec.EncodeCommentGetCommentRequest(commentID)));
+        Codec.Decode<Comment>(transport.Call("CommentService", "get-comment", Codec.EncodeCommentGetCommentRequest(commentID)));
     public Comment UpdateComment(Comment comment) =>
-        Codec.Decode<Comment>(transport.Call("comment", "UpdateComment", Codec.Encode(comment)));
+        Codec.Decode<Comment>(transport.Call("CommentService", "update-comment", Codec.Encode(comment)));
     public EmptyResponse DeleteComment(CommentID commentID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("comment", "DeleteComment", Codec.EncodeCommentDeleteCommentRequest(commentID)));
+        Codec.Decode<EmptyResponse>(transport.Call("CommentService", "delete-comment", Codec.EncodeCommentDeleteCommentRequest(commentID)));
     public System.Collections.Generic.List<Comment> ListComments(CommentListRequest commentListRequest) =>
-        Codec.DecodeCommentListCommentsResponse(transport.Call("comment", "ListComments", Codec.Encode(commentListRequest)));
+        Codec.DecodeCommentListCommentsResponse(transport.Call("CommentService", "list-comments", Codec.Encode(commentListRequest)));
 }
 
 /// <summary>Typed RPC client for the NotificationService service. The client owns
@@ -298,13 +314,13 @@ public sealed class CommentClient(ICsilTransport transport)
 public sealed class NotificationClient(ICsilTransport transport)
 {
     public System.Collections.Generic.List<Notification> ListNotifications(NotificationListRequest notificationListRequest) =>
-        Codec.DecodeNotificationListNotificationsResponse(transport.Call("notification", "ListNotifications", Codec.Encode(notificationListRequest)));
+        Codec.DecodeNotificationListNotificationsResponse(transport.Call("NotificationService", "list-notifications", Codec.Encode(notificationListRequest)));
     public NotificationUnreadCount UnreadCount(HouseID houseID) =>
-        Codec.Decode<NotificationUnreadCount>(transport.Call("notification", "UnreadCount", Codec.EncodeNotificationUnreadCountRequest(houseID)));
+        Codec.Decode<NotificationUnreadCount>(transport.Call("NotificationService", "unread-count", Codec.EncodeNotificationUnreadCountRequest(houseID)));
     public Notification MarkRead(NotificationID notificationID) =>
-        Codec.Decode<Notification>(transport.Call("notification", "MarkRead", Codec.EncodeNotificationMarkReadRequest(notificationID)));
+        Codec.Decode<Notification>(transport.Call("NotificationService", "mark-read", Codec.EncodeNotificationMarkReadRequest(notificationID)));
     public EmptyResponse MarkAllRead(HouseID houseID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("notification", "MarkAllRead", Codec.EncodeNotificationMarkAllReadRequest(houseID)));
+        Codec.Decode<EmptyResponse>(transport.Call("NotificationService", "mark-all-read", Codec.EncodeNotificationMarkAllReadRequest(houseID)));
 }
 
 /// <summary>Typed RPC client for the ShareService service. The client owns
@@ -312,13 +328,13 @@ public sealed class NotificationClient(ICsilTransport transport)
 public sealed class ShareClient(ICsilTransport transport)
 {
     public Share CreateShare(Share share) =>
-        Codec.Decode<Share>(transport.Call("share", "CreateShare", Codec.Encode(share)));
+        Codec.Decode<Share>(transport.Call("ShareService", "create-share", Codec.Encode(share)));
     public EmptyResponse DeleteShare(ShareID shareID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("share", "DeleteShare", Codec.EncodeShareDeleteShareRequest(shareID)));
+        Codec.Decode<EmptyResponse>(transport.Call("ShareService", "delete-share", Codec.EncodeShareDeleteShareRequest(shareID)));
     public System.Collections.Generic.List<Share> ListSharesByResource(ResourceRef resourceRef) =>
-        Codec.DecodeShareListSharesByResourceResponse(transport.Call("share", "ListSharesByResource", Codec.Encode(resourceRef)));
+        Codec.DecodeShareListSharesByResourceResponse(transport.Call("ShareService", "list-shares-by-resource", Codec.Encode(resourceRef)));
     public Share CheckAccess(ShareAccessRequest shareAccessRequest) =>
-        Codec.Decode<Share>(transport.Call("share", "CheckAccess", Codec.Encode(shareAccessRequest)));
+        Codec.Decode<Share>(transport.Call("ShareService", "check-access", Codec.Encode(shareAccessRequest)));
 }
 
 /// <summary>Typed RPC client for the MemberAuditService service. The client owns
@@ -326,7 +342,7 @@ public sealed class ShareClient(ICsilTransport transport)
 public sealed class MemberAuditClient(ICsilTransport transport)
 {
     public System.Collections.Generic.List<MemberAudit> ListAuditsForMember(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeMemberAuditListAuditsForMemberResponse(transport.Call("memberaudit", "ListAuditsForMember", Codec.Encode(memberScopedListRequest)));
+        Codec.DecodeMemberAuditListAuditsForMemberResponse(transport.Call("MemberAuditService", "list-audits-for-member", Codec.Encode(memberScopedListRequest)));
 }
 
 /// <summary>Typed RPC client for the SettingsService service. The client owns
@@ -334,9 +350,9 @@ public sealed class MemberAuditClient(ICsilTransport transport)
 public sealed class SettingsClient(ICsilTransport transport)
 {
     public EffectiveSettings GetSettings(HouseID houseID) =>
-        Codec.Decode<EffectiveSettings>(transport.Call("settings", "GetSettings", Codec.EncodeSettingsGetSettingsRequest(houseID)));
+        Codec.Decode<EffectiveSettings>(transport.Call("SettingsService", "get-settings", Codec.EncodeSettingsGetSettingsRequest(houseID)));
     public EffectiveSettings UpdateSettings(UpdateSettingsRequest updateSettingsRequest) =>
-        Codec.Decode<EffectiveSettings>(transport.Call("settings", "UpdateSettings", Codec.Encode(updateSettingsRequest)));
+        Codec.Decode<EffectiveSettings>(transport.Call("SettingsService", "update-settings", Codec.Encode(updateSettingsRequest)));
 }
 
 /// <summary>Typed RPC client for the BugService service. The client owns
@@ -344,7 +360,7 @@ public sealed class SettingsClient(ICsilTransport transport)
 public sealed class BugClient(ICsilTransport transport)
 {
     public Task ReportBug(BugReportRequest bugReportRequest) =>
-        Codec.Decode<Task>(transport.Call("bug", "ReportBug", Codec.Encode(bugReportRequest)));
+        Codec.Decode<Task>(transport.Call("BugService", "report-bug", Codec.Encode(bugReportRequest)));
 }
 
 /// <summary>Typed RPC client for the AuditService service. The client owns
@@ -352,7 +368,7 @@ public sealed class BugClient(ICsilTransport transport)
 public sealed class AuditClient(ICsilTransport transport)
 {
     public AuditPage QueryAudit(AuditQuery auditQuery) =>
-        Codec.Decode<AuditPage>(transport.Call("audit", "QueryAudit", Codec.Encode(auditQuery)));
+        Codec.Decode<AuditPage>(transport.Call("AuditService", "query-audit", Codec.Encode(auditQuery)));
 }
 
 /// <summary>Typed RPC client for the TrashService service. The client owns
@@ -360,10 +376,10 @@ public sealed class AuditClient(ICsilTransport transport)
 public sealed class TrashClient(ICsilTransport transport)
 {
     public TrashPage ListTrash(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.Decode<TrashPage>(transport.Call("trash", "ListTrash", Codec.Encode(houseScopedListRequest)));
+        Codec.Decode<TrashPage>(transport.Call("TrashService", "list-trash", Codec.Encode(houseScopedListRequest)));
     public EmptyResponse Restore(RestoreRequest restoreRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("trash", "Restore", Codec.Encode(restoreRequest)));
+        Codec.Decode<EmptyResponse>(transport.Call("TrashService", "restore", Codec.Encode(restoreRequest)));
     public EmptyResponse Purge(PurgeRequest purgeRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("trash", "Purge", Codec.Encode(purgeRequest)));
+        Codec.Decode<EmptyResponse>(transport.Call("TrashService", "purge", Codec.Encode(purgeRequest)));
 }
 

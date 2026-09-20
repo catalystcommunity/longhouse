@@ -17,6 +17,7 @@ and member_audit_id = string
 and milestone_id = string
 and notification_id = string
 and notification_event_id = string
+and cli_session_id = string
 and timestamp = string
 and task_status = Open | In_progress | Done | Cancelled
 and target_type = Event | Task | Project
@@ -27,6 +28,7 @@ and project_status = Active | Archived
 and dependency_node_type = Task | Project
 and recurrence_freq = Hourly | Daily | Weekly | Monthly | Quarterly | Yearly
 and milestone_state = Done | Current | Future
+and cli_login_status = Pending | Denied | Expired | Complete
 
 and house = {
   house_id : house_id;
@@ -262,6 +264,57 @@ and login_response = {
   display_name : string option;
   expires_at : timestamp;
 }
+
+and cli_token_response = {
+  token : string;
+  domain : string;
+  user_id : string;
+  display_name : string option;
+  expires_at : timestamp;
+  refresh_token : string;
+  refresh_expires_at : timestamp;
+  session_id : cli_session_id;
+}
+
+and begin_cli_login_request = { client_name : string }
+
+and begin_cli_login_response = {
+  device_code : string;
+  user_code : string;
+  verification_url : string;
+  expires_at : timestamp;
+  interval_seconds : int64;
+}
+
+and approve_cli_login_request = { user_code : string }
+
+and cli_login_request_info = {
+  user_code : string;
+  client_name : string;
+  expires_at : timestamp;
+}
+
+and deny_cli_login_request = { user_code : string }
+and exchange_cli_login_request = { device_code : string }
+
+and exchange_cli_login_response = {
+  status : cli_login_status;
+  session : cli_token_response option;
+}
+
+and refresh_session_request = { refresh_token : string }
+
+and cli_session_summary = {
+  session_id : cli_session_id;
+  client_name : string;
+  created_at : timestamp;
+  last_used_at : timestamp;
+  expires_at : timestamp;
+  revoked_at : timestamp option;
+}
+
+and cli_sessions_response = { sessions : cli_session_summary list }
+and revoke_session_request = { session_id : cli_session_id }
 
 and dev_user_entry = {
   member_id : member_id;

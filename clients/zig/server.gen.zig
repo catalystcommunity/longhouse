@@ -20,6 +20,14 @@ pub const AuthHandlers = struct {
     refresh: *const fn (ctx: *anyopaque, req: *const types.EmptyRequest, resp: *types.LoginResponse) anyerror!void,
     logout: *const fn (ctx: *anyopaque, req: *const types.EmptyRequest, resp: *types.EmptyResponse) anyerror!void,
     me: *const fn (ctx: *anyopaque, req: *const types.EmptyRequest, resp: *types.MeResponse) anyerror!void,
+    begin_cli_login: *const fn (ctx: *anyopaque, req: *const types.BeginCliLoginRequest, resp: *types.BeginCliLoginResponse) anyerror!void,
+    inspect_cli_login: *const fn (ctx: *anyopaque, req: *const types.ApproveCliLoginRequest, resp: *types.CliLoginRequestInfo) anyerror!void,
+    approve_cli_login: *const fn (ctx: *anyopaque, req: *const types.ApproveCliLoginRequest, resp: *types.EmptyResponse) anyerror!void,
+    deny_cli_login: *const fn (ctx: *anyopaque, req: *const types.DenyCliLoginRequest, resp: *types.EmptyResponse) anyerror!void,
+    exchange_cli_login: *const fn (ctx: *anyopaque, req: *const types.ExchangeCliLoginRequest, resp: *types.ExchangeCliLoginResponse) anyerror!void,
+    refresh_session: *const fn (ctx: *anyopaque, req: *const types.RefreshSessionRequest, resp: *types.CliTokenResponse) anyerror!void,
+    list_sessions: *const fn (ctx: *anyopaque, req: *const types.EmptyRequest, resp: *types.CliSessionsResponse) anyerror!void,
+    revoke_session: *const fn (ctx: *anyopaque, req: *const types.RevokeSessionRequest, resp: *types.EmptyResponse) anyerror!void,
 };
 
 /// DevAuthHandlers is the host's implementation of the DevAuthService service.

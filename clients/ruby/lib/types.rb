@@ -32,6 +32,8 @@
 
 # NotificationEventId is an alias for String.
 
+# CliSessionId is an alias for String.
+
 # Timestamp is an alias for String.
 
 # TaskStatus is an alias for String.
@@ -51,6 +53,8 @@
 # RecurrenceFreq is an alias for String.
 
 # MilestoneState is an alias for String.
+
+# CliLoginStatus is an alias for String.
 
 # house_id [HouseId]
 # name [String]
@@ -381,6 +385,80 @@ LoginResponse = Data.define(:token, :domain, :user_id, :display_name, :expires_a
   end
 end
 
+# token [String]
+# domain [String]
+# user_id [String]
+# display_name [String]
+# expires_at [Timestamp]
+# refresh_token [String]
+# refresh_expires_at [Timestamp]
+# session_id [CliSessionId]
+CliTokenResponse = Data.define(:token, :domain, :user_id, :display_name, :expires_at, :refresh_token, :refresh_expires_at, :session_id) do
+  def initialize(token:, domain:, user_id:, expires_at:, refresh_token:, refresh_expires_at:, session_id:, display_name: nil)
+    super
+  end
+end
+
+# client_name [String]
+BeginCliLoginRequest = Data.define(:client_name) do
+  # Raises ArgumentError on the first constraint violation.
+  def validate
+    raise ArgumentError, "field 'client_name' must have at least 1 elements" if client_name.length < 1
+    raise ArgumentError, "field 'client_name' must have at most 128 elements" if client_name.length > 128
+    nil
+  end
+end
+
+# device_code [String]
+# user_code [String]
+# verification_url [String]
+# expires_at [Timestamp]
+# interval_seconds [Integer]
+BeginCliLoginResponse = Data.define(:device_code, :user_code, :verification_url, :expires_at, :interval_seconds)
+
+# user_code [String]
+ApproveCliLoginRequest = Data.define(:user_code)
+
+# user_code [String]
+# client_name [String]
+# expires_at [Timestamp]
+CliLoginRequestInfo = Data.define(:user_code, :client_name, :expires_at)
+
+# user_code [String]
+DenyCliLoginRequest = Data.define(:user_code)
+
+# device_code [String]
+ExchangeCliLoginRequest = Data.define(:device_code)
+
+# status [CliLoginStatus]
+# session [CliTokenResponse]
+ExchangeCliLoginResponse = Data.define(:status, :session) do
+  def initialize(status:, session: nil)
+    super
+  end
+end
+
+# refresh_token [String]
+RefreshSessionRequest = Data.define(:refresh_token)
+
+# session_id [CliSessionId]
+# client_name [String]
+# created_at [Timestamp]
+# last_used_at [Timestamp]
+# expires_at [Timestamp]
+# revoked_at [Timestamp]
+CliSessionSummary = Data.define(:session_id, :client_name, :created_at, :last_used_at, :expires_at, :revoked_at) do
+  def initialize(session_id:, client_name:, created_at:, last_used_at:, expires_at:, revoked_at: nil)
+    super
+  end
+end
+
+# sessions [Array<CliSessionSummary>]
+CliSessionsResponse = Data.define(:sessions)
+
+# session_id [CliSessionId]
+RevokeSessionRequest = Data.define(:session_id)
+
 # member_id [MemberId]
 # house_id [HouseId]
 # house_name [String]
@@ -661,7 +739,7 @@ end
 # actor_domain [String]
 # actor_user_id [String]
 # service_name [String]
-# method [String]
+# method [String] (Ruby member: method_)
 # action [String]
 # resource_type [String]
 # resource_id [String]
@@ -670,8 +748,8 @@ end
 # after [String]
 # detail [String]
 # created_at [Timestamp]
-AuditEntry = Data.define(:audit_id, :house_id, :actor_member_id, :actor_domain, :actor_user_id, :service_name, :method, :action, :resource_type, :resource_id, :outcome, :before, :after, :detail, :created_at) do
-  def initialize(audit_id:, actor_domain:, actor_user_id:, service_name:, method:, action:, outcome:, created_at:, house_id: nil, actor_member_id: nil, resource_type: nil, resource_id: nil, before: nil, after: nil, detail: nil)
+AuditEntry = Data.define(:audit_id, :house_id, :actor_member_id, :actor_domain, :actor_user_id, :service_name, :method_, :action, :resource_type, :resource_id, :outcome, :before, :after, :detail, :created_at) do
+  def initialize(audit_id:, actor_domain:, actor_user_id:, service_name:, method_:, action:, outcome:, created_at:, house_id: nil, actor_member_id: nil, resource_type: nil, resource_id: nil, before: nil, after: nil, detail: nil)
     super
   end
 end

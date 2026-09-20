@@ -1,5 +1,7 @@
 //! Generated types from CSIL specification
 
+#![allow(non_camel_case_types, clippy::large_enum_variant)]
+
 /// Returned by a generated `validate` method when a field violates one of its
 /// CSIL constraints. `field` names the offending field; `message` explains.
 #[derive(Debug, Clone, PartialEq)]
@@ -10,7 +12,11 @@ pub struct ValidationError {
 
 impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "validation failed for `{}`: {}", self.field, self.message)
+        write!(
+            f,
+            "validation failed for `{}`: {}",
+            self.field, self.message
+        )
     }
 }
 
@@ -45,6 +51,8 @@ pub type MilestoneID = String;
 pub type NotificationID = String;
 
 pub type NotificationEventID = String;
+
+pub type CliSessionID = String;
 
 pub type Timestamp = String;
 
@@ -122,6 +130,15 @@ pub enum MilestoneState {
     Future,
 }
 
+/// CliLoginStatus variants
+#[derive(Debug, Clone, PartialEq)]
+pub enum CliLoginStatus {
+    Pending,
+    Denied,
+    Expired,
+    Complete,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct House {
     pub house_id: HouseID,
@@ -137,8 +154,11 @@ impl House {
     pub fn validate(&self) -> Result<(), ValidationError> {
         {
             let v = &self.name;
-            if v.len() < 1usize || v.len() > 256usize {
-                return Err(ValidationError { field: "name".to_string(), message: "length must be in 1..=256".to_string() });
+            if v.is_empty() || v.len() > 256usize {
+                return Err(ValidationError {
+                    field: "name".to_string(),
+                    message: "length must be in 1..=256".to_string(),
+                });
             }
         }
         Ok(())
@@ -186,8 +206,11 @@ impl Role {
     pub fn validate(&self) -> Result<(), ValidationError> {
         {
             let v = &self.name;
-            if v.len() < 1usize || v.len() > 128usize {
-                return Err(ValidationError { field: "name".to_string(), message: "length must be in 1..=128".to_string() });
+            if v.is_empty() || v.len() > 128usize {
+                return Err(ValidationError {
+                    field: "name".to_string(),
+                    message: "length must be in 1..=128".to_string(),
+                });
             }
         }
         Ok(())
@@ -230,8 +253,11 @@ impl Skill {
     pub fn validate(&self) -> Result<(), ValidationError> {
         {
             let v = &self.name;
-            if v.len() < 1usize || v.len() > 256usize {
-                return Err(ValidationError { field: "name".to_string(), message: "length must be in 1..=256".to_string() });
+            if v.is_empty() || v.len() > 256usize {
+                return Err(ValidationError {
+                    field: "name".to_string(),
+                    message: "length must be in 1..=256".to_string(),
+                });
             }
         }
         Ok(())
@@ -268,8 +294,11 @@ impl Group {
     pub fn validate(&self) -> Result<(), ValidationError> {
         {
             let v = &self.name;
-            if v.len() < 1usize || v.len() > 256usize {
-                return Err(ValidationError { field: "name".to_string(), message: "length must be in 1..=256".to_string() });
+            if v.is_empty() || v.len() > 256usize {
+                return Err(ValidationError {
+                    field: "name".to_string(),
+                    message: "length must be in 1..=256".to_string(),
+                });
             }
         }
         Ok(())
@@ -305,8 +334,11 @@ impl Project {
     pub fn validate(&self) -> Result<(), ValidationError> {
         {
             let v = &self.name;
-            if v.len() < 1usize || v.len() > 256usize {
-                return Err(ValidationError { field: "name".to_string(), message: "length must be in 1..=256".to_string() });
+            if v.is_empty() || v.len() > 256usize {
+                return Err(ValidationError {
+                    field: "name".to_string(),
+                    message: "length must be in 1..=256".to_string(),
+                });
             }
         }
         Ok(())
@@ -353,8 +385,11 @@ impl Milestone {
     pub fn validate(&self) -> Result<(), ValidationError> {
         {
             let v = &self.label;
-            if v.len() < 1usize || v.len() > 256usize {
-                return Err(ValidationError { field: "label".to_string(), message: "length must be in 1..=256".to_string() });
+            if v.is_empty() || v.len() > 256usize {
+                return Err(ValidationError {
+                    field: "label".to_string(),
+                    message: "length must be in 1..=256".to_string(),
+                });
             }
         }
         Ok(())
@@ -390,8 +425,11 @@ impl Event {
     pub fn validate(&self) -> Result<(), ValidationError> {
         {
             let v = &self.title;
-            if v.len() < 1usize || v.len() > 512usize {
-                return Err(ValidationError { field: "title".to_string(), message: "length must be in 1..=512".to_string() });
+            if v.is_empty() || v.len() > 512usize {
+                return Err(ValidationError {
+                    field: "title".to_string(),
+                    message: "length must be in 1..=512".to_string(),
+                });
             }
         }
         Ok(())
@@ -433,8 +471,11 @@ impl Task {
     pub fn validate(&self) -> Result<(), ValidationError> {
         {
             let v = &self.title;
-            if v.len() < 1usize || v.len() > 512usize {
-                return Err(ValidationError { field: "title".to_string(), message: "length must be in 1..=512".to_string() });
+            if v.is_empty() || v.len() > 512usize {
+                return Err(ValidationError {
+                    field: "title".to_string(),
+                    message: "length must be in 1..=512".to_string(),
+                });
             }
         }
         Ok(())
@@ -459,8 +500,11 @@ impl Comment {
     pub fn validate(&self) -> Result<(), ValidationError> {
         {
             let v = &self.body;
-            if v.len() < 1usize || v.len() > 10000usize {
-                return Err(ValidationError { field: "body".to_string(), message: "length must be in 1..=10000".to_string() });
+            if v.is_empty() || v.len() > 10000usize {
+                return Err(ValidationError {
+                    field: "body".to_string(),
+                    message: "length must be in 1..=10000".to_string(),
+                });
             }
         }
         Ok(())
@@ -524,6 +568,102 @@ pub struct LoginResponse {
     pub user_id: String,
     pub display_name: Option<String>,
     pub expires_at: Timestamp,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CliTokenResponse {
+    pub token: String,
+    pub domain: String,
+    pub user_id: String,
+    pub display_name: Option<String>,
+    pub expires_at: Timestamp,
+    pub refresh_token: String,
+    pub refresh_expires_at: Timestamp,
+    pub session_id: CliSessionID,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BeginCliLoginRequest {
+    /// constraint: size in 1..=128
+    pub client_name: String,
+}
+
+impl BeginCliLoginRequest {
+    /// Validate this value against the constraints declared in the CSIL spec.
+    pub fn validate(&self) -> Result<(), ValidationError> {
+        {
+            let v = &self.client_name;
+            if v.is_empty() || v.len() > 128usize {
+                return Err(ValidationError {
+                    field: "client_name".to_string(),
+                    message: "length must be in 1..=128".to_string(),
+                });
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BeginCliLoginResponse {
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_url: String,
+    pub expires_at: Timestamp,
+    pub interval_seconds: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ApproveCliLoginRequest {
+    pub user_code: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CliLoginRequestInfo {
+    pub user_code: String,
+    pub client_name: String,
+    pub expires_at: Timestamp,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DenyCliLoginRequest {
+    pub user_code: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExchangeCliLoginRequest {
+    pub device_code: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExchangeCliLoginResponse {
+    pub status: CliLoginStatus,
+    pub session: Option<CliTokenResponse>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RefreshSessionRequest {
+    pub refresh_token: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CliSessionSummary {
+    pub session_id: CliSessionID,
+    pub client_name: String,
+    pub created_at: Timestamp,
+    pub last_used_at: Timestamp,
+    pub expires_at: Timestamp,
+    pub revoked_at: Option<Timestamp>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CliSessionsResponse {
+    pub sessions: Vec<CliSessionSummary>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RevokeSessionRequest {
+    pub session_id: CliSessionID,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -827,8 +967,11 @@ impl BugReportRequest {
     pub fn validate(&self) -> Result<(), ValidationError> {
         {
             let v = &self.title;
-            if v.len() < 1usize || v.len() > 512usize {
-                return Err(ValidationError { field: "title".to_string(), message: "length must be in 1..=512".to_string() });
+            if v.is_empty() || v.len() > 512usize {
+                return Err(ValidationError {
+                    field: "title".to_string(),
+                    message: "length must be in 1..=512".to_string(),
+                });
             }
         }
         Ok(())

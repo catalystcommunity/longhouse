@@ -22,6 +22,7 @@ MemberAuditID = text
 MilestoneID   = text
 NotificationID      = text
 NotificationEventID = text
+CliSessionID        = text
 Timestamp     = text  ;; RFC3339, always UTC
 
 TaskStatus       = "open" / "in_progress" / "done" / "cancelled"
@@ -40,6 +41,7 @@ ProjectStatus    = "active" / "archived"
 DependencyNodeType = "task" / "project"
 RecurrenceFreq   = "hourly" / "daily" / "weekly" / "monthly" / "quarterly" / "yearly"
 MilestoneState   = "done" / "current" / "future"
+CliLoginStatus   = "pending" / "denied" / "expired" / "complete"
 
 ;; ============================================================
 ;; House + Membership
@@ -516,6 +518,77 @@ LoginResponse = {
     expires_at: Timestamp
 }
 
+;; A browser-authorized CLI session. The access token has the same format as
+;; LoginResponse.token. The opaque refresh token is shown only when the session
+;; is created or rotated. Clients must replace the prior refresh token after
+;; each successful refresh.
+CliTokenResponse = {
+    token: text,
+    domain: text,
+    user_id: text,
+    ? display_name: text,
+    expires_at: Timestamp,
+    refresh_token: text,
+    refresh_expires_at: Timestamp,
+    session_id: CliSessionID
+}
+
+BeginCliLoginRequest = {
+    client_name: text .size (1..128)
+}
+
+BeginCliLoginResponse = {
+    device_code: text,
+    user_code: text,
+    verification_url: text,
+    expires_at: Timestamp,
+    interval_seconds: uint
+}
+
+ApproveCliLoginRequest = {
+    user_code: text
+}
+
+CliLoginRequestInfo = {
+    user_code: text,
+    client_name: text,
+    expires_at: Timestamp
+}
+
+DenyCliLoginRequest = {
+    user_code: text
+}
+
+ExchangeCliLoginRequest = {
+    device_code: text
+}
+
+ExchangeCliLoginResponse = {
+    status: CliLoginStatus,
+    ? session: CliTokenResponse
+}
+
+RefreshSessionRequest = {
+    refresh_token: text
+}
+
+CliSessionSummary = {
+    session_id: CliSessionID,
+    client_name: text,
+    created_at: Timestamp,
+    last_used_at: Timestamp,
+    expires_at: Timestamp,
+    ? revoked_at: Timestamp
+}
+
+CliSessionsResponse = {
+    sessions: [* CliSessionSummary]
+}
+
+RevokeSessionRequest = {
+    session_id: CliSessionID
+}
+
 ;; ---- Dev-auth (local sign-in shortcut) -------------------------------
 ;;
 ;; DevAuthService is only registered when LONGHOUSE_DEV_AUTH_ENABLED=true
@@ -867,7 +940,19 @@ service AuthService {
     complete: CompleteRequest -> LoginResponse / ServiceError,
     refresh:  EmptyRequest    -> LoginResponse / ServiceError,
     logout:   EmptyRequest    -> EmptyResponse / ServiceError,
-    me:       EmptyRequest    -> MeResponse    / ServiceError
+    me:       EmptyRequest    -> MeResponse    / ServiceError,
+
+    ;; Device-style CLI authorization. begin/exchange/refresh-session are
+    ;; public because the caller does not have a bearer yet. Approval, denial,
+    ;; listing, and revocation require the browser's normal bearer.
+    begin-cli-login:    BeginCliLoginRequest    -> BeginCliLoginResponse    / ServiceError,
+    inspect-cli-login:  ApproveCliLoginRequest  -> CliLoginRequestInfo      / ServiceError,
+    approve-cli-login:  ApproveCliLoginRequest  -> EmptyResponse            / ServiceError,
+    deny-cli-login:     DenyCliLoginRequest     -> EmptyResponse            / ServiceError,
+    exchange-cli-login: ExchangeCliLoginRequest -> ExchangeCliLoginResponse / ServiceError,
+    refresh-session:    RefreshSessionRequest   -> CliTokenResponse         / ServiceError,
+    list-sessions:      EmptyRequest            -> CliSessionsResponse      / ServiceError,
+    revoke-session:     RevokeSessionRequest    -> EmptyResponse            / ServiceError
 }
 
 ;; Dev-only shortcut: bypasses the linkkeys assertion exchange to mint a

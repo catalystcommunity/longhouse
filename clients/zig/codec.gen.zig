@@ -190,7 +190,8 @@ fn half_to_f64(h: u16) f64 {
     return @as(f64, @as(f32, @bitCast(bits)));
 }
 
-fn decode_value(alloc: std.mem.Allocator, b: []const u8) CodecError!Decoded {
+fn decode_value(alloc: std.mem.Allocator, b: []const u8, depth: usize) CodecError!Decoded {
+    if (depth > 64) return error.Malformed;
     if (b.len == 0) return error.UnexpectedEof;
     const ib = b[0];
     const major: u8 = ib >> 5;
@@ -207,38 +208,41 @@ fn decode_value(alloc: std.mem.Allocator, b: []const u8) CodecError!Decoded {
         2, 3 => {
             if (arg > b.len - n) return error.UnexpectedEof;
             const end = n + @as(usize, @intCast(arg));
+            if (major == 3 and !std.unicode.utf8ValidateSlice(b[n..end])) return error.Malformed;
             const slice = try alloc.dupe(u8, b[n..end]);
             const value: Value = if (major == 2) .{ .bytes = slice } else .{ .text = slice };
             return .{ .value = value, .consumed = end };
         },
         4 => {
+            if (arg > b.len - n) return error.UnexpectedEof;
             const count: usize = @intCast(arg);
             const items = try alloc.alloc(Value, count);
             var off = n;
             var i: usize = 0;
             while (i < count) : (i += 1) {
-                const d = try decode_value(alloc, b[off..]);
+                const d = try decode_value(alloc, b[off..], depth + 1);
                 items[i] = d.value;
                 off += d.consumed;
             }
             return .{ .value = .{ .array = items }, .consumed = off };
         },
         5 => {
+            if (arg > b.len - n) return error.UnexpectedEof;
             const count: usize = @intCast(arg);
             const pairs = try alloc.alloc(Pair, count);
             var off = n;
             var i: usize = 0;
             while (i < count) : (i += 1) {
-                const k = try decode_value(alloc, b[off..]);
+                const k = try decode_value(alloc, b[off..], depth + 1);
                 off += k.consumed;
-                const v = try decode_value(alloc, b[off..]);
+                const v = try decode_value(alloc, b[off..], depth + 1);
                 off += v.consumed;
                 pairs[i] = .{ .key = k.value, .val = v.value };
             }
             return .{ .value = .{ .map = pairs }, .consumed = off };
         },
         6 => {
-            const inner = try decode_value(alloc, b[n..]);
+            const inner = try decode_value(alloc, b[n..], depth + 1);
             const content = try alloc.create(Value);
             content.* = inner.value;
             return .{ .value = .{ .tag = .{ .num = arg, .content = content } }, .consumed = n + inner.consumed };
@@ -257,7 +261,7 @@ fn decode_value(alloc: std.mem.Allocator, b: []const u8) CodecError!Decoded {
 }
 
 fn decode(alloc: std.mem.Allocator, b: []const u8) CodecError!Value {
-    const d = try decode_value(alloc, b);
+    const d = try decode_value(alloc, b, 0);
     if (d.consumed != b.len) return error.TrailingBytes;
     return d.value;
 }
@@ -538,6 +542,32 @@ fn dec_MilestoneState(alloc: std.mem.Allocator, src: Value, out: *types.Mileston
     }
     if (std.mem.eql(u8, csil_s, "future")) {
         out.* = .future;
+        return;
+    }
+    return error.WrongType;
+}
+
+fn enc_CliLoginStatus(out: *std.ArrayList(u8), v: *const types.CliLoginStatus) CodecError!void {
+    try w_text(out, v.wire_name());
+}
+
+fn dec_CliLoginStatus(alloc: std.mem.Allocator, src: Value, out: *types.CliLoginStatus) CodecError!void {
+    _ = alloc;
+    const csil_s = try as_text(src);
+    if (std.mem.eql(u8, csil_s, "pending")) {
+        out.* = .pending;
+        return;
+    }
+    if (std.mem.eql(u8, csil_s, "denied")) {
+        out.* = .denied;
+        return;
+    }
+    if (std.mem.eql(u8, csil_s, "expired")) {
+        out.* = .expired;
+        return;
+    }
+    if (std.mem.eql(u8, csil_s, "complete")) {
+        out.* = .complete;
         return;
     }
     return error.WrongType;
@@ -2141,6 +2171,328 @@ fn dec_LoginResponse(alloc: std.mem.Allocator, m: Value, out: *types.LoginRespon
     }
 }
 
+fn enc_CliTokenResponse(out: *std.ArrayList(u8), v: *const types.CliTokenResponse) CodecError!void {
+    var csil_n: usize = 7;
+    if (v.display_name != null) csil_n += 1;
+    try w_map_head(out, csil_n);
+    try w_text(out, "token");
+    try w_text(out, v.token);
+    try w_text(out, "domain");
+    try w_text(out, v.domain);
+    try w_text(out, "user_id");
+    try w_text(out, v.user_id);
+    try w_text(out, "expires_at");
+    try w_text(out, v.expires_at);
+    try w_text(out, "session_id");
+    try w_text(out, v.session_id);
+    if (v.display_name) |csil_x| {
+        try w_text(out, "display_name");
+        try w_text(out, csil_x);
+    }
+    try w_text(out, "refresh_token");
+    try w_text(out, v.refresh_token);
+    try w_text(out, "refresh_expires_at");
+    try w_text(out, v.refresh_expires_at);
+}
+
+fn dec_CliTokenResponse(alloc: std.mem.Allocator, m: Value, out: *types.CliTokenResponse) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "token");
+        out.token = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "domain");
+        out.domain = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "user_id");
+        out.user_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "expires_at");
+        out.expires_at = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "session_id");
+        out.session_id = try as_text(csil_fv);
+    }
+    {
+        if (mget(m, "display_name")) |csil_fv| {
+            out.display_name = try as_text(csil_fv);
+        } else {
+            out.display_name = null;
+        }
+    }
+    {
+        const csil_fv = try req(m, "refresh_token");
+        out.refresh_token = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "refresh_expires_at");
+        out.refresh_expires_at = try as_text(csil_fv);
+    }
+}
+
+fn enc_BeginCliLoginRequest(out: *std.ArrayList(u8), v: *const types.BeginCliLoginRequest) CodecError!void {
+    try w_map_head(out, 1);
+    try w_text(out, "client_name");
+    try w_text(out, v.client_name);
+}
+
+fn dec_BeginCliLoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.BeginCliLoginRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "client_name");
+        out.client_name = try as_text(csil_fv);
+    }
+}
+
+fn enc_BeginCliLoginResponse(out: *std.ArrayList(u8), v: *const types.BeginCliLoginResponse) CodecError!void {
+    try w_map_head(out, 5);
+    try w_text(out, "user_code");
+    try w_text(out, v.user_code);
+    try w_text(out, "expires_at");
+    try w_text(out, v.expires_at);
+    try w_text(out, "device_code");
+    try w_text(out, v.device_code);
+    try w_text(out, "interval_seconds");
+    try w_uint(out, v.interval_seconds);
+    try w_text(out, "verification_url");
+    try w_text(out, v.verification_url);
+}
+
+fn dec_BeginCliLoginResponse(alloc: std.mem.Allocator, m: Value, out: *types.BeginCliLoginResponse) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "user_code");
+        out.user_code = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "expires_at");
+        out.expires_at = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "device_code");
+        out.device_code = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "interval_seconds");
+        out.interval_seconds = try as_u64(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "verification_url");
+        out.verification_url = try as_text(csil_fv);
+    }
+}
+
+fn enc_ApproveCliLoginRequest(out: *std.ArrayList(u8), v: *const types.ApproveCliLoginRequest) CodecError!void {
+    try w_map_head(out, 1);
+    try w_text(out, "user_code");
+    try w_text(out, v.user_code);
+}
+
+fn dec_ApproveCliLoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.ApproveCliLoginRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "user_code");
+        out.user_code = try as_text(csil_fv);
+    }
+}
+
+fn enc_CliLoginRequestInfo(out: *std.ArrayList(u8), v: *const types.CliLoginRequestInfo) CodecError!void {
+    try w_map_head(out, 3);
+    try w_text(out, "user_code");
+    try w_text(out, v.user_code);
+    try w_text(out, "expires_at");
+    try w_text(out, v.expires_at);
+    try w_text(out, "client_name");
+    try w_text(out, v.client_name);
+}
+
+fn dec_CliLoginRequestInfo(alloc: std.mem.Allocator, m: Value, out: *types.CliLoginRequestInfo) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "user_code");
+        out.user_code = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "expires_at");
+        out.expires_at = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "client_name");
+        out.client_name = try as_text(csil_fv);
+    }
+}
+
+fn enc_DenyCliLoginRequest(out: *std.ArrayList(u8), v: *const types.DenyCliLoginRequest) CodecError!void {
+    try w_map_head(out, 1);
+    try w_text(out, "user_code");
+    try w_text(out, v.user_code);
+}
+
+fn dec_DenyCliLoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.DenyCliLoginRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "user_code");
+        out.user_code = try as_text(csil_fv);
+    }
+}
+
+fn enc_ExchangeCliLoginRequest(out: *std.ArrayList(u8), v: *const types.ExchangeCliLoginRequest) CodecError!void {
+    try w_map_head(out, 1);
+    try w_text(out, "device_code");
+    try w_text(out, v.device_code);
+}
+
+fn dec_ExchangeCliLoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.ExchangeCliLoginRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "device_code");
+        out.device_code = try as_text(csil_fv);
+    }
+}
+
+fn enc_ExchangeCliLoginResponse(out: *std.ArrayList(u8), v: *const types.ExchangeCliLoginResponse) CodecError!void {
+    var csil_n: usize = 1;
+    if (v.session != null) csil_n += 1;
+    try w_map_head(out, csil_n);
+    try w_text(out, "status");
+    try enc_CliLoginStatus(out, &(v.status));
+    if (v.session) |csil_x| {
+        try w_text(out, "session");
+        try enc_CliTokenResponse(out, &(csil_x));
+    }
+}
+
+fn dec_ExchangeCliLoginResponse(alloc: std.mem.Allocator, m: Value, out: *types.ExchangeCliLoginResponse) CodecError!void {
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "status");
+        try dec_CliLoginStatus(alloc, csil_fv, &(out.status));
+    }
+    {
+        if (mget(m, "session")) |csil_fv| {
+            var csil_tmp: types.CliTokenResponse = undefined;
+            try dec_CliTokenResponse(alloc, csil_fv, &csil_tmp);
+            out.session = csil_tmp;
+        } else {
+            out.session = null;
+        }
+    }
+}
+
+fn enc_RefreshSessionRequest(out: *std.ArrayList(u8), v: *const types.RefreshSessionRequest) CodecError!void {
+    try w_map_head(out, 1);
+    try w_text(out, "refresh_token");
+    try w_text(out, v.refresh_token);
+}
+
+fn dec_RefreshSessionRequest(alloc: std.mem.Allocator, m: Value, out: *types.RefreshSessionRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "refresh_token");
+        out.refresh_token = try as_text(csil_fv);
+    }
+}
+
+fn enc_CliSessionSummary(out: *std.ArrayList(u8), v: *const types.CliSessionSummary) CodecError!void {
+    var csil_n: usize = 5;
+    if (v.revoked_at != null) csil_n += 1;
+    try w_map_head(out, csil_n);
+    try w_text(out, "created_at");
+    try w_text(out, v.created_at);
+    try w_text(out, "expires_at");
+    try w_text(out, v.expires_at);
+    if (v.revoked_at) |csil_x| {
+        try w_text(out, "revoked_at");
+        try w_text(out, csil_x);
+    }
+    try w_text(out, "session_id");
+    try w_text(out, v.session_id);
+    try w_text(out, "client_name");
+    try w_text(out, v.client_name);
+    try w_text(out, "last_used_at");
+    try w_text(out, v.last_used_at);
+}
+
+fn dec_CliSessionSummary(alloc: std.mem.Allocator, m: Value, out: *types.CliSessionSummary) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "created_at");
+        out.created_at = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "expires_at");
+        out.expires_at = try as_text(csil_fv);
+    }
+    {
+        if (mget(m, "revoked_at")) |csil_fv| {
+            out.revoked_at = try as_text(csil_fv);
+        } else {
+            out.revoked_at = null;
+        }
+    }
+    {
+        const csil_fv = try req(m, "session_id");
+        out.session_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "client_name");
+        out.client_name = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "last_used_at");
+        out.last_used_at = try as_text(csil_fv);
+    }
+}
+
+fn enc_CliSessionsResponse(out: *std.ArrayList(u8), v: *const types.CliSessionsResponse) CodecError!void {
+    try w_map_head(out, 1);
+    try w_text(out, "sessions");
+    try w_array_head(out, v.sessions.len);
+    for (v.sessions) |csil_it| {
+        try enc_CliSessionSummary(out, &(csil_it));
+    }
+}
+
+fn dec_CliSessionsResponse(alloc: std.mem.Allocator, m: Value, out: *types.CliSessionsResponse) CodecError!void {
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "sessions");
+        if (csil_fv != .array) return error.WrongType;
+        out.sessions = try alloc.alloc(types.CliSessionSummary, csil_fv.array.len);
+        for (csil_fv.array, 0..) |csil_it, csil_i| {
+            try dec_CliSessionSummary(alloc, csil_it, &(out.sessions[csil_i]));
+        }
+    }
+}
+
+fn enc_RevokeSessionRequest(out: *std.ArrayList(u8), v: *const types.RevokeSessionRequest) CodecError!void {
+    try w_map_head(out, 1);
+    try w_text(out, "session_id");
+    try w_text(out, v.session_id);
+}
+
+fn dec_RevokeSessionRequest(alloc: std.mem.Allocator, m: Value, out: *types.RevokeSessionRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "session_id");
+        out.session_id = try as_text(csil_fv);
+    }
+}
+
 fn enc_DevUserEntry(out: *std.ArrayList(u8), v: *const types.DevUserEntry) CodecError!void {
     var csil_n: usize = 4;
     if (v.display_name != null) csil_n += 1;
@@ -3049,7 +3401,7 @@ fn enc_DependencyTarget(out: *std.ArrayList(u8), v: *const types.DependencyTarge
     try w_text(out, "id");
     try w_text(out, v.id);
     try w_text(out, "type");
-    try enc_DependencyNodeType(out, &(v.@"type"));
+    try enc_DependencyNodeType(out, &(v.type));
 }
 
 fn dec_DependencyTarget(alloc: std.mem.Allocator, m: Value, out: *types.DependencyTarget) CodecError!void {
@@ -3060,7 +3412,7 @@ fn dec_DependencyTarget(alloc: std.mem.Allocator, m: Value, out: *types.Dependen
     }
     {
         const csil_fv = try req(m, "type");
-        try dec_DependencyNodeType(alloc, csil_fv, &(out.@"type"));
+        try dec_DependencyNodeType(alloc, csil_fv, &(out.type));
     }
 }
 
@@ -3071,7 +3423,7 @@ fn enc_DependencyNode(out: *std.ArrayList(u8), v: *const types.DependencyNode) C
     try w_text(out, "id");
     try w_text(out, v.id);
     try w_text(out, "type");
-    try enc_DependencyNodeType(out, &(v.@"type"));
+    try enc_DependencyNodeType(out, &(v.type));
     try w_text(out, "title");
     try w_text(out, v.title);
     if (v.status) |csil_x| {
@@ -3088,7 +3440,7 @@ fn dec_DependencyNode(alloc: std.mem.Allocator, m: Value, out: *types.Dependency
     }
     {
         const csil_fv = try req(m, "type");
-        try dec_DependencyNodeType(alloc, csil_fv, &(out.@"type"));
+        try dec_DependencyNodeType(alloc, csil_fv, &(out.type));
     }
     {
         const csil_fv = try req(m, "title");
@@ -4100,6 +4452,22 @@ pub fn decode_MilestoneState(alloc: std.mem.Allocator, bytes: []const u8, out: *
     try dec_MilestoneState(alloc, root, out);
 }
 
+/// Encode a CliLoginStatus to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CliLoginStatus(alloc: std.mem.Allocator, v: *const types.CliLoginStatus) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CliLoginStatus(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CliLoginStatus. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CliLoginStatus(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CliLoginStatus) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CliLoginStatus(alloc, root, out);
+}
+
 /// Encode a House to CBOR. The returned slice is owned by the caller
 /// (free it with alloc.free).
 pub fn encode_House(alloc: std.mem.Allocator, v: *const types.House) CodecError![]u8 {
@@ -4514,6 +4882,198 @@ pub fn encode_LoginResponse(alloc: std.mem.Allocator, v: *const types.LoginRespo
 pub fn decode_LoginResponse(alloc: std.mem.Allocator, bytes: []const u8, out: *types.LoginResponse) CodecError!void {
     const root = try decode(alloc, bytes);
     try dec_LoginResponse(alloc, root, out);
+}
+
+/// Encode a CliTokenResponse to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CliTokenResponse(alloc: std.mem.Allocator, v: *const types.CliTokenResponse) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CliTokenResponse(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CliTokenResponse. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CliTokenResponse(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CliTokenResponse) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CliTokenResponse(alloc, root, out);
+}
+
+/// Encode a BeginCliLoginRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_BeginCliLoginRequest(alloc: std.mem.Allocator, v: *const types.BeginCliLoginRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_BeginCliLoginRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a BeginCliLoginRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_BeginCliLoginRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.BeginCliLoginRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_BeginCliLoginRequest(alloc, root, out);
+}
+
+/// Encode a BeginCliLoginResponse to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_BeginCliLoginResponse(alloc: std.mem.Allocator, v: *const types.BeginCliLoginResponse) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_BeginCliLoginResponse(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a BeginCliLoginResponse. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_BeginCliLoginResponse(alloc: std.mem.Allocator, bytes: []const u8, out: *types.BeginCliLoginResponse) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_BeginCliLoginResponse(alloc, root, out);
+}
+
+/// Encode a ApproveCliLoginRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ApproveCliLoginRequest(alloc: std.mem.Allocator, v: *const types.ApproveCliLoginRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ApproveCliLoginRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ApproveCliLoginRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ApproveCliLoginRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ApproveCliLoginRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ApproveCliLoginRequest(alloc, root, out);
+}
+
+/// Encode a CliLoginRequestInfo to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CliLoginRequestInfo(alloc: std.mem.Allocator, v: *const types.CliLoginRequestInfo) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CliLoginRequestInfo(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CliLoginRequestInfo. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CliLoginRequestInfo(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CliLoginRequestInfo) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CliLoginRequestInfo(alloc, root, out);
+}
+
+/// Encode a DenyCliLoginRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_DenyCliLoginRequest(alloc: std.mem.Allocator, v: *const types.DenyCliLoginRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_DenyCliLoginRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a DenyCliLoginRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_DenyCliLoginRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.DenyCliLoginRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_DenyCliLoginRequest(alloc, root, out);
+}
+
+/// Encode a ExchangeCliLoginRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ExchangeCliLoginRequest(alloc: std.mem.Allocator, v: *const types.ExchangeCliLoginRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ExchangeCliLoginRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ExchangeCliLoginRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ExchangeCliLoginRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ExchangeCliLoginRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ExchangeCliLoginRequest(alloc, root, out);
+}
+
+/// Encode a ExchangeCliLoginResponse to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ExchangeCliLoginResponse(alloc: std.mem.Allocator, v: *const types.ExchangeCliLoginResponse) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ExchangeCliLoginResponse(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ExchangeCliLoginResponse. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ExchangeCliLoginResponse(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ExchangeCliLoginResponse) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ExchangeCliLoginResponse(alloc, root, out);
+}
+
+/// Encode a RefreshSessionRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_RefreshSessionRequest(alloc: std.mem.Allocator, v: *const types.RefreshSessionRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_RefreshSessionRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a RefreshSessionRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_RefreshSessionRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.RefreshSessionRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_RefreshSessionRequest(alloc, root, out);
+}
+
+/// Encode a CliSessionSummary to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CliSessionSummary(alloc: std.mem.Allocator, v: *const types.CliSessionSummary) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CliSessionSummary(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CliSessionSummary. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CliSessionSummary(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CliSessionSummary) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CliSessionSummary(alloc, root, out);
+}
+
+/// Encode a CliSessionsResponse to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CliSessionsResponse(alloc: std.mem.Allocator, v: *const types.CliSessionsResponse) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CliSessionsResponse(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CliSessionsResponse. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CliSessionsResponse(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CliSessionsResponse) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CliSessionsResponse(alloc, root, out);
+}
+
+/// Encode a RevokeSessionRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_RevokeSessionRequest(alloc: std.mem.Allocator, v: *const types.RevokeSessionRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_RevokeSessionRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a RevokeSessionRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_RevokeSessionRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.RevokeSessionRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_RevokeSessionRequest(alloc, root, out);
 }
 
 /// Encode a DevUserEntry to CBOR. The returned slice is owned by the caller

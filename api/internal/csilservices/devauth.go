@@ -24,8 +24,8 @@ type DevAuthService struct {
 }
 
 func (s *DevAuthService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTypedPublic("devauth", "ListDevUsers", csilrpc.Route(s.ListDevUsers, csil.DecodeDevAuthListDevUsersRequest, csil.EncodeDevAuthListDevUsersResponse))
-	d.RegisterTypedPublic("devauth", "DevLogin", csilrpc.Route(s.DevLogin, csil.DecodeDevAuthDevLoginRequest, csil.EncodeDevAuthDevLoginResponse))
+	d.RegisterTypedPublic("devauth", "ListDevUsers", csilrpc.Route(s.ListDevUsers, csil.DecodeEmptyRequest, csil.EncodeDevUsersResponse))
+	d.RegisterTypedPublic("devauth", "DevLogin", csilrpc.Route(s.DevLogin, csil.DecodeDevLoginRequest, csil.EncodeLoginResponse))
 }
 
 func (s *DevAuthService) ListDevUsers(ctx context.Context, _ csil.EmptyRequest) (csil.DevUsersResponse, error) {

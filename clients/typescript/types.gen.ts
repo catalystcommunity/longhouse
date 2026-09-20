@@ -32,6 +32,8 @@ export type NotificationID = string;
 
 export type NotificationEventID = string;
 
+export type CliSessionID = string;
+
 export type Timestamp = string;
 
 export type TaskStatus = "open" | "in_progress" | "done" | "cancelled";
@@ -51,6 +53,8 @@ export type DependencyNodeType = "task" | "project";
 export type RecurrenceFreq = "hourly" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
 
 export type MilestoneState = "done" | "current" | "future";
+
+export type CliLoginStatus = "pending" | "denied" | "expired" | "complete";
 
 export interface House {
   houseId: HouseID;
@@ -294,6 +298,73 @@ export interface LoginResponse {
   userId: string;
   displayName?: string;
   expiresAt: Timestamp;
+}
+
+export interface CliTokenResponse {
+  token: string;
+  domain: string;
+  userId: string;
+  displayName?: string;
+  expiresAt: Timestamp;
+  refreshToken: string;
+  refreshExpiresAt: Timestamp;
+  sessionId: CliSessionID;
+}
+
+export interface BeginCliLoginRequest {
+  clientName: string;
+}
+
+export interface BeginCliLoginResponse {
+  deviceCode: string;
+  userCode: string;
+  verificationUrl: string;
+  expiresAt: Timestamp;
+  intervalSeconds: number;
+}
+
+export interface ApproveCliLoginRequest {
+  userCode: string;
+}
+
+export interface CliLoginRequestInfo {
+  userCode: string;
+  clientName: string;
+  expiresAt: Timestamp;
+}
+
+export interface DenyCliLoginRequest {
+  userCode: string;
+}
+
+export interface ExchangeCliLoginRequest {
+  deviceCode: string;
+}
+
+export interface ExchangeCliLoginResponse {
+  status: CliLoginStatus;
+  session?: CliTokenResponse;
+}
+
+export interface RefreshSessionRequest {
+  refreshToken: string;
+}
+
+export interface CliSessionSummary {
+  sessionId: CliSessionID;
+  clientName: string;
+  createdAt: Timestamp;
+  lastUsedAt: Timestamp;
+  expiresAt: Timestamp;
+  revokedAt?: Timestamp;
+}
+
+export interface CliSessionsResponse {
+  sessions: CliSessionSummary[];
+}
+
+export interface RevokeSessionRequest {
+  sessionId: CliSessionID;
 }
 
 export interface DevUserEntry {
@@ -668,6 +739,12 @@ export function validateTask(value: Task): string[] {
 export function validateComment(value: Comment): string[] {
   const errors: string[] = [];
   if (value.body.length < 1 || value.body.length > 10000) errors.push("body: length must be between 1 and 10000");
+  return errors;
+}
+
+export function validateBeginCliLoginRequest(value: BeginCliLoginRequest): string[] {
+  const errors: string[] = [];
+  if (value.clientName.length < 1 || value.clientName.length > 128) errors.push("clientName: length must be between 1 and 128");
   return errors;
 }
 

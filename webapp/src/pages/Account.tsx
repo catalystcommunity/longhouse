@@ -1,7 +1,8 @@
-import { For, Show } from "solid-js";
+import { For, Show, createResource, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { AuthGate } from "~/components/AuthGate";
 import { signOut, useHouses, useSession } from "~/stores/auth";
+import { authClient } from "~/data/clients";
 
 /**
  * Per-user account surface. Today this is a read-only view of the signed-in
@@ -13,10 +14,29 @@ export const AccountPage = () => {
   const navigate = useNavigate();
   const session = useSession();
   const houses = useHouses();
+  const [revoking, setRevoking] = createSignal<string | null>(null);
+  const [sessionError, setSessionError] = createSignal<string | null>(null);
+  const [cliSessions, { refetch: refetchCliSessions }] = createResource(
+    () => session()?.token,
+    async () => (await authClient.listSessions({})).sessions ?? [],
+  );
 
   const onSignOut = () => {
     signOut();
     navigate(import.meta.env.DEV ? "/dev-login" : "/");
+  };
+
+  const revokeCliSession = async (sessionId: string) => {
+    setRevoking(sessionId);
+    setSessionError(null);
+    try {
+      await authClient.revokeSession({ sessionId });
+      await refetchCliSessions();
+    } catch (error) {
+      setSessionError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRevoking(null);
+    }
   };
 
   return (
@@ -43,6 +63,45 @@ export const AccountPage = () => {
               <dd style="margin:0">{new Date(s().expiresAt).toLocaleString()}</dd>
             </dl>
           )}
+        </Show>
+      </section>
+
+      <section style="margin-top:20px;padding:20px 22px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-low)">
+        <h3 style="margin:0 0 10px;font-family:var(--display);font-size:20px;color:var(--grass-4)">
+          CLI sessions
+        </h3>
+        <p style="margin:0 0 14px;color:var(--ink-mute);font-size:14px">
+          Revoke a command-line session that you no longer use. Its current access bearer can work until it expires.
+        </p>
+        <Show when={sessionError()}>{(message) => <p class="err">{message()}</p>}</Show>
+        <Show when={!cliSessions.loading} fallback={<p style="color:var(--ink-mute)">Loading CLI sessions…</p>}>
+          <Show when={(cliSessions() ?? []).length > 0} fallback={<p style="color:var(--ink-mute)">No CLI sessions.</p>}>
+            <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px">
+              <For each={cliSessions()}>
+                {(cliSession) => {
+                  const inactive = () => Boolean(cliSession.revokedAt) || Date.parse(cliSession.expiresAt) <= Date.now();
+                  return (
+                    <li style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-md)">
+                      <span>
+                        <strong>{cliSession.clientName}</strong>
+                        <span style="display:block;color:var(--ink-mute);font-size:12px">
+                          {inactive() ? "Inactive" : `Last used ${new Date(cliSession.lastUsedAt).toLocaleString()}`}
+                        </span>
+                      </span>
+                      <button
+                        class="btn btn-ghost"
+                        type="button"
+                        disabled={inactive() || revoking() !== null}
+                        onClick={() => void revokeCliSession(cliSession.sessionId)}
+                      >
+                        {revoking() === cliSession.sessionId ? "Revoking…" : "Revoke"}
+                      </button>
+                    </li>
+                  );
+                }}
+              </For>
+            </ul>
+          </Show>
         </Show>
       </section>
 

@@ -19,10 +19,10 @@ import (
 type NotificationService struct{ Store store.Store }
 
 func (s *NotificationService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("notification", "ListNotifications", csilrpc.Route(s.ListNotifications, csil.DecodeNotificationListNotificationsRequest, csil.EncodeNotificationListNotificationsResponse))
-	d.RegisterTyped("notification", "UnreadCount", csilrpc.Route(s.UnreadCount, csil.DecodeNotificationUnreadCountRequest, csil.EncodeNotificationUnreadCountResponse))
-	d.RegisterTyped("notification", "MarkRead", csilrpc.Route(s.MarkRead, csil.DecodeNotificationMarkReadRequest, csil.EncodeNotificationMarkReadResponse))
-	d.RegisterTyped("notification", "MarkAllRead", csilrpc.Route(s.MarkAllRead, csil.DecodeNotificationMarkAllReadRequest, csil.EncodeNotificationMarkAllReadResponse))
+	d.RegisterTyped("notification", "ListNotifications", csilrpc.Route(s.ListNotifications, csil.DecodeNotificationListRequest, csil.EncodeNotificationListNotificationsResponse))
+	d.RegisterTyped("notification", "UnreadCount", csilrpc.Route(s.UnreadCount, csil.DecodeNotificationUnreadCountRequest, csil.EncodeNotificationUnreadCount))
+	d.RegisterTyped("notification", "MarkRead", csilrpc.Route(s.MarkRead, csil.DecodeNotificationMarkReadRequest, csil.EncodeNotification))
+	d.RegisterTyped("notification", "MarkAllRead", csilrpc.Route(s.MarkAllRead, csil.DecodeNotificationMarkAllReadRequest, csil.EncodeEmptyResponse))
 }
 
 func (s *NotificationService) ListNotifications(ctx context.Context, req csil.NotificationListRequest) ([]csil.Notification, error) {

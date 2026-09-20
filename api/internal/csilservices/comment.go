@@ -29,11 +29,11 @@ type CommentService struct{ Store store.Store }
 const maxCommentBody = 10000
 
 func (s *CommentService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("comment", "ListComments", csilrpc.Route(s.ListComments, csil.DecodeCommentListCommentsRequest, csil.EncodeCommentListCommentsResponse))
-	d.RegisterTyped("comment", "GetComment", csilrpc.Route(s.GetComment, csil.DecodeCommentGetCommentRequest, csil.EncodeCommentGetCommentResponse))
-	d.RegisterTyped("comment", "CreateComment", csilrpc.Route(s.CreateComment, csil.DecodeCommentCreateCommentRequest, csil.EncodeCommentCreateCommentResponse))
-	d.RegisterTyped("comment", "UpdateComment", csilrpc.Route(s.UpdateComment, csil.DecodeCommentUpdateCommentRequest, csil.EncodeCommentUpdateCommentResponse))
-	d.RegisterTyped("comment", "DeleteComment", csilrpc.Route(s.DeleteComment, csil.DecodeCommentDeleteCommentRequest, csil.EncodeCommentDeleteCommentResponse))
+	d.RegisterTyped("comment", "ListComments", csilrpc.Route(s.ListComments, csil.DecodeCommentListRequest, csil.EncodeCommentListCommentsResponse))
+	d.RegisterTyped("comment", "GetComment", csilrpc.Route(s.GetComment, csil.DecodeCommentGetCommentRequest, csil.EncodeComment))
+	d.RegisterTyped("comment", "CreateComment", csilrpc.Route(s.CreateComment, csil.DecodeComment, csil.EncodeComment))
+	d.RegisterTyped("comment", "UpdateComment", csilrpc.Route(s.UpdateComment, csil.DecodeComment, csil.EncodeComment))
+	d.RegisterTyped("comment", "DeleteComment", csilrpc.Route(s.DeleteComment, csil.DecodeCommentDeleteCommentRequest, csil.EncodeEmptyResponse))
 }
 
 func (s *CommentService) ListComments(ctx context.Context, req csil.CommentListRequest) ([]csil.Comment, error) {

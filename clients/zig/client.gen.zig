@@ -22,59 +22,147 @@ pub const AuthClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke auth/Login with a typed request, returning the decoded
+    /// Invoke AuthService/login with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn login(self: AuthClient, alloc: std.mem.Allocator, req: *const types.LoginRequest, out: *types.LoginResponse) anyerror!void {
         const csil_reqb = try codec.encode_LoginRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "auth", "Login", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "login", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_LoginResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke auth/Complete with a typed request, returning the decoded
+    /// Invoke AuthService/complete with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn complete(self: AuthClient, alloc: std.mem.Allocator, req: *const types.CompleteRequest, out: *types.LoginResponse) anyerror!void {
         const csil_reqb = try codec.encode_CompleteRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "auth", "Complete", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "complete", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_LoginResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke auth/Refresh with a typed request, returning the decoded
+    /// Invoke AuthService/refresh with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn refresh(self: AuthClient, alloc: std.mem.Allocator, req: *const types.EmptyRequest, out: *types.LoginResponse) anyerror!void {
         const csil_reqb = try codec.encode_EmptyRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "auth", "Refresh", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "refresh", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_LoginResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke auth/Logout with a typed request, returning the decoded
+    /// Invoke AuthService/logout with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn logout(self: AuthClient, alloc: std.mem.Allocator, req: *const types.EmptyRequest, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_EmptyRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "auth", "Logout", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "logout", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke auth/Me with a typed request, returning the decoded
+    /// Invoke AuthService/me with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn me(self: AuthClient, alloc: std.mem.Allocator, req: *const types.EmptyRequest, out: *types.MeResponse) anyerror!void {
         const csil_reqb = try codec.encode_EmptyRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "auth", "Me", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "me", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_MeResponse(alloc, csil_respb, out);
+    }
+
+    /// Invoke AuthService/begin-cli-login with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn begin_cli_login(self: AuthClient, alloc: std.mem.Allocator, req: *const types.BeginCliLoginRequest, out: *types.BeginCliLoginResponse) anyerror!void {
+        const csil_reqb = try codec.encode_BeginCliLoginRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "begin-cli-login", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_BeginCliLoginResponse(alloc, csil_respb, out);
+    }
+
+    /// Invoke AuthService/inspect-cli-login with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn inspect_cli_login(self: AuthClient, alloc: std.mem.Allocator, req: *const types.ApproveCliLoginRequest, out: *types.CliLoginRequestInfo) anyerror!void {
+        const csil_reqb = try codec.encode_ApproveCliLoginRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "inspect-cli-login", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_CliLoginRequestInfo(alloc, csil_respb, out);
+    }
+
+    /// Invoke AuthService/approve-cli-login with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn approve_cli_login(self: AuthClient, alloc: std.mem.Allocator, req: *const types.ApproveCliLoginRequest, out: *types.EmptyResponse) anyerror!void {
+        const csil_reqb = try codec.encode_ApproveCliLoginRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "approve-cli-login", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_EmptyResponse(alloc, csil_respb, out);
+    }
+
+    /// Invoke AuthService/deny-cli-login with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn deny_cli_login(self: AuthClient, alloc: std.mem.Allocator, req: *const types.DenyCliLoginRequest, out: *types.EmptyResponse) anyerror!void {
+        const csil_reqb = try codec.encode_DenyCliLoginRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "deny-cli-login", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_EmptyResponse(alloc, csil_respb, out);
+    }
+
+    /// Invoke AuthService/exchange-cli-login with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn exchange_cli_login(self: AuthClient, alloc: std.mem.Allocator, req: *const types.ExchangeCliLoginRequest, out: *types.ExchangeCliLoginResponse) anyerror!void {
+        const csil_reqb = try codec.encode_ExchangeCliLoginRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "exchange-cli-login", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_ExchangeCliLoginResponse(alloc, csil_respb, out);
+    }
+
+    /// Invoke AuthService/refresh-session with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn refresh_session(self: AuthClient, alloc: std.mem.Allocator, req: *const types.RefreshSessionRequest, out: *types.CliTokenResponse) anyerror!void {
+        const csil_reqb = try codec.encode_RefreshSessionRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "refresh-session", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_CliTokenResponse(alloc, csil_respb, out);
+    }
+
+    /// Invoke AuthService/list-sessions with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn list_sessions(self: AuthClient, alloc: std.mem.Allocator, req: *const types.EmptyRequest, out: *types.CliSessionsResponse) anyerror!void {
+        const csil_reqb = try codec.encode_EmptyRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "list-sessions", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_CliSessionsResponse(alloc, csil_respb, out);
+    }
+
+    /// Invoke AuthService/revoke-session with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn revoke_session(self: AuthClient, alloc: std.mem.Allocator, req: *const types.RevokeSessionRequest, out: *types.EmptyResponse) anyerror!void {
+        const csil_reqb = try codec.encode_RevokeSessionRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "revoke-session", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 };
 
@@ -86,24 +174,24 @@ pub const DevAuthClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke devauth/ListDevUsers with a typed request, returning the decoded
+    /// Invoke DevAuthService/list-dev-users with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_dev_users(self: DevAuthClient, alloc: std.mem.Allocator, req: *const types.EmptyRequest, out: *types.DevUsersResponse) anyerror!void {
         const csil_reqb = try codec.encode_EmptyRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "devauth", "ListDevUsers", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "DevAuthService", "list-dev-users", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_DevUsersResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke devauth/DevLogin with a typed request, returning the decoded
+    /// Invoke DevAuthService/dev-login with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn dev_login(self: DevAuthClient, alloc: std.mem.Allocator, req: *const types.DevLoginRequest, out: *types.LoginResponse) anyerror!void {
         const csil_reqb = try codec.encode_DevLoginRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "devauth", "DevLogin", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "DevAuthService", "dev-login", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_LoginResponse(alloc, csil_respb, out);
     }
@@ -117,57 +205,57 @@ pub const HouseClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke house/CreateHouse with a typed request, returning the decoded
+    /// Invoke HouseService/create-house with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn create_house(self: HouseClient, alloc: std.mem.Allocator, req: *const types.House, out: *types.House) anyerror!void {
         const csil_reqb = try codec.encode_House(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "house", "CreateHouse", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "HouseService", "create-house", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_House(alloc, csil_respb, out);
     }
 
-    /// Invoke house/GetHouse with a typed request, returning the decoded
+    /// Invoke HouseService/get-house with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn get_house(self: HouseClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *types.House) anyerror!void {
         const csil_reqb = try codec.encode_HouseID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "house", "GetHouse", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "HouseService", "get-house", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_House(alloc, csil_respb, out);
     }
 
-    /// Invoke house/UpdateHouse with a typed request, returning the decoded
+    /// Invoke HouseService/update-house with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn update_house(self: HouseClient, alloc: std.mem.Allocator, req: *const types.House, out: *types.House) anyerror!void {
         const csil_reqb = try codec.encode_House(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "house", "UpdateHouse", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "HouseService", "update-house", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_House(alloc, csil_respb, out);
     }
 
-    /// Invoke house/DeleteHouse with a typed request, returning the decoded
+    /// Invoke HouseService/delete-house with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_house(self: HouseClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_HouseID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "house", "DeleteHouse", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "HouseService", "delete-house", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke house/ListHouses with a typed request, returning the decoded
+    /// Invoke HouseService/list-houses with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_houses(self: HouseClient, alloc: std.mem.Allocator, req: *const types.HouseListRequest, out: *[]types.House) anyerror!void {
         const csil_reqb = try codec.encode_HouseListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "house", "ListHouses", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "HouseService", "list-houses", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
@@ -181,79 +269,79 @@ pub const MemberClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke member/CreateMember with a typed request, returning the decoded
+    /// Invoke MemberService/create-member with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn create_member(self: MemberClient, alloc: std.mem.Allocator, req: *const types.Member, out: *types.Member) anyerror!void {
         const csil_reqb = try codec.encode_Member(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "member", "CreateMember", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "MemberService", "create-member", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Member(alloc, csil_respb, out);
     }
 
-    /// Invoke member/GetMember with a typed request, returning the decoded
+    /// Invoke MemberService/get-member with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn get_member(self: MemberClient, alloc: std.mem.Allocator, req: *const types.MemberID, out: *types.Member) anyerror!void {
         const csil_reqb = try codec.encode_MemberID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "member", "GetMember", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "MemberService", "get-member", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Member(alloc, csil_respb, out);
     }
 
-    /// Invoke member/GetMemberByIdentity with a typed request, returning the decoded
+    /// Invoke MemberService/get-member-by-identity with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn get_member_by_identity(self: MemberClient, alloc: std.mem.Allocator, req: *const types.Member, out: *types.Member) anyerror!void {
         const csil_reqb = try codec.encode_Member(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "member", "GetMemberByIdentity", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "MemberService", "get-member-by-identity", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Member(alloc, csil_respb, out);
     }
 
-    /// Invoke member/UpdateMember with a typed request, returning the decoded
+    /// Invoke MemberService/update-member with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn update_member(self: MemberClient, alloc: std.mem.Allocator, req: *const types.Member, out: *types.Member) anyerror!void {
         const csil_reqb = try codec.encode_Member(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "member", "UpdateMember", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "MemberService", "update-member", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Member(alloc, csil_respb, out);
     }
 
-    /// Invoke member/DeactivateMember with a typed request, returning the decoded
+    /// Invoke MemberService/deactivate-member with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn deactivate_member(self: MemberClient, alloc: std.mem.Allocator, req: *const types.MemberID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_MemberID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "member", "DeactivateMember", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "MemberService", "deactivate-member", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke member/ReactivateMember with a typed request, returning the decoded
+    /// Invoke MemberService/reactivate-member with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn reactivate_member(self: MemberClient, alloc: std.mem.Allocator, req: *const types.MemberID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_MemberID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "member", "ReactivateMember", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "MemberService", "reactivate-member", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke member/ListMembers with a typed request, returning the decoded
+    /// Invoke MemberService/list-members with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_members(self: MemberClient, alloc: std.mem.Allocator, req: *const types.HouseScopedListRequest, out: *[]types.Member) anyerror!void {
         const csil_reqb = try codec.encode_HouseScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "member", "ListMembers", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "MemberService", "list-members", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
@@ -267,46 +355,46 @@ pub const TrustedDomainClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke trusteddomain/AddTrustedDomain with a typed request, returning the decoded
+    /// Invoke TrustedDomainService/add-trusted-domain with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn add_trusted_domain(self: TrustedDomainClient, alloc: std.mem.Allocator, req: *const types.TrustedDomain, out: *types.TrustedDomain) anyerror!void {
         const csil_reqb = try codec.encode_TrustedDomain(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "trusteddomain", "AddTrustedDomain", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TrustedDomainService", "add-trusted-domain", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_TrustedDomain(alloc, csil_respb, out);
     }
 
-    /// Invoke trusteddomain/RemoveTrustedDomain with a typed request, returning the decoded
+    /// Invoke TrustedDomainService/remove-trusted-domain with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn remove_trusted_domain(self: TrustedDomainClient, alloc: std.mem.Allocator, req: *const types.TrustedDomainID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_TrustedDomainID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "trusteddomain", "RemoveTrustedDomain", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TrustedDomainService", "remove-trusted-domain", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke trusteddomain/ListTrustedDomains with a typed request, returning the decoded
+    /// Invoke TrustedDomainService/list-trusted-domains with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_trusted_domains(self: TrustedDomainClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *[]types.TrustedDomain) anyerror!void {
         const csil_reqb = try codec.encode_HouseID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "trusteddomain", "ListTrustedDomains", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TrustedDomainService", "list-trusted-domains", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke trusteddomain/IsDomainTrusted with a typed request, returning the decoded
+    /// Invoke TrustedDomainService/is-domain-trusted with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn is_domain_trusted(self: TrustedDomainClient, alloc: std.mem.Allocator, req: *const types.TrustedDomain, out: *types.BoolResponse) anyerror!void {
         const csil_reqb = try codec.encode_TrustedDomain(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "trusteddomain", "IsDomainTrusted", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TrustedDomainService", "is-domain-trusted", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_BoolResponse(alloc, csil_respb, out);
     }
@@ -320,79 +408,79 @@ pub const RoleClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke role/CreateRole with a typed request, returning the decoded
+    /// Invoke RoleService/create-role with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn create_role(self: RoleClient, alloc: std.mem.Allocator, req: *const types.Role, out: *types.Role) anyerror!void {
         const csil_reqb = try codec.encode_Role(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "role", "CreateRole", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "RoleService", "create-role", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Role(alloc, csil_respb, out);
     }
 
-    /// Invoke role/UpdateRole with a typed request, returning the decoded
+    /// Invoke RoleService/update-role with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn update_role(self: RoleClient, alloc: std.mem.Allocator, req: *const types.Role, out: *types.Role) anyerror!void {
         const csil_reqb = try codec.encode_Role(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "role", "UpdateRole", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "RoleService", "update-role", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Role(alloc, csil_respb, out);
     }
 
-    /// Invoke role/DeleteRole with a typed request, returning the decoded
+    /// Invoke RoleService/delete-role with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_role(self: RoleClient, alloc: std.mem.Allocator, req: *const types.RoleID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_RoleID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "role", "DeleteRole", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "RoleService", "delete-role", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke role/ListRoles with a typed request, returning the decoded
+    /// Invoke RoleService/list-roles with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_roles(self: RoleClient, alloc: std.mem.Allocator, req: *const types.HouseScopedListRequest, out: *[]types.Role) anyerror!void {
         const csil_reqb = try codec.encode_HouseScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "role", "ListRoles", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "RoleService", "list-roles", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke role/GrantRole with a typed request, returning the decoded
+    /// Invoke RoleService/grant-role with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn grant_role(self: RoleClient, alloc: std.mem.Allocator, req: *const types.MemberRoleRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_MemberRoleRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "role", "GrantRole", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "RoleService", "grant-role", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke role/RevokeRole with a typed request, returning the decoded
+    /// Invoke RoleService/revoke-role with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn revoke_role(self: RoleClient, alloc: std.mem.Allocator, req: *const types.MemberRoleRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_MemberRoleRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "role", "RevokeRole", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "RoleService", "revoke-role", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke role/ListMemberRoles with a typed request, returning the decoded
+    /// Invoke RoleService/list-member-roles with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_member_roles(self: RoleClient, alloc: std.mem.Allocator, req: *const types.MemberScopedListRequest, out: *[]types.Role) anyerror!void {
         const csil_reqb = try codec.encode_MemberScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "role", "ListMemberRoles", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "RoleService", "list-member-roles", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
@@ -406,112 +494,112 @@ pub const SkillClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke skill/CreateSkill with a typed request, returning the decoded
+    /// Invoke SkillService/create-skill with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn create_skill(self: SkillClient, alloc: std.mem.Allocator, req: *const types.Skill, out: *types.Skill) anyerror!void {
         const csil_reqb = try codec.encode_Skill(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "skill", "CreateSkill", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SkillService", "create-skill", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Skill(alloc, csil_respb, out);
     }
 
-    /// Invoke skill/UpdateSkill with a typed request, returning the decoded
+    /// Invoke SkillService/update-skill with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn update_skill(self: SkillClient, alloc: std.mem.Allocator, req: *const types.Skill, out: *types.Skill) anyerror!void {
         const csil_reqb = try codec.encode_Skill(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "skill", "UpdateSkill", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SkillService", "update-skill", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Skill(alloc, csil_respb, out);
     }
 
-    /// Invoke skill/DeleteSkill with a typed request, returning the decoded
+    /// Invoke SkillService/delete-skill with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_skill(self: SkillClient, alloc: std.mem.Allocator, req: *const types.SkillID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_SkillID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "skill", "DeleteSkill", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SkillService", "delete-skill", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke skill/ListSkills with a typed request, returning the decoded
+    /// Invoke SkillService/list-skills with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_skills(self: SkillClient, alloc: std.mem.Allocator, req: *const types.HouseScopedListRequest, out: *[]types.Skill) anyerror!void {
         const csil_reqb = try codec.encode_HouseScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "skill", "ListSkills", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SkillService", "list-skills", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke skill/AddMemberSkill with a typed request, returning the decoded
+    /// Invoke SkillService/add-member-skill with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn add_member_skill(self: SkillClient, alloc: std.mem.Allocator, req: *const types.MemberSkillRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_MemberSkillRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "skill", "AddMemberSkill", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SkillService", "add-member-skill", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke skill/RemoveMemberSkill with a typed request, returning the decoded
+    /// Invoke SkillService/remove-member-skill with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn remove_member_skill(self: SkillClient, alloc: std.mem.Allocator, req: *const types.MemberSkillRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_MemberSkillRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "skill", "RemoveMemberSkill", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SkillService", "remove-member-skill", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke skill/ListMemberSkills with a typed request, returning the decoded
+    /// Invoke SkillService/list-member-skills with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_member_skills(self: SkillClient, alloc: std.mem.Allocator, req: *const types.MemberScopedListRequest, out: *[]types.Skill) anyerror!void {
         const csil_reqb = try codec.encode_MemberScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "skill", "ListMemberSkills", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SkillService", "list-member-skills", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke skill/AddGroupSkill with a typed request, returning the decoded
+    /// Invoke SkillService/add-group-skill with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn add_group_skill(self: SkillClient, alloc: std.mem.Allocator, req: *const types.GroupSkillRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_GroupSkillRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "skill", "AddGroupSkill", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SkillService", "add-group-skill", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke skill/RemoveGroupSkill with a typed request, returning the decoded
+    /// Invoke SkillService/remove-group-skill with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn remove_group_skill(self: SkillClient, alloc: std.mem.Allocator, req: *const types.GroupSkillRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_GroupSkillRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "skill", "RemoveGroupSkill", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SkillService", "remove-group-skill", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke skill/ListGroupSkills with a typed request, returning the decoded
+    /// Invoke SkillService/list-group-skills with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_group_skills(self: SkillClient, alloc: std.mem.Allocator, req: *const types.GroupID, out: *[]types.Skill) anyerror!void {
         const csil_reqb = try codec.encode_GroupID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "skill", "ListGroupSkills", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SkillService", "list-group-skills", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
@@ -525,79 +613,79 @@ pub const GroupClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke group/CreateGroup with a typed request, returning the decoded
+    /// Invoke GroupService/create-group with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn create_group(self: GroupClient, alloc: std.mem.Allocator, req: *const types.Group, out: *types.Group) anyerror!void {
         const csil_reqb = try codec.encode_Group(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "group", "CreateGroup", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "GroupService", "create-group", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Group(alloc, csil_respb, out);
     }
 
-    /// Invoke group/UpdateGroup with a typed request, returning the decoded
+    /// Invoke GroupService/update-group with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn update_group(self: GroupClient, alloc: std.mem.Allocator, req: *const types.Group, out: *types.Group) anyerror!void {
         const csil_reqb = try codec.encode_Group(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "group", "UpdateGroup", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "GroupService", "update-group", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Group(alloc, csil_respb, out);
     }
 
-    /// Invoke group/DeleteGroup with a typed request, returning the decoded
+    /// Invoke GroupService/delete-group with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_group(self: GroupClient, alloc: std.mem.Allocator, req: *const types.GroupID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_GroupID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "group", "DeleteGroup", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "GroupService", "delete-group", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke group/ListGroups with a typed request, returning the decoded
+    /// Invoke GroupService/list-groups with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_groups(self: GroupClient, alloc: std.mem.Allocator, req: *const types.HouseScopedListRequest, out: *[]types.Group) anyerror!void {
         const csil_reqb = try codec.encode_HouseScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "group", "ListGroups", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "GroupService", "list-groups", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke group/AddGroupMember with a typed request, returning the decoded
+    /// Invoke GroupService/add-group-member with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn add_group_member(self: GroupClient, alloc: std.mem.Allocator, req: *const types.GroupMemberRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_GroupMemberRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "group", "AddGroupMember", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "GroupService", "add-group-member", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke group/RemoveGroupMember with a typed request, returning the decoded
+    /// Invoke GroupService/remove-group-member with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn remove_group_member(self: GroupClient, alloc: std.mem.Allocator, req: *const types.GroupMemberRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_GroupMemberRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "group", "RemoveGroupMember", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "GroupService", "remove-group-member", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke group/ListGroupMembers with a typed request, returning the decoded
+    /// Invoke GroupService/list-group-members with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_group_members(self: GroupClient, alloc: std.mem.Allocator, req: *const types.MemberScopedListRequest, out: *[]types.Member) anyerror!void {
         const csil_reqb = try codec.encode_MemberScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "group", "ListGroupMembers", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "GroupService", "list-group-members", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
@@ -611,255 +699,255 @@ pub const ProjectClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke project/CreateProject with a typed request, returning the decoded
+    /// Invoke ProjectService/create-project with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn create_project(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.Project, out: *types.Project) anyerror!void {
         const csil_reqb = try codec.encode_Project(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "CreateProject", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "create-project", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Project(alloc, csil_respb, out);
     }
 
-    /// Invoke project/GetProject with a typed request, returning the decoded
+    /// Invoke ProjectService/get-project with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn get_project(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectID, out: *types.Project) anyerror!void {
         const csil_reqb = try codec.encode_ProjectID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "GetProject", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "get-project", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Project(alloc, csil_respb, out);
     }
 
-    /// Invoke project/UpdateProject with a typed request, returning the decoded
+    /// Invoke ProjectService/update-project with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn update_project(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.Project, out: *types.Project) anyerror!void {
         const csil_reqb = try codec.encode_Project(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "UpdateProject", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "update-project", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Project(alloc, csil_respb, out);
     }
 
-    /// Invoke project/DeleteProject with a typed request, returning the decoded
+    /// Invoke ProjectService/delete-project with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_project(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_ProjectID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "DeleteProject", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "delete-project", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke project/ListProjects with a typed request, returning the decoded
+    /// Invoke ProjectService/list-projects with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_projects(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.HouseScopedListRequest, out: *types.ProjectList) anyerror!void {
         const csil_reqb = try codec.encode_HouseScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "ListProjects", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "list-projects", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_ProjectList(alloc, csil_respb, out);
     }
 
-    /// Invoke project/ListProjectTasks with a typed request, returning the decoded
+    /// Invoke ProjectService/list-project-tasks with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_project_tasks(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectScopedListRequest, out: *types.TaskList) anyerror!void {
         const csil_reqb = try codec.encode_ProjectScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "ListProjectTasks", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "list-project-tasks", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_TaskList(alloc, csil_respb, out);
     }
 
-    /// Invoke project/AddProjectTask with a typed request, returning the decoded
+    /// Invoke ProjectService/add-project-task with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn add_project_task(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectTaskOrderRequest, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_ProjectTaskOrderRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "AddProjectTask", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "add-project-task", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke project/RemoveProjectTask with a typed request, returning the decoded
+    /// Invoke ProjectService/remove-project-task with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn remove_project_task(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectTaskRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_ProjectTaskRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "RemoveProjectTask", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "remove-project-task", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke project/SetProjectTaskPosition with a typed request, returning the decoded
+    /// Invoke ProjectService/set-project-task-position with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn set_project_task_position(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectTaskOrderRequest, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_ProjectTaskOrderRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "SetProjectTaskPosition", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "set-project-task-position", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke project/ListProjectMembers with a typed request, returning the decoded
+    /// Invoke ProjectService/list-project-members with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_project_members(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectID, out: *[]types.Member) anyerror!void {
         const csil_reqb = try codec.encode_ProjectID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "ListProjectMembers", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "list-project-members", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke project/AddProjectMember with a typed request, returning the decoded
+    /// Invoke ProjectService/add-project-member with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn add_project_member(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectMemberRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_ProjectMemberRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "AddProjectMember", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "add-project-member", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke project/RemoveProjectMember with a typed request, returning the decoded
+    /// Invoke ProjectService/remove-project-member with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn remove_project_member(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectMemberRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_ProjectMemberRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "RemoveProjectMember", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "remove-project-member", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke project/ListProjectOwners with a typed request, returning the decoded
+    /// Invoke ProjectService/list-project-owners with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_project_owners(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectID, out: *[]types.Member) anyerror!void {
         const csil_reqb = try codec.encode_ProjectID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "ListProjectOwners", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "list-project-owners", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke project/AddProjectOwner with a typed request, returning the decoded
+    /// Invoke ProjectService/add-project-owner with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn add_project_owner(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectOwnerRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_ProjectOwnerRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "AddProjectOwner", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "add-project-owner", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke project/RemoveProjectOwner with a typed request, returning the decoded
+    /// Invoke ProjectService/remove-project-owner with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn remove_project_owner(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectOwnerRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_ProjectOwnerRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "RemoveProjectOwner", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "remove-project-owner", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke project/ListMilestones with a typed request, returning the decoded
+    /// Invoke ProjectService/list-milestones with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_milestones(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectID, out: *[]types.Milestone) anyerror!void {
         const csil_reqb = try codec.encode_ProjectID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "ListMilestones", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "list-milestones", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke project/CreateMilestone with a typed request, returning the decoded
+    /// Invoke ProjectService/create-milestone with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn create_milestone(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.Milestone, out: *types.Milestone) anyerror!void {
         const csil_reqb = try codec.encode_Milestone(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "CreateMilestone", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "create-milestone", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Milestone(alloc, csil_respb, out);
     }
 
-    /// Invoke project/UpdateMilestone with a typed request, returning the decoded
+    /// Invoke ProjectService/update-milestone with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn update_milestone(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.Milestone, out: *types.Milestone) anyerror!void {
         const csil_reqb = try codec.encode_Milestone(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "UpdateMilestone", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "update-milestone", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Milestone(alloc, csil_respb, out);
     }
 
-    /// Invoke project/DeleteMilestone with a typed request, returning the decoded
+    /// Invoke ProjectService/delete-milestone with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_milestone(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.MilestoneID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_MilestoneID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "DeleteMilestone", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "delete-milestone", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke project/SetProjectVisibility with a typed request, returning the decoded
+    /// Invoke ProjectService/set-project-visibility with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn set_project_visibility(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.SetProjectVisibilityRequest, out: *types.Project) anyerror!void {
         const csil_reqb = try codec.encode_SetProjectVisibilityRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "SetProjectVisibility", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "set-project-visibility", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Project(alloc, csil_respb, out);
     }
 
-    /// Invoke project/ListProjectGrants with a typed request, returning the decoded
+    /// Invoke ProjectService/list-project-grants with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_project_grants(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectID, out: *[]types.Grant) anyerror!void {
         const csil_reqb = try codec.encode_ProjectID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "ListProjectGrants", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "list-project-grants", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke project/PutProjectGrant with a typed request, returning the decoded
+    /// Invoke ProjectService/put-project-grant with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn put_project_grant(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.PutProjectGrantRequest, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_PutProjectGrantRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "PutProjectGrant", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "put-project-grant", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke project/DeleteProjectGrant with a typed request, returning the decoded
+    /// Invoke ProjectService/delete-project-grant with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_project_grant(self: ProjectClient, alloc: std.mem.Allocator, req: *const types.ProjectGrantRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_ProjectGrantRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "project", "DeleteProjectGrant", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ProjectService", "delete-project-grant", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
@@ -873,90 +961,90 @@ pub const EventClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke event/CreateEvent with a typed request, returning the decoded
+    /// Invoke EventService/create-event with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn create_event(self: EventClient, alloc: std.mem.Allocator, req: *const types.Event, out: *types.Event) anyerror!void {
         const csil_reqb = try codec.encode_Event(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "event", "CreateEvent", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "create-event", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Event(alloc, csil_respb, out);
     }
 
-    /// Invoke event/GetEvent with a typed request, returning the decoded
+    /// Invoke EventService/get-event with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn get_event(self: EventClient, alloc: std.mem.Allocator, req: *const types.EventID, out: *types.Event) anyerror!void {
         const csil_reqb = try codec.encode_EventID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "event", "GetEvent", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "get-event", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Event(alloc, csil_respb, out);
     }
 
-    /// Invoke event/UpdateEvent with a typed request, returning the decoded
+    /// Invoke EventService/update-event with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn update_event(self: EventClient, alloc: std.mem.Allocator, req: *const types.Event, out: *types.Event) anyerror!void {
         const csil_reqb = try codec.encode_Event(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "event", "UpdateEvent", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "update-event", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Event(alloc, csil_respb, out);
     }
 
-    /// Invoke event/DeleteEvent with a typed request, returning the decoded
+    /// Invoke EventService/delete-event with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_event(self: EventClient, alloc: std.mem.Allocator, req: *const types.EventID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_EventID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "event", "DeleteEvent", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "delete-event", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke event/DeleteEventAndFuture with a typed request, returning the decoded
+    /// Invoke EventService/delete-event-and-future with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_event_and_future(self: EventClient, alloc: std.mem.Allocator, req: *const types.EventID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_EventID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "event", "DeleteEventAndFuture", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "delete-event-and-future", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke event/ListEvents with a typed request, returning the decoded
+    /// Invoke EventService/list-events with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_events(self: EventClient, alloc: std.mem.Allocator, req: *const types.HouseScopedListRequest, out: *[]types.Event) anyerror!void {
         const csil_reqb = try codec.encode_HouseScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "event", "ListEvents", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "list-events", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke event/GetCalendarView with a typed request, returning the decoded
+    /// Invoke EventService/get-calendar-view with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn get_calendar_view(self: EventClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *types.CalendarView) anyerror!void {
         const csil_reqb = try codec.encode_HouseID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "event", "GetCalendarView", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "get-calendar-view", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_CalendarView(alloc, csil_respb, out);
     }
 
-    /// Invoke event/SetCalendarView with a typed request, returning the decoded
+    /// Invoke EventService/set-calendar-view with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn set_calendar_view(self: EventClient, alloc: std.mem.Allocator, req: *const types.CalendarView, out: *types.CalendarView) anyerror!void {
         const csil_reqb = try codec.encode_CalendarView(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "event", "SetCalendarView", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "set-calendar-view", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_CalendarView(alloc, csil_respb, out);
     }
@@ -970,101 +1058,101 @@ pub const TaskClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke task/CreateTask with a typed request, returning the decoded
+    /// Invoke TaskService/create-task with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn create_task(self: TaskClient, alloc: std.mem.Allocator, req: *const types.Task, out: *types.Task) anyerror!void {
         const csil_reqb = try codec.encode_Task(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "task", "CreateTask", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TaskService", "create-task", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Task(alloc, csil_respb, out);
     }
 
-    /// Invoke task/GetTask with a typed request, returning the decoded
+    /// Invoke TaskService/get-task with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn get_task(self: TaskClient, alloc: std.mem.Allocator, req: *const types.TaskID, out: *types.Task) anyerror!void {
         const csil_reqb = try codec.encode_TaskID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "task", "GetTask", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TaskService", "get-task", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Task(alloc, csil_respb, out);
     }
 
-    /// Invoke task/UpdateTask with a typed request, returning the decoded
+    /// Invoke TaskService/update-task with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn update_task(self: TaskClient, alloc: std.mem.Allocator, req: *const types.Task, out: *types.Task) anyerror!void {
         const csil_reqb = try codec.encode_Task(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "task", "UpdateTask", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TaskService", "update-task", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Task(alloc, csil_respb, out);
     }
 
-    /// Invoke task/DeleteTask with a typed request, returning the decoded
+    /// Invoke TaskService/delete-task with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_task(self: TaskClient, alloc: std.mem.Allocator, req: *const types.TaskID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_TaskID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "task", "DeleteTask", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TaskService", "delete-task", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke task/ListTasks with a typed request, returning the decoded
+    /// Invoke TaskService/list-tasks with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_tasks(self: TaskClient, alloc: std.mem.Allocator, req: *const types.HouseScopedListRequest, out: *types.TaskList) anyerror!void {
         const csil_reqb = try codec.encode_HouseScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "task", "ListTasks", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TaskService", "list-tasks", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_TaskList(alloc, csil_respb, out);
     }
 
-    /// Invoke task/SetTaskVisibility with a typed request, returning the decoded
+    /// Invoke TaskService/set-task-visibility with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn set_task_visibility(self: TaskClient, alloc: std.mem.Allocator, req: *const types.SetTaskVisibilityRequest, out: *types.Task) anyerror!void {
         const csil_reqb = try codec.encode_SetTaskVisibilityRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "task", "SetTaskVisibility", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TaskService", "set-task-visibility", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Task(alloc, csil_respb, out);
     }
 
-    /// Invoke task/ListTaskGrants with a typed request, returning the decoded
+    /// Invoke TaskService/list-task-grants with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_task_grants(self: TaskClient, alloc: std.mem.Allocator, req: *const types.TaskID, out: *[]types.Grant) anyerror!void {
         const csil_reqb = try codec.encode_TaskID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "task", "ListTaskGrants", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TaskService", "list-task-grants", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke task/PutTaskGrant with a typed request, returning the decoded
+    /// Invoke TaskService/put-task-grant with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn put_task_grant(self: TaskClient, alloc: std.mem.Allocator, req: *const types.PutTaskGrantRequest, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_PutTaskGrantRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "task", "PutTaskGrant", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TaskService", "put-task-grant", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke task/DeleteTaskGrant with a typed request, returning the decoded
+    /// Invoke TaskService/delete-task-grant with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_task_grant(self: TaskClient, alloc: std.mem.Allocator, req: *const types.TaskGrantRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_TaskGrantRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "task", "DeleteTaskGrant", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TaskService", "delete-task-grant", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
@@ -1078,35 +1166,35 @@ pub const DependencyClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke dependency/AddDependency with a typed request, returning the decoded
+    /// Invoke DependencyService/add-dependency with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn add_dependency(self: DependencyClient, alloc: std.mem.Allocator, req: *const types.DependencyRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_DependencyRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "dependency", "AddDependency", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "DependencyService", "add-dependency", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke dependency/RemoveDependency with a typed request, returning the decoded
+    /// Invoke DependencyService/remove-dependency with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn remove_dependency(self: DependencyClient, alloc: std.mem.Allocator, req: *const types.DependencyRef, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_DependencyRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "dependency", "RemoveDependency", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "DependencyService", "remove-dependency", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke dependency/GetDependencies with a typed request, returning the decoded
+    /// Invoke DependencyService/get-dependencies with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn get_dependencies(self: DependencyClient, alloc: std.mem.Allocator, req: *const types.DependencyTarget, out: *types.DependencyGraph) anyerror!void {
         const csil_reqb = try codec.encode_DependencyTarget(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "dependency", "GetDependencies", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "DependencyService", "get-dependencies", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_DependencyGraph(alloc, csil_respb, out);
     }
@@ -1120,57 +1208,57 @@ pub const CommentClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke comment/CreateComment with a typed request, returning the decoded
+    /// Invoke CommentService/create-comment with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn create_comment(self: CommentClient, alloc: std.mem.Allocator, req: *const types.Comment, out: *types.Comment) anyerror!void {
         const csil_reqb = try codec.encode_Comment(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "comment", "CreateComment", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CommentService", "create-comment", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Comment(alloc, csil_respb, out);
     }
 
-    /// Invoke comment/GetComment with a typed request, returning the decoded
+    /// Invoke CommentService/get-comment with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn get_comment(self: CommentClient, alloc: std.mem.Allocator, req: *const types.CommentID, out: *types.Comment) anyerror!void {
         const csil_reqb = try codec.encode_CommentID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "comment", "GetComment", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CommentService", "get-comment", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Comment(alloc, csil_respb, out);
     }
 
-    /// Invoke comment/UpdateComment with a typed request, returning the decoded
+    /// Invoke CommentService/update-comment with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn update_comment(self: CommentClient, alloc: std.mem.Allocator, req: *const types.Comment, out: *types.Comment) anyerror!void {
         const csil_reqb = try codec.encode_Comment(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "comment", "UpdateComment", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CommentService", "update-comment", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Comment(alloc, csil_respb, out);
     }
 
-    /// Invoke comment/DeleteComment with a typed request, returning the decoded
+    /// Invoke CommentService/delete-comment with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_comment(self: CommentClient, alloc: std.mem.Allocator, req: *const types.CommentID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_CommentID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "comment", "DeleteComment", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CommentService", "delete-comment", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke comment/ListComments with a typed request, returning the decoded
+    /// Invoke CommentService/list-comments with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_comments(self: CommentClient, alloc: std.mem.Allocator, req: *const types.CommentListRequest, out: *[]types.Comment) anyerror!void {
         const csil_reqb = try codec.encode_CommentListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "comment", "ListComments", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CommentService", "list-comments", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
@@ -1184,46 +1272,46 @@ pub const NotificationClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke notification/ListNotifications with a typed request, returning the decoded
+    /// Invoke NotificationService/list-notifications with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_notifications(self: NotificationClient, alloc: std.mem.Allocator, req: *const types.NotificationListRequest, out: *[]types.Notification) anyerror!void {
         const csil_reqb = try codec.encode_NotificationListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "notification", "ListNotifications", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "NotificationService", "list-notifications", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke notification/UnreadCount with a typed request, returning the decoded
+    /// Invoke NotificationService/unread-count with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn unread_count(self: NotificationClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *types.NotificationUnreadCount) anyerror!void {
         const csil_reqb = try codec.encode_HouseID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "notification", "UnreadCount", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "NotificationService", "unread-count", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_NotificationUnreadCount(alloc, csil_respb, out);
     }
 
-    /// Invoke notification/MarkRead with a typed request, returning the decoded
+    /// Invoke NotificationService/mark-read with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn mark_read(self: NotificationClient, alloc: std.mem.Allocator, req: *const types.NotificationID, out: *types.Notification) anyerror!void {
         const csil_reqb = try codec.encode_NotificationID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "notification", "MarkRead", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "NotificationService", "mark-read", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Notification(alloc, csil_respb, out);
     }
 
-    /// Invoke notification/MarkAllRead with a typed request, returning the decoded
+    /// Invoke NotificationService/mark-all-read with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn mark_all_read(self: NotificationClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_HouseID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "notification", "MarkAllRead", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "NotificationService", "mark-all-read", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
@@ -1237,46 +1325,46 @@ pub const ShareClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke share/CreateShare with a typed request, returning the decoded
+    /// Invoke ShareService/create-share with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn create_share(self: ShareClient, alloc: std.mem.Allocator, req: *const types.Share, out: *types.Share) anyerror!void {
         const csil_reqb = try codec.encode_Share(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "share", "CreateShare", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ShareService", "create-share", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Share(alloc, csil_respb, out);
     }
 
-    /// Invoke share/DeleteShare with a typed request, returning the decoded
+    /// Invoke ShareService/delete-share with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn delete_share(self: ShareClient, alloc: std.mem.Allocator, req: *const types.ShareID, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_ShareID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "share", "DeleteShare", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ShareService", "delete-share", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke share/ListSharesByResource with a typed request, returning the decoded
+    /// Invoke ShareService/list-shares-by-resource with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_shares_by_resource(self: ShareClient, alloc: std.mem.Allocator, req: *const types.ResourceRef, out: *[]types.Share) anyerror!void {
         const csil_reqb = try codec.encode_ResourceRef(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "share", "ListSharesByResource", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ShareService", "list-shares-by-resource", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
 
-    /// Invoke share/CheckAccess with a typed request, returning the decoded
+    /// Invoke ShareService/check-access with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn check_access(self: ShareClient, alloc: std.mem.Allocator, req: *const types.ShareAccessRequest, out: *types.Share) anyerror!void {
         const csil_reqb = try codec.encode_ShareAccessRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "share", "CheckAccess", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "ShareService", "check-access", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Share(alloc, csil_respb, out);
     }
@@ -1290,13 +1378,13 @@ pub const MemberAuditClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke memberaudit/ListAuditsForMember with a typed request, returning the decoded
+    /// Invoke MemberAuditService/list-audits-for-member with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_audits_for_member(self: MemberAuditClient, alloc: std.mem.Allocator, req: *const types.MemberScopedListRequest, out: *[]types.MemberAudit) anyerror!void {
         const csil_reqb = try codec.encode_MemberScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "memberaudit", "ListAuditsForMember", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "MemberAuditService", "list-audits-for-member", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_void(alloc, csil_respb, out);
     }
@@ -1310,24 +1398,24 @@ pub const SettingsClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke settings/GetSettings with a typed request, returning the decoded
+    /// Invoke SettingsService/get-settings with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn get_settings(self: SettingsClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *types.EffectiveSettings) anyerror!void {
         const csil_reqb = try codec.encode_HouseID(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "settings", "GetSettings", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SettingsService", "get-settings", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EffectiveSettings(alloc, csil_respb, out);
     }
 
-    /// Invoke settings/UpdateSettings with a typed request, returning the decoded
+    /// Invoke SettingsService/update-settings with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn update_settings(self: SettingsClient, alloc: std.mem.Allocator, req: *const types.UpdateSettingsRequest, out: *types.EffectiveSettings) anyerror!void {
         const csil_reqb = try codec.encode_UpdateSettingsRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "settings", "UpdateSettings", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "SettingsService", "update-settings", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EffectiveSettings(alloc, csil_respb, out);
     }
@@ -1341,13 +1429,13 @@ pub const BugClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke bug/ReportBug with a typed request, returning the decoded
+    /// Invoke BugService/report-bug with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn report_bug(self: BugClient, alloc: std.mem.Allocator, req: *const types.BugReportRequest, out: *types.Task) anyerror!void {
         const csil_reqb = try codec.encode_BugReportRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "bug", "ReportBug", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "BugService", "report-bug", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_Task(alloc, csil_respb, out);
     }
@@ -1361,13 +1449,13 @@ pub const AuditClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke audit/QueryAudit with a typed request, returning the decoded
+    /// Invoke AuditService/query-audit with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn query_audit(self: AuditClient, alloc: std.mem.Allocator, req: *const types.AuditQuery, out: *types.AuditPage) anyerror!void {
         const csil_reqb = try codec.encode_AuditQuery(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "audit", "QueryAudit", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuditService", "query-audit", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_AuditPage(alloc, csil_respb, out);
     }
@@ -1381,35 +1469,35 @@ pub const TrashClient = struct {
         return .{ .transport = transport };
     }
 
-    /// Invoke trash/ListTrash with a typed request, returning the decoded
+    /// Invoke TrashService/list-trash with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn list_trash(self: TrashClient, alloc: std.mem.Allocator, req: *const types.HouseScopedListRequest, out: *types.TrashPage) anyerror!void {
         const csil_reqb = try codec.encode_HouseScopedListRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "trash", "ListTrash", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TrashService", "list-trash", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_TrashPage(alloc, csil_respb, out);
     }
 
-    /// Invoke trash/Restore with a typed request, returning the decoded
+    /// Invoke TrashService/restore with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn restore(self: TrashClient, alloc: std.mem.Allocator, req: *const types.RestoreRequest, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_RestoreRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "trash", "Restore", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TrashService", "restore", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
-    /// Invoke trash/Purge with a typed request, returning the decoded
+    /// Invoke TrashService/purge with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
     pub fn purge(self: TrashClient, alloc: std.mem.Allocator, req: *const types.PurgeRequest, out: *types.EmptyResponse) anyerror!void {
         const csil_reqb = try codec.encode_PurgeRequest(alloc, req);
         defer alloc.free(csil_reqb);
-        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "trash", "Purge", csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TrashService", "purge", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }

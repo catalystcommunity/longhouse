@@ -31,6 +31,54 @@ pub trait AuthService {
     ) -> Result<EmptyResponse, ServiceError>;
     /// me (request/response).
     fn me(&self, ctx: &Self::Context, input: EmptyRequest) -> Result<MeResponse, ServiceError>;
+    /// begin-cli-login (request/response).
+    fn begin_cli_login(
+        &self,
+        ctx: &Self::Context,
+        input: BeginCliLoginRequest,
+    ) -> Result<BeginCliLoginResponse, ServiceError>;
+    /// inspect-cli-login (request/response).
+    fn inspect_cli_login(
+        &self,
+        ctx: &Self::Context,
+        input: ApproveCliLoginRequest,
+    ) -> Result<CliLoginRequestInfo, ServiceError>;
+    /// approve-cli-login (request/response).
+    fn approve_cli_login(
+        &self,
+        ctx: &Self::Context,
+        input: ApproveCliLoginRequest,
+    ) -> Result<EmptyResponse, ServiceError>;
+    /// deny-cli-login (request/response).
+    fn deny_cli_login(
+        &self,
+        ctx: &Self::Context,
+        input: DenyCliLoginRequest,
+    ) -> Result<EmptyResponse, ServiceError>;
+    /// exchange-cli-login (request/response).
+    fn exchange_cli_login(
+        &self,
+        ctx: &Self::Context,
+        input: ExchangeCliLoginRequest,
+    ) -> Result<ExchangeCliLoginResponse, ServiceError>;
+    /// refresh-session (request/response).
+    fn refresh_session(
+        &self,
+        ctx: &Self::Context,
+        input: RefreshSessionRequest,
+    ) -> Result<CliTokenResponse, ServiceError>;
+    /// list-sessions (request/response).
+    fn list_sessions(
+        &self,
+        ctx: &Self::Context,
+        input: EmptyRequest,
+    ) -> Result<CliSessionsResponse, ServiceError>;
+    /// revoke-session (request/response).
+    fn revoke_session(
+        &self,
+        ctx: &Self::Context,
+        input: RevokeSessionRequest,
+    ) -> Result<EmptyResponse, ServiceError>;
 }
 
 /// DevAuthService service trait

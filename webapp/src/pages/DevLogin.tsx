@@ -11,7 +11,7 @@
 import { For, Show, createResource, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { devAuthClient } from "~/data/clients";
-import { finishLogin } from "~/lib/session";
+import { finishLogin, takeAuthReturnTo } from "~/lib/session";
 import type { DevUserEntry } from "@longhouse/client";
 
 export const DevLogin = () => {
@@ -29,7 +29,7 @@ export const DevLogin = () => {
     try {
       const resp = await devAuthClient.devLogin({ memberId: u.memberId });
       await finishLogin(resp);
-      navigate("/", { replace: true });
+      navigate(takeAuthReturnTo(), { replace: true });
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
       setBusy(null);

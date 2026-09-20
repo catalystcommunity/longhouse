@@ -18,14 +18,14 @@ import (
 type EventService struct{ Store store.Store }
 
 func (s *EventService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("event", "ListEvents", csilrpc.Route(s.ListEvents, csil.DecodeEventListEventsRequest, csil.EncodeEventListEventsResponse))
-	d.RegisterTyped("event", "GetEvent", csilrpc.Route(s.GetEvent, csil.DecodeEventGetEventRequest, csil.EncodeEventGetEventResponse))
-	d.RegisterTyped("event", "CreateEvent", csilrpc.Route(s.CreateEvent, csil.DecodeEventCreateEventRequest, csil.EncodeEventCreateEventResponse))
-	d.RegisterTyped("event", "UpdateEvent", csilrpc.Route(s.UpdateEvent, csil.DecodeEventUpdateEventRequest, csil.EncodeEventUpdateEventResponse))
-	d.RegisterTyped("event", "DeleteEvent", csilrpc.Route(s.DeleteEvent, csil.DecodeEventDeleteEventRequest, csil.EncodeEventDeleteEventResponse))
-	d.RegisterTyped("event", "DeleteEventAndFuture", csilrpc.Route(s.DeleteEventAndFuture, csil.DecodeEventDeleteEventAndFutureRequest, csil.EncodeEventDeleteEventAndFutureResponse))
-	d.RegisterTyped("event", "GetCalendarView", csilrpc.Route(s.GetCalendarView, csil.DecodeEventGetCalendarViewRequest, csil.EncodeEventGetCalendarViewResponse))
-	d.RegisterTyped("event", "SetCalendarView", csilrpc.Route(s.SetCalendarView, csil.DecodeEventSetCalendarViewRequest, csil.EncodeEventSetCalendarViewResponse))
+	d.RegisterTyped("event", "ListEvents", csilrpc.Route(s.ListEvents, csil.DecodeHouseScopedListRequest, csil.EncodeEventListEventsResponse))
+	d.RegisterTyped("event", "GetEvent", csilrpc.Route(s.GetEvent, csil.DecodeEventGetEventRequest, csil.EncodeEvent))
+	d.RegisterTyped("event", "CreateEvent", csilrpc.Route(s.CreateEvent, csil.DecodeEvent, csil.EncodeEvent))
+	d.RegisterTyped("event", "UpdateEvent", csilrpc.Route(s.UpdateEvent, csil.DecodeEvent, csil.EncodeEvent))
+	d.RegisterTyped("event", "DeleteEvent", csilrpc.Route(s.DeleteEvent, csil.DecodeEventDeleteEventRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("event", "DeleteEventAndFuture", csilrpc.Route(s.DeleteEventAndFuture, csil.DecodeEventDeleteEventAndFutureRequest, csil.EncodeEmptyResponse))
+	d.RegisterTyped("event", "GetCalendarView", csilrpc.Route(s.GetCalendarView, csil.DecodeEventGetCalendarViewRequest, csil.EncodeCalendarView))
+	d.RegisterTyped("event", "SetCalendarView", csilrpc.Route(s.SetCalendarView, csil.DecodeCalendarView, csil.EncodeCalendarView))
 }
 
 // GetCalendarView returns the caller's saved calendar view for a house (which

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -10,6 +9,7 @@ const usage = `longhouse - coordination system for organizations and neighborhoo
 
 Usage:
   longhouse serve [--db-uri=URI] [--api-port=PORT] [--jwt-secret=SECRET]
+                  [--bearer-ttl-seconds=SECONDS] [--refresh-token-ttl-seconds=SECONDS]
                   [--initial-admin-domain=DOMAIN] [--initial-admin-user-id=UUID]
                   [--initial-house-name=NAME]
                   [--linkkeys-idp-domain=DOMAIN] [--linkkeys-idp-url=URL]
@@ -17,18 +17,32 @@ Usage:
                   [--linkkeys-pki-url=URL] [--linkkeys-pki-api-key=KEY]
                   [--linkkeys-tcp-addr=HOST:PORT] [--linkkeys-tcp-fingerprints=LIST]
   longhouse migrate [--db-uri=URI]
+  longhouse login --url=URL [--client-name=NAME] [--no-browser]
+  longhouse status [--url=URL]
+  longhouse refresh [--url=URL]
+  longhouse logout [--url=URL]
   longhouse --help
   longhouse --version
 
 Commands:
   serve     Start the API server (runs migrations first, then listens on --api-port)
   migrate   Run database migrations
+  login     Authorize this CLI in a browser and save its session
+  status    Show the saved CLI session and verify it with the server
+  refresh   Rotate the saved refresh token and access bearer
+  logout    Revoke the saved CLI session and remove local credentials
 
 Options:
   --db-uri=URI                    PostgreSQL connection string [env: LONGHOUSE_DB_URI]
   --api-port=PORT                 HTTP API port [default: 6080] [env: LONGHOUSE_API_PORT]
   --jwt-secret=SECRET             HMAC secret for minting/verifying bearers; empty fails
                                   every authenticated op closed [env: LONGHOUSE_JWT_SECRET]
+  --bearer-ttl-seconds=SECONDS    Access bearer lifetime [default: 43200] [env: LONGHOUSE_BEARER_TTL_SECONDS]
+  --refresh-token-ttl-seconds=SECONDS
+                                  CLI session lifetime [default: 2592000] [env: LONGHOUSE_REFRESH_TOKEN_TTL_SECONDS]
+  --url=URL                       Longhouse web URL [env: LONGHOUSE_URL]
+  --client-name=NAME              Name shown on the browser approval page
+  --no-browser                    Print the approval URL without opening it
   --initial-admin-domain=DOMAIN   Linkkeys domain of the bootstrap admin [env: LONGHOUSE_INITIAL_ADMIN_DOMAIN]
   --initial-admin-user-id=UUID    Linkkeys user_id (UUID) of the bootstrap admin [env: LONGHOUSE_INITIAL_ADMIN_USER_ID]
   --initial-house-name=NAME       Name for the auto-created house on first boot [default: Longhouse] [env: LONGHOUSE_INITIAL_HOUSE_NAME]
@@ -55,8 +69,7 @@ const version = "0.14.6"
 // Run parses args and dispatches to the appropriate subcommand.
 func Run(args []string) error {
 	if len(args) == 0 {
-		fmt.Print(usage)
-		return nil
+		return reportCLIError(args, runInteractiveCLI(nil))
 	}
 
 	// Flags may appear anywhere in the arg list, so --version/--help are
@@ -70,21 +83,45 @@ func Run(args []string) error {
 	}
 
 	command := findCommand(args)
-	if flags["help"] == "true" || command == "" {
-		fmt.Print(usage)
-		return nil
-	}
 
 	switch command {
 	case "serve":
+		if flags["help"] == "true" {
+			fmt.Print(usage)
+			return nil
+		}
 		return Serve(flags)
 	case "migrate":
+		if flags["help"] == "true" {
+			fmt.Print(usage)
+			return nil
+		}
 		return Migrate(flags)
+	case "login":
+		return reportCLIError(args, runInteractiveCLI(expandLegacyAuthCommand(args, "login")))
+	case "status":
+		return reportCLIError(args, runInteractiveCLI(expandLegacyAuthCommand(args, "status")))
+	case "refresh":
+		return reportCLIError(args, runInteractiveCLI(expandLegacyAuthCommand(args, "refresh")))
+	case "logout":
+		return reportCLIError(args, runInteractiveCLI(expandLegacyAuthCommand(args, "logout")))
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", command)
-		fmt.Print(usage)
-		return fmt.Errorf("unknown command: %s", command)
+		return reportCLIError(args, runInteractiveCLI(args))
 	}
+}
+
+func expandLegacyAuthCommand(args []string, command string) []string {
+	expanded := make([]string, 0, len(args)+1)
+	replaced := false
+	for _, arg := range args {
+		if !replaced && arg == command {
+			expanded = append(expanded, "auth", command)
+			replaced = true
+			continue
+		}
+		expanded = append(expanded, arg)
+	}
+	return expanded
 }
 
 // findCommand returns the first non-flag argument.

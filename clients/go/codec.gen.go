@@ -6,6 +6,7 @@ package longhouseclient
 import (
 	"fmt"
 	"math"
+	"unicode/utf8"
 )
 
 // cborValue is a minimal canonical-CBOR value tree: a closed set of variants the
@@ -167,7 +168,7 @@ func cborEnc(v cborValue, out *[]byte) {
 // is not exactly one value is an error rather than a silently-truncated read.
 func cborDecode(b []byte) (cborValue, error) {
 	pos := 0
-	v, err := cborDec(b, &pos)
+	v, err := cborDec(b, &pos, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -184,21 +185,21 @@ func cborReadArg(b []byte, pos *int, low byte) (uint64, error) {
 	}
 	switch low {
 	case 24:
-		if *pos+2 > len(b) {
+		if len(b)-*pos < 2 {
 			return 0, fmt.Errorf("csil cbor: truncated argument")
 		}
 		v := uint64(b[*pos+1])
 		*pos += 2
 		return v, nil
 	case 25:
-		if *pos+3 > len(b) {
+		if len(b)-*pos < 3 {
 			return 0, fmt.Errorf("csil cbor: truncated argument")
 		}
 		v := uint64(b[*pos+1])<<8 | uint64(b[*pos+2])
 		*pos += 3
 		return v, nil
 	case 26:
-		if *pos+5 > len(b) {
+		if len(b)-*pos < 5 {
 			return 0, fmt.Errorf("csil cbor: truncated argument")
 		}
 		var v uint64
@@ -208,7 +209,7 @@ func cborReadArg(b []byte, pos *int, low byte) (uint64, error) {
 		*pos += 5
 		return v, nil
 	case 27:
-		if *pos+9 > len(b) {
+		if len(b)-*pos < 9 {
 			return 0, fmt.Errorf("csil cbor: truncated argument")
 		}
 		var v uint64
@@ -222,7 +223,10 @@ func cborReadArg(b []byte, pos *int, low byte) (uint64, error) {
 	}
 }
 
-func cborDec(b []byte, pos *int) (cborValue, error) {
+func cborDec(b []byte, pos *int, depth int) (cborValue, error) {
+	if depth > 64 {
+		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
+	}
 	if *pos >= len(b) {
 		return nil, fmt.Errorf("csil cbor: unexpected end of input")
 	}
@@ -269,27 +273,33 @@ func cborDec(b []byte, pos *int) (cborValue, error) {
 		}
 		return cborInt(-1 - int64(arg)), nil
 	case 2:
-		n := int(arg)
-		if *pos+n > len(b) {
+		if arg > uint64(len(b)-*pos) {
 			return nil, fmt.Errorf("csil cbor: truncated byte string")
 		}
+		n := int(arg)
 		slice := make([]byte, n)
 		copy(slice, b[*pos:*pos+n])
 		*pos += n
 		return cborBytes(slice), nil
 	case 3:
-		n := int(arg)
-		if *pos+n > len(b) {
+		if arg > uint64(len(b)-*pos) {
 			return nil, fmt.Errorf("csil cbor: truncated text string")
+		}
+		n := int(arg)
+		if !utf8.Valid(b[*pos : *pos+n]) {
+			return nil, fmt.Errorf("csil cbor: invalid utf-8")
 		}
 		s := string(b[*pos : *pos+n])
 		*pos += n
 		return cborText(s), nil
 	case 4:
+		if arg > uint64(len(b)-*pos) {
+			return nil, fmt.Errorf("csil cbor: array length exceeds remaining input")
+		}
 		n := int(arg)
 		items := make(cborArray, 0, n)
 		for i := 0; i < n; i++ {
-			item, err := cborDec(b, pos)
+			item, err := cborDec(b, pos, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -297,14 +307,17 @@ func cborDec(b []byte, pos *int) (cborValue, error) {
 		}
 		return items, nil
 	case 5:
+		if arg > uint64(len(b)-*pos) {
+			return nil, fmt.Errorf("csil cbor: map length exceeds remaining input")
+		}
 		n := int(arg)
 		entries := make(cborMap, 0, n)
 		for i := 0; i < n; i++ {
-			k, err := cborDec(b, pos)
+			k, err := cborDec(b, pos, depth+1)
 			if err != nil {
 				return nil, err
 			}
-			val, err := cborDec(b, pos)
+			val, err := cborDec(b, pos, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -312,7 +325,7 @@ func cborDec(b []byte, pos *int) (cborValue, error) {
 		}
 		return entries, nil
 	case 6:
-		inner, err := cborDec(b, pos)
+		inner, err := cborDec(b, pos, depth+1)
 		if err != nil {
 			return nil, err
 		}
@@ -1678,7 +1691,18 @@ func csilDecProject(csilRoot cborValue) (Project, error) {
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "status"); csilOk {
 		csilVal, csilErr := (func(csilV cborValue) (ProjectStatus, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "active" || csilInner == "archived") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return ProjectStatus(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -1688,7 +1712,18 @@ func csilDecProject(csilRoot cborValue) (Project, error) {
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "visibility"); csilOk {
 		csilVal, csilErr := (func(csilV cborValue) (AccessLevel, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "none" || csilInner == "read" || csilInner == "edit" || csilInner == "full") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return AccessLevel(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -2053,7 +2088,18 @@ func csilDecMilestone(csilRoot cborValue) (Milestone, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (MilestoneState, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "done" || csilInner == "current" || csilInner == "future") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return MilestoneState(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -2262,7 +2308,18 @@ func csilDecEvent(csilRoot cborValue) (Event, error) {
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "recurrence_freq"); csilOk {
 		csilVal, csilErr := (func(csilV cborValue) (RecurrenceFreq, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "hourly" || csilInner == "daily" || csilInner == "weekly" || csilInner == "monthly" || csilInner == "quarterly" || csilInner == "yearly") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return RecurrenceFreq(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -2496,7 +2553,18 @@ func csilDecTask(csilRoot cborValue) (Task, error) {
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "visibility"); csilOk {
 		csilVal, csilErr := (func(csilV cborValue) (AccessLevel, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "none" || csilInner == "read" || csilInner == "edit" || csilInner == "full") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return AccessLevel(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -2524,7 +2592,18 @@ func csilDecTask(csilRoot cborValue) (Task, error) {
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "status"); csilOk {
 		csilVal, csilErr := (func(csilV cborValue) (TaskStatus, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "open" || csilInner == "in_progress" || csilInner == "done" || csilInner == "cancelled") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return TaskStatus(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -2558,7 +2637,18 @@ func csilDecTask(csilRoot cborValue) (Task, error) {
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "recurrence_freq"); csilOk {
 		csilVal, csilErr := (func(csilV cborValue) (RecurrenceFreq, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "hourly" || csilInner == "daily" || csilInner == "weekly" || csilInner == "monthly" || csilInner == "quarterly" || csilInner == "yearly") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return RecurrenceFreq(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -2728,7 +2818,18 @@ func csilDecComment(csilRoot cborValue) (Comment, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (TargetType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "event" || csilInner == "task" || csilInner == "project") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return TargetType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -2897,7 +2998,18 @@ func csilDecShare(csilRoot cborValue) (Share, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (ResourceType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "event" || csilInner == "task" || csilInner == "house") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return ResourceType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -2918,7 +3030,18 @@ func csilDecShare(csilRoot cborValue) (Share, error) {
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "access_level"); csilOk {
 		csilVal, csilErr := (func(csilV cborValue) (AccessLevel, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "none" || csilInner == "read" || csilInner == "edit" || csilInner == "full") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return AccessLevel(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -3379,6 +3502,745 @@ func DecodeLoginResponse(csilData []byte) (LoginResponse, error) {
 		return csilZero, csilErr
 	}
 	return csilDecLoginResponse(csilRoot)
+}
+
+// csilEncCliTokenResponse builds the canonical CBOR value tree for a CliTokenResponse.
+func csilEncCliTokenResponse(csilV CliTokenResponse) cborValue {
+	csilEntries := make(cborMap, 0, 8)
+	csilEntries = append(csilEntries, cborEntry{cborText("token"), cborText(csilV.Token)})
+	csilEntries = append(csilEntries, cborEntry{cborText("domain"), cborText(csilV.Domain)})
+	csilEntries = append(csilEntries, cborEntry{cborText("user_id"), cborText(csilV.UserId)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("session_id"), cborText(csilV.SessionId)})
+	if csilV.DisplayName != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("display_name"), cborText((*csilV.DisplayName))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("refresh_token"), cborText(csilV.RefreshToken)})
+	csilEntries = append(csilEntries, cborEntry{cborText("refresh_expires_at"), cborText(csilV.RefreshExpiresAt)})
+	return csilEntries
+}
+
+// csilDecCliTokenResponse reconstructs a CliTokenResponse from a decoded CBOR value tree.
+func csilDecCliTokenResponse(csilRoot cborValue) (CliTokenResponse, error) {
+	var csilOut CliTokenResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "token")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Token = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "domain")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Domain = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "user_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UserId = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "display_name"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.DisplayName = &csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "expires_at")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ExpiresAt = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "refresh_token")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.RefreshToken = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "refresh_expires_at")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.RefreshExpiresAt = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "session_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (CliSessionID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return CliSessionID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SessionId = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeCliTokenResponse encodes a CliTokenResponse to canonical CSIL CBOR bytes.
+func EncodeCliTokenResponse(csilV CliTokenResponse) []byte {
+	return cborEncode(csilEncCliTokenResponse(csilV))
+}
+
+// DecodeCliTokenResponse decodes canonical CSIL CBOR bytes into a CliTokenResponse.
+func DecodeCliTokenResponse(csilData []byte) (CliTokenResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero CliTokenResponse
+		return csilZero, csilErr
+	}
+	return csilDecCliTokenResponse(csilRoot)
+}
+
+// csilEncBeginCliLoginRequest builds the canonical CBOR value tree for a BeginCliLoginRequest.
+func csilEncBeginCliLoginRequest(csilV BeginCliLoginRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("client_name"), cborText(csilV.ClientName)})
+	return csilEntries
+}
+
+// csilDecBeginCliLoginRequest reconstructs a BeginCliLoginRequest from a decoded CBOR value tree.
+func csilDecBeginCliLoginRequest(csilRoot cborValue) (BeginCliLoginRequest, error) {
+	var csilOut BeginCliLoginRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "client_name")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ClientName = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeBeginCliLoginRequest encodes a BeginCliLoginRequest to canonical CSIL CBOR bytes.
+func EncodeBeginCliLoginRequest(csilV BeginCliLoginRequest) []byte {
+	return cborEncode(csilEncBeginCliLoginRequest(csilV))
+}
+
+// DecodeBeginCliLoginRequest decodes canonical CSIL CBOR bytes into a BeginCliLoginRequest.
+func DecodeBeginCliLoginRequest(csilData []byte) (BeginCliLoginRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero BeginCliLoginRequest
+		return csilZero, csilErr
+	}
+	return csilDecBeginCliLoginRequest(csilRoot)
+}
+
+// csilEncBeginCliLoginResponse builds the canonical CBOR value tree for a BeginCliLoginResponse.
+func csilEncBeginCliLoginResponse(csilV BeginCliLoginResponse) cborValue {
+	csilEntries := make(cborMap, 0, 5)
+	csilEntries = append(csilEntries, cborEntry{cborText("user_code"), cborText(csilV.UserCode)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("device_code"), cborText(csilV.DeviceCode)})
+	csilEntries = append(csilEntries, cborEntry{cborText("interval_seconds"), cborUint(csilV.IntervalSeconds)})
+	csilEntries = append(csilEntries, cborEntry{cborText("verification_url"), cborText(csilV.VerificationUrl)})
+	return csilEntries
+}
+
+// csilDecBeginCliLoginResponse reconstructs a BeginCliLoginResponse from a decoded CBOR value tree.
+func csilDecBeginCliLoginResponse(csilRoot cborValue) (BeginCliLoginResponse, error) {
+	var csilOut BeginCliLoginResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "device_code")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.DeviceCode = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "user_code")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UserCode = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "verification_url")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.VerificationUrl = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "expires_at")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ExpiresAt = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "interval_seconds")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.IntervalSeconds = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeBeginCliLoginResponse encodes a BeginCliLoginResponse to canonical CSIL CBOR bytes.
+func EncodeBeginCliLoginResponse(csilV BeginCliLoginResponse) []byte {
+	return cborEncode(csilEncBeginCliLoginResponse(csilV))
+}
+
+// DecodeBeginCliLoginResponse decodes canonical CSIL CBOR bytes into a BeginCliLoginResponse.
+func DecodeBeginCliLoginResponse(csilData []byte) (BeginCliLoginResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero BeginCliLoginResponse
+		return csilZero, csilErr
+	}
+	return csilDecBeginCliLoginResponse(csilRoot)
+}
+
+// csilEncApproveCliLoginRequest builds the canonical CBOR value tree for a ApproveCliLoginRequest.
+func csilEncApproveCliLoginRequest(csilV ApproveCliLoginRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("user_code"), cborText(csilV.UserCode)})
+	return csilEntries
+}
+
+// csilDecApproveCliLoginRequest reconstructs a ApproveCliLoginRequest from a decoded CBOR value tree.
+func csilDecApproveCliLoginRequest(csilRoot cborValue) (ApproveCliLoginRequest, error) {
+	var csilOut ApproveCliLoginRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "user_code")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UserCode = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeApproveCliLoginRequest encodes a ApproveCliLoginRequest to canonical CSIL CBOR bytes.
+func EncodeApproveCliLoginRequest(csilV ApproveCliLoginRequest) []byte {
+	return cborEncode(csilEncApproveCliLoginRequest(csilV))
+}
+
+// DecodeApproveCliLoginRequest decodes canonical CSIL CBOR bytes into a ApproveCliLoginRequest.
+func DecodeApproveCliLoginRequest(csilData []byte) (ApproveCliLoginRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ApproveCliLoginRequest
+		return csilZero, csilErr
+	}
+	return csilDecApproveCliLoginRequest(csilRoot)
+}
+
+// csilEncCliLoginRequestInfo builds the canonical CBOR value tree for a CliLoginRequestInfo.
+func csilEncCliLoginRequestInfo(csilV CliLoginRequestInfo) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	csilEntries = append(csilEntries, cborEntry{cborText("user_code"), cborText(csilV.UserCode)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("client_name"), cborText(csilV.ClientName)})
+	return csilEntries
+}
+
+// csilDecCliLoginRequestInfo reconstructs a CliLoginRequestInfo from a decoded CBOR value tree.
+func csilDecCliLoginRequestInfo(csilRoot cborValue) (CliLoginRequestInfo, error) {
+	var csilOut CliLoginRequestInfo
+	{
+		csilField, csilErr := cborRequire(csilRoot, "user_code")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UserCode = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "client_name")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ClientName = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "expires_at")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ExpiresAt = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeCliLoginRequestInfo encodes a CliLoginRequestInfo to canonical CSIL CBOR bytes.
+func EncodeCliLoginRequestInfo(csilV CliLoginRequestInfo) []byte {
+	return cborEncode(csilEncCliLoginRequestInfo(csilV))
+}
+
+// DecodeCliLoginRequestInfo decodes canonical CSIL CBOR bytes into a CliLoginRequestInfo.
+func DecodeCliLoginRequestInfo(csilData []byte) (CliLoginRequestInfo, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero CliLoginRequestInfo
+		return csilZero, csilErr
+	}
+	return csilDecCliLoginRequestInfo(csilRoot)
+}
+
+// csilEncDenyCliLoginRequest builds the canonical CBOR value tree for a DenyCliLoginRequest.
+func csilEncDenyCliLoginRequest(csilV DenyCliLoginRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("user_code"), cborText(csilV.UserCode)})
+	return csilEntries
+}
+
+// csilDecDenyCliLoginRequest reconstructs a DenyCliLoginRequest from a decoded CBOR value tree.
+func csilDecDenyCliLoginRequest(csilRoot cborValue) (DenyCliLoginRequest, error) {
+	var csilOut DenyCliLoginRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "user_code")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.UserCode = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeDenyCliLoginRequest encodes a DenyCliLoginRequest to canonical CSIL CBOR bytes.
+func EncodeDenyCliLoginRequest(csilV DenyCliLoginRequest) []byte {
+	return cborEncode(csilEncDenyCliLoginRequest(csilV))
+}
+
+// DecodeDenyCliLoginRequest decodes canonical CSIL CBOR bytes into a DenyCliLoginRequest.
+func DecodeDenyCliLoginRequest(csilData []byte) (DenyCliLoginRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero DenyCliLoginRequest
+		return csilZero, csilErr
+	}
+	return csilDecDenyCliLoginRequest(csilRoot)
+}
+
+// csilEncExchangeCliLoginRequest builds the canonical CBOR value tree for a ExchangeCliLoginRequest.
+func csilEncExchangeCliLoginRequest(csilV ExchangeCliLoginRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("device_code"), cborText(csilV.DeviceCode)})
+	return csilEntries
+}
+
+// csilDecExchangeCliLoginRequest reconstructs a ExchangeCliLoginRequest from a decoded CBOR value tree.
+func csilDecExchangeCliLoginRequest(csilRoot cborValue) (ExchangeCliLoginRequest, error) {
+	var csilOut ExchangeCliLoginRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "device_code")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.DeviceCode = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeExchangeCliLoginRequest encodes a ExchangeCliLoginRequest to canonical CSIL CBOR bytes.
+func EncodeExchangeCliLoginRequest(csilV ExchangeCliLoginRequest) []byte {
+	return cborEncode(csilEncExchangeCliLoginRequest(csilV))
+}
+
+// DecodeExchangeCliLoginRequest decodes canonical CSIL CBOR bytes into a ExchangeCliLoginRequest.
+func DecodeExchangeCliLoginRequest(csilData []byte) (ExchangeCliLoginRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ExchangeCliLoginRequest
+		return csilZero, csilErr
+	}
+	return csilDecExchangeCliLoginRequest(csilRoot)
+}
+
+// csilEncExchangeCliLoginResponse builds the canonical CBOR value tree for a ExchangeCliLoginResponse.
+func csilEncExchangeCliLoginResponse(csilV ExchangeCliLoginResponse) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText(csilV.Status)})
+	if csilV.Session != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("session"), csilEncCliTokenResponse((*csilV.Session))})
+	}
+	return csilEntries
+}
+
+// csilDecExchangeCliLoginResponse reconstructs a ExchangeCliLoginResponse from a decoded CBOR value tree.
+func csilDecExchangeCliLoginResponse(csilRoot cborValue) (ExchangeCliLoginResponse, error) {
+	var csilOut ExchangeCliLoginResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "status")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (CliLoginStatus, error) {
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "pending" || csilInner == "denied" || csilInner == "expired" || csilInner == "complete") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
+			return CliLoginStatus(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Status = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "session"); csilOk {
+		csilVal, csilErr := (csilDecCliTokenResponse)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Session = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeExchangeCliLoginResponse encodes a ExchangeCliLoginResponse to canonical CSIL CBOR bytes.
+func EncodeExchangeCliLoginResponse(csilV ExchangeCliLoginResponse) []byte {
+	return cborEncode(csilEncExchangeCliLoginResponse(csilV))
+}
+
+// DecodeExchangeCliLoginResponse decodes canonical CSIL CBOR bytes into a ExchangeCliLoginResponse.
+func DecodeExchangeCliLoginResponse(csilData []byte) (ExchangeCliLoginResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ExchangeCliLoginResponse
+		return csilZero, csilErr
+	}
+	return csilDecExchangeCliLoginResponse(csilRoot)
+}
+
+// csilEncRefreshSessionRequest builds the canonical CBOR value tree for a RefreshSessionRequest.
+func csilEncRefreshSessionRequest(csilV RefreshSessionRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("refresh_token"), cborText(csilV.RefreshToken)})
+	return csilEntries
+}
+
+// csilDecRefreshSessionRequest reconstructs a RefreshSessionRequest from a decoded CBOR value tree.
+func csilDecRefreshSessionRequest(csilRoot cborValue) (RefreshSessionRequest, error) {
+	var csilOut RefreshSessionRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "refresh_token")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.RefreshToken = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeRefreshSessionRequest encodes a RefreshSessionRequest to canonical CSIL CBOR bytes.
+func EncodeRefreshSessionRequest(csilV RefreshSessionRequest) []byte {
+	return cborEncode(csilEncRefreshSessionRequest(csilV))
+}
+
+// DecodeRefreshSessionRequest decodes canonical CSIL CBOR bytes into a RefreshSessionRequest.
+func DecodeRefreshSessionRequest(csilData []byte) (RefreshSessionRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero RefreshSessionRequest
+		return csilZero, csilErr
+	}
+	return csilDecRefreshSessionRequest(csilRoot)
+}
+
+// csilEncCliSessionSummary builds the canonical CBOR value tree for a CliSessionSummary.
+func csilEncCliSessionSummary(csilV CliSessionSummary) cborValue {
+	csilEntries := make(cborMap, 0, 6)
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	if csilV.RevokedAt != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("revoked_at"), cborText((*csilV.RevokedAt))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("session_id"), cborText(csilV.SessionId)})
+	csilEntries = append(csilEntries, cborEntry{cborText("client_name"), cborText(csilV.ClientName)})
+	csilEntries = append(csilEntries, cborEntry{cborText("last_used_at"), cborText(csilV.LastUsedAt)})
+	return csilEntries
+}
+
+// csilDecCliSessionSummary reconstructs a CliSessionSummary from a decoded CBOR value tree.
+func csilDecCliSessionSummary(csilRoot cborValue) (CliSessionSummary, error) {
+	var csilOut CliSessionSummary
+	{
+		csilField, csilErr := cborRequire(csilRoot, "session_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (CliSessionID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return CliSessionID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SessionId = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "client_name")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ClientName = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "created_at")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.CreatedAt = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "last_used_at")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.LastUsedAt = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "expires_at")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ExpiresAt = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "revoked_at"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.RevokedAt = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeCliSessionSummary encodes a CliSessionSummary to canonical CSIL CBOR bytes.
+func EncodeCliSessionSummary(csilV CliSessionSummary) []byte {
+	return cborEncode(csilEncCliSessionSummary(csilV))
+}
+
+// DecodeCliSessionSummary decodes canonical CSIL CBOR bytes into a CliSessionSummary.
+func DecodeCliSessionSummary(csilData []byte) (CliSessionSummary, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero CliSessionSummary
+		return csilZero, csilErr
+	}
+	return csilDecCliSessionSummary(csilRoot)
+}
+
+// csilEncCliSessionsResponse builds the canonical CBOR value tree for a CliSessionsResponse.
+func csilEncCliSessionsResponse(csilV CliSessionsResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("sessions"), cborEncArray(csilV.Sessions, func(csilElem CliSessionSummary) cborValue { return csilEncCliSessionSummary(csilElem) })})
+	return csilEntries
+}
+
+// csilDecCliSessionsResponse reconstructs a CliSessionsResponse from a decoded CBOR value tree.
+func csilDecCliSessionsResponse(csilRoot cborValue) (CliSessionsResponse, error) {
+	var csilOut CliSessionsResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "sessions")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) ([]CliSessionSummary, error) {
+			return cborDecArray(csilV, csilDecCliSessionSummary)
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Sessions = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeCliSessionsResponse encodes a CliSessionsResponse to canonical CSIL CBOR bytes.
+func EncodeCliSessionsResponse(csilV CliSessionsResponse) []byte {
+	return cborEncode(csilEncCliSessionsResponse(csilV))
+}
+
+// DecodeCliSessionsResponse decodes canonical CSIL CBOR bytes into a CliSessionsResponse.
+func DecodeCliSessionsResponse(csilData []byte) (CliSessionsResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero CliSessionsResponse
+		return csilZero, csilErr
+	}
+	return csilDecCliSessionsResponse(csilRoot)
+}
+
+// csilEncRevokeSessionRequest builds the canonical CBOR value tree for a RevokeSessionRequest.
+func csilEncRevokeSessionRequest(csilV RevokeSessionRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("session_id"), cborText(csilV.SessionId)})
+	return csilEntries
+}
+
+// csilDecRevokeSessionRequest reconstructs a RevokeSessionRequest from a decoded CBOR value tree.
+func csilDecRevokeSessionRequest(csilRoot cborValue) (RevokeSessionRequest, error) {
+	var csilOut RevokeSessionRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "session_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (CliSessionID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return CliSessionID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SessionId = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeRevokeSessionRequest encodes a RevokeSessionRequest to canonical CSIL CBOR bytes.
+func EncodeRevokeSessionRequest(csilV RevokeSessionRequest) []byte {
+	return cborEncode(csilEncRevokeSessionRequest(csilV))
+}
+
+// DecodeRevokeSessionRequest decodes canonical CSIL CBOR bytes into a RevokeSessionRequest.
+func DecodeRevokeSessionRequest(csilData []byte) (RevokeSessionRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero RevokeSessionRequest
+		return csilZero, csilErr
+	}
+	return csilDecRevokeSessionRequest(csilRoot)
 }
 
 // csilEncDevUserEntry builds the canonical CBOR value tree for a DevUserEntry.
@@ -4142,7 +5004,18 @@ func csilDecCommentListRequest(csilRoot cborValue) (CommentListRequest, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (TargetType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "event" || csilInner == "task" || csilInner == "project") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return TargetType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -4538,7 +5411,18 @@ func csilDecShareAccessRequest(csilRoot cborValue) (ShareAccessRequest, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (ResourceType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "event" || csilInner == "task" || csilInner == "house") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return ResourceType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -4592,7 +5476,18 @@ func csilDecResourceRef(csilRoot cborValue) (ResourceRef, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (ResourceType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "event" || csilInner == "task" || csilInner == "house") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return ResourceType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5116,7 +6011,18 @@ func csilDecDependencyRef(csilRoot cborValue) (DependencyRef, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (DependencyNodeType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "task" || csilInner == "project") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return DependencyNodeType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5141,7 +6047,18 @@ func csilDecDependencyRef(csilRoot cborValue) (DependencyRef, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (DependencyNodeType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "task" || csilInner == "project") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return DependencyNodeType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5195,7 +6112,18 @@ func csilDecDependencyTarget(csilRoot cborValue) (DependencyTarget, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (DependencyNodeType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "task" || csilInner == "project") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return DependencyNodeType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5253,7 +6181,18 @@ func csilDecDependencyNode(csilRoot cborValue) (DependencyNode, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (DependencyNodeType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "task" || csilInner == "project") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return DependencyNodeType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5377,7 +6316,18 @@ func csilDecGrant(csilRoot cborValue) (Grant, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (GranteeType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "member" || csilInner == "group") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return GranteeType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5402,7 +6352,18 @@ func csilDecGrant(csilRoot cborValue) (Grant, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (AccessLevel, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "none" || csilInner == "read" || csilInner == "edit" || csilInner == "full") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return AccessLevel(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5460,7 +6421,18 @@ func csilDecTaskGrantRef(csilRoot cborValue) (TaskGrantRef, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (GranteeType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "member" || csilInner == "group") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return GranteeType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5530,7 +6502,18 @@ func csilDecPutTaskGrantRequest(csilRoot cborValue) (PutTaskGrantRequest, error)
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (GranteeType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "member" || csilInner == "group") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return GranteeType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5555,7 +6538,18 @@ func csilDecPutTaskGrantRequest(csilRoot cborValue) (PutTaskGrantRequest, error)
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (AccessLevel, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "none" || csilInner == "read" || csilInner == "edit" || csilInner == "full") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return AccessLevel(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5612,7 +6606,18 @@ func csilDecSetTaskVisibilityRequest(csilRoot cborValue) (SetTaskVisibilityReque
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (AccessLevel, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "none" || csilInner == "read" || csilInner == "edit" || csilInner == "full") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return AccessLevel(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5670,7 +6675,18 @@ func csilDecProjectGrantRef(csilRoot cborValue) (ProjectGrantRef, error) {
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (GranteeType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "member" || csilInner == "group") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return GranteeType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5740,7 +6756,18 @@ func csilDecPutProjectGrantRequest(csilRoot cborValue) (PutProjectGrantRequest, 
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (GranteeType, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "member" || csilInner == "group") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return GranteeType(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5765,7 +6792,18 @@ func csilDecPutProjectGrantRequest(csilRoot cborValue) (PutProjectGrantRequest, 
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (AccessLevel, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "none" || csilInner == "read" || csilInner == "edit" || csilInner == "full") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return AccessLevel(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5822,7 +6860,18 @@ func csilDecSetProjectVisibilityRequest(csilRoot cborValue) (SetProjectVisibilit
 			return csilOut, csilErr
 		}
 		csilVal, csilErr := (func(csilV cborValue) (AccessLevel, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "none" || csilInner == "read" || csilInner == "edit" || csilInner == "full") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return AccessLevel(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -5885,7 +6934,18 @@ func csilDecEffectiveSettings(csilRoot cborValue) (EffectiveSettings, error) {
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "default_project_visibility"); csilOk {
 		csilVal, csilErr := (func(csilV cborValue) (AccessLevel, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "none" || csilInner == "read" || csilInner == "edit" || csilInner == "full") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
 			return AccessLevel(csilInner), csilErr
 		})(csilField)
 		if csilErr != nil {
@@ -6881,246 +7941,6 @@ func DecodePurgeRequest(csilData []byte) (PurgeRequest, error) {
 	return csilDecPurgeRequest(csilRoot)
 }
 
-// EncodeAuthLoginRequest encodes the AuthLoginRequest payload to canonical CSIL CBOR bytes.
-func EncodeAuthLoginRequest(csilV LoginRequest) []byte {
-	return cborEncode(csilEncLoginRequest(csilV))
-}
-
-// DecodeAuthLoginRequest decodes canonical CSIL CBOR bytes into the AuthLoginRequest payload.
-func DecodeAuthLoginRequest(csilData []byte) (LoginRequest, error) {
-	var csilZero LoginRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecLoginRequest)(csilRoot)
-}
-
-// EncodeAuthLoginResponse encodes the AuthLoginResponse payload to canonical CSIL CBOR bytes.
-func EncodeAuthLoginResponse(csilV LoginResponse) []byte {
-	return cborEncode(csilEncLoginResponse(csilV))
-}
-
-// DecodeAuthLoginResponse decodes canonical CSIL CBOR bytes into the AuthLoginResponse payload.
-func DecodeAuthLoginResponse(csilData []byte) (LoginResponse, error) {
-	var csilZero LoginResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecLoginResponse)(csilRoot)
-}
-
-// EncodeAuthCompleteRequest encodes the AuthCompleteRequest payload to canonical CSIL CBOR bytes.
-func EncodeAuthCompleteRequest(csilV CompleteRequest) []byte {
-	return cborEncode(csilEncCompleteRequest(csilV))
-}
-
-// DecodeAuthCompleteRequest decodes canonical CSIL CBOR bytes into the AuthCompleteRequest payload.
-func DecodeAuthCompleteRequest(csilData []byte) (CompleteRequest, error) {
-	var csilZero CompleteRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecCompleteRequest)(csilRoot)
-}
-
-// EncodeAuthCompleteResponse encodes the AuthCompleteResponse payload to canonical CSIL CBOR bytes.
-func EncodeAuthCompleteResponse(csilV LoginResponse) []byte {
-	return cborEncode(csilEncLoginResponse(csilV))
-}
-
-// DecodeAuthCompleteResponse decodes canonical CSIL CBOR bytes into the AuthCompleteResponse payload.
-func DecodeAuthCompleteResponse(csilData []byte) (LoginResponse, error) {
-	var csilZero LoginResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecLoginResponse)(csilRoot)
-}
-
-// EncodeAuthRefreshRequest encodes the AuthRefreshRequest payload to canonical CSIL CBOR bytes.
-func EncodeAuthRefreshRequest(csilV EmptyRequest) []byte {
-	return cborEncode(csilEncEmptyRequest(csilV))
-}
-
-// DecodeAuthRefreshRequest decodes canonical CSIL CBOR bytes into the AuthRefreshRequest payload.
-func DecodeAuthRefreshRequest(csilData []byte) (EmptyRequest, error) {
-	var csilZero EmptyRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyRequest)(csilRoot)
-}
-
-// EncodeAuthRefreshResponse encodes the AuthRefreshResponse payload to canonical CSIL CBOR bytes.
-func EncodeAuthRefreshResponse(csilV LoginResponse) []byte {
-	return cborEncode(csilEncLoginResponse(csilV))
-}
-
-// DecodeAuthRefreshResponse decodes canonical CSIL CBOR bytes into the AuthRefreshResponse payload.
-func DecodeAuthRefreshResponse(csilData []byte) (LoginResponse, error) {
-	var csilZero LoginResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecLoginResponse)(csilRoot)
-}
-
-// EncodeAuthLogoutRequest encodes the AuthLogoutRequest payload to canonical CSIL CBOR bytes.
-func EncodeAuthLogoutRequest(csilV EmptyRequest) []byte {
-	return cborEncode(csilEncEmptyRequest(csilV))
-}
-
-// DecodeAuthLogoutRequest decodes canonical CSIL CBOR bytes into the AuthLogoutRequest payload.
-func DecodeAuthLogoutRequest(csilData []byte) (EmptyRequest, error) {
-	var csilZero EmptyRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyRequest)(csilRoot)
-}
-
-// EncodeAuthLogoutResponse encodes the AuthLogoutResponse payload to canonical CSIL CBOR bytes.
-func EncodeAuthLogoutResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeAuthLogoutResponse decodes canonical CSIL CBOR bytes into the AuthLogoutResponse payload.
-func DecodeAuthLogoutResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeAuthMeRequest encodes the AuthMeRequest payload to canonical CSIL CBOR bytes.
-func EncodeAuthMeRequest(csilV EmptyRequest) []byte {
-	return cborEncode(csilEncEmptyRequest(csilV))
-}
-
-// DecodeAuthMeRequest decodes canonical CSIL CBOR bytes into the AuthMeRequest payload.
-func DecodeAuthMeRequest(csilData []byte) (EmptyRequest, error) {
-	var csilZero EmptyRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyRequest)(csilRoot)
-}
-
-// EncodeAuthMeResponse encodes the AuthMeResponse payload to canonical CSIL CBOR bytes.
-func EncodeAuthMeResponse(csilV MeResponse) []byte {
-	return cborEncode(csilEncMeResponse(csilV))
-}
-
-// DecodeAuthMeResponse decodes canonical CSIL CBOR bytes into the AuthMeResponse payload.
-func DecodeAuthMeResponse(csilData []byte) (MeResponse, error) {
-	var csilZero MeResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMeResponse)(csilRoot)
-}
-
-// EncodeDevAuthListDevUsersRequest encodes the DevAuthListDevUsersRequest payload to canonical CSIL CBOR bytes.
-func EncodeDevAuthListDevUsersRequest(csilV EmptyRequest) []byte {
-	return cborEncode(csilEncEmptyRequest(csilV))
-}
-
-// DecodeDevAuthListDevUsersRequest decodes canonical CSIL CBOR bytes into the DevAuthListDevUsersRequest payload.
-func DecodeDevAuthListDevUsersRequest(csilData []byte) (EmptyRequest, error) {
-	var csilZero EmptyRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyRequest)(csilRoot)
-}
-
-// EncodeDevAuthListDevUsersResponse encodes the DevAuthListDevUsersResponse payload to canonical CSIL CBOR bytes.
-func EncodeDevAuthListDevUsersResponse(csilV DevUsersResponse) []byte {
-	return cborEncode(csilEncDevUsersResponse(csilV))
-}
-
-// DecodeDevAuthListDevUsersResponse decodes canonical CSIL CBOR bytes into the DevAuthListDevUsersResponse payload.
-func DecodeDevAuthListDevUsersResponse(csilData []byte) (DevUsersResponse, error) {
-	var csilZero DevUsersResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecDevUsersResponse)(csilRoot)
-}
-
-// EncodeDevAuthDevLoginRequest encodes the DevAuthDevLoginRequest payload to canonical CSIL CBOR bytes.
-func EncodeDevAuthDevLoginRequest(csilV DevLoginRequest) []byte {
-	return cborEncode(csilEncDevLoginRequest(csilV))
-}
-
-// DecodeDevAuthDevLoginRequest decodes canonical CSIL CBOR bytes into the DevAuthDevLoginRequest payload.
-func DecodeDevAuthDevLoginRequest(csilData []byte) (DevLoginRequest, error) {
-	var csilZero DevLoginRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecDevLoginRequest)(csilRoot)
-}
-
-// EncodeDevAuthDevLoginResponse encodes the DevAuthDevLoginResponse payload to canonical CSIL CBOR bytes.
-func EncodeDevAuthDevLoginResponse(csilV LoginResponse) []byte {
-	return cborEncode(csilEncLoginResponse(csilV))
-}
-
-// DecodeDevAuthDevLoginResponse decodes canonical CSIL CBOR bytes into the DevAuthDevLoginResponse payload.
-func DecodeDevAuthDevLoginResponse(csilData []byte) (LoginResponse, error) {
-	var csilZero LoginResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecLoginResponse)(csilRoot)
-}
-
-// EncodeHouseCreateHouseRequest encodes the HouseCreateHouseRequest payload to canonical CSIL CBOR bytes.
-func EncodeHouseCreateHouseRequest(csilV House) []byte {
-	return cborEncode(csilEncHouse(csilV))
-}
-
-// DecodeHouseCreateHouseRequest decodes canonical CSIL CBOR bytes into the HouseCreateHouseRequest payload.
-func DecodeHouseCreateHouseRequest(csilData []byte) (House, error) {
-	var csilZero House
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouse)(csilRoot)
-}
-
-// EncodeHouseCreateHouseResponse encodes the HouseCreateHouseResponse payload to canonical CSIL CBOR bytes.
-func EncodeHouseCreateHouseResponse(csilV House) []byte {
-	return cborEncode(csilEncHouse(csilV))
-}
-
-// DecodeHouseCreateHouseResponse decodes canonical CSIL CBOR bytes into the HouseCreateHouseResponse payload.
-func DecodeHouseCreateHouseResponse(csilData []byte) (House, error) {
-	var csilZero House
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouse)(csilRoot)
-}
-
 // EncodeHouseGetHouseRequest encodes the HouseGetHouseRequest payload to canonical CSIL CBOR bytes.
 func EncodeHouseGetHouseRequest(csilV HouseID) []byte {
 	return cborEncode(cborText(csilV))
@@ -7137,51 +7957,6 @@ func DecodeHouseGetHouseRequest(csilData []byte) (HouseID, error) {
 		csilInner, csilErr := (cborAsText)(csilV)
 		return HouseID(csilInner), csilErr
 	})(csilRoot)
-}
-
-// EncodeHouseGetHouseResponse encodes the HouseGetHouseResponse payload to canonical CSIL CBOR bytes.
-func EncodeHouseGetHouseResponse(csilV House) []byte {
-	return cborEncode(csilEncHouse(csilV))
-}
-
-// DecodeHouseGetHouseResponse decodes canonical CSIL CBOR bytes into the HouseGetHouseResponse payload.
-func DecodeHouseGetHouseResponse(csilData []byte) (House, error) {
-	var csilZero House
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouse)(csilRoot)
-}
-
-// EncodeHouseUpdateHouseRequest encodes the HouseUpdateHouseRequest payload to canonical CSIL CBOR bytes.
-func EncodeHouseUpdateHouseRequest(csilV House) []byte {
-	return cborEncode(csilEncHouse(csilV))
-}
-
-// DecodeHouseUpdateHouseRequest decodes canonical CSIL CBOR bytes into the HouseUpdateHouseRequest payload.
-func DecodeHouseUpdateHouseRequest(csilData []byte) (House, error) {
-	var csilZero House
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouse)(csilRoot)
-}
-
-// EncodeHouseUpdateHouseResponse encodes the HouseUpdateHouseResponse payload to canonical CSIL CBOR bytes.
-func EncodeHouseUpdateHouseResponse(csilV House) []byte {
-	return cborEncode(csilEncHouse(csilV))
-}
-
-// DecodeHouseUpdateHouseResponse decodes canonical CSIL CBOR bytes into the HouseUpdateHouseResponse payload.
-func DecodeHouseUpdateHouseResponse(csilData []byte) (House, error) {
-	var csilZero House
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouse)(csilRoot)
 }
 
 // EncodeHouseDeleteHouseRequest encodes the HouseDeleteHouseRequest payload to canonical CSIL CBOR bytes.
@@ -7202,36 +7977,6 @@ func DecodeHouseDeleteHouseRequest(csilData []byte) (HouseID, error) {
 	})(csilRoot)
 }
 
-// EncodeHouseDeleteHouseResponse encodes the HouseDeleteHouseResponse payload to canonical CSIL CBOR bytes.
-func EncodeHouseDeleteHouseResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeHouseDeleteHouseResponse decodes canonical CSIL CBOR bytes into the HouseDeleteHouseResponse payload.
-func DecodeHouseDeleteHouseResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeHouseListHousesRequest encodes the HouseListHousesRequest payload to canonical CSIL CBOR bytes.
-func EncodeHouseListHousesRequest(csilV HouseListRequest) []byte {
-	return cborEncode(csilEncHouseListRequest(csilV))
-}
-
-// DecodeHouseListHousesRequest decodes canonical CSIL CBOR bytes into the HouseListHousesRequest payload.
-func DecodeHouseListHousesRequest(csilData []byte) (HouseListRequest, error) {
-	var csilZero HouseListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouseListRequest)(csilRoot)
-}
-
 // EncodeHouseListHousesResponse encodes the HouseListHousesResponse payload to canonical CSIL CBOR bytes.
 func EncodeHouseListHousesResponse(csilV []House) []byte {
 	return cborEncode(cborEncArray(csilV, func(csilElem House) cborValue { return csilEncHouse(csilElem) }))
@@ -7245,36 +7990,6 @@ func DecodeHouseListHousesResponse(csilData []byte) ([]House, error) {
 		return csilZero, csilErr
 	}
 	return (func(csilV cborValue) ([]House, error) { return cborDecArray(csilV, csilDecHouse) })(csilRoot)
-}
-
-// EncodeMemberCreateMemberRequest encodes the MemberCreateMemberRequest payload to canonical CSIL CBOR bytes.
-func EncodeMemberCreateMemberRequest(csilV Member) []byte {
-	return cborEncode(csilEncMember(csilV))
-}
-
-// DecodeMemberCreateMemberRequest decodes canonical CSIL CBOR bytes into the MemberCreateMemberRequest payload.
-func DecodeMemberCreateMemberRequest(csilData []byte) (Member, error) {
-	var csilZero Member
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMember)(csilRoot)
-}
-
-// EncodeMemberCreateMemberResponse encodes the MemberCreateMemberResponse payload to canonical CSIL CBOR bytes.
-func EncodeMemberCreateMemberResponse(csilV Member) []byte {
-	return cborEncode(csilEncMember(csilV))
-}
-
-// DecodeMemberCreateMemberResponse decodes canonical CSIL CBOR bytes into the MemberCreateMemberResponse payload.
-func DecodeMemberCreateMemberResponse(csilData []byte) (Member, error) {
-	var csilZero Member
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMember)(csilRoot)
 }
 
 // EncodeMemberGetMemberRequest encodes the MemberGetMemberRequest payload to canonical CSIL CBOR bytes.
@@ -7295,81 +8010,6 @@ func DecodeMemberGetMemberRequest(csilData []byte) (MemberID, error) {
 	})(csilRoot)
 }
 
-// EncodeMemberGetMemberResponse encodes the MemberGetMemberResponse payload to canonical CSIL CBOR bytes.
-func EncodeMemberGetMemberResponse(csilV Member) []byte {
-	return cborEncode(csilEncMember(csilV))
-}
-
-// DecodeMemberGetMemberResponse decodes canonical CSIL CBOR bytes into the MemberGetMemberResponse payload.
-func DecodeMemberGetMemberResponse(csilData []byte) (Member, error) {
-	var csilZero Member
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMember)(csilRoot)
-}
-
-// EncodeMemberGetMemberByIdentityRequest encodes the MemberGetMemberByIdentityRequest payload to canonical CSIL CBOR bytes.
-func EncodeMemberGetMemberByIdentityRequest(csilV Member) []byte {
-	return cborEncode(csilEncMember(csilV))
-}
-
-// DecodeMemberGetMemberByIdentityRequest decodes canonical CSIL CBOR bytes into the MemberGetMemberByIdentityRequest payload.
-func DecodeMemberGetMemberByIdentityRequest(csilData []byte) (Member, error) {
-	var csilZero Member
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMember)(csilRoot)
-}
-
-// EncodeMemberGetMemberByIdentityResponse encodes the MemberGetMemberByIdentityResponse payload to canonical CSIL CBOR bytes.
-func EncodeMemberGetMemberByIdentityResponse(csilV Member) []byte {
-	return cborEncode(csilEncMember(csilV))
-}
-
-// DecodeMemberGetMemberByIdentityResponse decodes canonical CSIL CBOR bytes into the MemberGetMemberByIdentityResponse payload.
-func DecodeMemberGetMemberByIdentityResponse(csilData []byte) (Member, error) {
-	var csilZero Member
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMember)(csilRoot)
-}
-
-// EncodeMemberUpdateMemberRequest encodes the MemberUpdateMemberRequest payload to canonical CSIL CBOR bytes.
-func EncodeMemberUpdateMemberRequest(csilV Member) []byte {
-	return cborEncode(csilEncMember(csilV))
-}
-
-// DecodeMemberUpdateMemberRequest decodes canonical CSIL CBOR bytes into the MemberUpdateMemberRequest payload.
-func DecodeMemberUpdateMemberRequest(csilData []byte) (Member, error) {
-	var csilZero Member
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMember)(csilRoot)
-}
-
-// EncodeMemberUpdateMemberResponse encodes the MemberUpdateMemberResponse payload to canonical CSIL CBOR bytes.
-func EncodeMemberUpdateMemberResponse(csilV Member) []byte {
-	return cborEncode(csilEncMember(csilV))
-}
-
-// DecodeMemberUpdateMemberResponse decodes canonical CSIL CBOR bytes into the MemberUpdateMemberResponse payload.
-func DecodeMemberUpdateMemberResponse(csilData []byte) (Member, error) {
-	var csilZero Member
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMember)(csilRoot)
-}
-
 // EncodeMemberDeactivateMemberRequest encodes the MemberDeactivateMemberRequest payload to canonical CSIL CBOR bytes.
 func EncodeMemberDeactivateMemberRequest(csilV MemberID) []byte {
 	return cborEncode(cborText(csilV))
@@ -7386,21 +8026,6 @@ func DecodeMemberDeactivateMemberRequest(csilData []byte) (MemberID, error) {
 		csilInner, csilErr := (cborAsText)(csilV)
 		return MemberID(csilInner), csilErr
 	})(csilRoot)
-}
-
-// EncodeMemberDeactivateMemberResponse encodes the MemberDeactivateMemberResponse payload to canonical CSIL CBOR bytes.
-func EncodeMemberDeactivateMemberResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeMemberDeactivateMemberResponse decodes canonical CSIL CBOR bytes into the MemberDeactivateMemberResponse payload.
-func DecodeMemberDeactivateMemberResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
 }
 
 // EncodeMemberReactivateMemberRequest encodes the MemberReactivateMemberRequest payload to canonical CSIL CBOR bytes.
@@ -7421,36 +8046,6 @@ func DecodeMemberReactivateMemberRequest(csilData []byte) (MemberID, error) {
 	})(csilRoot)
 }
 
-// EncodeMemberReactivateMemberResponse encodes the MemberReactivateMemberResponse payload to canonical CSIL CBOR bytes.
-func EncodeMemberReactivateMemberResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeMemberReactivateMemberResponse decodes canonical CSIL CBOR bytes into the MemberReactivateMemberResponse payload.
-func DecodeMemberReactivateMemberResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeMemberListMembersRequest encodes the MemberListMembersRequest payload to canonical CSIL CBOR bytes.
-func EncodeMemberListMembersRequest(csilV HouseScopedListRequest) []byte {
-	return cborEncode(csilEncHouseScopedListRequest(csilV))
-}
-
-// DecodeMemberListMembersRequest decodes canonical CSIL CBOR bytes into the MemberListMembersRequest payload.
-func DecodeMemberListMembersRequest(csilData []byte) (HouseScopedListRequest, error) {
-	var csilZero HouseScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouseScopedListRequest)(csilRoot)
-}
-
 // EncodeMemberListMembersResponse encodes the MemberListMembersResponse payload to canonical CSIL CBOR bytes.
 func EncodeMemberListMembersResponse(csilV []Member) []byte {
 	return cborEncode(cborEncArray(csilV, func(csilElem Member) cborValue { return csilEncMember(csilElem) }))
@@ -7464,36 +8059,6 @@ func DecodeMemberListMembersResponse(csilData []byte) ([]Member, error) {
 		return csilZero, csilErr
 	}
 	return (func(csilV cborValue) ([]Member, error) { return cborDecArray(csilV, csilDecMember) })(csilRoot)
-}
-
-// EncodeTrustedDomainAddTrustedDomainRequest encodes the TrustedDomainAddTrustedDomainRequest payload to canonical CSIL CBOR bytes.
-func EncodeTrustedDomainAddTrustedDomainRequest(csilV TrustedDomain) []byte {
-	return cborEncode(csilEncTrustedDomain(csilV))
-}
-
-// DecodeTrustedDomainAddTrustedDomainRequest decodes canonical CSIL CBOR bytes into the TrustedDomainAddTrustedDomainRequest payload.
-func DecodeTrustedDomainAddTrustedDomainRequest(csilData []byte) (TrustedDomain, error) {
-	var csilZero TrustedDomain
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTrustedDomain)(csilRoot)
-}
-
-// EncodeTrustedDomainAddTrustedDomainResponse encodes the TrustedDomainAddTrustedDomainResponse payload to canonical CSIL CBOR bytes.
-func EncodeTrustedDomainAddTrustedDomainResponse(csilV TrustedDomain) []byte {
-	return cborEncode(csilEncTrustedDomain(csilV))
-}
-
-// DecodeTrustedDomainAddTrustedDomainResponse decodes canonical CSIL CBOR bytes into the TrustedDomainAddTrustedDomainResponse payload.
-func DecodeTrustedDomainAddTrustedDomainResponse(csilData []byte) (TrustedDomain, error) {
-	var csilZero TrustedDomain
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTrustedDomain)(csilRoot)
 }
 
 // EncodeTrustedDomainRemoveTrustedDomainRequest encodes the TrustedDomainRemoveTrustedDomainRequest payload to canonical CSIL CBOR bytes.
@@ -7512,21 +8077,6 @@ func DecodeTrustedDomainRemoveTrustedDomainRequest(csilData []byte) (TrustedDoma
 		csilInner, csilErr := (cborAsText)(csilV)
 		return TrustedDomainID(csilInner), csilErr
 	})(csilRoot)
-}
-
-// EncodeTrustedDomainRemoveTrustedDomainResponse encodes the TrustedDomainRemoveTrustedDomainResponse payload to canonical CSIL CBOR bytes.
-func EncodeTrustedDomainRemoveTrustedDomainResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeTrustedDomainRemoveTrustedDomainResponse decodes canonical CSIL CBOR bytes into the TrustedDomainRemoveTrustedDomainResponse payload.
-func DecodeTrustedDomainRemoveTrustedDomainResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
 }
 
 // EncodeTrustedDomainListTrustedDomainsRequest encodes the TrustedDomainListTrustedDomainsRequest payload to canonical CSIL CBOR bytes.
@@ -7562,96 +8112,6 @@ func DecodeTrustedDomainListTrustedDomainsResponse(csilData []byte) ([]TrustedDo
 	return (func(csilV cborValue) ([]TrustedDomain, error) { return cborDecArray(csilV, csilDecTrustedDomain) })(csilRoot)
 }
 
-// EncodeTrustedDomainIsDomainTrustedRequest encodes the TrustedDomainIsDomainTrustedRequest payload to canonical CSIL CBOR bytes.
-func EncodeTrustedDomainIsDomainTrustedRequest(csilV TrustedDomain) []byte {
-	return cborEncode(csilEncTrustedDomain(csilV))
-}
-
-// DecodeTrustedDomainIsDomainTrustedRequest decodes canonical CSIL CBOR bytes into the TrustedDomainIsDomainTrustedRequest payload.
-func DecodeTrustedDomainIsDomainTrustedRequest(csilData []byte) (TrustedDomain, error) {
-	var csilZero TrustedDomain
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTrustedDomain)(csilRoot)
-}
-
-// EncodeTrustedDomainIsDomainTrustedResponse encodes the TrustedDomainIsDomainTrustedResponse payload to canonical CSIL CBOR bytes.
-func EncodeTrustedDomainIsDomainTrustedResponse(csilV BoolResponse) []byte {
-	return cborEncode(csilEncBoolResponse(csilV))
-}
-
-// DecodeTrustedDomainIsDomainTrustedResponse decodes canonical CSIL CBOR bytes into the TrustedDomainIsDomainTrustedResponse payload.
-func DecodeTrustedDomainIsDomainTrustedResponse(csilData []byte) (BoolResponse, error) {
-	var csilZero BoolResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecBoolResponse)(csilRoot)
-}
-
-// EncodeRoleCreateRoleRequest encodes the RoleCreateRoleRequest payload to canonical CSIL CBOR bytes.
-func EncodeRoleCreateRoleRequest(csilV Role) []byte {
-	return cborEncode(csilEncRole(csilV))
-}
-
-// DecodeRoleCreateRoleRequest decodes canonical CSIL CBOR bytes into the RoleCreateRoleRequest payload.
-func DecodeRoleCreateRoleRequest(csilData []byte) (Role, error) {
-	var csilZero Role
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecRole)(csilRoot)
-}
-
-// EncodeRoleCreateRoleResponse encodes the RoleCreateRoleResponse payload to canonical CSIL CBOR bytes.
-func EncodeRoleCreateRoleResponse(csilV Role) []byte {
-	return cborEncode(csilEncRole(csilV))
-}
-
-// DecodeRoleCreateRoleResponse decodes canonical CSIL CBOR bytes into the RoleCreateRoleResponse payload.
-func DecodeRoleCreateRoleResponse(csilData []byte) (Role, error) {
-	var csilZero Role
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecRole)(csilRoot)
-}
-
-// EncodeRoleUpdateRoleRequest encodes the RoleUpdateRoleRequest payload to canonical CSIL CBOR bytes.
-func EncodeRoleUpdateRoleRequest(csilV Role) []byte {
-	return cborEncode(csilEncRole(csilV))
-}
-
-// DecodeRoleUpdateRoleRequest decodes canonical CSIL CBOR bytes into the RoleUpdateRoleRequest payload.
-func DecodeRoleUpdateRoleRequest(csilData []byte) (Role, error) {
-	var csilZero Role
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecRole)(csilRoot)
-}
-
-// EncodeRoleUpdateRoleResponse encodes the RoleUpdateRoleResponse payload to canonical CSIL CBOR bytes.
-func EncodeRoleUpdateRoleResponse(csilV Role) []byte {
-	return cborEncode(csilEncRole(csilV))
-}
-
-// DecodeRoleUpdateRoleResponse decodes canonical CSIL CBOR bytes into the RoleUpdateRoleResponse payload.
-func DecodeRoleUpdateRoleResponse(csilData []byte) (Role, error) {
-	var csilZero Role
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecRole)(csilRoot)
-}
-
 // EncodeRoleDeleteRoleRequest encodes the RoleDeleteRoleRequest payload to canonical CSIL CBOR bytes.
 func EncodeRoleDeleteRoleRequest(csilV RoleID) []byte {
 	return cborEncode(cborText(csilV))
@@ -7670,36 +8130,6 @@ func DecodeRoleDeleteRoleRequest(csilData []byte) (RoleID, error) {
 	})(csilRoot)
 }
 
-// EncodeRoleDeleteRoleResponse encodes the RoleDeleteRoleResponse payload to canonical CSIL CBOR bytes.
-func EncodeRoleDeleteRoleResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeRoleDeleteRoleResponse decodes canonical CSIL CBOR bytes into the RoleDeleteRoleResponse payload.
-func DecodeRoleDeleteRoleResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeRoleListRolesRequest encodes the RoleListRolesRequest payload to canonical CSIL CBOR bytes.
-func EncodeRoleListRolesRequest(csilV HouseScopedListRequest) []byte {
-	return cborEncode(csilEncHouseScopedListRequest(csilV))
-}
-
-// DecodeRoleListRolesRequest decodes canonical CSIL CBOR bytes into the RoleListRolesRequest payload.
-func DecodeRoleListRolesRequest(csilData []byte) (HouseScopedListRequest, error) {
-	var csilZero HouseScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouseScopedListRequest)(csilRoot)
-}
-
 // EncodeRoleListRolesResponse encodes the RoleListRolesResponse payload to canonical CSIL CBOR bytes.
 func EncodeRoleListRolesResponse(csilV []Role) []byte {
 	return cborEncode(cborEncArray(csilV, func(csilElem Role) cborValue { return csilEncRole(csilElem) }))
@@ -7715,81 +8145,6 @@ func DecodeRoleListRolesResponse(csilData []byte) ([]Role, error) {
 	return (func(csilV cborValue) ([]Role, error) { return cborDecArray(csilV, csilDecRole) })(csilRoot)
 }
 
-// EncodeRoleGrantRoleRequest encodes the RoleGrantRoleRequest payload to canonical CSIL CBOR bytes.
-func EncodeRoleGrantRoleRequest(csilV MemberRoleRef) []byte {
-	return cborEncode(csilEncMemberRoleRef(csilV))
-}
-
-// DecodeRoleGrantRoleRequest decodes canonical CSIL CBOR bytes into the RoleGrantRoleRequest payload.
-func DecodeRoleGrantRoleRequest(csilData []byte) (MemberRoleRef, error) {
-	var csilZero MemberRoleRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMemberRoleRef)(csilRoot)
-}
-
-// EncodeRoleGrantRoleResponse encodes the RoleGrantRoleResponse payload to canonical CSIL CBOR bytes.
-func EncodeRoleGrantRoleResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeRoleGrantRoleResponse decodes canonical CSIL CBOR bytes into the RoleGrantRoleResponse payload.
-func DecodeRoleGrantRoleResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeRoleRevokeRoleRequest encodes the RoleRevokeRoleRequest payload to canonical CSIL CBOR bytes.
-func EncodeRoleRevokeRoleRequest(csilV MemberRoleRef) []byte {
-	return cborEncode(csilEncMemberRoleRef(csilV))
-}
-
-// DecodeRoleRevokeRoleRequest decodes canonical CSIL CBOR bytes into the RoleRevokeRoleRequest payload.
-func DecodeRoleRevokeRoleRequest(csilData []byte) (MemberRoleRef, error) {
-	var csilZero MemberRoleRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMemberRoleRef)(csilRoot)
-}
-
-// EncodeRoleRevokeRoleResponse encodes the RoleRevokeRoleResponse payload to canonical CSIL CBOR bytes.
-func EncodeRoleRevokeRoleResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeRoleRevokeRoleResponse decodes canonical CSIL CBOR bytes into the RoleRevokeRoleResponse payload.
-func DecodeRoleRevokeRoleResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeRoleListMemberRolesRequest encodes the RoleListMemberRolesRequest payload to canonical CSIL CBOR bytes.
-func EncodeRoleListMemberRolesRequest(csilV MemberScopedListRequest) []byte {
-	return cborEncode(csilEncMemberScopedListRequest(csilV))
-}
-
-// DecodeRoleListMemberRolesRequest decodes canonical CSIL CBOR bytes into the RoleListMemberRolesRequest payload.
-func DecodeRoleListMemberRolesRequest(csilData []byte) (MemberScopedListRequest, error) {
-	var csilZero MemberScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMemberScopedListRequest)(csilRoot)
-}
-
 // EncodeRoleListMemberRolesResponse encodes the RoleListMemberRolesResponse payload to canonical CSIL CBOR bytes.
 func EncodeRoleListMemberRolesResponse(csilV []Role) []byte {
 	return cborEncode(cborEncArray(csilV, func(csilElem Role) cborValue { return csilEncRole(csilElem) }))
@@ -7803,66 +8158,6 @@ func DecodeRoleListMemberRolesResponse(csilData []byte) ([]Role, error) {
 		return csilZero, csilErr
 	}
 	return (func(csilV cborValue) ([]Role, error) { return cborDecArray(csilV, csilDecRole) })(csilRoot)
-}
-
-// EncodeSkillCreateSkillRequest encodes the SkillCreateSkillRequest payload to canonical CSIL CBOR bytes.
-func EncodeSkillCreateSkillRequest(csilV Skill) []byte {
-	return cborEncode(csilEncSkill(csilV))
-}
-
-// DecodeSkillCreateSkillRequest decodes canonical CSIL CBOR bytes into the SkillCreateSkillRequest payload.
-func DecodeSkillCreateSkillRequest(csilData []byte) (Skill, error) {
-	var csilZero Skill
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecSkill)(csilRoot)
-}
-
-// EncodeSkillCreateSkillResponse encodes the SkillCreateSkillResponse payload to canonical CSIL CBOR bytes.
-func EncodeSkillCreateSkillResponse(csilV Skill) []byte {
-	return cborEncode(csilEncSkill(csilV))
-}
-
-// DecodeSkillCreateSkillResponse decodes canonical CSIL CBOR bytes into the SkillCreateSkillResponse payload.
-func DecodeSkillCreateSkillResponse(csilData []byte) (Skill, error) {
-	var csilZero Skill
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecSkill)(csilRoot)
-}
-
-// EncodeSkillUpdateSkillRequest encodes the SkillUpdateSkillRequest payload to canonical CSIL CBOR bytes.
-func EncodeSkillUpdateSkillRequest(csilV Skill) []byte {
-	return cborEncode(csilEncSkill(csilV))
-}
-
-// DecodeSkillUpdateSkillRequest decodes canonical CSIL CBOR bytes into the SkillUpdateSkillRequest payload.
-func DecodeSkillUpdateSkillRequest(csilData []byte) (Skill, error) {
-	var csilZero Skill
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecSkill)(csilRoot)
-}
-
-// EncodeSkillUpdateSkillResponse encodes the SkillUpdateSkillResponse payload to canonical CSIL CBOR bytes.
-func EncodeSkillUpdateSkillResponse(csilV Skill) []byte {
-	return cborEncode(csilEncSkill(csilV))
-}
-
-// DecodeSkillUpdateSkillResponse decodes canonical CSIL CBOR bytes into the SkillUpdateSkillResponse payload.
-func DecodeSkillUpdateSkillResponse(csilData []byte) (Skill, error) {
-	var csilZero Skill
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecSkill)(csilRoot)
 }
 
 // EncodeSkillDeleteSkillRequest encodes the SkillDeleteSkillRequest payload to canonical CSIL CBOR bytes.
@@ -7883,36 +8178,6 @@ func DecodeSkillDeleteSkillRequest(csilData []byte) (SkillID, error) {
 	})(csilRoot)
 }
 
-// EncodeSkillDeleteSkillResponse encodes the SkillDeleteSkillResponse payload to canonical CSIL CBOR bytes.
-func EncodeSkillDeleteSkillResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeSkillDeleteSkillResponse decodes canonical CSIL CBOR bytes into the SkillDeleteSkillResponse payload.
-func DecodeSkillDeleteSkillResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeSkillListSkillsRequest encodes the SkillListSkillsRequest payload to canonical CSIL CBOR bytes.
-func EncodeSkillListSkillsRequest(csilV HouseScopedListRequest) []byte {
-	return cborEncode(csilEncHouseScopedListRequest(csilV))
-}
-
-// DecodeSkillListSkillsRequest decodes canonical CSIL CBOR bytes into the SkillListSkillsRequest payload.
-func DecodeSkillListSkillsRequest(csilData []byte) (HouseScopedListRequest, error) {
-	var csilZero HouseScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouseScopedListRequest)(csilRoot)
-}
-
 // EncodeSkillListSkillsResponse encodes the SkillListSkillsResponse payload to canonical CSIL CBOR bytes.
 func EncodeSkillListSkillsResponse(csilV []Skill) []byte {
 	return cborEncode(cborEncArray(csilV, func(csilElem Skill) cborValue { return csilEncSkill(csilElem) }))
@@ -7928,81 +8193,6 @@ func DecodeSkillListSkillsResponse(csilData []byte) ([]Skill, error) {
 	return (func(csilV cborValue) ([]Skill, error) { return cborDecArray(csilV, csilDecSkill) })(csilRoot)
 }
 
-// EncodeSkillAddMemberSkillRequest encodes the SkillAddMemberSkillRequest payload to canonical CSIL CBOR bytes.
-func EncodeSkillAddMemberSkillRequest(csilV MemberSkillRef) []byte {
-	return cborEncode(csilEncMemberSkillRef(csilV))
-}
-
-// DecodeSkillAddMemberSkillRequest decodes canonical CSIL CBOR bytes into the SkillAddMemberSkillRequest payload.
-func DecodeSkillAddMemberSkillRequest(csilData []byte) (MemberSkillRef, error) {
-	var csilZero MemberSkillRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMemberSkillRef)(csilRoot)
-}
-
-// EncodeSkillAddMemberSkillResponse encodes the SkillAddMemberSkillResponse payload to canonical CSIL CBOR bytes.
-func EncodeSkillAddMemberSkillResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeSkillAddMemberSkillResponse decodes canonical CSIL CBOR bytes into the SkillAddMemberSkillResponse payload.
-func DecodeSkillAddMemberSkillResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeSkillRemoveMemberSkillRequest encodes the SkillRemoveMemberSkillRequest payload to canonical CSIL CBOR bytes.
-func EncodeSkillRemoveMemberSkillRequest(csilV MemberSkillRef) []byte {
-	return cborEncode(csilEncMemberSkillRef(csilV))
-}
-
-// DecodeSkillRemoveMemberSkillRequest decodes canonical CSIL CBOR bytes into the SkillRemoveMemberSkillRequest payload.
-func DecodeSkillRemoveMemberSkillRequest(csilData []byte) (MemberSkillRef, error) {
-	var csilZero MemberSkillRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMemberSkillRef)(csilRoot)
-}
-
-// EncodeSkillRemoveMemberSkillResponse encodes the SkillRemoveMemberSkillResponse payload to canonical CSIL CBOR bytes.
-func EncodeSkillRemoveMemberSkillResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeSkillRemoveMemberSkillResponse decodes canonical CSIL CBOR bytes into the SkillRemoveMemberSkillResponse payload.
-func DecodeSkillRemoveMemberSkillResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeSkillListMemberSkillsRequest encodes the SkillListMemberSkillsRequest payload to canonical CSIL CBOR bytes.
-func EncodeSkillListMemberSkillsRequest(csilV MemberScopedListRequest) []byte {
-	return cborEncode(csilEncMemberScopedListRequest(csilV))
-}
-
-// DecodeSkillListMemberSkillsRequest decodes canonical CSIL CBOR bytes into the SkillListMemberSkillsRequest payload.
-func DecodeSkillListMemberSkillsRequest(csilData []byte) (MemberScopedListRequest, error) {
-	var csilZero MemberScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMemberScopedListRequest)(csilRoot)
-}
-
 // EncodeSkillListMemberSkillsResponse encodes the SkillListMemberSkillsResponse payload to canonical CSIL CBOR bytes.
 func EncodeSkillListMemberSkillsResponse(csilV []Skill) []byte {
 	return cborEncode(cborEncArray(csilV, func(csilElem Skill) cborValue { return csilEncSkill(csilElem) }))
@@ -8016,66 +8206,6 @@ func DecodeSkillListMemberSkillsResponse(csilData []byte) ([]Skill, error) {
 		return csilZero, csilErr
 	}
 	return (func(csilV cborValue) ([]Skill, error) { return cborDecArray(csilV, csilDecSkill) })(csilRoot)
-}
-
-// EncodeSkillAddGroupSkillRequest encodes the SkillAddGroupSkillRequest payload to canonical CSIL CBOR bytes.
-func EncodeSkillAddGroupSkillRequest(csilV GroupSkillRef) []byte {
-	return cborEncode(csilEncGroupSkillRef(csilV))
-}
-
-// DecodeSkillAddGroupSkillRequest decodes canonical CSIL CBOR bytes into the SkillAddGroupSkillRequest payload.
-func DecodeSkillAddGroupSkillRequest(csilData []byte) (GroupSkillRef, error) {
-	var csilZero GroupSkillRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecGroupSkillRef)(csilRoot)
-}
-
-// EncodeSkillAddGroupSkillResponse encodes the SkillAddGroupSkillResponse payload to canonical CSIL CBOR bytes.
-func EncodeSkillAddGroupSkillResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeSkillAddGroupSkillResponse decodes canonical CSIL CBOR bytes into the SkillAddGroupSkillResponse payload.
-func DecodeSkillAddGroupSkillResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeSkillRemoveGroupSkillRequest encodes the SkillRemoveGroupSkillRequest payload to canonical CSIL CBOR bytes.
-func EncodeSkillRemoveGroupSkillRequest(csilV GroupSkillRef) []byte {
-	return cborEncode(csilEncGroupSkillRef(csilV))
-}
-
-// DecodeSkillRemoveGroupSkillRequest decodes canonical CSIL CBOR bytes into the SkillRemoveGroupSkillRequest payload.
-func DecodeSkillRemoveGroupSkillRequest(csilData []byte) (GroupSkillRef, error) {
-	var csilZero GroupSkillRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecGroupSkillRef)(csilRoot)
-}
-
-// EncodeSkillRemoveGroupSkillResponse encodes the SkillRemoveGroupSkillResponse payload to canonical CSIL CBOR bytes.
-func EncodeSkillRemoveGroupSkillResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeSkillRemoveGroupSkillResponse decodes canonical CSIL CBOR bytes into the SkillRemoveGroupSkillResponse payload.
-func DecodeSkillRemoveGroupSkillResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
 }
 
 // EncodeSkillListGroupSkillsRequest encodes the SkillListGroupSkillsRequest payload to canonical CSIL CBOR bytes.
@@ -8111,66 +8241,6 @@ func DecodeSkillListGroupSkillsResponse(csilData []byte) ([]Skill, error) {
 	return (func(csilV cborValue) ([]Skill, error) { return cborDecArray(csilV, csilDecSkill) })(csilRoot)
 }
 
-// EncodeGroupCreateGroupRequest encodes the GroupCreateGroupRequest payload to canonical CSIL CBOR bytes.
-func EncodeGroupCreateGroupRequest(csilV Group) []byte {
-	return cborEncode(csilEncGroup(csilV))
-}
-
-// DecodeGroupCreateGroupRequest decodes canonical CSIL CBOR bytes into the GroupCreateGroupRequest payload.
-func DecodeGroupCreateGroupRequest(csilData []byte) (Group, error) {
-	var csilZero Group
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecGroup)(csilRoot)
-}
-
-// EncodeGroupCreateGroupResponse encodes the GroupCreateGroupResponse payload to canonical CSIL CBOR bytes.
-func EncodeGroupCreateGroupResponse(csilV Group) []byte {
-	return cborEncode(csilEncGroup(csilV))
-}
-
-// DecodeGroupCreateGroupResponse decodes canonical CSIL CBOR bytes into the GroupCreateGroupResponse payload.
-func DecodeGroupCreateGroupResponse(csilData []byte) (Group, error) {
-	var csilZero Group
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecGroup)(csilRoot)
-}
-
-// EncodeGroupUpdateGroupRequest encodes the GroupUpdateGroupRequest payload to canonical CSIL CBOR bytes.
-func EncodeGroupUpdateGroupRequest(csilV Group) []byte {
-	return cborEncode(csilEncGroup(csilV))
-}
-
-// DecodeGroupUpdateGroupRequest decodes canonical CSIL CBOR bytes into the GroupUpdateGroupRequest payload.
-func DecodeGroupUpdateGroupRequest(csilData []byte) (Group, error) {
-	var csilZero Group
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecGroup)(csilRoot)
-}
-
-// EncodeGroupUpdateGroupResponse encodes the GroupUpdateGroupResponse payload to canonical CSIL CBOR bytes.
-func EncodeGroupUpdateGroupResponse(csilV Group) []byte {
-	return cborEncode(csilEncGroup(csilV))
-}
-
-// DecodeGroupUpdateGroupResponse decodes canonical CSIL CBOR bytes into the GroupUpdateGroupResponse payload.
-func DecodeGroupUpdateGroupResponse(csilData []byte) (Group, error) {
-	var csilZero Group
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecGroup)(csilRoot)
-}
-
 // EncodeGroupDeleteGroupRequest encodes the GroupDeleteGroupRequest payload to canonical CSIL CBOR bytes.
 func EncodeGroupDeleteGroupRequest(csilV GroupID) []byte {
 	return cborEncode(cborText(csilV))
@@ -8189,36 +8259,6 @@ func DecodeGroupDeleteGroupRequest(csilData []byte) (GroupID, error) {
 	})(csilRoot)
 }
 
-// EncodeGroupDeleteGroupResponse encodes the GroupDeleteGroupResponse payload to canonical CSIL CBOR bytes.
-func EncodeGroupDeleteGroupResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeGroupDeleteGroupResponse decodes canonical CSIL CBOR bytes into the GroupDeleteGroupResponse payload.
-func DecodeGroupDeleteGroupResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeGroupListGroupsRequest encodes the GroupListGroupsRequest payload to canonical CSIL CBOR bytes.
-func EncodeGroupListGroupsRequest(csilV HouseScopedListRequest) []byte {
-	return cborEncode(csilEncHouseScopedListRequest(csilV))
-}
-
-// DecodeGroupListGroupsRequest decodes canonical CSIL CBOR bytes into the GroupListGroupsRequest payload.
-func DecodeGroupListGroupsRequest(csilData []byte) (HouseScopedListRequest, error) {
-	var csilZero HouseScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouseScopedListRequest)(csilRoot)
-}
-
 // EncodeGroupListGroupsResponse encodes the GroupListGroupsResponse payload to canonical CSIL CBOR bytes.
 func EncodeGroupListGroupsResponse(csilV []Group) []byte {
 	return cborEncode(cborEncArray(csilV, func(csilElem Group) cborValue { return csilEncGroup(csilElem) }))
@@ -8234,81 +8274,6 @@ func DecodeGroupListGroupsResponse(csilData []byte) ([]Group, error) {
 	return (func(csilV cborValue) ([]Group, error) { return cborDecArray(csilV, csilDecGroup) })(csilRoot)
 }
 
-// EncodeGroupAddGroupMemberRequest encodes the GroupAddGroupMemberRequest payload to canonical CSIL CBOR bytes.
-func EncodeGroupAddGroupMemberRequest(csilV GroupMemberRef) []byte {
-	return cborEncode(csilEncGroupMemberRef(csilV))
-}
-
-// DecodeGroupAddGroupMemberRequest decodes canonical CSIL CBOR bytes into the GroupAddGroupMemberRequest payload.
-func DecodeGroupAddGroupMemberRequest(csilData []byte) (GroupMemberRef, error) {
-	var csilZero GroupMemberRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecGroupMemberRef)(csilRoot)
-}
-
-// EncodeGroupAddGroupMemberResponse encodes the GroupAddGroupMemberResponse payload to canonical CSIL CBOR bytes.
-func EncodeGroupAddGroupMemberResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeGroupAddGroupMemberResponse decodes canonical CSIL CBOR bytes into the GroupAddGroupMemberResponse payload.
-func DecodeGroupAddGroupMemberResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeGroupRemoveGroupMemberRequest encodes the GroupRemoveGroupMemberRequest payload to canonical CSIL CBOR bytes.
-func EncodeGroupRemoveGroupMemberRequest(csilV GroupMemberRef) []byte {
-	return cborEncode(csilEncGroupMemberRef(csilV))
-}
-
-// DecodeGroupRemoveGroupMemberRequest decodes canonical CSIL CBOR bytes into the GroupRemoveGroupMemberRequest payload.
-func DecodeGroupRemoveGroupMemberRequest(csilData []byte) (GroupMemberRef, error) {
-	var csilZero GroupMemberRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecGroupMemberRef)(csilRoot)
-}
-
-// EncodeGroupRemoveGroupMemberResponse encodes the GroupRemoveGroupMemberResponse payload to canonical CSIL CBOR bytes.
-func EncodeGroupRemoveGroupMemberResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeGroupRemoveGroupMemberResponse decodes canonical CSIL CBOR bytes into the GroupRemoveGroupMemberResponse payload.
-func DecodeGroupRemoveGroupMemberResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeGroupListGroupMembersRequest encodes the GroupListGroupMembersRequest payload to canonical CSIL CBOR bytes.
-func EncodeGroupListGroupMembersRequest(csilV MemberScopedListRequest) []byte {
-	return cborEncode(csilEncMemberScopedListRequest(csilV))
-}
-
-// DecodeGroupListGroupMembersRequest decodes canonical CSIL CBOR bytes into the GroupListGroupMembersRequest payload.
-func DecodeGroupListGroupMembersRequest(csilData []byte) (MemberScopedListRequest, error) {
-	var csilZero MemberScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMemberScopedListRequest)(csilRoot)
-}
-
 // EncodeGroupListGroupMembersResponse encodes the GroupListGroupMembersResponse payload to canonical CSIL CBOR bytes.
 func EncodeGroupListGroupMembersResponse(csilV []Member) []byte {
 	return cborEncode(cborEncArray(csilV, func(csilElem Member) cborValue { return csilEncMember(csilElem) }))
@@ -8322,36 +8287,6 @@ func DecodeGroupListGroupMembersResponse(csilData []byte) ([]Member, error) {
 		return csilZero, csilErr
 	}
 	return (func(csilV cborValue) ([]Member, error) { return cborDecArray(csilV, csilDecMember) })(csilRoot)
-}
-
-// EncodeProjectCreateProjectRequest encodes the ProjectCreateProjectRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectCreateProjectRequest(csilV Project) []byte {
-	return cborEncode(csilEncProject(csilV))
-}
-
-// DecodeProjectCreateProjectRequest decodes canonical CSIL CBOR bytes into the ProjectCreateProjectRequest payload.
-func DecodeProjectCreateProjectRequest(csilData []byte) (Project, error) {
-	var csilZero Project
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProject)(csilRoot)
-}
-
-// EncodeProjectCreateProjectResponse encodes the ProjectCreateProjectResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectCreateProjectResponse(csilV Project) []byte {
-	return cborEncode(csilEncProject(csilV))
-}
-
-// DecodeProjectCreateProjectResponse decodes canonical CSIL CBOR bytes into the ProjectCreateProjectResponse payload.
-func DecodeProjectCreateProjectResponse(csilData []byte) (Project, error) {
-	var csilZero Project
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProject)(csilRoot)
 }
 
 // EncodeProjectGetProjectRequest encodes the ProjectGetProjectRequest payload to canonical CSIL CBOR bytes.
@@ -8372,51 +8307,6 @@ func DecodeProjectGetProjectRequest(csilData []byte) (ProjectID, error) {
 	})(csilRoot)
 }
 
-// EncodeProjectGetProjectResponse encodes the ProjectGetProjectResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectGetProjectResponse(csilV Project) []byte {
-	return cborEncode(csilEncProject(csilV))
-}
-
-// DecodeProjectGetProjectResponse decodes canonical CSIL CBOR bytes into the ProjectGetProjectResponse payload.
-func DecodeProjectGetProjectResponse(csilData []byte) (Project, error) {
-	var csilZero Project
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProject)(csilRoot)
-}
-
-// EncodeProjectUpdateProjectRequest encodes the ProjectUpdateProjectRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectUpdateProjectRequest(csilV Project) []byte {
-	return cborEncode(csilEncProject(csilV))
-}
-
-// DecodeProjectUpdateProjectRequest decodes canonical CSIL CBOR bytes into the ProjectUpdateProjectRequest payload.
-func DecodeProjectUpdateProjectRequest(csilData []byte) (Project, error) {
-	var csilZero Project
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProject)(csilRoot)
-}
-
-// EncodeProjectUpdateProjectResponse encodes the ProjectUpdateProjectResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectUpdateProjectResponse(csilV Project) []byte {
-	return cborEncode(csilEncProject(csilV))
-}
-
-// DecodeProjectUpdateProjectResponse decodes canonical CSIL CBOR bytes into the ProjectUpdateProjectResponse payload.
-func DecodeProjectUpdateProjectResponse(csilData []byte) (Project, error) {
-	var csilZero Project
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProject)(csilRoot)
-}
-
 // EncodeProjectDeleteProjectRequest encodes the ProjectDeleteProjectRequest payload to canonical CSIL CBOR bytes.
 func EncodeProjectDeleteProjectRequest(csilV ProjectID) []byte {
 	return cborEncode(cborText(csilV))
@@ -8433,171 +8323,6 @@ func DecodeProjectDeleteProjectRequest(csilData []byte) (ProjectID, error) {
 		csilInner, csilErr := (cborAsText)(csilV)
 		return ProjectID(csilInner), csilErr
 	})(csilRoot)
-}
-
-// EncodeProjectDeleteProjectResponse encodes the ProjectDeleteProjectResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectDeleteProjectResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeProjectDeleteProjectResponse decodes canonical CSIL CBOR bytes into the ProjectDeleteProjectResponse payload.
-func DecodeProjectDeleteProjectResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeProjectListProjectsRequest encodes the ProjectListProjectsRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectListProjectsRequest(csilV HouseScopedListRequest) []byte {
-	return cborEncode(csilEncHouseScopedListRequest(csilV))
-}
-
-// DecodeProjectListProjectsRequest decodes canonical CSIL CBOR bytes into the ProjectListProjectsRequest payload.
-func DecodeProjectListProjectsRequest(csilData []byte) (HouseScopedListRequest, error) {
-	var csilZero HouseScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouseScopedListRequest)(csilRoot)
-}
-
-// EncodeProjectListProjectsResponse encodes the ProjectListProjectsResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectListProjectsResponse(csilV ProjectList) []byte {
-	return cborEncode(csilEncProjectList(csilV))
-}
-
-// DecodeProjectListProjectsResponse decodes canonical CSIL CBOR bytes into the ProjectListProjectsResponse payload.
-func DecodeProjectListProjectsResponse(csilData []byte) (ProjectList, error) {
-	var csilZero ProjectList
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProjectList)(csilRoot)
-}
-
-// EncodeProjectListProjectTasksRequest encodes the ProjectListProjectTasksRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectListProjectTasksRequest(csilV ProjectScopedListRequest) []byte {
-	return cborEncode(csilEncProjectScopedListRequest(csilV))
-}
-
-// DecodeProjectListProjectTasksRequest decodes canonical CSIL CBOR bytes into the ProjectListProjectTasksRequest payload.
-func DecodeProjectListProjectTasksRequest(csilData []byte) (ProjectScopedListRequest, error) {
-	var csilZero ProjectScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProjectScopedListRequest)(csilRoot)
-}
-
-// EncodeProjectListProjectTasksResponse encodes the ProjectListProjectTasksResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectListProjectTasksResponse(csilV TaskList) []byte {
-	return cborEncode(csilEncTaskList(csilV))
-}
-
-// DecodeProjectListProjectTasksResponse decodes canonical CSIL CBOR bytes into the ProjectListProjectTasksResponse payload.
-func DecodeProjectListProjectTasksResponse(csilData []byte) (TaskList, error) {
-	var csilZero TaskList
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTaskList)(csilRoot)
-}
-
-// EncodeProjectAddProjectTaskRequest encodes the ProjectAddProjectTaskRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectAddProjectTaskRequest(csilV ProjectTaskOrderRequest) []byte {
-	return cborEncode(csilEncProjectTaskOrderRequest(csilV))
-}
-
-// DecodeProjectAddProjectTaskRequest decodes canonical CSIL CBOR bytes into the ProjectAddProjectTaskRequest payload.
-func DecodeProjectAddProjectTaskRequest(csilData []byte) (ProjectTaskOrderRequest, error) {
-	var csilZero ProjectTaskOrderRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProjectTaskOrderRequest)(csilRoot)
-}
-
-// EncodeProjectAddProjectTaskResponse encodes the ProjectAddProjectTaskResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectAddProjectTaskResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeProjectAddProjectTaskResponse decodes canonical CSIL CBOR bytes into the ProjectAddProjectTaskResponse payload.
-func DecodeProjectAddProjectTaskResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeProjectRemoveProjectTaskRequest encodes the ProjectRemoveProjectTaskRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectRemoveProjectTaskRequest(csilV ProjectTaskRef) []byte {
-	return cborEncode(csilEncProjectTaskRef(csilV))
-}
-
-// DecodeProjectRemoveProjectTaskRequest decodes canonical CSIL CBOR bytes into the ProjectRemoveProjectTaskRequest payload.
-func DecodeProjectRemoveProjectTaskRequest(csilData []byte) (ProjectTaskRef, error) {
-	var csilZero ProjectTaskRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProjectTaskRef)(csilRoot)
-}
-
-// EncodeProjectRemoveProjectTaskResponse encodes the ProjectRemoveProjectTaskResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectRemoveProjectTaskResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeProjectRemoveProjectTaskResponse decodes canonical CSIL CBOR bytes into the ProjectRemoveProjectTaskResponse payload.
-func DecodeProjectRemoveProjectTaskResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeProjectSetProjectTaskPositionRequest encodes the ProjectSetProjectTaskPositionRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectSetProjectTaskPositionRequest(csilV ProjectTaskOrderRequest) []byte {
-	return cborEncode(csilEncProjectTaskOrderRequest(csilV))
-}
-
-// DecodeProjectSetProjectTaskPositionRequest decodes canonical CSIL CBOR bytes into the ProjectSetProjectTaskPositionRequest payload.
-func DecodeProjectSetProjectTaskPositionRequest(csilData []byte) (ProjectTaskOrderRequest, error) {
-	var csilZero ProjectTaskOrderRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProjectTaskOrderRequest)(csilRoot)
-}
-
-// EncodeProjectSetProjectTaskPositionResponse encodes the ProjectSetProjectTaskPositionResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectSetProjectTaskPositionResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeProjectSetProjectTaskPositionResponse decodes canonical CSIL CBOR bytes into the ProjectSetProjectTaskPositionResponse payload.
-func DecodeProjectSetProjectTaskPositionResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
 }
 
 // EncodeProjectListProjectMembersRequest encodes the ProjectListProjectMembersRequest payload to canonical CSIL CBOR bytes.
@@ -8633,66 +8358,6 @@ func DecodeProjectListProjectMembersResponse(csilData []byte) ([]Member, error) 
 	return (func(csilV cborValue) ([]Member, error) { return cborDecArray(csilV, csilDecMember) })(csilRoot)
 }
 
-// EncodeProjectAddProjectMemberRequest encodes the ProjectAddProjectMemberRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectAddProjectMemberRequest(csilV ProjectMemberRef) []byte {
-	return cborEncode(csilEncProjectMemberRef(csilV))
-}
-
-// DecodeProjectAddProjectMemberRequest decodes canonical CSIL CBOR bytes into the ProjectAddProjectMemberRequest payload.
-func DecodeProjectAddProjectMemberRequest(csilData []byte) (ProjectMemberRef, error) {
-	var csilZero ProjectMemberRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProjectMemberRef)(csilRoot)
-}
-
-// EncodeProjectAddProjectMemberResponse encodes the ProjectAddProjectMemberResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectAddProjectMemberResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeProjectAddProjectMemberResponse decodes canonical CSIL CBOR bytes into the ProjectAddProjectMemberResponse payload.
-func DecodeProjectAddProjectMemberResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeProjectRemoveProjectMemberRequest encodes the ProjectRemoveProjectMemberRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectRemoveProjectMemberRequest(csilV ProjectMemberRef) []byte {
-	return cborEncode(csilEncProjectMemberRef(csilV))
-}
-
-// DecodeProjectRemoveProjectMemberRequest decodes canonical CSIL CBOR bytes into the ProjectRemoveProjectMemberRequest payload.
-func DecodeProjectRemoveProjectMemberRequest(csilData []byte) (ProjectMemberRef, error) {
-	var csilZero ProjectMemberRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProjectMemberRef)(csilRoot)
-}
-
-// EncodeProjectRemoveProjectMemberResponse encodes the ProjectRemoveProjectMemberResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectRemoveProjectMemberResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeProjectRemoveProjectMemberResponse decodes canonical CSIL CBOR bytes into the ProjectRemoveProjectMemberResponse payload.
-func DecodeProjectRemoveProjectMemberResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
 // EncodeProjectListProjectOwnersRequest encodes the ProjectListProjectOwnersRequest payload to canonical CSIL CBOR bytes.
 func EncodeProjectListProjectOwnersRequest(csilV ProjectID) []byte {
 	return cborEncode(cborText(csilV))
@@ -8724,66 +8389,6 @@ func DecodeProjectListProjectOwnersResponse(csilData []byte) ([]Member, error) {
 		return csilZero, csilErr
 	}
 	return (func(csilV cborValue) ([]Member, error) { return cborDecArray(csilV, csilDecMember) })(csilRoot)
-}
-
-// EncodeProjectAddProjectOwnerRequest encodes the ProjectAddProjectOwnerRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectAddProjectOwnerRequest(csilV ProjectOwnerRef) []byte {
-	return cborEncode(csilEncProjectOwnerRef(csilV))
-}
-
-// DecodeProjectAddProjectOwnerRequest decodes canonical CSIL CBOR bytes into the ProjectAddProjectOwnerRequest payload.
-func DecodeProjectAddProjectOwnerRequest(csilData []byte) (ProjectOwnerRef, error) {
-	var csilZero ProjectOwnerRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProjectOwnerRef)(csilRoot)
-}
-
-// EncodeProjectAddProjectOwnerResponse encodes the ProjectAddProjectOwnerResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectAddProjectOwnerResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeProjectAddProjectOwnerResponse decodes canonical CSIL CBOR bytes into the ProjectAddProjectOwnerResponse payload.
-func DecodeProjectAddProjectOwnerResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeProjectRemoveProjectOwnerRequest encodes the ProjectRemoveProjectOwnerRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectRemoveProjectOwnerRequest(csilV ProjectOwnerRef) []byte {
-	return cborEncode(csilEncProjectOwnerRef(csilV))
-}
-
-// DecodeProjectRemoveProjectOwnerRequest decodes canonical CSIL CBOR bytes into the ProjectRemoveProjectOwnerRequest payload.
-func DecodeProjectRemoveProjectOwnerRequest(csilData []byte) (ProjectOwnerRef, error) {
-	var csilZero ProjectOwnerRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProjectOwnerRef)(csilRoot)
-}
-
-// EncodeProjectRemoveProjectOwnerResponse encodes the ProjectRemoveProjectOwnerResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectRemoveProjectOwnerResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeProjectRemoveProjectOwnerResponse decodes canonical CSIL CBOR bytes into the ProjectRemoveProjectOwnerResponse payload.
-func DecodeProjectRemoveProjectOwnerResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
 }
 
 // EncodeProjectListMilestonesRequest encodes the ProjectListMilestonesRequest payload to canonical CSIL CBOR bytes.
@@ -8819,66 +8424,6 @@ func DecodeProjectListMilestonesResponse(csilData []byte) ([]Milestone, error) {
 	return (func(csilV cborValue) ([]Milestone, error) { return cborDecArray(csilV, csilDecMilestone) })(csilRoot)
 }
 
-// EncodeProjectCreateMilestoneRequest encodes the ProjectCreateMilestoneRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectCreateMilestoneRequest(csilV Milestone) []byte {
-	return cborEncode(csilEncMilestone(csilV))
-}
-
-// DecodeProjectCreateMilestoneRequest decodes canonical CSIL CBOR bytes into the ProjectCreateMilestoneRequest payload.
-func DecodeProjectCreateMilestoneRequest(csilData []byte) (Milestone, error) {
-	var csilZero Milestone
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMilestone)(csilRoot)
-}
-
-// EncodeProjectCreateMilestoneResponse encodes the ProjectCreateMilestoneResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectCreateMilestoneResponse(csilV Milestone) []byte {
-	return cborEncode(csilEncMilestone(csilV))
-}
-
-// DecodeProjectCreateMilestoneResponse decodes canonical CSIL CBOR bytes into the ProjectCreateMilestoneResponse payload.
-func DecodeProjectCreateMilestoneResponse(csilData []byte) (Milestone, error) {
-	var csilZero Milestone
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMilestone)(csilRoot)
-}
-
-// EncodeProjectUpdateMilestoneRequest encodes the ProjectUpdateMilestoneRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectUpdateMilestoneRequest(csilV Milestone) []byte {
-	return cborEncode(csilEncMilestone(csilV))
-}
-
-// DecodeProjectUpdateMilestoneRequest decodes canonical CSIL CBOR bytes into the ProjectUpdateMilestoneRequest payload.
-func DecodeProjectUpdateMilestoneRequest(csilData []byte) (Milestone, error) {
-	var csilZero Milestone
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMilestone)(csilRoot)
-}
-
-// EncodeProjectUpdateMilestoneResponse encodes the ProjectUpdateMilestoneResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectUpdateMilestoneResponse(csilV Milestone) []byte {
-	return cborEncode(csilEncMilestone(csilV))
-}
-
-// DecodeProjectUpdateMilestoneResponse decodes canonical CSIL CBOR bytes into the ProjectUpdateMilestoneResponse payload.
-func DecodeProjectUpdateMilestoneResponse(csilData []byte) (Milestone, error) {
-	var csilZero Milestone
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMilestone)(csilRoot)
-}
-
 // EncodeProjectDeleteMilestoneRequest encodes the ProjectDeleteMilestoneRequest payload to canonical CSIL CBOR bytes.
 func EncodeProjectDeleteMilestoneRequest(csilV MilestoneID) []byte {
 	return cborEncode(cborText(csilV))
@@ -8895,51 +8440,6 @@ func DecodeProjectDeleteMilestoneRequest(csilData []byte) (MilestoneID, error) {
 		csilInner, csilErr := (cborAsText)(csilV)
 		return MilestoneID(csilInner), csilErr
 	})(csilRoot)
-}
-
-// EncodeProjectDeleteMilestoneResponse encodes the ProjectDeleteMilestoneResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectDeleteMilestoneResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeProjectDeleteMilestoneResponse decodes canonical CSIL CBOR bytes into the ProjectDeleteMilestoneResponse payload.
-func DecodeProjectDeleteMilestoneResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeProjectSetProjectVisibilityRequest encodes the ProjectSetProjectVisibilityRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectSetProjectVisibilityRequest(csilV SetProjectVisibilityRequest) []byte {
-	return cborEncode(csilEncSetProjectVisibilityRequest(csilV))
-}
-
-// DecodeProjectSetProjectVisibilityRequest decodes canonical CSIL CBOR bytes into the ProjectSetProjectVisibilityRequest payload.
-func DecodeProjectSetProjectVisibilityRequest(csilData []byte) (SetProjectVisibilityRequest, error) {
-	var csilZero SetProjectVisibilityRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecSetProjectVisibilityRequest)(csilRoot)
-}
-
-// EncodeProjectSetProjectVisibilityResponse encodes the ProjectSetProjectVisibilityResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectSetProjectVisibilityResponse(csilV Project) []byte {
-	return cborEncode(csilEncProject(csilV))
-}
-
-// DecodeProjectSetProjectVisibilityResponse decodes canonical CSIL CBOR bytes into the ProjectSetProjectVisibilityResponse payload.
-func DecodeProjectSetProjectVisibilityResponse(csilData []byte) (Project, error) {
-	var csilZero Project
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProject)(csilRoot)
 }
 
 // EncodeProjectListProjectGrantsRequest encodes the ProjectListProjectGrantsRequest payload to canonical CSIL CBOR bytes.
@@ -8975,96 +8475,6 @@ func DecodeProjectListProjectGrantsResponse(csilData []byte) ([]Grant, error) {
 	return (func(csilV cborValue) ([]Grant, error) { return cborDecArray(csilV, csilDecGrant) })(csilRoot)
 }
 
-// EncodeProjectPutProjectGrantRequest encodes the ProjectPutProjectGrantRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectPutProjectGrantRequest(csilV PutProjectGrantRequest) []byte {
-	return cborEncode(csilEncPutProjectGrantRequest(csilV))
-}
-
-// DecodeProjectPutProjectGrantRequest decodes canonical CSIL CBOR bytes into the ProjectPutProjectGrantRequest payload.
-func DecodeProjectPutProjectGrantRequest(csilData []byte) (PutProjectGrantRequest, error) {
-	var csilZero PutProjectGrantRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecPutProjectGrantRequest)(csilRoot)
-}
-
-// EncodeProjectPutProjectGrantResponse encodes the ProjectPutProjectGrantResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectPutProjectGrantResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeProjectPutProjectGrantResponse decodes canonical CSIL CBOR bytes into the ProjectPutProjectGrantResponse payload.
-func DecodeProjectPutProjectGrantResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeProjectDeleteProjectGrantRequest encodes the ProjectDeleteProjectGrantRequest payload to canonical CSIL CBOR bytes.
-func EncodeProjectDeleteProjectGrantRequest(csilV ProjectGrantRef) []byte {
-	return cborEncode(csilEncProjectGrantRef(csilV))
-}
-
-// DecodeProjectDeleteProjectGrantRequest decodes canonical CSIL CBOR bytes into the ProjectDeleteProjectGrantRequest payload.
-func DecodeProjectDeleteProjectGrantRequest(csilData []byte) (ProjectGrantRef, error) {
-	var csilZero ProjectGrantRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecProjectGrantRef)(csilRoot)
-}
-
-// EncodeProjectDeleteProjectGrantResponse encodes the ProjectDeleteProjectGrantResponse payload to canonical CSIL CBOR bytes.
-func EncodeProjectDeleteProjectGrantResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeProjectDeleteProjectGrantResponse decodes canonical CSIL CBOR bytes into the ProjectDeleteProjectGrantResponse payload.
-func DecodeProjectDeleteProjectGrantResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeEventCreateEventRequest encodes the EventCreateEventRequest payload to canonical CSIL CBOR bytes.
-func EncodeEventCreateEventRequest(csilV Event) []byte {
-	return cborEncode(csilEncEvent(csilV))
-}
-
-// DecodeEventCreateEventRequest decodes canonical CSIL CBOR bytes into the EventCreateEventRequest payload.
-func DecodeEventCreateEventRequest(csilData []byte) (Event, error) {
-	var csilZero Event
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEvent)(csilRoot)
-}
-
-// EncodeEventCreateEventResponse encodes the EventCreateEventResponse payload to canonical CSIL CBOR bytes.
-func EncodeEventCreateEventResponse(csilV Event) []byte {
-	return cborEncode(csilEncEvent(csilV))
-}
-
-// DecodeEventCreateEventResponse decodes canonical CSIL CBOR bytes into the EventCreateEventResponse payload.
-func DecodeEventCreateEventResponse(csilData []byte) (Event, error) {
-	var csilZero Event
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEvent)(csilRoot)
-}
-
 // EncodeEventGetEventRequest encodes the EventGetEventRequest payload to canonical CSIL CBOR bytes.
 func EncodeEventGetEventRequest(csilV EventID) []byte {
 	return cborEncode(cborText(csilV))
@@ -9081,51 +8491,6 @@ func DecodeEventGetEventRequest(csilData []byte) (EventID, error) {
 		csilInner, csilErr := (cborAsText)(csilV)
 		return EventID(csilInner), csilErr
 	})(csilRoot)
-}
-
-// EncodeEventGetEventResponse encodes the EventGetEventResponse payload to canonical CSIL CBOR bytes.
-func EncodeEventGetEventResponse(csilV Event) []byte {
-	return cborEncode(csilEncEvent(csilV))
-}
-
-// DecodeEventGetEventResponse decodes canonical CSIL CBOR bytes into the EventGetEventResponse payload.
-func DecodeEventGetEventResponse(csilData []byte) (Event, error) {
-	var csilZero Event
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEvent)(csilRoot)
-}
-
-// EncodeEventUpdateEventRequest encodes the EventUpdateEventRequest payload to canonical CSIL CBOR bytes.
-func EncodeEventUpdateEventRequest(csilV Event) []byte {
-	return cborEncode(csilEncEvent(csilV))
-}
-
-// DecodeEventUpdateEventRequest decodes canonical CSIL CBOR bytes into the EventUpdateEventRequest payload.
-func DecodeEventUpdateEventRequest(csilData []byte) (Event, error) {
-	var csilZero Event
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEvent)(csilRoot)
-}
-
-// EncodeEventUpdateEventResponse encodes the EventUpdateEventResponse payload to canonical CSIL CBOR bytes.
-func EncodeEventUpdateEventResponse(csilV Event) []byte {
-	return cborEncode(csilEncEvent(csilV))
-}
-
-// DecodeEventUpdateEventResponse decodes canonical CSIL CBOR bytes into the EventUpdateEventResponse payload.
-func DecodeEventUpdateEventResponse(csilData []byte) (Event, error) {
-	var csilZero Event
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEvent)(csilRoot)
 }
 
 // EncodeEventDeleteEventRequest encodes the EventDeleteEventRequest payload to canonical CSIL CBOR bytes.
@@ -9146,21 +8511,6 @@ func DecodeEventDeleteEventRequest(csilData []byte) (EventID, error) {
 	})(csilRoot)
 }
 
-// EncodeEventDeleteEventResponse encodes the EventDeleteEventResponse payload to canonical CSIL CBOR bytes.
-func EncodeEventDeleteEventResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeEventDeleteEventResponse decodes canonical CSIL CBOR bytes into the EventDeleteEventResponse payload.
-func DecodeEventDeleteEventResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
 // EncodeEventDeleteEventAndFutureRequest encodes the EventDeleteEventAndFutureRequest payload to canonical CSIL CBOR bytes.
 func EncodeEventDeleteEventAndFutureRequest(csilV EventID) []byte {
 	return cborEncode(cborText(csilV))
@@ -9177,36 +8527,6 @@ func DecodeEventDeleteEventAndFutureRequest(csilData []byte) (EventID, error) {
 		csilInner, csilErr := (cborAsText)(csilV)
 		return EventID(csilInner), csilErr
 	})(csilRoot)
-}
-
-// EncodeEventDeleteEventAndFutureResponse encodes the EventDeleteEventAndFutureResponse payload to canonical CSIL CBOR bytes.
-func EncodeEventDeleteEventAndFutureResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeEventDeleteEventAndFutureResponse decodes canonical CSIL CBOR bytes into the EventDeleteEventAndFutureResponse payload.
-func DecodeEventDeleteEventAndFutureResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeEventListEventsRequest encodes the EventListEventsRequest payload to canonical CSIL CBOR bytes.
-func EncodeEventListEventsRequest(csilV HouseScopedListRequest) []byte {
-	return cborEncode(csilEncHouseScopedListRequest(csilV))
-}
-
-// DecodeEventListEventsRequest decodes canonical CSIL CBOR bytes into the EventListEventsRequest payload.
-func DecodeEventListEventsRequest(csilData []byte) (HouseScopedListRequest, error) {
-	var csilZero HouseScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouseScopedListRequest)(csilRoot)
 }
 
 // EncodeEventListEventsResponse encodes the EventListEventsResponse payload to canonical CSIL CBOR bytes.
@@ -9242,81 +8562,6 @@ func DecodeEventGetCalendarViewRequest(csilData []byte) (HouseID, error) {
 	})(csilRoot)
 }
 
-// EncodeEventGetCalendarViewResponse encodes the EventGetCalendarViewResponse payload to canonical CSIL CBOR bytes.
-func EncodeEventGetCalendarViewResponse(csilV CalendarView) []byte {
-	return cborEncode(csilEncCalendarView(csilV))
-}
-
-// DecodeEventGetCalendarViewResponse decodes canonical CSIL CBOR bytes into the EventGetCalendarViewResponse payload.
-func DecodeEventGetCalendarViewResponse(csilData []byte) (CalendarView, error) {
-	var csilZero CalendarView
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecCalendarView)(csilRoot)
-}
-
-// EncodeEventSetCalendarViewRequest encodes the EventSetCalendarViewRequest payload to canonical CSIL CBOR bytes.
-func EncodeEventSetCalendarViewRequest(csilV CalendarView) []byte {
-	return cborEncode(csilEncCalendarView(csilV))
-}
-
-// DecodeEventSetCalendarViewRequest decodes canonical CSIL CBOR bytes into the EventSetCalendarViewRequest payload.
-func DecodeEventSetCalendarViewRequest(csilData []byte) (CalendarView, error) {
-	var csilZero CalendarView
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecCalendarView)(csilRoot)
-}
-
-// EncodeEventSetCalendarViewResponse encodes the EventSetCalendarViewResponse payload to canonical CSIL CBOR bytes.
-func EncodeEventSetCalendarViewResponse(csilV CalendarView) []byte {
-	return cborEncode(csilEncCalendarView(csilV))
-}
-
-// DecodeEventSetCalendarViewResponse decodes canonical CSIL CBOR bytes into the EventSetCalendarViewResponse payload.
-func DecodeEventSetCalendarViewResponse(csilData []byte) (CalendarView, error) {
-	var csilZero CalendarView
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecCalendarView)(csilRoot)
-}
-
-// EncodeTaskCreateTaskRequest encodes the TaskCreateTaskRequest payload to canonical CSIL CBOR bytes.
-func EncodeTaskCreateTaskRequest(csilV Task) []byte {
-	return cborEncode(csilEncTask(csilV))
-}
-
-// DecodeTaskCreateTaskRequest decodes canonical CSIL CBOR bytes into the TaskCreateTaskRequest payload.
-func DecodeTaskCreateTaskRequest(csilData []byte) (Task, error) {
-	var csilZero Task
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTask)(csilRoot)
-}
-
-// EncodeTaskCreateTaskResponse encodes the TaskCreateTaskResponse payload to canonical CSIL CBOR bytes.
-func EncodeTaskCreateTaskResponse(csilV Task) []byte {
-	return cborEncode(csilEncTask(csilV))
-}
-
-// DecodeTaskCreateTaskResponse decodes canonical CSIL CBOR bytes into the TaskCreateTaskResponse payload.
-func DecodeTaskCreateTaskResponse(csilData []byte) (Task, error) {
-	var csilZero Task
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTask)(csilRoot)
-}
-
 // EncodeTaskGetTaskRequest encodes the TaskGetTaskRequest payload to canonical CSIL CBOR bytes.
 func EncodeTaskGetTaskRequest(csilV TaskID) []byte {
 	return cborEncode(cborText(csilV))
@@ -9335,51 +8580,6 @@ func DecodeTaskGetTaskRequest(csilData []byte) (TaskID, error) {
 	})(csilRoot)
 }
 
-// EncodeTaskGetTaskResponse encodes the TaskGetTaskResponse payload to canonical CSIL CBOR bytes.
-func EncodeTaskGetTaskResponse(csilV Task) []byte {
-	return cborEncode(csilEncTask(csilV))
-}
-
-// DecodeTaskGetTaskResponse decodes canonical CSIL CBOR bytes into the TaskGetTaskResponse payload.
-func DecodeTaskGetTaskResponse(csilData []byte) (Task, error) {
-	var csilZero Task
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTask)(csilRoot)
-}
-
-// EncodeTaskUpdateTaskRequest encodes the TaskUpdateTaskRequest payload to canonical CSIL CBOR bytes.
-func EncodeTaskUpdateTaskRequest(csilV Task) []byte {
-	return cborEncode(csilEncTask(csilV))
-}
-
-// DecodeTaskUpdateTaskRequest decodes canonical CSIL CBOR bytes into the TaskUpdateTaskRequest payload.
-func DecodeTaskUpdateTaskRequest(csilData []byte) (Task, error) {
-	var csilZero Task
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTask)(csilRoot)
-}
-
-// EncodeTaskUpdateTaskResponse encodes the TaskUpdateTaskResponse payload to canonical CSIL CBOR bytes.
-func EncodeTaskUpdateTaskResponse(csilV Task) []byte {
-	return cborEncode(csilEncTask(csilV))
-}
-
-// DecodeTaskUpdateTaskResponse decodes canonical CSIL CBOR bytes into the TaskUpdateTaskResponse payload.
-func DecodeTaskUpdateTaskResponse(csilData []byte) (Task, error) {
-	var csilZero Task
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTask)(csilRoot)
-}
-
 // EncodeTaskDeleteTaskRequest encodes the TaskDeleteTaskRequest payload to canonical CSIL CBOR bytes.
 func EncodeTaskDeleteTaskRequest(csilV TaskID) []byte {
 	return cborEncode(cborText(csilV))
@@ -9396,81 +8596,6 @@ func DecodeTaskDeleteTaskRequest(csilData []byte) (TaskID, error) {
 		csilInner, csilErr := (cborAsText)(csilV)
 		return TaskID(csilInner), csilErr
 	})(csilRoot)
-}
-
-// EncodeTaskDeleteTaskResponse encodes the TaskDeleteTaskResponse payload to canonical CSIL CBOR bytes.
-func EncodeTaskDeleteTaskResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeTaskDeleteTaskResponse decodes canonical CSIL CBOR bytes into the TaskDeleteTaskResponse payload.
-func DecodeTaskDeleteTaskResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeTaskListTasksRequest encodes the TaskListTasksRequest payload to canonical CSIL CBOR bytes.
-func EncodeTaskListTasksRequest(csilV HouseScopedListRequest) []byte {
-	return cborEncode(csilEncHouseScopedListRequest(csilV))
-}
-
-// DecodeTaskListTasksRequest decodes canonical CSIL CBOR bytes into the TaskListTasksRequest payload.
-func DecodeTaskListTasksRequest(csilData []byte) (HouseScopedListRequest, error) {
-	var csilZero HouseScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouseScopedListRequest)(csilRoot)
-}
-
-// EncodeTaskListTasksResponse encodes the TaskListTasksResponse payload to canonical CSIL CBOR bytes.
-func EncodeTaskListTasksResponse(csilV TaskList) []byte {
-	return cborEncode(csilEncTaskList(csilV))
-}
-
-// DecodeTaskListTasksResponse decodes canonical CSIL CBOR bytes into the TaskListTasksResponse payload.
-func DecodeTaskListTasksResponse(csilData []byte) (TaskList, error) {
-	var csilZero TaskList
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTaskList)(csilRoot)
-}
-
-// EncodeTaskSetTaskVisibilityRequest encodes the TaskSetTaskVisibilityRequest payload to canonical CSIL CBOR bytes.
-func EncodeTaskSetTaskVisibilityRequest(csilV SetTaskVisibilityRequest) []byte {
-	return cborEncode(csilEncSetTaskVisibilityRequest(csilV))
-}
-
-// DecodeTaskSetTaskVisibilityRequest decodes canonical CSIL CBOR bytes into the TaskSetTaskVisibilityRequest payload.
-func DecodeTaskSetTaskVisibilityRequest(csilData []byte) (SetTaskVisibilityRequest, error) {
-	var csilZero SetTaskVisibilityRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecSetTaskVisibilityRequest)(csilRoot)
-}
-
-// EncodeTaskSetTaskVisibilityResponse encodes the TaskSetTaskVisibilityResponse payload to canonical CSIL CBOR bytes.
-func EncodeTaskSetTaskVisibilityResponse(csilV Task) []byte {
-	return cborEncode(csilEncTask(csilV))
-}
-
-// DecodeTaskSetTaskVisibilityResponse decodes canonical CSIL CBOR bytes into the TaskSetTaskVisibilityResponse payload.
-func DecodeTaskSetTaskVisibilityResponse(csilData []byte) (Task, error) {
-	var csilZero Task
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTask)(csilRoot)
 }
 
 // EncodeTaskListTaskGrantsRequest encodes the TaskListTaskGrantsRequest payload to canonical CSIL CBOR bytes.
@@ -9506,186 +8631,6 @@ func DecodeTaskListTaskGrantsResponse(csilData []byte) ([]Grant, error) {
 	return (func(csilV cborValue) ([]Grant, error) { return cborDecArray(csilV, csilDecGrant) })(csilRoot)
 }
 
-// EncodeTaskPutTaskGrantRequest encodes the TaskPutTaskGrantRequest payload to canonical CSIL CBOR bytes.
-func EncodeTaskPutTaskGrantRequest(csilV PutTaskGrantRequest) []byte {
-	return cborEncode(csilEncPutTaskGrantRequest(csilV))
-}
-
-// DecodeTaskPutTaskGrantRequest decodes canonical CSIL CBOR bytes into the TaskPutTaskGrantRequest payload.
-func DecodeTaskPutTaskGrantRequest(csilData []byte) (PutTaskGrantRequest, error) {
-	var csilZero PutTaskGrantRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecPutTaskGrantRequest)(csilRoot)
-}
-
-// EncodeTaskPutTaskGrantResponse encodes the TaskPutTaskGrantResponse payload to canonical CSIL CBOR bytes.
-func EncodeTaskPutTaskGrantResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeTaskPutTaskGrantResponse decodes canonical CSIL CBOR bytes into the TaskPutTaskGrantResponse payload.
-func DecodeTaskPutTaskGrantResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeTaskDeleteTaskGrantRequest encodes the TaskDeleteTaskGrantRequest payload to canonical CSIL CBOR bytes.
-func EncodeTaskDeleteTaskGrantRequest(csilV TaskGrantRef) []byte {
-	return cborEncode(csilEncTaskGrantRef(csilV))
-}
-
-// DecodeTaskDeleteTaskGrantRequest decodes canonical CSIL CBOR bytes into the TaskDeleteTaskGrantRequest payload.
-func DecodeTaskDeleteTaskGrantRequest(csilData []byte) (TaskGrantRef, error) {
-	var csilZero TaskGrantRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTaskGrantRef)(csilRoot)
-}
-
-// EncodeTaskDeleteTaskGrantResponse encodes the TaskDeleteTaskGrantResponse payload to canonical CSIL CBOR bytes.
-func EncodeTaskDeleteTaskGrantResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeTaskDeleteTaskGrantResponse decodes canonical CSIL CBOR bytes into the TaskDeleteTaskGrantResponse payload.
-func DecodeTaskDeleteTaskGrantResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeDependencyAddDependencyRequest encodes the DependencyAddDependencyRequest payload to canonical CSIL CBOR bytes.
-func EncodeDependencyAddDependencyRequest(csilV DependencyRef) []byte {
-	return cborEncode(csilEncDependencyRef(csilV))
-}
-
-// DecodeDependencyAddDependencyRequest decodes canonical CSIL CBOR bytes into the DependencyAddDependencyRequest payload.
-func DecodeDependencyAddDependencyRequest(csilData []byte) (DependencyRef, error) {
-	var csilZero DependencyRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecDependencyRef)(csilRoot)
-}
-
-// EncodeDependencyAddDependencyResponse encodes the DependencyAddDependencyResponse payload to canonical CSIL CBOR bytes.
-func EncodeDependencyAddDependencyResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeDependencyAddDependencyResponse decodes canonical CSIL CBOR bytes into the DependencyAddDependencyResponse payload.
-func DecodeDependencyAddDependencyResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeDependencyRemoveDependencyRequest encodes the DependencyRemoveDependencyRequest payload to canonical CSIL CBOR bytes.
-func EncodeDependencyRemoveDependencyRequest(csilV DependencyRef) []byte {
-	return cborEncode(csilEncDependencyRef(csilV))
-}
-
-// DecodeDependencyRemoveDependencyRequest decodes canonical CSIL CBOR bytes into the DependencyRemoveDependencyRequest payload.
-func DecodeDependencyRemoveDependencyRequest(csilData []byte) (DependencyRef, error) {
-	var csilZero DependencyRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecDependencyRef)(csilRoot)
-}
-
-// EncodeDependencyRemoveDependencyResponse encodes the DependencyRemoveDependencyResponse payload to canonical CSIL CBOR bytes.
-func EncodeDependencyRemoveDependencyResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeDependencyRemoveDependencyResponse decodes canonical CSIL CBOR bytes into the DependencyRemoveDependencyResponse payload.
-func DecodeDependencyRemoveDependencyResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeDependencyGetDependenciesRequest encodes the DependencyGetDependenciesRequest payload to canonical CSIL CBOR bytes.
-func EncodeDependencyGetDependenciesRequest(csilV DependencyTarget) []byte {
-	return cborEncode(csilEncDependencyTarget(csilV))
-}
-
-// DecodeDependencyGetDependenciesRequest decodes canonical CSIL CBOR bytes into the DependencyGetDependenciesRequest payload.
-func DecodeDependencyGetDependenciesRequest(csilData []byte) (DependencyTarget, error) {
-	var csilZero DependencyTarget
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecDependencyTarget)(csilRoot)
-}
-
-// EncodeDependencyGetDependenciesResponse encodes the DependencyGetDependenciesResponse payload to canonical CSIL CBOR bytes.
-func EncodeDependencyGetDependenciesResponse(csilV DependencyGraph) []byte {
-	return cborEncode(csilEncDependencyGraph(csilV))
-}
-
-// DecodeDependencyGetDependenciesResponse decodes canonical CSIL CBOR bytes into the DependencyGetDependenciesResponse payload.
-func DecodeDependencyGetDependenciesResponse(csilData []byte) (DependencyGraph, error) {
-	var csilZero DependencyGraph
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecDependencyGraph)(csilRoot)
-}
-
-// EncodeCommentCreateCommentRequest encodes the CommentCreateCommentRequest payload to canonical CSIL CBOR bytes.
-func EncodeCommentCreateCommentRequest(csilV Comment) []byte {
-	return cborEncode(csilEncComment(csilV))
-}
-
-// DecodeCommentCreateCommentRequest decodes canonical CSIL CBOR bytes into the CommentCreateCommentRequest payload.
-func DecodeCommentCreateCommentRequest(csilData []byte) (Comment, error) {
-	var csilZero Comment
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecComment)(csilRoot)
-}
-
-// EncodeCommentCreateCommentResponse encodes the CommentCreateCommentResponse payload to canonical CSIL CBOR bytes.
-func EncodeCommentCreateCommentResponse(csilV Comment) []byte {
-	return cborEncode(csilEncComment(csilV))
-}
-
-// DecodeCommentCreateCommentResponse decodes canonical CSIL CBOR bytes into the CommentCreateCommentResponse payload.
-func DecodeCommentCreateCommentResponse(csilData []byte) (Comment, error) {
-	var csilZero Comment
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecComment)(csilRoot)
-}
-
 // EncodeCommentGetCommentRequest encodes the CommentGetCommentRequest payload to canonical CSIL CBOR bytes.
 func EncodeCommentGetCommentRequest(csilV CommentID) []byte {
 	return cborEncode(cborText(csilV))
@@ -9702,51 +8647,6 @@ func DecodeCommentGetCommentRequest(csilData []byte) (CommentID, error) {
 		csilInner, csilErr := (cborAsText)(csilV)
 		return CommentID(csilInner), csilErr
 	})(csilRoot)
-}
-
-// EncodeCommentGetCommentResponse encodes the CommentGetCommentResponse payload to canonical CSIL CBOR bytes.
-func EncodeCommentGetCommentResponse(csilV Comment) []byte {
-	return cborEncode(csilEncComment(csilV))
-}
-
-// DecodeCommentGetCommentResponse decodes canonical CSIL CBOR bytes into the CommentGetCommentResponse payload.
-func DecodeCommentGetCommentResponse(csilData []byte) (Comment, error) {
-	var csilZero Comment
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecComment)(csilRoot)
-}
-
-// EncodeCommentUpdateCommentRequest encodes the CommentUpdateCommentRequest payload to canonical CSIL CBOR bytes.
-func EncodeCommentUpdateCommentRequest(csilV Comment) []byte {
-	return cborEncode(csilEncComment(csilV))
-}
-
-// DecodeCommentUpdateCommentRequest decodes canonical CSIL CBOR bytes into the CommentUpdateCommentRequest payload.
-func DecodeCommentUpdateCommentRequest(csilData []byte) (Comment, error) {
-	var csilZero Comment
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecComment)(csilRoot)
-}
-
-// EncodeCommentUpdateCommentResponse encodes the CommentUpdateCommentResponse payload to canonical CSIL CBOR bytes.
-func EncodeCommentUpdateCommentResponse(csilV Comment) []byte {
-	return cborEncode(csilEncComment(csilV))
-}
-
-// DecodeCommentUpdateCommentResponse decodes canonical CSIL CBOR bytes into the CommentUpdateCommentResponse payload.
-func DecodeCommentUpdateCommentResponse(csilData []byte) (Comment, error) {
-	var csilZero Comment
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecComment)(csilRoot)
 }
 
 // EncodeCommentDeleteCommentRequest encodes the CommentDeleteCommentRequest payload to canonical CSIL CBOR bytes.
@@ -9767,36 +8667,6 @@ func DecodeCommentDeleteCommentRequest(csilData []byte) (CommentID, error) {
 	})(csilRoot)
 }
 
-// EncodeCommentDeleteCommentResponse encodes the CommentDeleteCommentResponse payload to canonical CSIL CBOR bytes.
-func EncodeCommentDeleteCommentResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeCommentDeleteCommentResponse decodes canonical CSIL CBOR bytes into the CommentDeleteCommentResponse payload.
-func DecodeCommentDeleteCommentResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeCommentListCommentsRequest encodes the CommentListCommentsRequest payload to canonical CSIL CBOR bytes.
-func EncodeCommentListCommentsRequest(csilV CommentListRequest) []byte {
-	return cborEncode(csilEncCommentListRequest(csilV))
-}
-
-// DecodeCommentListCommentsRequest decodes canonical CSIL CBOR bytes into the CommentListCommentsRequest payload.
-func DecodeCommentListCommentsRequest(csilData []byte) (CommentListRequest, error) {
-	var csilZero CommentListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecCommentListRequest)(csilRoot)
-}
-
 // EncodeCommentListCommentsResponse encodes the CommentListCommentsResponse payload to canonical CSIL CBOR bytes.
 func EncodeCommentListCommentsResponse(csilV []Comment) []byte {
 	return cborEncode(cborEncArray(csilV, func(csilElem Comment) cborValue { return csilEncComment(csilElem) }))
@@ -9810,21 +8680,6 @@ func DecodeCommentListCommentsResponse(csilData []byte) ([]Comment, error) {
 		return csilZero, csilErr
 	}
 	return (func(csilV cborValue) ([]Comment, error) { return cborDecArray(csilV, csilDecComment) })(csilRoot)
-}
-
-// EncodeNotificationListNotificationsRequest encodes the NotificationListNotificationsRequest payload to canonical CSIL CBOR bytes.
-func EncodeNotificationListNotificationsRequest(csilV NotificationListRequest) []byte {
-	return cborEncode(csilEncNotificationListRequest(csilV))
-}
-
-// DecodeNotificationListNotificationsRequest decodes canonical CSIL CBOR bytes into the NotificationListNotificationsRequest payload.
-func DecodeNotificationListNotificationsRequest(csilData []byte) (NotificationListRequest, error) {
-	var csilZero NotificationListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecNotificationListRequest)(csilRoot)
 }
 
 // EncodeNotificationListNotificationsResponse encodes the NotificationListNotificationsResponse payload to canonical CSIL CBOR bytes.
@@ -9860,21 +8715,6 @@ func DecodeNotificationUnreadCountRequest(csilData []byte) (HouseID, error) {
 	})(csilRoot)
 }
 
-// EncodeNotificationUnreadCountResponse encodes the NotificationUnreadCountResponse payload to canonical CSIL CBOR bytes.
-func EncodeNotificationUnreadCountResponse(csilV NotificationUnreadCount) []byte {
-	return cborEncode(csilEncNotificationUnreadCount(csilV))
-}
-
-// DecodeNotificationUnreadCountResponse decodes canonical CSIL CBOR bytes into the NotificationUnreadCountResponse payload.
-func DecodeNotificationUnreadCountResponse(csilData []byte) (NotificationUnreadCount, error) {
-	var csilZero NotificationUnreadCount
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecNotificationUnreadCount)(csilRoot)
-}
-
 // EncodeNotificationMarkReadRequest encodes the NotificationMarkReadRequest payload to canonical CSIL CBOR bytes.
 func EncodeNotificationMarkReadRequest(csilV NotificationID) []byte {
 	return cborEncode(cborText(csilV))
@@ -9891,21 +8731,6 @@ func DecodeNotificationMarkReadRequest(csilData []byte) (NotificationID, error) 
 		csilInner, csilErr := (cborAsText)(csilV)
 		return NotificationID(csilInner), csilErr
 	})(csilRoot)
-}
-
-// EncodeNotificationMarkReadResponse encodes the NotificationMarkReadResponse payload to canonical CSIL CBOR bytes.
-func EncodeNotificationMarkReadResponse(csilV Notification) []byte {
-	return cborEncode(csilEncNotification(csilV))
-}
-
-// DecodeNotificationMarkReadResponse decodes canonical CSIL CBOR bytes into the NotificationMarkReadResponse payload.
-func DecodeNotificationMarkReadResponse(csilData []byte) (Notification, error) {
-	var csilZero Notification
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecNotification)(csilRoot)
 }
 
 // EncodeNotificationMarkAllReadRequest encodes the NotificationMarkAllReadRequest payload to canonical CSIL CBOR bytes.
@@ -9926,51 +8751,6 @@ func DecodeNotificationMarkAllReadRequest(csilData []byte) (HouseID, error) {
 	})(csilRoot)
 }
 
-// EncodeNotificationMarkAllReadResponse encodes the NotificationMarkAllReadResponse payload to canonical CSIL CBOR bytes.
-func EncodeNotificationMarkAllReadResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeNotificationMarkAllReadResponse decodes canonical CSIL CBOR bytes into the NotificationMarkAllReadResponse payload.
-func DecodeNotificationMarkAllReadResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeShareCreateShareRequest encodes the ShareCreateShareRequest payload to canonical CSIL CBOR bytes.
-func EncodeShareCreateShareRequest(csilV Share) []byte {
-	return cborEncode(csilEncShare(csilV))
-}
-
-// DecodeShareCreateShareRequest decodes canonical CSIL CBOR bytes into the ShareCreateShareRequest payload.
-func DecodeShareCreateShareRequest(csilData []byte) (Share, error) {
-	var csilZero Share
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecShare)(csilRoot)
-}
-
-// EncodeShareCreateShareResponse encodes the ShareCreateShareResponse payload to canonical CSIL CBOR bytes.
-func EncodeShareCreateShareResponse(csilV Share) []byte {
-	return cborEncode(csilEncShare(csilV))
-}
-
-// DecodeShareCreateShareResponse decodes canonical CSIL CBOR bytes into the ShareCreateShareResponse payload.
-func DecodeShareCreateShareResponse(csilData []byte) (Share, error) {
-	var csilZero Share
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecShare)(csilRoot)
-}
-
 // EncodeShareDeleteShareRequest encodes the ShareDeleteShareRequest payload to canonical CSIL CBOR bytes.
 func EncodeShareDeleteShareRequest(csilV ShareID) []byte {
 	return cborEncode(cborText(csilV))
@@ -9989,36 +8769,6 @@ func DecodeShareDeleteShareRequest(csilData []byte) (ShareID, error) {
 	})(csilRoot)
 }
 
-// EncodeShareDeleteShareResponse encodes the ShareDeleteShareResponse payload to canonical CSIL CBOR bytes.
-func EncodeShareDeleteShareResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeShareDeleteShareResponse decodes canonical CSIL CBOR bytes into the ShareDeleteShareResponse payload.
-func DecodeShareDeleteShareResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeShareListSharesByResourceRequest encodes the ShareListSharesByResourceRequest payload to canonical CSIL CBOR bytes.
-func EncodeShareListSharesByResourceRequest(csilV ResourceRef) []byte {
-	return cborEncode(csilEncResourceRef(csilV))
-}
-
-// DecodeShareListSharesByResourceRequest decodes canonical CSIL CBOR bytes into the ShareListSharesByResourceRequest payload.
-func DecodeShareListSharesByResourceRequest(csilData []byte) (ResourceRef, error) {
-	var csilZero ResourceRef
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecResourceRef)(csilRoot)
-}
-
 // EncodeShareListSharesByResourceResponse encodes the ShareListSharesByResourceResponse payload to canonical CSIL CBOR bytes.
 func EncodeShareListSharesByResourceResponse(csilV []Share) []byte {
 	return cborEncode(cborEncArray(csilV, func(csilElem Share) cborValue { return csilEncShare(csilElem) }))
@@ -10032,51 +8782,6 @@ func DecodeShareListSharesByResourceResponse(csilData []byte) ([]Share, error) {
 		return csilZero, csilErr
 	}
 	return (func(csilV cborValue) ([]Share, error) { return cborDecArray(csilV, csilDecShare) })(csilRoot)
-}
-
-// EncodeShareCheckAccessRequest encodes the ShareCheckAccessRequest payload to canonical CSIL CBOR bytes.
-func EncodeShareCheckAccessRequest(csilV ShareAccessRequest) []byte {
-	return cborEncode(csilEncShareAccessRequest(csilV))
-}
-
-// DecodeShareCheckAccessRequest decodes canonical CSIL CBOR bytes into the ShareCheckAccessRequest payload.
-func DecodeShareCheckAccessRequest(csilData []byte) (ShareAccessRequest, error) {
-	var csilZero ShareAccessRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecShareAccessRequest)(csilRoot)
-}
-
-// EncodeShareCheckAccessResponse encodes the ShareCheckAccessResponse payload to canonical CSIL CBOR bytes.
-func EncodeShareCheckAccessResponse(csilV Share) []byte {
-	return cborEncode(csilEncShare(csilV))
-}
-
-// DecodeShareCheckAccessResponse decodes canonical CSIL CBOR bytes into the ShareCheckAccessResponse payload.
-func DecodeShareCheckAccessResponse(csilData []byte) (Share, error) {
-	var csilZero Share
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecShare)(csilRoot)
-}
-
-// EncodeMemberAuditListAuditsForMemberRequest encodes the MemberAuditListAuditsForMemberRequest payload to canonical CSIL CBOR bytes.
-func EncodeMemberAuditListAuditsForMemberRequest(csilV MemberScopedListRequest) []byte {
-	return cborEncode(csilEncMemberScopedListRequest(csilV))
-}
-
-// DecodeMemberAuditListAuditsForMemberRequest decodes canonical CSIL CBOR bytes into the MemberAuditListAuditsForMemberRequest payload.
-func DecodeMemberAuditListAuditsForMemberRequest(csilData []byte) (MemberScopedListRequest, error) {
-	var csilZero MemberScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecMemberScopedListRequest)(csilRoot)
 }
 
 // EncodeMemberAuditListAuditsForMemberResponse encodes the MemberAuditListAuditsForMemberResponse payload to canonical CSIL CBOR bytes.
@@ -10110,199 +8815,4 @@ func DecodeSettingsGetSettingsRequest(csilData []byte) (HouseID, error) {
 		csilInner, csilErr := (cborAsText)(csilV)
 		return HouseID(csilInner), csilErr
 	})(csilRoot)
-}
-
-// EncodeSettingsGetSettingsResponse encodes the SettingsGetSettingsResponse payload to canonical CSIL CBOR bytes.
-func EncodeSettingsGetSettingsResponse(csilV EffectiveSettings) []byte {
-	return cborEncode(csilEncEffectiveSettings(csilV))
-}
-
-// DecodeSettingsGetSettingsResponse decodes canonical CSIL CBOR bytes into the SettingsGetSettingsResponse payload.
-func DecodeSettingsGetSettingsResponse(csilData []byte) (EffectiveSettings, error) {
-	var csilZero EffectiveSettings
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEffectiveSettings)(csilRoot)
-}
-
-// EncodeSettingsUpdateSettingsRequest encodes the SettingsUpdateSettingsRequest payload to canonical CSIL CBOR bytes.
-func EncodeSettingsUpdateSettingsRequest(csilV UpdateSettingsRequest) []byte {
-	return cborEncode(csilEncUpdateSettingsRequest(csilV))
-}
-
-// DecodeSettingsUpdateSettingsRequest decodes canonical CSIL CBOR bytes into the SettingsUpdateSettingsRequest payload.
-func DecodeSettingsUpdateSettingsRequest(csilData []byte) (UpdateSettingsRequest, error) {
-	var csilZero UpdateSettingsRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecUpdateSettingsRequest)(csilRoot)
-}
-
-// EncodeSettingsUpdateSettingsResponse encodes the SettingsUpdateSettingsResponse payload to canonical CSIL CBOR bytes.
-func EncodeSettingsUpdateSettingsResponse(csilV EffectiveSettings) []byte {
-	return cborEncode(csilEncEffectiveSettings(csilV))
-}
-
-// DecodeSettingsUpdateSettingsResponse decodes canonical CSIL CBOR bytes into the SettingsUpdateSettingsResponse payload.
-func DecodeSettingsUpdateSettingsResponse(csilData []byte) (EffectiveSettings, error) {
-	var csilZero EffectiveSettings
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEffectiveSettings)(csilRoot)
-}
-
-// EncodeBugReportBugRequest encodes the BugReportBugRequest payload to canonical CSIL CBOR bytes.
-func EncodeBugReportBugRequest(csilV BugReportRequest) []byte {
-	return cborEncode(csilEncBugReportRequest(csilV))
-}
-
-// DecodeBugReportBugRequest decodes canonical CSIL CBOR bytes into the BugReportBugRequest payload.
-func DecodeBugReportBugRequest(csilData []byte) (BugReportRequest, error) {
-	var csilZero BugReportRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecBugReportRequest)(csilRoot)
-}
-
-// EncodeBugReportBugResponse encodes the BugReportBugResponse payload to canonical CSIL CBOR bytes.
-func EncodeBugReportBugResponse(csilV Task) []byte {
-	return cborEncode(csilEncTask(csilV))
-}
-
-// DecodeBugReportBugResponse decodes canonical CSIL CBOR bytes into the BugReportBugResponse payload.
-func DecodeBugReportBugResponse(csilData []byte) (Task, error) {
-	var csilZero Task
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTask)(csilRoot)
-}
-
-// EncodeAuditQueryAuditRequest encodes the AuditQueryAuditRequest payload to canonical CSIL CBOR bytes.
-func EncodeAuditQueryAuditRequest(csilV AuditQuery) []byte {
-	return cborEncode(csilEncAuditQuery(csilV))
-}
-
-// DecodeAuditQueryAuditRequest decodes canonical CSIL CBOR bytes into the AuditQueryAuditRequest payload.
-func DecodeAuditQueryAuditRequest(csilData []byte) (AuditQuery, error) {
-	var csilZero AuditQuery
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecAuditQuery)(csilRoot)
-}
-
-// EncodeAuditQueryAuditResponse encodes the AuditQueryAuditResponse payload to canonical CSIL CBOR bytes.
-func EncodeAuditQueryAuditResponse(csilV AuditPage) []byte {
-	return cborEncode(csilEncAuditPage(csilV))
-}
-
-// DecodeAuditQueryAuditResponse decodes canonical CSIL CBOR bytes into the AuditQueryAuditResponse payload.
-func DecodeAuditQueryAuditResponse(csilData []byte) (AuditPage, error) {
-	var csilZero AuditPage
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecAuditPage)(csilRoot)
-}
-
-// EncodeTrashListTrashRequest encodes the TrashListTrashRequest payload to canonical CSIL CBOR bytes.
-func EncodeTrashListTrashRequest(csilV HouseScopedListRequest) []byte {
-	return cborEncode(csilEncHouseScopedListRequest(csilV))
-}
-
-// DecodeTrashListTrashRequest decodes canonical CSIL CBOR bytes into the TrashListTrashRequest payload.
-func DecodeTrashListTrashRequest(csilData []byte) (HouseScopedListRequest, error) {
-	var csilZero HouseScopedListRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecHouseScopedListRequest)(csilRoot)
-}
-
-// EncodeTrashListTrashResponse encodes the TrashListTrashResponse payload to canonical CSIL CBOR bytes.
-func EncodeTrashListTrashResponse(csilV TrashPage) []byte {
-	return cborEncode(csilEncTrashPage(csilV))
-}
-
-// DecodeTrashListTrashResponse decodes canonical CSIL CBOR bytes into the TrashListTrashResponse payload.
-func DecodeTrashListTrashResponse(csilData []byte) (TrashPage, error) {
-	var csilZero TrashPage
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecTrashPage)(csilRoot)
-}
-
-// EncodeTrashRestoreRequest encodes the TrashRestoreRequest payload to canonical CSIL CBOR bytes.
-func EncodeTrashRestoreRequest(csilV RestoreRequest) []byte {
-	return cborEncode(csilEncRestoreRequest(csilV))
-}
-
-// DecodeTrashRestoreRequest decodes canonical CSIL CBOR bytes into the TrashRestoreRequest payload.
-func DecodeTrashRestoreRequest(csilData []byte) (RestoreRequest, error) {
-	var csilZero RestoreRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecRestoreRequest)(csilRoot)
-}
-
-// EncodeTrashRestoreResponse encodes the TrashRestoreResponse payload to canonical CSIL CBOR bytes.
-func EncodeTrashRestoreResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeTrashRestoreResponse decodes canonical CSIL CBOR bytes into the TrashRestoreResponse payload.
-func DecodeTrashRestoreResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
-}
-
-// EncodeTrashPurgeRequest encodes the TrashPurgeRequest payload to canonical CSIL CBOR bytes.
-func EncodeTrashPurgeRequest(csilV PurgeRequest) []byte {
-	return cborEncode(csilEncPurgeRequest(csilV))
-}
-
-// DecodeTrashPurgeRequest decodes canonical CSIL CBOR bytes into the TrashPurgeRequest payload.
-func DecodeTrashPurgeRequest(csilData []byte) (PurgeRequest, error) {
-	var csilZero PurgeRequest
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecPurgeRequest)(csilRoot)
-}
-
-// EncodeTrashPurgeResponse encodes the TrashPurgeResponse payload to canonical CSIL CBOR bytes.
-func EncodeTrashPurgeResponse(csilV EmptyResponse) []byte {
-	return cborEncode(csilEncEmptyResponse(csilV))
-}
-
-// DecodeTrashPurgeResponse decodes canonical CSIL CBOR bytes into the TrashPurgeResponse payload.
-func DecodeTrashPurgeResponse(csilData []byte) (EmptyResponse, error) {
-	var csilZero EmptyResponse
-	csilRoot, csilErr := cborDecode(csilData)
-	if csilErr != nil {
-		return csilZero, csilErr
-	}
-	return (csilDecEmptyResponse)(csilRoot)
 }
