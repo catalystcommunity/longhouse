@@ -66,6 +66,14 @@ type Store interface {
 	ListCliSessions(ctx context.Context, domain, userID string) ([]models.CliSession, error)
 	RevokeCliSession(ctx context.Context, sessionID, domain, userID string, now time.Time) error
 
+	// Browser sessions share the CLI session tables (kind = 'browser'). The
+	// refresh token lives in an httpOnly cookie; only its hash is stored.
+	CreateBrowserSession(ctx context.Context, session *models.CliSession, refreshTokenHash []byte) error
+	RotateBrowserRefreshToken(ctx context.Context, tokenHash, nextTokenHash []byte, now time.Time, reuseGrace time.Duration) (*models.CliSession, error)
+	ExtendBrowserSession(ctx context.Context, sessionID string, expiresAt time.Time) error
+	RevokeBrowserSessionByToken(ctx context.Context, tokenHash []byte, now time.Time) (*models.CliSession, error)
+	GetCliSession(ctx context.Context, sessionID string) (*models.CliSession, error)
+
 	// Cached avatar operations. GetCachedAvatar returns (nil, nil) on a clean
 	// miss; PutCachedAvatar upserts by url_hash.
 	GetCachedAvatar(ctx context.Context, urlHash string) (*models.CachedAvatar, error)
@@ -239,6 +247,18 @@ type Store interface {
 	RestoreTasksByOp(ctx context.Context, opID string) error
 	PurgeTasksDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	ListTasksByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Task, error)
+	// ListTasks returns one page of the filtered tasks, in the order the
+	// filter's State defines, the count of all rows that match, and one
+	// count per f.DueBefore entry.
+	ListTasks(ctx context.Context, f TaskFilter, limit, offset int) (TaskPage, error)
+	// ListProjectTasksPage is ListProjectTasks with a state filter and the
+	// count of all matching rows. Order: position, then when added.
+	ListProjectTasksPage(ctx context.Context, projectID, state string, limit, offset int) ([]models.Task, int64, error)
+	// NextProjectTaskPosition is one past the project's highest position.
+	NextProjectTaskPosition(ctx context.Context, projectID string) (int, error)
+	// GetPersonalProject returns the member's live "Personal" project, or
+	// nil when there is none.
+	GetPersonalProject(ctx context.Context, houseID, memberID string) (*models.Project, error)
 
 	// Task assignees (set semantics — order is not preserved).
 	AddTaskAssignee(ctx context.Context, taskID, memberID string) error
@@ -289,4 +309,34 @@ type Store interface {
 	ListSharesByResource(ctx context.Context, resourceType, resourceID string) ([]models.Share, error)
 	ListSharesByHouse(ctx context.Context, houseID string) ([]models.Share, error)
 	GetShareAccess(ctx context.Context, domain, userID, resourceType, resourceID string) (*models.Share, error)
+}
+
+// Task list states for TaskFilter.State.
+const (
+	TaskStateOpen   = "open"
+	TaskStateClosed = "closed"
+)
+
+// TaskFilter selects rows for ListTasks. Zero values do not filter.
+type TaskFilter struct {
+	HouseID string
+	// TaskStateOpen, TaskStateClosed, or "" for all.
+	State string
+	// Only tasks this member owns or is assigned to.
+	MineMemberID string
+	// Only tasks in no live project.
+	Loose   bool
+	DueFrom *time.Time
+	DueTo   *time.Time
+	// For each time, count the matching rows with due_at before it.
+	DueBefore []time.Time
+}
+
+// TaskPage is one ListTasks result.
+type TaskPage struct {
+	Tasks []models.Task
+	// Rows that match the filter, before paging.
+	Total int64
+	// One count per TaskFilter.DueBefore entry.
+	DueCounts []int64
 }

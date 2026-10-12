@@ -56,6 +56,10 @@ export type MilestoneState = "done" | "current" | "future";
 
 export type CliLoginStatus = "pending" | "denied" | "expired" | "complete";
 
+export type SessionKind = "cli" | "browser";
+
+export type TaskState = "open" | "closed";
+
 export interface House {
   houseId: HouseID;
   name: string;
@@ -159,6 +163,7 @@ export interface Project {
   status?: ProjectStatus;
   visibility?: AccessLevel;
   createdByMemberId?: MemberID;
+  personal?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -357,6 +362,8 @@ export interface CliSessionSummary {
   lastUsedAt: Timestamp;
   expiresAt: Timestamp;
   revokedAt?: Timestamp;
+  kind?: SessionKind;
+  current?: boolean;
 }
 
 export interface CliSessionsResponse {
@@ -414,9 +421,23 @@ export interface HouseScopedListRequest {
   offset?: number;
 }
 
+export interface TaskListRequest {
+  houseId: HouseID;
+  limit?: number;
+  offset?: number;
+  state?: TaskState;
+  mine?: boolean;
+  loose?: boolean;
+  dueFrom?: Timestamp;
+  dueTo?: Timestamp;
+  dueBefore?: Timestamp[];
+}
+
 export interface TaskList {
   tasks: Task[];
   hiddenCount: number;
+  total?: number;
+  dueCounts?: number[];
 }
 
 export interface ProjectList {
@@ -436,6 +457,7 @@ export interface ProjectScopedListRequest {
   projectId: ProjectID;
   limit?: number;
   offset?: number;
+  state?: TaskState;
 }
 
 export interface CommentListRequest {
@@ -595,6 +617,7 @@ export interface EffectiveSettings {
   bugReportsEnabled?: boolean;
   bugReportsProjectId?: ProjectID;
   defaultProjectVisibility?: AccessLevel;
+  sessionLifetimeHours?: number;
 }
 
 export interface UpdateSettingsRequest {

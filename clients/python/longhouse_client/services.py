@@ -40,6 +40,16 @@ class AuthServiceHandlers(ABC):
         ...
 
     @abstractmethod
+    def resume_session(self, req: EmptyRequest, ctx: dict) -> Union[LoginResponse, ServiceError]:
+        """resume-session"""
+        ...
+
+    @abstractmethod
+    def end_session(self, req: EmptyRequest, ctx: dict) -> Union[EmptyResponse, ServiceError]:
+        """end-session"""
+        ...
+
+    @abstractmethod
     def me(self, req: EmptyRequest, ctx: dict) -> Union[MeResponse, ServiceError]:
         """me"""
         ...
@@ -500,8 +510,13 @@ class TaskServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_tasks(self, req: HouseScopedListRequest, ctx: dict) -> Union[TaskList, ServiceError]:
+    def list_tasks(self, req: TaskListRequest, ctx: dict) -> Union[TaskList, ServiceError]:
         """list-tasks"""
+        ...
+
+    @abstractmethod
+    def create_personal_task(self, req: Task, ctx: dict) -> Union[Task, ServiceError]:
+        """create-personal-task"""
         ...
 
     @abstractmethod

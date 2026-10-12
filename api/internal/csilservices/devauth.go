@@ -73,7 +73,7 @@ func (s *DevAuthService) DevLogin(ctx context.Context, req csil.DevLoginRequest)
 		return csil.LoginResponse{}, csilrpc.BadRequest("member not found")
 	}
 	// Dev login bypasses linkkeys entirely, so there are no claims to reconcile.
-	resp, err := s.Auth.issueToken(ctx, member.LinkkeysDomain, member.LinkkeysUserID, member.DisplayName, nil, models.AuditActionDevLogin)
+	resp, err := s.Auth.issueBrowserToken(ctx, member.LinkkeysDomain, member.LinkkeysUserID, member.DisplayName, nil, models.AuditActionDevLogin)
 	if err != nil {
 		return csil.LoginResponse{}, err
 	}

@@ -135,6 +135,16 @@ defmodule Csilgen.Generated.CliLoginStatus do
   @type t :: String.t()
 end
 
+defmodule Csilgen.Generated.SessionKind do
+  @moduledoc "Type alias for SessionKind."
+  @type t :: String.t()
+end
+
+defmodule Csilgen.Generated.TaskState do
+  @moduledoc "Type alias for TaskState."
+  @type t :: String.t()
+end
+
 defmodule Csilgen.Generated.House do
   @moduledoc "Generated struct for the House type."
 
@@ -983,6 +993,7 @@ defmodule Csilgen.Generated.Project do
     :description,
     :category,
     :created_by_member_id,
+    :personal,
     :created_at,
     :updated_at,
     status: "active",
@@ -998,6 +1009,7 @@ defmodule Csilgen.Generated.Project do
           status: Csilgen.Generated.ProjectStatus.t() | nil,
           visibility: Csilgen.Generated.AccessLevel.t() | nil,
           created_by_member_id: Csilgen.Generated.MemberID.t() | nil,
+          personal: boolean() | nil,
           created_at: Csilgen.Generated.Timestamp.t(),
           updated_at: Csilgen.Generated.Timestamp.t()
         }
@@ -1011,6 +1023,7 @@ defmodule Csilgen.Generated.Project do
     status: "status",
     visibility: "visibility",
     created_by_member_id: "created_by_member_id",
+    personal: "personal",
     created_at: "created_at",
     updated_at: "updated_at"
   ]
@@ -1028,6 +1041,7 @@ defmodule Csilgen.Generated.Project do
          if(is_nil(v.status), do: nil, else: {{:text, "status"}, {:text, v.status}}),
          if(is_nil(v.category), do: nil, else: {{:text, "category"}, {:text, v.category}}),
          {{:text, "house_id"}, {:text, v.house_id}},
+         if(is_nil(v.personal), do: nil, else: {{:text, "personal"}, {:bool, v.personal}}),
          {{:text, "created_at"}, {:text, v.created_at}},
          {{:text, "project_id"}, {:text, v.project_id}},
          {{:text, "updated_at"}, {:text, v.updated_at}},
@@ -1070,6 +1084,11 @@ defmodule Csilgen.Generated.Project do
           csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
         end,
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
+      personal:
+        case Map.get(csil_fields, {:text, "personal"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_bool(csil_v)
+        end,
       created_at: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "created_at"})),
       project_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "project_id"})),
       updated_at: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "updated_at"})),
@@ -3028,7 +3047,16 @@ defmodule Csilgen.Generated.CliSessionSummary do
   @moduledoc "Generated struct for the CliSessionSummary type."
 
   @enforce_keys [:session_id, :client_name, :created_at, :last_used_at, :expires_at]
-  defstruct [:session_id, :client_name, :created_at, :last_used_at, :expires_at, :revoked_at]
+  defstruct [
+    :session_id,
+    :client_name,
+    :created_at,
+    :last_used_at,
+    :expires_at,
+    :revoked_at,
+    :kind,
+    :current
+  ]
 
   @type t :: %__MODULE__{
           session_id: Csilgen.Generated.CliSessionID.t(),
@@ -3036,7 +3064,9 @@ defmodule Csilgen.Generated.CliSessionSummary do
           created_at: Csilgen.Generated.Timestamp.t(),
           last_used_at: Csilgen.Generated.Timestamp.t(),
           expires_at: Csilgen.Generated.Timestamp.t(),
-          revoked_at: Csilgen.Generated.Timestamp.t() | nil
+          revoked_at: Csilgen.Generated.Timestamp.t() | nil,
+          kind: Csilgen.Generated.SessionKind.t() | nil,
+          current: boolean() | nil
         }
 
   @wire_keys [
@@ -3045,7 +3075,9 @@ defmodule Csilgen.Generated.CliSessionSummary do
     created_at: "created_at",
     last_used_at: "last_used_at",
     expires_at: "expires_at",
-    revoked_at: "revoked_at"
+    revoked_at: "revoked_at",
+    kind: "kind",
+    current: "current"
   ]
   @doc "Maps struct field atoms to their verbatim CBOR wire keys."
   @spec wire_keys() :: keyword()
@@ -3057,6 +3089,8 @@ defmodule Csilgen.Generated.CliSessionSummary do
     {:map,
      Enum.reject(
        [
+         if(is_nil(v.kind), do: nil, else: {{:text, "kind"}, {:text, v.kind}}),
+         if(is_nil(v.current), do: nil, else: {{:text, "current"}, {:bool, v.current}}),
          {{:text, "created_at"}, {:text, v.created_at}},
          {{:text, "expires_at"}, {:text, v.expires_at}},
          if(is_nil(v.revoked_at), do: nil, else: {{:text, "revoked_at"}, {:text, v.revoked_at}}),
@@ -3074,6 +3108,23 @@ defmodule Csilgen.Generated.CliSessionSummary do
     csil_fields = Map.new(csil_kvs)
 
     %__MODULE__{
+      kind:
+        case Map.get(csil_fields, {:text, "kind"}) do
+          nil ->
+            nil
+
+          csil_v ->
+            case Csilgen.Generated.Cbor.to_text(csil_v) do
+              "cli" -> "cli"
+              "browser" -> "browser"
+              csil_other -> raise("csilgen: unknown SessionKind literal #{inspect(csil_other)}")
+            end
+        end,
+      current:
+        case Map.get(csil_fields, {:text, "current"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_bool(csil_v)
+        end,
       created_at: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "created_at"})),
       expires_at: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "expires_at"})),
       revoked_at:
@@ -3724,18 +3775,165 @@ defmodule Csilgen.Generated.HouseScopedListRequest do
   def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
 end
 
+defmodule Csilgen.Generated.TaskListRequest do
+  @moduledoc "Generated struct for the TaskListRequest type."
+
+  @enforce_keys [:house_id]
+  defstruct [
+    :house_id,
+    :state,
+    :mine,
+    :loose,
+    :due_from,
+    :due_to,
+    :due_before,
+    limit: 50,
+    offset: 0
+  ]
+
+  @type t :: %__MODULE__{
+          house_id: Csilgen.Generated.HouseID.t(),
+          limit: integer() | nil,
+          offset: integer() | nil,
+          state: Csilgen.Generated.TaskState.t() | nil,
+          mine: boolean() | nil,
+          loose: boolean() | nil,
+          due_from: Csilgen.Generated.Timestamp.t() | nil,
+          due_to: Csilgen.Generated.Timestamp.t() | nil,
+          due_before: [Csilgen.Generated.Timestamp.t()] | nil
+        }
+
+  @wire_keys [
+    house_id: "house_id",
+    limit: "limit",
+    offset: "offset",
+    state: "state",
+    mine: "mine",
+    loose: "loose",
+    due_from: "due_from",
+    due_to: "due_to",
+    due_before: "due_before"
+  ]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         if(is_nil(v.mine), do: nil, else: {{:text, "mine"}, {:bool, v.mine}}),
+         if(is_nil(v.limit), do: nil, else: {{:text, "limit"}, {:int, v.limit}}),
+         if(is_nil(v.loose), do: nil, else: {{:text, "loose"}, {:bool, v.loose}}),
+         if(is_nil(v.state), do: nil, else: {{:text, "state"}, {:text, v.state}}),
+         if(is_nil(v.due_to), do: nil, else: {{:text, "due_to"}, {:text, v.due_to}}),
+         if(is_nil(v.offset), do: nil, else: {{:text, "offset"}, {:int, v.offset}}),
+         if(is_nil(v.due_from), do: nil, else: {{:text, "due_from"}, {:text, v.due_from}}),
+         {{:text, "house_id"}, {:text, v.house_id}},
+         if(is_nil(v.due_before),
+           do: nil,
+           else:
+             {{:text, "due_before"},
+              {:array, Enum.map(v.due_before, fn csil_e -> {:text, csil_e} end)}}
+         )
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+
+    %__MODULE__{
+      mine:
+        case Map.get(csil_fields, {:text, "mine"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_bool(csil_v)
+        end,
+      limit:
+        case Map.get(csil_fields, {:text, "limit"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_int(csil_v)
+        end,
+      loose:
+        case Map.get(csil_fields, {:text, "loose"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_bool(csil_v)
+        end,
+      state:
+        case Map.get(csil_fields, {:text, "state"}) do
+          nil ->
+            nil
+
+          csil_v ->
+            case Csilgen.Generated.Cbor.to_text(csil_v) do
+              "open" -> "open"
+              "closed" -> "closed"
+              csil_other -> raise("csilgen: unknown TaskState literal #{inspect(csil_other)}")
+            end
+        end,
+      due_to:
+        case Map.get(csil_fields, {:text, "due_to"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end,
+      offset:
+        case Map.get(csil_fields, {:text, "offset"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_int(csil_v)
+        end,
+      due_from:
+        case Map.get(csil_fields, {:text, "due_from"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end,
+      house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
+      due_before:
+        case Map.get(csil_fields, {:text, "due_before"}) do
+          nil ->
+            nil
+
+          csil_v ->
+            case csil_v do
+              {:array, csil_xs} ->
+                Enum.map(csil_xs, fn csil_e -> Csilgen.Generated.Cbor.to_text(csil_e) end)
+            end
+        end
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
 defmodule Csilgen.Generated.TaskList do
   @moduledoc "Generated struct for the TaskList type."
 
   @enforce_keys [:tasks, :hidden_count]
-  defstruct [:tasks, :hidden_count]
+  defstruct [:tasks, :hidden_count, :total, :due_counts]
 
   @type t :: %__MODULE__{
           tasks: [Csilgen.Generated.Task.t()],
-          hidden_count: integer()
+          hidden_count: integer(),
+          total: integer() | nil,
+          due_counts: [integer()] | nil
         }
 
-  @wire_keys [tasks: "tasks", hidden_count: "hidden_count"]
+  @wire_keys [
+    tasks: "tasks",
+    hidden_count: "hidden_count",
+    total: "total",
+    due_counts: "due_counts"
+  ]
   @doc "Maps struct field atoms to their verbatim CBOR wire keys."
   @spec wire_keys() :: keyword()
   def wire_keys, do: @wire_keys
@@ -3749,6 +3947,13 @@ defmodule Csilgen.Generated.TaskList do
          {{:text, "tasks"},
           {:array,
            Enum.map(v.tasks, fn csil_e -> Csilgen.Generated.Task.to_cbor_value(csil_e) end)}},
+         if(is_nil(v.total), do: nil, else: {{:text, "total"}, {:int, v.total}}),
+         if(is_nil(v.due_counts),
+           do: nil,
+           else:
+             {{:text, "due_counts"},
+              {:array, Enum.map(v.due_counts, fn csil_e -> {:int, csil_e} end)}}
+         ),
          {{:text, "hidden_count"}, {:int, v.hidden_count}}
        ],
        &is_nil/1
@@ -3765,6 +3970,22 @@ defmodule Csilgen.Generated.TaskList do
         case Map.fetch!(csil_fields, {:text, "tasks"}) do
           {:array, csil_xs} ->
             Enum.map(csil_xs, fn csil_e -> Csilgen.Generated.Task.from_cbor_value(csil_e) end)
+        end,
+      total:
+        case Map.get(csil_fields, {:text, "total"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_int(csil_v)
+        end,
+      due_counts:
+        case Map.get(csil_fields, {:text, "due_counts"}) do
+          nil ->
+            nil
+
+          csil_v ->
+            case csil_v do
+              {:array, csil_xs} ->
+                Enum.map(csil_xs, fn csil_e -> Csilgen.Generated.Cbor.to_int(csil_e) end)
+            end
         end,
       hidden_count:
         Csilgen.Generated.Cbor.to_int(Map.fetch!(csil_fields, {:text, "hidden_count"}))
@@ -3903,16 +4124,23 @@ defmodule Csilgen.Generated.ProjectScopedListRequest do
   @moduledoc "Generated struct for the ProjectScopedListRequest type."
 
   @enforce_keys [:house_id, :project_id]
-  defstruct [:house_id, :project_id, limit: 50, offset: 0]
+  defstruct [:house_id, :project_id, :state, limit: 50, offset: 0]
 
   @type t :: %__MODULE__{
           house_id: Csilgen.Generated.HouseID.t(),
           project_id: Csilgen.Generated.ProjectID.t(),
           limit: integer() | nil,
-          offset: integer() | nil
+          offset: integer() | nil,
+          state: Csilgen.Generated.TaskState.t() | nil
         }
 
-  @wire_keys [house_id: "house_id", project_id: "project_id", limit: "limit", offset: "offset"]
+  @wire_keys [
+    house_id: "house_id",
+    project_id: "project_id",
+    limit: "limit",
+    offset: "offset",
+    state: "state"
+  ]
   @doc "Maps struct field atoms to their verbatim CBOR wire keys."
   @spec wire_keys() :: keyword()
   def wire_keys, do: @wire_keys
@@ -3924,6 +4152,7 @@ defmodule Csilgen.Generated.ProjectScopedListRequest do
      Enum.reject(
        [
          if(is_nil(v.limit), do: nil, else: {{:text, "limit"}, {:int, v.limit}}),
+         if(is_nil(v.state), do: nil, else: {{:text, "state"}, {:text, v.state}}),
          if(is_nil(v.offset), do: nil, else: {{:text, "offset"}, {:int, v.offset}}),
          {{:text, "house_id"}, {:text, v.house_id}},
          {{:text, "project_id"}, {:text, v.project_id}}
@@ -3942,6 +4171,18 @@ defmodule Csilgen.Generated.ProjectScopedListRequest do
         case Map.get(csil_fields, {:text, "limit"}) do
           nil -> nil
           csil_v -> Csilgen.Generated.Cbor.to_int(csil_v)
+        end,
+      state:
+        case Map.get(csil_fields, {:text, "state"}) do
+          nil ->
+            nil
+
+          csil_v ->
+            case Csilgen.Generated.Cbor.to_text(csil_v) do
+              "open" -> "open"
+              "closed" -> "closed"
+              csil_other -> raise("csilgen: unknown TaskState literal #{inspect(csil_other)}")
+            end
         end,
       offset:
         case Map.get(csil_fields, {:text, "offset"}) do
@@ -5539,19 +5780,22 @@ defmodule Csilgen.Generated.EffectiveSettings do
   defstruct [
     :bug_reports_project_id,
     bug_reports_enabled: false,
-    default_project_visibility: "read"
+    default_project_visibility: "read",
+    session_lifetime_hours: 720
   ]
 
   @type t :: %__MODULE__{
           bug_reports_enabled: boolean() | nil,
           bug_reports_project_id: Csilgen.Generated.ProjectID.t() | nil,
-          default_project_visibility: Csilgen.Generated.AccessLevel.t() | nil
+          default_project_visibility: Csilgen.Generated.AccessLevel.t() | nil,
+          session_lifetime_hours: integer() | nil
         }
 
   @wire_keys [
     bug_reports_enabled: "bug_reports_enabled",
     bug_reports_project_id: "bug_reports_project_id",
-    default_project_visibility: "default_project_visibility"
+    default_project_visibility: "default_project_visibility",
+    session_lifetime_hours: "session_lifetime_hours"
   ]
   @doc "Maps struct field atoms to their verbatim CBOR wire keys."
   @spec wire_keys() :: keyword()
@@ -5570,6 +5814,10 @@ defmodule Csilgen.Generated.EffectiveSettings do
          if(is_nil(v.bug_reports_project_id),
            do: nil,
            else: {{:text, "bug_reports_project_id"}, {:text, v.bug_reports_project_id}}
+         ),
+         if(is_nil(v.session_lifetime_hours),
+           do: nil,
+           else: {{:text, "session_lifetime_hours"}, {:int, v.session_lifetime_hours}}
          ),
          if(is_nil(v.default_project_visibility),
            do: nil,
@@ -5595,6 +5843,11 @@ defmodule Csilgen.Generated.EffectiveSettings do
         case Map.get(csil_fields, {:text, "bug_reports_project_id"}) do
           nil -> nil
           csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end,
+      session_lifetime_hours:
+        case Map.get(csil_fields, {:text, "session_lifetime_hours"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_int(csil_v)
         end,
       default_project_visibility:
         case Map.get(csil_fields, {:text, "default_project_visibility"}) do

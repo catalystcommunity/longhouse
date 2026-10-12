@@ -130,6 +130,22 @@ public enum CliLoginStatus
     Complete,
 }
 
+public enum SessionKind
+{
+    // wire value: cli
+    Cli,
+    // wire value: browser
+    Browser,
+}
+
+public enum TaskState
+{
+    // wire value: open
+    Open,
+    // wire value: closed
+    Closed,
+}
+
 public sealed record House
 {
     // CBOR key: house_id
@@ -366,6 +382,8 @@ public sealed record Project
     public AccessLevel? Visibility { get; init; }
     // CBOR key: created_by_member_id
     public MemberID? CreatedByMemberId { get; init; }
+    // CBOR key: personal
+    public bool? Personal { get; init; }
     // CBOR key: created_at
     public required Timestamp CreatedAt { get; init; }
     // CBOR key: updated_at
@@ -792,6 +810,10 @@ public sealed record CliSessionSummary
     public required Timestamp ExpiresAt { get; init; }
     // CBOR key: revoked_at
     public Timestamp? RevokedAt { get; init; }
+    // CBOR key: kind
+    public SessionKind? Kind { get; init; }
+    // CBOR key: current
+    public bool? Current { get; init; }
 }
 
 public sealed record CliSessionsResponse
@@ -882,12 +904,38 @@ public sealed record HouseScopedListRequest
     public ulong? Offset { get; init; }
 }
 
+public sealed record TaskListRequest
+{
+    // CBOR key: house_id
+    public required HouseID HouseId { get; init; }
+    // CBOR key: limit
+    public ulong? Limit { get; init; }
+    // CBOR key: offset
+    public ulong? Offset { get; init; }
+    // CBOR key: state
+    public TaskState? State { get; init; }
+    // CBOR key: mine
+    public bool? Mine { get; init; }
+    // CBOR key: loose
+    public bool? Loose { get; init; }
+    // CBOR key: due_from
+    public Timestamp? DueFrom { get; init; }
+    // CBOR key: due_to
+    public Timestamp? DueTo { get; init; }
+    // CBOR key: due_before
+    public System.Collections.Generic.List<Timestamp>? DueBefore { get; init; }
+}
+
 public sealed record TaskList
 {
     // CBOR key: tasks
     public required System.Collections.Generic.List<Task> Tasks { get; init; }
     // CBOR key: hidden_count
     public required ulong HiddenCount { get; init; }
+    // CBOR key: total
+    public ulong? Total { get; init; }
+    // CBOR key: due_counts
+    public System.Collections.Generic.List<ulong>? DueCounts { get; init; }
 }
 
 public sealed record ProjectList
@@ -920,6 +968,8 @@ public sealed record ProjectScopedListRequest
     public ulong? Limit { get; init; }
     // CBOR key: offset
     public ulong? Offset { get; init; }
+    // CBOR key: state
+    public TaskState? State { get; init; }
 }
 
 public sealed record CommentListRequest
@@ -1186,6 +1236,8 @@ public sealed record EffectiveSettings
     public ProjectID? BugReportsProjectId { get; init; }
     // CBOR key: default_project_visibility
     public AccessLevel? DefaultProjectVisibility { get; init; }
+    // CBOR key: session_lifetime_hours
+    public ulong? SessionLifetimeHours { get; init; }
 }
 
 public sealed record UpdateSettingsRequest

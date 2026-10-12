@@ -19,6 +19,8 @@ abstract interface class AuthServiceHandler {
   LoginResponse complete(CompleteRequest request);
   LoginResponse refresh(EmptyRequest request);
   EmptyResponse logout(EmptyRequest request);
+  LoginResponse resumeSession(EmptyRequest request);
+  EmptyResponse endSession(EmptyRequest request);
   MeResponse me(EmptyRequest request);
   BeginCliLoginResponse beginCliLogin(BeginCliLoginRequest request);
   CliLoginRequestInfo inspectCliLogin(ApproveCliLoginRequest request);
@@ -155,7 +157,8 @@ abstract interface class TaskServiceHandler {
   Task getTask(TaskId request);
   Task updateTask(Task request);
   EmptyResponse deleteTask(TaskId request);
-  TaskList listTasks(HouseScopedListRequest request);
+  TaskList listTasks(TaskListRequest request);
+  Task createPersonalTask(Task request);
   Task setTaskVisibility(SetTaskVisibilityRequest request);
   List<Grant> listTaskGrants(TaskId request);
   EmptyResponse putTaskGrant(PutTaskGrantRequest request);

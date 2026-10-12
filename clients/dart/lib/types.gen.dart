@@ -59,6 +59,10 @@ typedef MilestoneState = String;
 
 typedef CliLoginStatus = String;
 
+typedef SessionKind = String;
+
+typedef TaskState = String;
+
 final class House {
   final HouseId houseId;
   final String name;
@@ -1041,6 +1045,7 @@ final class Project {
   final ProjectStatus? status;
   final AccessLevel? visibility;
   final MemberId? createdByMemberId;
+  final bool? personal;
   final Timestamp createdAt;
   final Timestamp updatedAt;
 
@@ -1053,6 +1058,7 @@ final class Project {
     this.status,
     this.visibility,
     this.createdByMemberId,
+    this.personal,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -1078,6 +1084,7 @@ final class Project {
       status: map['status'] as ProjectStatus?,
       visibility: map['visibility'] as AccessLevel?,
       createdByMemberId: map['created_by_member_id'] as MemberId?,
+      personal: map['personal'] as bool?,
       createdAt: map['created_at'] as Timestamp,
       updatedAt: map['updated_at'] as Timestamp,
     );
@@ -1104,6 +1111,7 @@ final class Project {
         status == other.status &&
         visibility == other.visibility &&
         createdByMemberId == other.createdByMemberId &&
+        personal == other.personal &&
         createdAt == other.createdAt &&
         updatedAt == other.updatedAt;
   }
@@ -1118,6 +1126,7 @@ final class Project {
     status,
     visibility,
     createdByMemberId,
+    personal,
     createdAt,
     updatedAt,
   ]);
@@ -1162,6 +1171,7 @@ final class Project {
       createdByMemberId: map['created_by_member_id'] == null
           ? null
           : map['created_by_member_id'] as String,
+      personal: map['personal'] == null ? null : map['personal'] as bool,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
     );
@@ -3205,6 +3215,8 @@ final class CliSessionSummary {
   final Timestamp lastUsedAt;
   final Timestamp expiresAt;
   final Timestamp? revokedAt;
+  final SessionKind? kind;
+  final bool? current;
 
   const CliSessionSummary({
     required this.sessionId,
@@ -3213,6 +3225,8 @@ final class CliSessionSummary {
     required this.lastUsedAt,
     required this.expiresAt,
     this.revokedAt,
+    this.kind,
+    this.current,
   });
 
   Map<String, Object?> toMap() {
@@ -3223,6 +3237,8 @@ final class CliSessionSummary {
     map['last_used_at'] = lastUsedAt;
     map['expires_at'] = expiresAt;
     if (revokedAt != null) map['revoked_at'] = revokedAt;
+    if (kind != null) map['kind'] = kind;
+    if (current != null) map['current'] = current;
     return map;
   }
 
@@ -3234,6 +3250,8 @@ final class CliSessionSummary {
       lastUsedAt: map['last_used_at'] as Timestamp,
       expiresAt: map['expires_at'] as Timestamp,
       revokedAt: map['revoked_at'] as Timestamp?,
+      kind: map['kind'] as SessionKind?,
+      current: map['current'] as bool?,
     );
   }
 
@@ -3245,7 +3263,9 @@ final class CliSessionSummary {
         createdAt == other.createdAt &&
         lastUsedAt == other.lastUsedAt &&
         expiresAt == other.expiresAt &&
-        revokedAt == other.revokedAt;
+        revokedAt == other.revokedAt &&
+        kind == other.kind &&
+        current == other.current;
   }
 
   @override
@@ -3256,6 +3276,8 @@ final class CliSessionSummary {
     lastUsedAt,
     expiresAt,
     revokedAt,
+    kind,
+    current,
   ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
@@ -3267,6 +3289,8 @@ final class CliSessionSummary {
     map['last_used_at'] = lastUsedAt;
     map['expires_at'] = expiresAt;
     if (revokedAt != null) map['revoked_at'] = revokedAt!;
+    if (kind != null) map['kind'] = kind!;
+    if (current != null) map['current'] = current!;
     return map;
   }
 
@@ -3280,6 +3304,10 @@ final class CliSessionSummary {
       lastUsedAt: map['last_used_at'] as String,
       expiresAt: map['expires_at'] as String,
       revokedAt: map['revoked_at'] == null ? null : map['revoked_at'] as String,
+      kind: map['kind'] == null
+          ? null
+          : CsilCbor.expectOneOf<String>(map['kind'], const ['cli', 'browser']),
+      current: map['current'] == null ? null : map['current'] as bool,
     );
   }
 
@@ -3926,16 +3954,152 @@ final class HouseScopedListRequest {
       HouseScopedListRequest.fromCborValue(CsilCbor.decode(bytes));
 }
 
+final class TaskListRequest {
+  final HouseId houseId;
+  final int? limit;
+  final int? offset;
+  final TaskState? state;
+  final bool? mine;
+  final bool? loose;
+  final Timestamp? dueFrom;
+  final Timestamp? dueTo;
+  final List<Timestamp>? dueBefore;
+
+  const TaskListRequest({
+    required this.houseId,
+    this.limit,
+    this.offset,
+    this.state,
+    this.mine,
+    this.loose,
+    this.dueFrom,
+    this.dueTo,
+    this.dueBefore,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    if (limit != null) map['limit'] = limit;
+    if (offset != null) map['offset'] = offset;
+    if (state != null) map['state'] = state;
+    if (mine != null) map['mine'] = mine;
+    if (loose != null) map['loose'] = loose;
+    if (dueFrom != null) map['due_from'] = dueFrom;
+    if (dueTo != null) map['due_to'] = dueTo;
+    if (dueBefore != null) map['due_before'] = dueBefore;
+    return map;
+  }
+
+  factory TaskListRequest.fromMap(Map<String, Object?> map) {
+    return TaskListRequest(
+      houseId: map['house_id'] as HouseId,
+      limit: map['limit'] as int?,
+      offset: map['offset'] as int?,
+      state: map['state'] as TaskState?,
+      mine: map['mine'] as bool?,
+      loose: map['loose'] as bool?,
+      dueFrom: map['due_from'] as Timestamp?,
+      dueTo: map['due_to'] as Timestamp?,
+      dueBefore: map['due_before'] as List<Timestamp>?,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! TaskListRequest) return false;
+    return houseId == other.houseId &&
+        limit == other.limit &&
+        offset == other.offset &&
+        state == other.state &&
+        mine == other.mine &&
+        loose == other.loose &&
+        dueFrom == other.dueFrom &&
+        dueTo == other.dueTo &&
+        dueBefore == other.dueBefore;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    houseId,
+    limit,
+    offset,
+    state,
+    mine,
+    loose,
+    dueFrom,
+    dueTo,
+    dueBefore,
+  ]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    if (limit != null) map['limit'] = limit!;
+    if (offset != null) map['offset'] = offset!;
+    if (state != null) map['state'] = state!;
+    if (mine != null) map['mine'] = mine!;
+    if (loose != null) map['loose'] = loose!;
+    if (dueFrom != null) map['due_from'] = dueFrom!;
+    if (dueTo != null) map['due_to'] = dueTo!;
+    if (dueBefore != null) map['due_before'] = dueBefore!;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory TaskListRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return TaskListRequest(
+      houseId: map['house_id'] as String,
+      limit: map['limit'] == null ? null : map['limit'] as int,
+      offset: map['offset'] == null ? null : map['offset'] as int,
+      state: map['state'] == null
+          ? null
+          : CsilCbor.expectOneOf<String>(map['state'], const [
+              'open',
+              'closed',
+            ]),
+      mine: map['mine'] == null ? null : map['mine'] as bool,
+      loose: map['loose'] == null ? null : map['loose'] as bool,
+      dueFrom: map['due_from'] == null ? null : map['due_from'] as String,
+      dueTo: map['due_to'] == null ? null : map['due_to'] as String,
+      dueBefore: map['due_before'] == null
+          ? null
+          : (map['due_before'] as List)
+                .map((csilE) => csilE as String)
+                .cast<Timestamp>()
+                .toList(),
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory TaskListRequest.fromCbor(List<int> bytes) =>
+      TaskListRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
 final class TaskList {
   final List<Task> tasks;
   final int hiddenCount;
+  final int? total;
+  final List<int>? dueCounts;
 
-  const TaskList({required this.tasks, required this.hiddenCount});
+  const TaskList({
+    required this.tasks,
+    required this.hiddenCount,
+    this.total,
+    this.dueCounts,
+  });
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
     map['tasks'] = tasks;
     map['hidden_count'] = hiddenCount;
+    if (total != null) map['total'] = total;
+    if (dueCounts != null) map['due_counts'] = dueCounts;
     return map;
   }
 
@@ -3943,23 +4107,30 @@ final class TaskList {
     return TaskList(
       tasks: map['tasks'] as List<Task>,
       hiddenCount: map['hidden_count'] as int,
+      total: map['total'] as int?,
+      dueCounts: map['due_counts'] as List<int>?,
     );
   }
 
   @override
   bool operator ==(Object other) {
     if (other is! TaskList) return false;
-    return tasks == other.tasks && hiddenCount == other.hiddenCount;
+    return tasks == other.tasks &&
+        hiddenCount == other.hiddenCount &&
+        total == other.total &&
+        dueCounts == other.dueCounts;
   }
 
   @override
-  int get hashCode => Object.hashAll([tasks, hiddenCount]);
+  int get hashCode => Object.hashAll([tasks, hiddenCount, total, dueCounts]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
     map['tasks'] = tasks.map((csilE) => csilE.toCborValue()).toList();
     map['hidden_count'] = hiddenCount;
+    if (total != null) map['total'] = total!;
+    if (dueCounts != null) map['due_counts'] = dueCounts!;
     return map;
   }
 
@@ -3972,6 +4143,13 @@ final class TaskList {
           .cast<Task>()
           .toList(),
       hiddenCount: map['hidden_count'] as int,
+      total: map['total'] == null ? null : map['total'] as int,
+      dueCounts: map['due_counts'] == null
+          ? null
+          : (map['due_counts'] as List)
+                .map((csilE) => csilE as int)
+                .cast<int>()
+                .toList(),
     );
   }
 
@@ -4117,12 +4295,14 @@ final class ProjectScopedListRequest {
   final ProjectId projectId;
   final int? limit;
   final int? offset;
+  final TaskState? state;
 
   const ProjectScopedListRequest({
     required this.houseId,
     required this.projectId,
     this.limit,
     this.offset,
+    this.state,
   });
 
   Map<String, Object?> toMap() {
@@ -4131,6 +4311,7 @@ final class ProjectScopedListRequest {
     map['project_id'] = projectId;
     if (limit != null) map['limit'] = limit;
     if (offset != null) map['offset'] = offset;
+    if (state != null) map['state'] = state;
     return map;
   }
 
@@ -4140,6 +4321,7 @@ final class ProjectScopedListRequest {
       projectId: map['project_id'] as ProjectId,
       limit: map['limit'] as int?,
       offset: map['offset'] as int?,
+      state: map['state'] as TaskState?,
     );
   }
 
@@ -4149,11 +4331,13 @@ final class ProjectScopedListRequest {
     return houseId == other.houseId &&
         projectId == other.projectId &&
         limit == other.limit &&
-        offset == other.offset;
+        offset == other.offset &&
+        state == other.state;
   }
 
   @override
-  int get hashCode => Object.hashAll([houseId, projectId, limit, offset]);
+  int get hashCode =>
+      Object.hashAll([houseId, projectId, limit, offset, state]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
@@ -4162,6 +4346,7 @@ final class ProjectScopedListRequest {
     map['project_id'] = projectId;
     if (limit != null) map['limit'] = limit!;
     if (offset != null) map['offset'] = offset!;
+    if (state != null) map['state'] = state!;
     return map;
   }
 
@@ -4173,6 +4358,12 @@ final class ProjectScopedListRequest {
       projectId: map['project_id'] as String,
       limit: map['limit'] == null ? null : map['limit'] as int,
       offset: map['offset'] == null ? null : map['offset'] as int,
+      state: map['state'] == null
+          ? null
+          : CsilCbor.expectOneOf<String>(map['state'], const [
+              'open',
+              'closed',
+            ]),
     );
   }
 
@@ -5886,11 +6077,13 @@ final class EffectiveSettings {
   final bool? bugReportsEnabled;
   final ProjectId? bugReportsProjectId;
   final AccessLevel? defaultProjectVisibility;
+  final int? sessionLifetimeHours;
 
   const EffectiveSettings({
     this.bugReportsEnabled,
     this.bugReportsProjectId,
     this.defaultProjectVisibility,
+    this.sessionLifetimeHours,
   });
 
   Map<String, Object?> toMap() {
@@ -5901,6 +6094,8 @@ final class EffectiveSettings {
       map['bug_reports_project_id'] = bugReportsProjectId;
     if (defaultProjectVisibility != null)
       map['default_project_visibility'] = defaultProjectVisibility;
+    if (sessionLifetimeHours != null)
+      map['session_lifetime_hours'] = sessionLifetimeHours;
     return map;
   }
 
@@ -5910,6 +6105,7 @@ final class EffectiveSettings {
       bugReportsProjectId: map['bug_reports_project_id'] as ProjectId?,
       defaultProjectVisibility:
           map['default_project_visibility'] as AccessLevel?,
+      sessionLifetimeHours: map['session_lifetime_hours'] as int?,
     );
   }
 
@@ -5918,7 +6114,8 @@ final class EffectiveSettings {
     if (other is! EffectiveSettings) return false;
     return bugReportsEnabled == other.bugReportsEnabled &&
         bugReportsProjectId == other.bugReportsProjectId &&
-        defaultProjectVisibility == other.defaultProjectVisibility;
+        defaultProjectVisibility == other.defaultProjectVisibility &&
+        sessionLifetimeHours == other.sessionLifetimeHours;
   }
 
   @override
@@ -5926,6 +6123,7 @@ final class EffectiveSettings {
     bugReportsEnabled,
     bugReportsProjectId,
     defaultProjectVisibility,
+    sessionLifetimeHours,
   ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
@@ -5937,6 +6135,8 @@ final class EffectiveSettings {
       map['bug_reports_project_id'] = bugReportsProjectId!;
     if (defaultProjectVisibility != null)
       map['default_project_visibility'] = defaultProjectVisibility!;
+    if (sessionLifetimeHours != null)
+      map['session_lifetime_hours'] = sessionLifetimeHours!;
     return map;
   }
 
@@ -5956,6 +6156,9 @@ final class EffectiveSettings {
               map['default_project_visibility'],
               const ['none', 'read', 'edit', 'full'],
             ),
+      sessionLifetimeHours: map['session_lifetime_hours'] == null
+          ? null
+          : map['session_lifetime_hours'] as int,
     );
   }
 

@@ -44,6 +44,24 @@ final class AuthClient {
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
+  LoginResponse resumeSession(EmptyRequest request) {
+    final csilResp = transport.call(
+      'AuthService',
+      'resume-session',
+      request.toCbor(),
+    );
+    return LoginResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  EmptyResponse endSession(EmptyRequest request) {
+    final csilResp = transport.call(
+      'AuthService',
+      'end-session',
+      request.toCbor(),
+    );
+    return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
   MeResponse me(EmptyRequest request) {
     final csilResp = transport.call('AuthService', 'me', request.toCbor());
     return MeResponse.fromCborValue(CsilCbor.decode(csilResp));
@@ -929,13 +947,22 @@ final class TaskClient {
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
-  TaskList listTasks(HouseScopedListRequest request) {
+  TaskList listTasks(TaskListRequest request) {
     final csilResp = transport.call(
       'TaskService',
       'list-tasks',
       request.toCbor(),
     );
     return TaskList.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Task createPersonalTask(Task request) {
+    final csilResp = transport.call(
+      'TaskService',
+      'create-personal-task',
+      request.toCbor(),
+    );
+    return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Task setTaskVisibility(SetTaskVisibilityRequest request) {

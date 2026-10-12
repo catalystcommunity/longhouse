@@ -37,6 +37,12 @@ and encode_milestone_state (v : milestone_state) : Cbor.t =
 and encode_cli_login_status (v : cli_login_status) : Cbor.t =
   match v with Pending -> Cbor.Text "pending" | Denied -> Cbor.Text "denied" | Expired -> Cbor.Text "expired" | Complete -> Cbor.Text "complete"
 
+and encode_session_kind (v : session_kind) : Cbor.t =
+  match v with Cli -> Cbor.Text "cli" | Browser -> Cbor.Text "browser"
+
+and encode_task_state (v : task_state) : Cbor.t =
+  match v with Open -> Cbor.Text "open" | Closed -> Cbor.Text "closed"
+
 and encode_house (v : house) : Cbor.t =
   Cbor.Map
     (List.filter_map
@@ -184,6 +190,7 @@ and encode_project (v : project) : Cbor.t =
          (match v.status with Some csil_x -> Some (Cbor.Text "status", (encode_project_status csil_x)) | None -> None);
          (match v.category with Some csil_x -> Some (Cbor.Text "category", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
+         (match v.personal with Some csil_x -> Some (Cbor.Text "personal", (Cbor.Bool csil_x)) | None -> None);
          Some (Cbor.Text "created_at", (Cbor.Text v.created_at));
          Some (Cbor.Text "project_id", (Cbor.Text v.project_id));
          Some (Cbor.Text "updated_at", (Cbor.Text v.updated_at));
@@ -476,6 +483,8 @@ and encode_cli_session_summary (v : cli_session_summary) : Cbor.t =
     (List.filter_map
        (fun x -> x)
        [
+         (match v.kind with Some csil_x -> Some (Cbor.Text "kind", (encode_session_kind csil_x)) | None -> None);
+         (match v.current with Some csil_x -> Some (Cbor.Text "current", (Cbor.Bool csil_x)) | None -> None);
          Some (Cbor.Text "created_at", (Cbor.Text v.created_at));
          Some (Cbor.Text "expires_at", (Cbor.Text v.expires_at));
          (match v.revoked_at with Some csil_x -> Some (Cbor.Text "revoked_at", (Cbor.Text csil_x)) | None -> None);
@@ -573,12 +582,30 @@ and encode_house_scoped_list_request (v : house_scoped_list_request) : Cbor.t =
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
        ])
 
+and encode_task_list_request (v : task_list_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         (match v.mine with Some csil_x -> Some (Cbor.Text "mine", (Cbor.Bool csil_x)) | None -> None);
+         (match v.limit with Some csil_x -> Some (Cbor.Text "limit", (Cbor.int64 csil_x)) | None -> None);
+         (match v.loose with Some csil_x -> Some (Cbor.Text "loose", (Cbor.Bool csil_x)) | None -> None);
+         (match v.state with Some csil_x -> Some (Cbor.Text "state", (encode_task_state csil_x)) | None -> None);
+         (match v.due_to with Some csil_x -> Some (Cbor.Text "due_to", (Cbor.Text csil_x)) | None -> None);
+         (match v.offset with Some csil_x -> Some (Cbor.Text "offset", (Cbor.int64 csil_x)) | None -> None);
+         (match v.due_from with Some csil_x -> Some (Cbor.Text "due_from", (Cbor.Text csil_x)) | None -> None);
+         Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
+         (match v.due_before with Some csil_x -> Some (Cbor.Text "due_before", (Cbor.Array (List.map (fun csil_e -> (Cbor.Text csil_e)) csil_x))) | None -> None);
+       ])
+
 and encode_task_list (v : task_list) : Cbor.t =
   Cbor.Map
     (List.filter_map
        (fun x -> x)
        [
          Some (Cbor.Text "tasks", (Cbor.Array (List.map (fun csil_e -> (encode_task csil_e)) v.tasks)));
+         (match v.total with Some csil_x -> Some (Cbor.Text "total", (Cbor.int64 csil_x)) | None -> None);
+         (match v.due_counts with Some csil_x -> Some (Cbor.Text "due_counts", (Cbor.Array (List.map (fun csil_e -> (Cbor.int64 csil_e)) csil_x))) | None -> None);
          Some (Cbor.Text "hidden_count", (Cbor.int64 v.hidden_count));
        ])
 
@@ -608,6 +635,7 @@ and encode_project_scoped_list_request (v : project_scoped_list_request) : Cbor.
        (fun x -> x)
        [
          (match v.limit with Some csil_x -> Some (Cbor.Text "limit", (Cbor.int64 csil_x)) | None -> None);
+         (match v.state with Some csil_x -> Some (Cbor.Text "state", (encode_task_state csil_x)) | None -> None);
          (match v.offset with Some csil_x -> Some (Cbor.Text "offset", (Cbor.int64 csil_x)) | None -> None);
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
          Some (Cbor.Text "project_id", (Cbor.Text v.project_id));
@@ -873,6 +901,7 @@ and encode_effective_settings (v : effective_settings) : Cbor.t =
        [
          (match v.bug_reports_enabled with Some csil_x -> Some (Cbor.Text "bug_reports_enabled", (Cbor.Bool csil_x)) | None -> None);
          (match v.bug_reports_project_id with Some csil_x -> Some (Cbor.Text "bug_reports_project_id", (Cbor.Text csil_x)) | None -> None);
+         (match v.session_lifetime_hours with Some csil_x -> Some (Cbor.Text "session_lifetime_hours", (Cbor.int64 csil_x)) | None -> None);
          (match v.default_project_visibility with Some csil_x -> Some (Cbor.Text "default_project_visibility", (encode_access_level csil_x)) | None -> None);
        ])
 
@@ -1042,6 +1071,12 @@ and decode_milestone_state (csil_c : Cbor.t) : milestone_state =
 
 and decode_cli_login_status (csil_c : Cbor.t) : cli_login_status =
   match Cbor.to_text csil_c with "pending" -> Pending | "denied" -> Denied | "expired" -> Expired | "complete" -> Complete | csil_s -> failwith ("csilgen: unknown enum literal " ^ csil_s)
+
+and decode_session_kind (csil_c : Cbor.t) : session_kind =
+  match Cbor.to_text csil_c with "cli" -> Cli | "browser" -> Browser | csil_s -> failwith ("csilgen: unknown enum literal " ^ csil_s)
+
+and decode_task_state (csil_c : Cbor.t) : task_state =
+  match Cbor.to_text csil_c with "open" -> Open | "closed" -> Closed | csil_s -> failwith ("csilgen: unknown enum literal " ^ csil_s)
 
 and decode_house (csil_c : Cbor.t) : house =
   match csil_c with
@@ -1249,6 +1284,7 @@ and decode_project (csil_c : Cbor.t) : project =
         status = (match csil_field "status" with Some csil_v -> Some (decode_project_status csil_v) | None -> None);
         category = (match csil_field "category" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         house_id = (Cbor.to_text (csil_req "house_id"));
+        personal = (match csil_field "personal" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
         created_at = (Cbor.to_text (csil_req "created_at"));
         project_id = (Cbor.to_text (csil_req "project_id"));
         updated_at = (Cbor.to_text (csil_req "updated_at"));
@@ -1661,6 +1697,8 @@ and decode_cli_session_summary (csil_c : Cbor.t) : cli_session_summary =
       in
       ignore csil_req;
       {
+        kind = (match csil_field "kind" with Some csil_v -> Some (decode_session_kind csil_v) | None -> None);
+        current = (match csil_field "current" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
         created_at = (Cbor.to_text (csil_req "created_at"));
         expires_at = (Cbor.to_text (csil_req "expires_at"));
         revoked_at = (match csil_field "revoked_at" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
@@ -1806,6 +1844,27 @@ and decode_house_scoped_list_request (csil_c : Cbor.t) : house_scoped_list_reque
       }
   | _ -> failwith "csilgen: expected map for house_scoped_list_request"
 
+and decode_task_list_request (csil_c : Cbor.t) : task_list_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        mine = (match csil_field "mine" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
+        limit = (match csil_field "limit" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
+        loose = (match csil_field "loose" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
+        state = (match csil_field "state" with Some csil_v -> Some (decode_task_state csil_v) | None -> None);
+        due_to = (match csil_field "due_to" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        offset = (match csil_field "offset" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
+        due_from = (match csil_field "due_from" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        house_id = (Cbor.to_text (csil_req "house_id"));
+        due_before = (match csil_field "due_before" with Some csil_v -> Some (match csil_v with Cbor.Array csil_xs -> List.map (fun csil_e -> (Cbor.to_text csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | None -> None);
+      }
+  | _ -> failwith "csilgen: expected map for task_list_request"
+
 and decode_task_list (csil_c : Cbor.t) : task_list =
   match csil_c with
   | Cbor.Map csil_kvs ->
@@ -1816,6 +1875,8 @@ and decode_task_list (csil_c : Cbor.t) : task_list =
       ignore csil_req;
       {
         tasks = (match (csil_req "tasks") with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_task csil_e)) csil_xs | _ -> failwith "csilgen: expected array");
+        total = (match csil_field "total" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
+        due_counts = (match csil_field "due_counts" with Some csil_v -> Some (match csil_v with Cbor.Array csil_xs -> List.map (fun csil_e -> (Cbor.to_i64 csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | None -> None);
         hidden_count = (Cbor.to_i64 (csil_req "hidden_count"));
       }
   | _ -> failwith "csilgen: expected map for task_list"
@@ -1860,6 +1921,7 @@ and decode_project_scoped_list_request (csil_c : Cbor.t) : project_scoped_list_r
       ignore csil_req;
       {
         limit = (match csil_field "limit" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
+        state = (match csil_field "state" with Some csil_v -> Some (decode_task_state csil_v) | None -> None);
         offset = (match csil_field "offset" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
         house_id = (Cbor.to_text (csil_req "house_id"));
         project_id = (Cbor.to_text (csil_req "project_id"));
@@ -2255,6 +2317,7 @@ and decode_effective_settings (csil_c : Cbor.t) : effective_settings =
       {
         bug_reports_enabled = (match csil_field "bug_reports_enabled" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
         bug_reports_project_id = (match csil_field "bug_reports_project_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        session_lifetime_hours = (match csil_field "session_lifetime_hours" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
         default_project_visibility = (match csil_field "default_project_visibility" with Some csil_v -> Some (decode_access_level csil_v) | None -> None);
       }
   | _ -> failwith "csilgen: expected map for effective_settings"
@@ -2496,6 +2559,14 @@ let encode_cli_login_status_bytes (v : cli_login_status) : bytes = Cbor.encode (
 let decode_cli_login_status_bytes (b : bytes) : cli_login_status =
   match Cbor.decode b with Ok c -> decode_cli_login_status c | Error e -> failwith e
 
+let encode_session_kind_bytes (v : session_kind) : bytes = Cbor.encode (encode_session_kind v)
+let decode_session_kind_bytes (b : bytes) : session_kind =
+  match Cbor.decode b with Ok c -> decode_session_kind c | Error e -> failwith e
+
+let encode_task_state_bytes (v : task_state) : bytes = Cbor.encode (encode_task_state v)
+let decode_task_state_bytes (b : bytes) : task_state =
+  match Cbor.decode b with Ok c -> decode_task_state c | Error e -> failwith e
+
 let encode_house_bytes (v : house) : bytes = Cbor.encode (encode_house v)
 let decode_house_bytes (b : bytes) : house =
   match Cbor.decode b with Ok c -> decode_house c | Error e -> failwith e
@@ -2683,6 +2754,10 @@ let decode_house_list_request_bytes (b : bytes) : house_list_request =
 let encode_house_scoped_list_request_bytes (v : house_scoped_list_request) : bytes = Cbor.encode (encode_house_scoped_list_request v)
 let decode_house_scoped_list_request_bytes (b : bytes) : house_scoped_list_request =
   match Cbor.decode b with Ok c -> decode_house_scoped_list_request c | Error e -> failwith e
+
+let encode_task_list_request_bytes (v : task_list_request) : bytes = Cbor.encode (encode_task_list_request v)
+let decode_task_list_request_bytes (b : bytes) : task_list_request =
+  match Cbor.decode b with Ok c -> decode_task_list_request c | Error e -> failwith e
 
 let encode_task_list_bytes (v : task_list) : bytes = Cbor.encode (encode_task_list v)
 let decode_task_list_bytes (b : bytes) : task_list =

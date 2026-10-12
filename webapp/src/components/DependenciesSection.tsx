@@ -1,5 +1,6 @@
 import { For, Show, createResource, createSignal } from "solid-js";
 import { dependencyClient, projectClient, taskClient } from "~/data/clients";
+import { listAllTasks } from "~/lib/taskFeed";
 import type { DependencyNode, DependencyNodeType } from "@longhouse/client";
 
 /**
@@ -55,7 +56,8 @@ export const DependenciesSection = (props: Props) => {
     () => props.houseId,
     async (h): Promise<Candidate[]> => {
       const [tasks, projects] = await Promise.all([
-        taskClient.listTasks({ houseId: h }).then((r) => r.tasks),
+        // Every task, not one page: the picker must offer all of them.
+        listAllTasks((offset, limit) => taskClient.listTasks({ houseId: h, offset, limit })),
         projectClient.listProjects({ houseId: h }).then((r) => r.projects),
       ]);
       const out: Candidate[] = [];

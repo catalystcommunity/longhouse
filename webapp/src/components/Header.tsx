@@ -1,7 +1,8 @@
 import { A, useLocation, useNavigate } from "@solidjs/router";
 import { Show, createSignal, onCleanup, onMount } from "solid-js";
 import { toggleScene, toggleTheme, useSceneOn } from "~/stores/theme";
-import { hasRole, selectHouse, signOut, useCurrentHouseId, useHouses, useSession } from "~/stores/auth";
+import { hasRole, selectHouse, useCurrentHouseId, useHouses, useSession } from "~/stores/auth";
+import { endSession } from "~/lib/session";
 import { Bell, Landscape, LonghouseMark, Moon, Search, Sun } from "./Icons";
 import { BugReportButton } from "./BugReportButton";
 import { NotificationBell } from "./NotificationBell";
@@ -27,8 +28,8 @@ export const Header = () => {
   const isActive = (href: string) =>
     href === "/" ? loc.pathname === "/" : loc.pathname.startsWith(href);
 
-  const onSignOut = () => {
-    signOut();
+  const onSignOut = async () => {
+    await endSession();
     navigate(import.meta.env.DEV ? "/dev-login" : "/");
   };
 

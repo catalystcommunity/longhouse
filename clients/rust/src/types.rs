@@ -139,6 +139,20 @@ pub enum CliLoginStatus {
     Complete,
 }
 
+/// SessionKind variants
+#[derive(Debug, Clone, PartialEq)]
+pub enum SessionKind {
+    Cli,
+    Browser,
+}
+
+/// TaskState variants
+#[derive(Debug, Clone, PartialEq)]
+pub enum TaskState {
+    Open,
+    Closed,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct House {
     pub house_id: HouseID,
@@ -325,6 +339,7 @@ pub struct Project {
     /// default: "read"
     pub visibility: Option<AccessLevel>,
     pub created_by_member_id: Option<MemberID>,
+    pub personal: Option<bool>,
     pub created_at: Timestamp,
     pub updated_at: Timestamp,
 }
@@ -654,6 +669,8 @@ pub struct CliSessionSummary {
     pub last_used_at: Timestamp,
     pub expires_at: Timestamp,
     pub revoked_at: Option<Timestamp>,
+    pub kind: Option<SessionKind>,
+    pub current: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -725,9 +742,26 @@ pub struct HouseScopedListRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct TaskListRequest {
+    pub house_id: HouseID,
+    /// default: 50
+    pub limit: Option<u64>,
+    /// default: 0
+    pub offset: Option<u64>,
+    pub state: Option<TaskState>,
+    pub mine: Option<bool>,
+    pub loose: Option<bool>,
+    pub due_from: Option<Timestamp>,
+    pub due_to: Option<Timestamp>,
+    pub due_before: Option<Vec<Timestamp>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct TaskList {
     pub tasks: Vec<Task>,
     pub hidden_count: u64,
+    pub total: Option<u64>,
+    pub due_counts: Option<Vec<u64>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -754,6 +788,7 @@ pub struct ProjectScopedListRequest {
     pub limit: Option<u64>,
     /// default: 0
     pub offset: Option<u64>,
+    pub state: Option<TaskState>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -946,6 +981,8 @@ pub struct EffectiveSettings {
     pub bug_reports_project_id: Option<ProjectID>,
     /// default: "read"
     pub default_project_visibility: Option<AccessLevel>,
+    /// default: 720
+    pub session_lifetime_hours: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

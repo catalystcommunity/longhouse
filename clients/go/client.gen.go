@@ -79,6 +79,24 @@ func (c *AuthClient) Logout(ctx context.Context, req EmptyRequest) (EmptyRespons
 	return DecodeEmptyResponse(csilResp)
 }
 
+func (c *AuthClient) ResumeSession(ctx context.Context, req EmptyRequest) (LoginResponse, error) {
+	var csilZero LoginResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "resume-session", EncodeEmptyRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeLoginResponse(csilResp)
+}
+
+func (c *AuthClient) EndSession(ctx context.Context, req EmptyRequest) (EmptyResponse, error) {
+	var csilZero EmptyResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "end-session", EncodeEmptyRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEmptyResponse(csilResp)
+}
+
 func (c *AuthClient) Me(ctx context.Context, req EmptyRequest) (MeResponse, error) {
 	var csilZero MeResponse
 	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "me", EncodeEmptyRequest(req))
@@ -953,13 +971,22 @@ func (c *TaskClient) DeleteTask(ctx context.Context, req TaskID) (EmptyResponse,
 	return DecodeEmptyResponse(csilResp)
 }
 
-func (c *TaskClient) ListTasks(ctx context.Context, req HouseScopedListRequest) (TaskList, error) {
+func (c *TaskClient) ListTasks(ctx context.Context, req TaskListRequest) (TaskList, error) {
 	var csilZero TaskList
-	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "list-tasks", EncodeHouseScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "list-tasks", EncodeTaskListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
 	return DecodeTaskList(csilResp)
+}
+
+func (c *TaskClient) CreatePersonalTask(ctx context.Context, req Task) (Task, error) {
+	var csilZero Task
+	csilResp, csilErr := c.transport.Call(ctx, "TaskService", "create-personal-task", EncodeTask(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeTask(csilResp)
 }
 
 func (c *TaskClient) SetTaskVisibility(ctx context.Context, req SetTaskVisibilityRequest) (Task, error) {

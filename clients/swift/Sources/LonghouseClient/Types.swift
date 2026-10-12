@@ -114,6 +114,18 @@ public enum CliLoginStatus: String, Equatable, Sendable, CaseIterable {
     case complete = "complete"
 }
 
+/// SessionKind is a generated CSIL string enum (a closed set of wire values).
+public enum SessionKind: String, Equatable, Sendable, CaseIterable {
+    case cli = "cli"
+    case browser = "browser"
+}
+
+/// TaskState is a generated CSIL string enum (a closed set of wire values).
+public enum TaskState: String, Equatable, Sendable, CaseIterable {
+    case `open` = "open"
+    case closed = "closed"
+}
+
 /// House is a generated CSIL record type.
 public struct House: Equatable, Sendable {
     /// wire key: house_id
@@ -519,12 +531,13 @@ public struct Project: Equatable, Sendable {
     public let visibility: AccessLevel?
     /// wire key: created_by_member_id
     public let createdByMemberId: MemberId?
+    public let personal: Bool?
     /// wire key: created_at
     public let createdAt: Timestamp
     /// wire key: updated_at
     public let updatedAt: Timestamp
 
-    public init(projectId: ProjectId, houseId: HouseId, name: String, description: String? = nil, category: String? = nil, status: ProjectStatus? = "active", visibility: AccessLevel? = "read", createdByMemberId: MemberId? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(projectId: ProjectId, houseId: HouseId, name: String, description: String? = nil, category: String? = nil, status: ProjectStatus? = "active", visibility: AccessLevel? = "read", createdByMemberId: MemberId? = nil, personal: Bool? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
         self.projectId = projectId
         self.houseId = houseId
         self.name = name
@@ -533,6 +546,7 @@ public struct Project: Equatable, Sendable {
         self.status = status
         self.visibility = visibility
         self.createdByMemberId = createdByMemberId
+        self.personal = personal
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -557,6 +571,7 @@ public struct Project: Equatable, Sendable {
         "status": "status",
         "visibility": "visibility",
         "createdByMemberId": "created_by_member_id",
+        "personal": "personal",
         "createdAt": "created_at",
         "updatedAt": "updated_at"
     ]
@@ -1322,14 +1337,18 @@ public struct CliSessionSummary: Equatable, Sendable {
     public let expiresAt: Timestamp
     /// wire key: revoked_at
     public let revokedAt: Timestamp?
+    public let kind: SessionKind?
+    public let current: Bool?
 
-    public init(sessionId: CliSessionId, clientName: String, createdAt: Timestamp, lastUsedAt: Timestamp, expiresAt: Timestamp, revokedAt: Timestamp? = nil) {
+    public init(sessionId: CliSessionId, clientName: String, createdAt: Timestamp, lastUsedAt: Timestamp, expiresAt: Timestamp, revokedAt: Timestamp? = nil, kind: SessionKind? = nil, current: Bool? = nil) {
         self.sessionId = sessionId
         self.clientName = clientName
         self.createdAt = createdAt
         self.lastUsedAt = lastUsedAt
         self.expiresAt = expiresAt
         self.revokedAt = revokedAt
+        self.kind = kind
+        self.current = current
     }
 
     /// CBOR wire keys (verbatim) keyed by Swift property name.
@@ -1339,7 +1358,9 @@ public struct CliSessionSummary: Equatable, Sendable {
         "createdAt": "created_at",
         "lastUsedAt": "last_used_at",
         "expiresAt": "expires_at",
-        "revokedAt": "revoked_at"
+        "revokedAt": "revoked_at",
+        "kind": "kind",
+        "current": "current"
     ]
 }
 
@@ -1534,21 +1555,70 @@ public struct HouseScopedListRequest: Equatable, Sendable {
     ]
 }
 
+/// TaskListRequest is a generated CSIL record type.
+public struct TaskListRequest: Equatable, Sendable {
+    /// wire key: house_id
+    public let houseId: HouseId
+    public let limit: UInt64?
+    public let offset: UInt64?
+    public let state: TaskState?
+    public let mine: Bool?
+    public let loose: Bool?
+    /// wire key: due_from
+    public let dueFrom: Timestamp?
+    /// wire key: due_to
+    public let dueTo: Timestamp?
+    /// wire key: due_before
+    public let dueBefore: [Timestamp]?
+
+    public init(houseId: HouseId, limit: UInt64? = 50, offset: UInt64? = 0, state: TaskState? = nil, mine: Bool? = nil, loose: Bool? = nil, dueFrom: Timestamp? = nil, dueTo: Timestamp? = nil, dueBefore: [Timestamp]? = nil) {
+        self.houseId = houseId
+        self.limit = limit
+        self.offset = offset
+        self.state = state
+        self.mine = mine
+        self.loose = loose
+        self.dueFrom = dueFrom
+        self.dueTo = dueTo
+        self.dueBefore = dueBefore
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "houseId": "house_id",
+        "limit": "limit",
+        "offset": "offset",
+        "state": "state",
+        "mine": "mine",
+        "loose": "loose",
+        "dueFrom": "due_from",
+        "dueTo": "due_to",
+        "dueBefore": "due_before"
+    ]
+}
+
 /// TaskList is a generated CSIL record type.
 public struct TaskList: Equatable, Sendable {
     public let tasks: [Task]
     /// wire key: hidden_count
     public let hiddenCount: UInt64
+    public let total: UInt64?
+    /// wire key: due_counts
+    public let dueCounts: [UInt64]?
 
-    public init(tasks: [Task], hiddenCount: UInt64) {
+    public init(tasks: [Task], hiddenCount: UInt64, total: UInt64? = nil, dueCounts: [UInt64]? = nil) {
         self.tasks = tasks
         self.hiddenCount = hiddenCount
+        self.total = total
+        self.dueCounts = dueCounts
     }
 
     /// CBOR wire keys (verbatim) keyed by Swift property name.
     public static let wireKeys: [String: String] = [
         "tasks": "tasks",
-        "hiddenCount": "hidden_count"
+        "hiddenCount": "hidden_count",
+        "total": "total",
+        "dueCounts": "due_counts"
     ]
 }
 
@@ -1603,12 +1673,14 @@ public struct ProjectScopedListRequest: Equatable, Sendable {
     public let projectId: ProjectId
     public let limit: UInt64?
     public let offset: UInt64?
+    public let state: TaskState?
 
-    public init(houseId: HouseId, projectId: ProjectId, limit: UInt64? = 50, offset: UInt64? = 0) {
+    public init(houseId: HouseId, projectId: ProjectId, limit: UInt64? = 50, offset: UInt64? = 0, state: TaskState? = nil) {
         self.houseId = houseId
         self.projectId = projectId
         self.limit = limit
         self.offset = offset
+        self.state = state
     }
 
     /// CBOR wire keys (verbatim) keyed by Swift property name.
@@ -1616,7 +1688,8 @@ public struct ProjectScopedListRequest: Equatable, Sendable {
         "houseId": "house_id",
         "projectId": "project_id",
         "limit": "limit",
-        "offset": "offset"
+        "offset": "offset",
+        "state": "state"
     ]
 }
 
@@ -2196,18 +2269,22 @@ public struct EffectiveSettings: Equatable, Sendable {
     public let bugReportsProjectId: ProjectId?
     /// wire key: default_project_visibility
     public let defaultProjectVisibility: AccessLevel?
+    /// wire key: session_lifetime_hours
+    public let sessionLifetimeHours: UInt64?
 
-    public init(bugReportsEnabled: Bool? = false, bugReportsProjectId: ProjectId? = nil, defaultProjectVisibility: AccessLevel? = "read") {
+    public init(bugReportsEnabled: Bool? = false, bugReportsProjectId: ProjectId? = nil, defaultProjectVisibility: AccessLevel? = "read", sessionLifetimeHours: UInt64? = 720) {
         self.bugReportsEnabled = bugReportsEnabled
         self.bugReportsProjectId = bugReportsProjectId
         self.defaultProjectVisibility = defaultProjectVisibility
+        self.sessionLifetimeHours = sessionLifetimeHours
     }
 
     /// CBOR wire keys (verbatim) keyed by Swift property name.
     public static let wireKeys: [String: String] = [
         "bugReportsEnabled": "bug_reports_enabled",
         "bugReportsProjectId": "bug_reports_project_id",
-        "defaultProjectVisibility": "default_project_visibility"
+        "defaultProjectVisibility": "default_project_visibility",
+        "sessionLifetimeHours": "session_lifetime_hours"
     ]
 }
 

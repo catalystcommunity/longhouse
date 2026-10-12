@@ -61,6 +61,10 @@ const [houses, setHousesSig] = createSignal<House[]>(readHouses());
 // the UI tell "still loading houses" apart from "loaded, but you're in zero
 // houses" — the latter needs an admin to trust your domain, not a spinner.
 const [housesLoaded, setHousesLoadedSig] = createSignal<boolean>(false);
+// True while the app tries to resume a browser session from its cookie (no
+// usable bearer at boot). Lets the UI show "signing you in" instead of the
+// sign-in card for a person who is still signed in.
+const [restoring, setRestoringSig] = createSignal<boolean>(false);
 const [currentHouseId, setCurrentHouseSig] = createSignal<string | null>(
   localStorage.getItem(HOUSE_KEY),
 );
@@ -83,17 +87,37 @@ createRoot(() => {
   });
 });
 
+// Another tab that resumes or signs out writes localStorage; follow it so
+// every tab sends the newest bearer.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === SESSION_KEY) setSessionSig(readSession());
+  });
+}
+
 export const useSession = () => session;
 export const useHouses = () => houses;
 export const useHousesLoaded = () => housesLoaded;
-export const useCurrentHouseId = () => currentHouseId;
+export const useRestoring = () => restoring;
+export const setRestoring = (v: boolean) => setRestoringSig(v);
+
+/** The session another tab stored, if it is still valid. Read inside the
+ *  cross-tab resume lock so a tab adopts a bearer another tab just minted
+ *  instead of rotating the cookie again. */
+export const storedSession = (): Session | null => readSession();
+// No session, no current house. Pages key their data resources on the house
+// id; gating it here keeps them from fetching without a bearer (and failing)
+// while the app resumes a session at boot. The stored id still comes back as
+// soon as the session does.
+const gatedHouseId = () => (session() ? currentHouseId() : null);
+export const useCurrentHouseId = () => gatedHouseId;
 export const isAuthenticated = () => session() !== null;
 
 /** Resolve the currently-selected House (full record, not just id). Returns
  *  null when there's no session or no selection — components can use this
  *  to read memberId/roles without juggling lookups themselves. */
 export const useCurrentHouse = () => () => {
-  const id = currentHouseId();
+  const id = gatedHouseId();
   if (!id) return null;
   return houses().find((h) => h.id === id) ?? null;
 };

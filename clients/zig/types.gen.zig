@@ -157,6 +157,32 @@ pub const CliLoginStatus = enum {
     }
 };
 
+/// SessionKind is an enumeration.
+pub const SessionKind = enum {
+    cli,
+    browser,
+
+    pub fn wire_name(self: SessionKind) []const u8 {
+        return switch (self) {
+            .cli => "cli",
+            .browser => "browser",
+        };
+    }
+};
+
+/// TaskState is an enumeration.
+pub const TaskState = enum {
+    open,
+    closed,
+
+    pub fn wire_name(self: TaskState) []const u8 {
+        return switch (self) {
+            .open => "open",
+            .closed => "closed",
+        };
+    }
+};
+
 /// HouseID is a type alias.
 pub const HouseID = []const u8;
 
@@ -287,6 +313,8 @@ pub const HouseListRequest = struct {
 pub const TaskList = struct {
     tasks: []Task,
     hidden_count: u64,
+    total: ?u64 = null,
+    due_counts: ?[]u64 = null,
 };
 
 /// ProjectList is a structured data type.
@@ -311,6 +339,7 @@ pub const EffectiveSettings = struct {
     bug_reports_enabled: ?bool = null,
     bug_reports_project_id: ?ProjectID = null,
     default_project_visibility: ?AccessLevel = null,
+    session_lifetime_hours: ?u64 = null,
 };
 
 /// ServiceError is a structured data type.
@@ -446,6 +475,7 @@ pub const Project = struct {
     status: ?ProjectStatus = null,
     visibility: ?AccessLevel = null,
     created_by_member_id: ?MemberID = null,
+    personal: ?bool = null,
     created_at: Timestamp,
     updated_at: Timestamp,
 };
@@ -623,6 +653,8 @@ pub const CliSessionSummary = struct {
     last_used_at: Timestamp,
     expires_at: Timestamp,
     revoked_at: ?Timestamp = null,
+    kind: ?SessionKind = null,
+    current: ?bool = null,
 };
 
 /// RevokeSessionRequest is a structured data type.
@@ -662,6 +694,19 @@ pub const HouseScopedListRequest = struct {
     offset: ?u64 = null,
 };
 
+/// TaskListRequest is a structured data type.
+pub const TaskListRequest = struct {
+    house_id: HouseID,
+    limit: ?u64 = null,
+    offset: ?u64 = null,
+    state: ?TaskState = null,
+    mine: ?bool = null,
+    loose: ?bool = null,
+    due_from: ?Timestamp = null,
+    due_to: ?Timestamp = null,
+    due_before: ?[]Timestamp = null,
+};
+
 /// MemberScopedListRequest is a structured data type.
 pub const MemberScopedListRequest = struct {
     house_id: HouseID,
@@ -676,6 +721,7 @@ pub const ProjectScopedListRequest = struct {
     project_id: ProjectID,
     limit: ?u64 = null,
     offset: ?u64 = null,
+    state: ?TaskState = null,
 };
 
 /// CommentListRequest is a structured data type.

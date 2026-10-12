@@ -20,6 +20,7 @@ const (
 	settingBugReportsEnabled        = "bug_reports_enabled"
 	settingBugReportsProjectID      = "bug_reports_project_id"
 	settingDefaultProjectVisibility = "default_project_visibility"
+	settingSessionLifetimeHours     = "session_lifetime_hours"
 )
 
 func (s *SettingsService) Register(d *csilrpc.Dispatcher) {
@@ -61,6 +62,24 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, req csil.UpdateSet
 			return csil.EffectiveSettings{}, err
 		}
 	}
+	if req.Settings.DefaultProjectVisibility != nil {
+		v := string(*req.Settings.DefaultProjectVisibility)
+		if !validAccessLevel(v) {
+			return csil.EffectiveSettings{}, csilrpc.BadRequest("default_project_visibility must be none, read, edit, or full")
+		}
+		if err := s.writeKey(ctx, string(req.HouseId), settingDefaultProjectVisibility, v, memberID); err != nil {
+			return csil.EffectiveSettings{}, err
+		}
+	}
+	if req.Settings.SessionLifetimeHours != nil {
+		v := *req.Settings.SessionLifetimeHours
+		if !validSessionLifetimeHours(v) {
+			return csil.EffectiveSettings{}, csilrpc.BadRequest("session_lifetime_hours must be from 1 through 8760")
+		}
+		if err := s.writeKey(ctx, string(req.HouseId), settingSessionLifetimeHours, v, memberID); err != nil {
+			return csil.EffectiveSettings{}, err
+		}
+	}
 	return s.loadEffective(ctx, string(req.HouseId))
 }
 
@@ -75,6 +94,10 @@ func (s *SettingsService) loadEffective(ctx context.Context, houseID string) (cs
 	out := csil.EffectiveSettings{}
 	defaultFalse := false
 	out.BugReportsEnabled = &defaultFalse
+	defaultVisibility := csil.AccessLevel(models.AccessRead)
+	out.DefaultProjectVisibility = &defaultVisibility
+	defaultLifetime := uint64(defaultSessionLifetimeHours)
+	out.SessionLifetimeHours = &defaultLifetime
 	for _, r := range rows {
 		switch r.Key {
 		case settingBugReportsEnabled:
@@ -88,6 +111,17 @@ func (s *SettingsService) loadEffective(ctx context.Context, houseID string) (cs
 			if err := json.Unmarshal(r.Value, &v); err == nil && v != "" {
 				pid := csil.ProjectID(v)
 				out.BugReportsProjectId = &pid
+			}
+		case settingDefaultProjectVisibility:
+			var v string
+			if err := json.Unmarshal(r.Value, &v); err == nil && validAccessLevel(v) {
+				lvl := csil.AccessLevel(v)
+				out.DefaultProjectVisibility = &lvl
+			}
+		case settingSessionLifetimeHours:
+			var v uint64
+			if err := json.Unmarshal(r.Value, &v); err == nil && validSessionLifetimeHours(v) {
+				out.SessionLifetimeHours = &v
 			}
 		}
 	}

@@ -163,6 +163,10 @@ func projectToCSIL(p *models.Project) csil.Project {
 		v := csil.MemberID(*p.CreatedByMemberID)
 		out.CreatedByMemberId = &v
 	}
+	if p.PersonalMemberID != nil {
+		personal := true
+		out.Personal = &personal
+	}
 	return out
 }
 

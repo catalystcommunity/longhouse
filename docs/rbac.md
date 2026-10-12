@@ -34,6 +34,12 @@ everything" model.
   private tasks** — privacy is conferred by *containment*. To make a task
   private, put it in a private project (or under a private parent task). A task
   with no container is house-visible and cannot be made private on its own.
+  - **Personal project.** `TaskService.CreatePersonalTask` is the quick path
+    to a private task. It puts the task in the caller's "Personal" project
+    (`projects.personal_member_id`, visibility `none`). The server makes this
+    project on first use and makes it again if it was deleted. The task is
+    owned by and assigned to the caller, with its own visibility `none`.
+    The rule above does not change: the project makes the task private.
 - **Four access levels everywhere:** `none < read < edit < full`.
   - `none` — cannot see the resource; it appears only as a "*N hidden*" count.
   - `read` — view all content **and add comments**; no other mutation.

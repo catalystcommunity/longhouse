@@ -29,7 +29,14 @@ type CliSession struct {
 	LastUsedAt    time.Time  `gorm:"column:last_used_at;not null"`
 	ExpiresAt     time.Time  `gorm:"column:expires_at;not null"`
 	RevokedAt     *time.Time `gorm:"column:revoked_at"`
+	// Kind is SessionKindCli or SessionKindBrowser.
+	Kind string `gorm:"column:kind;not null;default:'cli'"`
 }
+
+const (
+	SessionKindCli     = "cli"
+	SessionKindBrowser = "browser"
+)
 
 func (CliSession) TableName() string { return "cli_sessions" }
 

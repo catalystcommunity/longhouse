@@ -4,6 +4,12 @@ import { authClient, houseClient, trustedDomainClient } from "~/data/clients";
 import { hasRole, useCurrentHouse, useCurrentHouseId } from "~/stores/auth";
 import { finishLogin, loadHouses } from "~/lib/session";
 import { updateSettings, useSettings } from "~/stores/settings";
+import type { AccessLevel, EffectiveSettings } from "@longhouse/client";
+
+// Keep in step with the server bounds for session_lifetime_hours.
+const SESSION_HOURS_MIN = 1;
+const SESSION_HOURS_MAX = 8760;
+const SESSION_HOURS_DEFAULT = 720;
 
 export const SettingsPage = () => {
   const houseId = useCurrentHouseId();
@@ -24,6 +30,8 @@ export const SettingsPage = () => {
   const settings = useSettings();
   const [bugEnabledDraft, setBugEnabledDraft] = createSignal(false);
   const [bugProjectIdDraft, setBugProjectIdDraft] = createSignal("");
+  const [sessionHoursDraft, setSessionHoursDraft] = createSignal(String(SESSION_HOURS_DEFAULT));
+  const [visibilityDraft, setVisibilityDraft] = createSignal<AccessLevel>("read");
   const [settingsBusy, setSettingsBusy] = createSignal(false);
   const [settingsErr, setSettingsErr] = createSignal<string | null>(null);
   const [settingsMsg, setSettingsMsg] = createSignal<string | null>(null);
@@ -34,6 +42,8 @@ export const SettingsPage = () => {
     const s = settings();
     setBugEnabledDraft(s?.bugReportsEnabled === true);
     setBugProjectIdDraft(s?.bugReportsProjectId ?? "");
+    setSessionHoursDraft(String(s?.sessionLifetimeHours ?? SESSION_HOURS_DEFAULT));
+    setVisibilityDraft(s?.defaultProjectVisibility ?? "read");
   });
 
   // ---- Trusted domains (admin only) -----------------------------------
@@ -95,7 +105,7 @@ export const SettingsPage = () => {
     try {
       // Only send fields that actually changed — partial update semantics.
       const cur = settings();
-      const patch: { bugReportsEnabled?: boolean; bugReportsProjectId?: string } = {};
+      const patch: EffectiveSettings = {};
       if ((cur?.bugReportsEnabled === true) !== bugEnabledDraft()) {
         patch.bugReportsEnabled = bugEnabledDraft();
       }
@@ -106,6 +116,17 @@ export const SettingsPage = () => {
         // recreate-on-stale path handles a missing project just fine, so
         // we send the empty string when the admin actually cleared it.
         patch.bugReportsProjectId = trimmedPid;
+      }
+      const hours = Number(sessionHoursDraft());
+      if (!Number.isInteger(hours) || hours < SESSION_HOURS_MIN || hours > SESSION_HOURS_MAX) {
+        setSettingsErr(`Sign-in lifetime must be a whole number of hours from ${SESSION_HOURS_MIN} through ${SESSION_HOURS_MAX}.`);
+        return;
+      }
+      if ((cur?.sessionLifetimeHours ?? SESSION_HOURS_DEFAULT) !== hours) {
+        patch.sessionLifetimeHours = hours;
+      }
+      if ((cur?.defaultProjectVisibility ?? "read") !== visibilityDraft()) {
+        patch.defaultProjectVisibility = visibilityDraft();
       }
       if (Object.keys(patch).length === 0) {
         setSettingsMsg("Nothing to update.");
@@ -342,6 +363,40 @@ export const SettingsPage = () => {
                 placeholder="(server-managed)"
                 style="padding:8px 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);font-size:14px;font-family:var(--mono,monospace)"
               />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:4px">
+              <span>Sign-in lifetime (hours)</span>
+              <span style="font-size:12px;color:var(--ink-mute)">
+                How long a browser stays signed in without use. Each visit
+                starts the period again. The default is {SESSION_HOURS_DEFAULT} hours (30 days).
+                A person in more than one house gets the shortest value.
+              </span>
+              <input
+                type="number"
+                inputmode="numeric"
+                min={SESSION_HOURS_MIN}
+                max={SESSION_HOURS_MAX}
+                step="1"
+                value={sessionHoursDraft()}
+                onInput={(e) => setSessionHoursDraft(e.currentTarget.value)}
+                style="padding:8px 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);color:var(--ink);font-size:14px;max-width:160px"
+              />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:4px">
+              <span>New project visibility</span>
+              <span style="font-size:12px;color:var(--ink-mute)">
+                What the rest of the house can do with a new project. You can change it on each project later.
+              </span>
+              <select
+                value={visibilityDraft()}
+                onChange={(e) => setVisibilityDraft(e.currentTarget.value as AccessLevel)}
+                style="padding:8px 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);color:var(--ink);font-size:14px;max-width:240px"
+              >
+                <option value="none">Private (no access)</option>
+                <option value="read">Read</option>
+                <option value="edit">Edit</option>
+                <option value="full">Full</option>
+              </select>
             </label>
             <div style="display:flex;gap:10px;align-items:center">
               <button class="btn btn-primary" type="submit" disabled={settingsBusy()}>

@@ -15,7 +15,7 @@ TODO: publish to a shared repository). Depend on it and on the transport library
 <dependency>
     <groupId>com.catalystcommunity.longhouse.client</groupId>
     <artifactId>longhouse-client</artifactId>
-    <version>0.14.6</version>
+    <version>0.15.0</version>
 </dependency>
 <dependency>
     <groupId>community.catalyst.csilgen</groupId>

@@ -200,13 +200,12 @@ func appendReporterAttribution(desc string, identity *auth.Identity, memberID st
 }
 
 // nextProjectTaskPosition appends the new task at the end of the project's
-// task list. Reads the current task count and uses that as the position.
-// Not race-free with concurrent writers but good enough for the bug-report
-// flow where churn is low.
+// task list: one past the highest position. Not race-free with concurrent
+// writers; equal positions sort by when they were added.
 func nextProjectTaskPosition(ctx context.Context, st store.Store, projectID string) int {
-	tasks, err := st.ListProjectTasks(ctx, projectID, 500, 0)
+	next, err := st.NextProjectTaskPosition(ctx, projectID)
 	if err != nil {
 		return 0
 	}
-	return len(tasks)
+	return next
 }

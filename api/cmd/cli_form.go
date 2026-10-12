@@ -275,7 +275,7 @@ func loadCLIFormChoices(runtime *cliRuntime, value reflect.Value, operation *cli
 		}
 	}
 	if requestHasCLIField(value, "task_id") || requestHasCLIField(value, "parent_task_id") {
-		tasks, callErr := longhouseclient.NewTaskClient(runtime.transport).ListTasks(ctx, listRequest)
+		tasks, callErr := longhouseclient.NewTaskClient(runtime.transport).ListTasks(ctx, taskListRequest(listRequest))
 		if callErr != nil {
 			return nil, fmt.Errorf("load tasks for form: %w", callErr)
 		}

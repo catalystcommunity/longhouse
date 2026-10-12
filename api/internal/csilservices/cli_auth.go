@@ -200,6 +200,8 @@ func (s *AuthService) ListSessions(ctx context.Context, _ csil.EmptyRequest) (cs
 			t := timestamp(*session.RevokedAt)
 			revokedAt = &t
 		}
+		kind := csil.SessionKind(session.Kind)
+		current := session.SessionID == id.BrowserSessionID || session.SessionID == id.CliSessionID
 		out = append(out, csil.CliSessionSummary{
 			SessionId:  csil.CliSessionID(session.SessionID),
 			ClientName: session.ClientName,
@@ -207,6 +209,8 @@ func (s *AuthService) ListSessions(ctx context.Context, _ csil.EmptyRequest) (cs
 			LastUsedAt: timestamp(session.LastUsedAt),
 			ExpiresAt:  timestamp(session.ExpiresAt),
 			RevokedAt:  revokedAt,
+			Kind:       &kind,
+			Current:    &current,
 		})
 	}
 	return csil.CliSessionsResponse{Sessions: out}, nil
@@ -241,7 +245,7 @@ func (s *AuthService) cliToken(ctx context.Context, session *models.CliSession, 
 	if ttl <= 0 {
 		return csil.CliTokenResponse{}, csilrpc.Unauthorized("CLI session is expired")
 	}
-	login, err := s.issueTokenWithTTL(ctx, session.SubjectDomain, session.SubjectUserID, session.DisplayName, nil, action, ttl, session.SessionID)
+	login, err := s.issueTokenWithTTL(ctx, session.SubjectDomain, session.SubjectUserID, session.DisplayName, nil, action, ttl, sessionRef{cli: session.SessionID})
 	if err != nil {
 		return csil.CliTokenResponse{}, err
 	}

@@ -223,6 +223,12 @@ func cborReadArg(b []byte, pos *int, low byte) (uint64, error) {
 	}
 }
 
+// csilCborPreallocLimit bounds the elements a decoded array or map reserves before
+// it reads them. The declared length is checked against the remaining input, but one
+// input byte can become a much larger value, so reserving the full declared length
+// lets a small frame reserve a large multiple of its size at every nesting level.
+const csilCborPreallocLimit = 1024
+
 func cborDec(b []byte, pos *int, depth int) (cborValue, error) {
 	if depth > 64 {
 		return nil, fmt.Errorf("csil cbor: nesting limit exceeded")
@@ -297,7 +303,11 @@ func cborDec(b []byte, pos *int, depth int) (cborValue, error) {
 			return nil, fmt.Errorf("csil cbor: array length exceeds remaining input")
 		}
 		n := int(arg)
-		items := make(cborArray, 0, n)
+		reserve := n
+		if reserve > csilCborPreallocLimit {
+			reserve = csilCborPreallocLimit
+		}
+		items := make(cborArray, 0, reserve)
 		for i := 0; i < n; i++ {
 			item, err := cborDec(b, pos, depth+1)
 			if err != nil {
@@ -311,7 +321,11 @@ func cborDec(b []byte, pos *int, depth int) (cborValue, error) {
 			return nil, fmt.Errorf("csil cbor: map length exceeds remaining input")
 		}
 		n := int(arg)
-		entries := make(cborMap, 0, n)
+		reserve := n
+		if reserve > csilCborPreallocLimit {
+			reserve = csilCborPreallocLimit
+		}
+		entries := make(cborMap, 0, reserve)
 		for i := 0; i < n; i++ {
 			k, err := cborDec(b, pos, depth+1)
 			if err != nil {
@@ -1609,7 +1623,7 @@ func DecodeGroupMember(csilData []byte) (GroupMember, error) {
 
 // csilEncProject builds the canonical CBOR value tree for a Project.
 func csilEncProject(csilV Project) cborValue {
-	csilEntries := make(cborMap, 0, 10)
+	csilEntries := make(cborMap, 0, 11)
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	if csilV.Status != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText((*csilV.Status))})
@@ -1618,6 +1632,9 @@ func csilEncProject(csilV Project) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("category"), cborText((*csilV.Category))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
+	if csilV.Personal != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("personal"), cborBool((*csilV.Personal))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("project_id"), cborText(csilV.ProjectId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
@@ -1740,6 +1757,13 @@ func csilDecProject(csilRoot cborValue) (Project, error) {
 			return csilOut, csilErr
 		}
 		csilOut.CreatedByMemberId = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "personal"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Personal = &csilVal
 	}
 	{
 		csilField, csilErr := cborRequire(csilRoot, "created_at")
@@ -4050,7 +4074,13 @@ func DecodeRefreshSessionRequest(csilData []byte) (RefreshSessionRequest, error)
 
 // csilEncCliSessionSummary builds the canonical CBOR value tree for a CliSessionSummary.
 func csilEncCliSessionSummary(csilV CliSessionSummary) cborValue {
-	csilEntries := make(cborMap, 0, 6)
+	csilEntries := make(cborMap, 0, 8)
+	if csilV.Kind != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText((*csilV.Kind))})
+	}
+	if csilV.Current != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("current"), cborBool((*csilV.Current))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
 	if csilV.RevokedAt != nil {
@@ -4141,6 +4171,34 @@ func csilDecCliSessionSummary(csilRoot cborValue) (CliSessionSummary, error) {
 			return csilOut, csilErr
 		}
 		csilOut.RevokedAt = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "kind"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (SessionKind, error) {
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "cli" || csilInner == "browser") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
+			return SessionKind(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Kind = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "current"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Current = &csilVal
 	}
 	return csilOut, nil
 }
@@ -4725,10 +4783,163 @@ func DecodeHouseScopedListRequest(csilData []byte) (HouseScopedListRequest, erro
 	return csilDecHouseScopedListRequest(csilRoot)
 }
 
+// csilEncTaskListRequest builds the canonical CBOR value tree for a TaskListRequest.
+func csilEncTaskListRequest(csilV TaskListRequest) cborValue {
+	csilEntries := make(cborMap, 0, 9)
+	if csilV.Mine != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("mine"), cborBool((*csilV.Mine))})
+	}
+	if csilV.Limit != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
+	}
+	if csilV.Loose != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("loose"), cborBool((*csilV.Loose))})
+	}
+	if csilV.State != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText((*csilV.State))})
+	}
+	if csilV.DueTo != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("due_to"), cborText((*csilV.DueTo))})
+	}
+	if csilV.Offset != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("offset"), cborUint((*csilV.Offset))})
+	}
+	if csilV.DueFrom != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("due_from"), cborText((*csilV.DueFrom))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
+	if csilV.DueBefore != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("due_before"), cborEncArray(csilV.DueBefore, func(csilElem Timestamp) cborValue { return cborText(csilElem) })})
+	}
+	return csilEntries
+}
+
+// csilDecTaskListRequest reconstructs a TaskListRequest from a decoded CBOR value tree.
+func csilDecTaskListRequest(csilRoot cborValue) (TaskListRequest, error) {
+	var csilOut TaskListRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "house_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (HouseID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return HouseID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.HouseId = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "limit"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Limit = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "offset"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Offset = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "state"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (TaskState, error) {
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "open" || csilInner == "closed") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
+			return TaskState(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.State = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "mine"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Mine = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "loose"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Loose = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "due_from"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.DueFrom = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "due_to"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.DueTo = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "due_before"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) ([]Timestamp, error) {
+			return cborDecArray(csilV, func(csilV cborValue) (Timestamp, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				return Timestamp(csilInner), csilErr
+			})
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.DueBefore = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeTaskListRequest encodes a TaskListRequest to canonical CSIL CBOR bytes.
+func EncodeTaskListRequest(csilV TaskListRequest) []byte {
+	return cborEncode(csilEncTaskListRequest(csilV))
+}
+
+// DecodeTaskListRequest decodes canonical CSIL CBOR bytes into a TaskListRequest.
+func DecodeTaskListRequest(csilData []byte) (TaskListRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero TaskListRequest
+		return csilZero, csilErr
+	}
+	return csilDecTaskListRequest(csilRoot)
+}
+
 // csilEncTaskList builds the canonical CBOR value tree for a TaskList.
 func csilEncTaskList(csilV TaskList) cborValue {
-	csilEntries := make(cborMap, 0, 2)
+	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("tasks"), cborEncArray(csilV.Tasks, func(csilElem Task) cborValue { return csilEncTask(csilElem) })})
+	if csilV.Total != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("total"), cborUint((*csilV.Total))})
+	}
+	if csilV.DueCounts != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("due_counts"), cborEncArray(csilV.DueCounts, func(csilElem uint64) cborValue { return cborUint(csilElem) })})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("hidden_count"), cborUint(csilV.HiddenCount)})
 	return csilEntries
 }
@@ -4757,6 +4968,20 @@ func csilDecTaskList(csilRoot cborValue) (TaskList, error) {
 			return csilOut, csilErr
 		}
 		csilOut.HiddenCount = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "total"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Total = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "due_counts"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) ([]uint64, error) { return cborDecArray(csilV, cborAsU64) })(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.DueCounts = csilVal
 	}
 	return csilOut, nil
 }
@@ -4906,9 +5131,12 @@ func DecodeMemberScopedListRequest(csilData []byte) (MemberScopedListRequest, er
 
 // csilEncProjectScopedListRequest builds the canonical CBOR value tree for a ProjectScopedListRequest.
 func csilEncProjectScopedListRequest(csilV ProjectScopedListRequest) cborValue {
-	csilEntries := make(cborMap, 0, 4)
+	csilEntries := make(cborMap, 0, 5)
 	if csilV.Limit != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
+	}
+	if csilV.State != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText((*csilV.State))})
 	}
 	if csilV.Offset != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("offset"), cborUint((*csilV.Offset))})
@@ -4962,6 +5190,27 @@ func csilDecProjectScopedListRequest(csilRoot cborValue) (ProjectScopedListReque
 			return csilOut, csilErr
 		}
 		csilOut.Offset = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "state"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (TaskState, error) {
+			csilInner, csilErr := (func(csilV cborValue) (string, error) {
+				csilInner, csilErr := (cborAsText)(csilV)
+				if csilErr != nil {
+					var csilZero string
+					return csilZero, csilErr
+				}
+				if !(csilInner == "open" || csilInner == "closed") {
+					var csilZero string
+					return csilZero, fmt.Errorf("csil cbor: value %v is not a member of the declared enum", csilInner)
+				}
+				return csilInner, nil
+			})(csilV)
+			return TaskState(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.State = &csilVal
 	}
 	return csilOut, nil
 }
@@ -6899,12 +7148,15 @@ func DecodeSetProjectVisibilityRequest(csilData []byte) (SetProjectVisibilityReq
 
 // csilEncEffectiveSettings builds the canonical CBOR value tree for a EffectiveSettings.
 func csilEncEffectiveSettings(csilV EffectiveSettings) cborValue {
-	csilEntries := make(cborMap, 0, 3)
+	csilEntries := make(cborMap, 0, 4)
 	if csilV.BugReportsEnabled != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("bug_reports_enabled"), cborBool((*csilV.BugReportsEnabled))})
 	}
 	if csilV.BugReportsProjectId != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("bug_reports_project_id"), cborText((*csilV.BugReportsProjectId))})
+	}
+	if csilV.SessionLifetimeHours != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("session_lifetime_hours"), cborUint((*csilV.SessionLifetimeHours))})
 	}
 	if csilV.DefaultProjectVisibility != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("default_project_visibility"), cborText((*csilV.DefaultProjectVisibility))})
@@ -6952,6 +7204,13 @@ func csilDecEffectiveSettings(csilRoot cborValue) (EffectiveSettings, error) {
 			return csilOut, csilErr
 		}
 		csilOut.DefaultProjectVisibility = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "session_lifetime_hours"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SessionLifetimeHours = &csilVal
 	}
 	return csilOut, nil
 }

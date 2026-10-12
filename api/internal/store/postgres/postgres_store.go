@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/catalystcommunity/longhouse/api/internal/config"
+	appstore "github.com/catalystcommunity/longhouse/api/internal/store"
 	"github.com/catalystcommunity/longhouse/api/internal/store/postgres/models"
 	"github.com/jackc/pgx/v4/pgxpool"
 	logrus "github.com/sirupsen/logrus"
@@ -483,9 +484,18 @@ func (s *PostgresStore) ListProjectsByHouse(ctx context.Context, houseID string,
 	return projects, nil
 }
 
+// AddProjectTask returns store.ErrAlreadyExists when the task is already in
+// the project.
 func (s *PostgresStore) AddProjectTask(ctx context.Context, projectID, taskID string, position int) error {
 	pt := &models.ProjectTask{ProjectID: projectID, TaskID: taskID, Position: position}
-	return db.WithContext(ctx).Create(pt).Error
+	res := db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(pt)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return appstore.ErrAlreadyExists
+	}
+	return nil
 }
 
 func (s *PostgresStore) RemoveProjectTask(ctx context.Context, projectID, taskID string) error {
@@ -504,6 +514,38 @@ func (s *PostgresStore) ListProjectTasks(ctx context.Context, projectID string, 
 		return nil, err
 	}
 	return tasks, nil
+}
+
+func (s *PostgresStore) ListProjectTasksPage(ctx context.Context, projectID, state string, limit, offset int) ([]models.Task, int64, error) {
+	q := db.WithContext(ctx).Model(&models.Task{}).
+		Joins("JOIN project_tasks pt ON pt.task_id = tasks.task_id").
+		Where("pt.project_id = ? AND tasks.deleted_at IS NULL", projectID)
+	switch state {
+	case appstore.TaskStateOpen:
+		q = q.Where("tasks.status NOT IN ('done', 'cancelled')")
+	case appstore.TaskStateClosed:
+		q = q.Where("tasks.status IN ('done', 'cancelled')")
+	}
+	var total int64
+	if err := q.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	// Positions can repeat, so break ties for stable pages.
+	var tasks []models.Task
+	err := q.Order("pt.position ASC").Order("pt.created_at ASC").Order("tasks.task_id").
+		Limit(limit).Offset(offset).Find(&tasks).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return tasks, total, nil
+}
+
+func (s *PostgresStore) NextProjectTaskPosition(ctx context.Context, projectID string) (int, error) {
+	var next int
+	err := db.WithContext(ctx).Model(&models.ProjectTask{}).
+		Where("project_id = ?", projectID).
+		Select("COALESCE(MAX(position) + 1, 0)").Scan(&next).Error
+	return next, err
 }
 
 // ---- Project members / owners (facade over project_grants) ------------
@@ -1055,6 +1097,74 @@ func (s *PostgresStore) ListTasksByHouse(ctx context.Context, houseID string, li
 		return nil, err
 	}
 	return tasks, nil
+}
+
+func (s *PostgresStore) ListTasks(ctx context.Context, f appstore.TaskFilter, limit, offset int) (appstore.TaskPage, error) {
+	q := db.WithContext(ctx).Model(&models.Task{}).
+		Where("tasks.house_id = ? AND tasks.deleted_at IS NULL", f.HouseID)
+	switch f.State {
+	case appstore.TaskStateOpen:
+		q = q.Where("tasks.status NOT IN ('done', 'cancelled')")
+	case appstore.TaskStateClosed:
+		q = q.Where("tasks.status IN ('done', 'cancelled')")
+	}
+	if f.MineMemberID != "" {
+		q = q.Where("(tasks.owner_member_id = ? OR EXISTS ("+
+			"SELECT 1 FROM task_assignees ta WHERE ta.task_id = tasks.task_id AND ta.member_id = ?))",
+			f.MineMemberID, f.MineMemberID)
+	}
+	if f.Loose {
+		// Same containment rule as ListProjectsForTask: deleted projects
+		// do not hold tasks.
+		q = q.Where("NOT EXISTS (SELECT 1 FROM project_tasks pt " +
+			"JOIN projects p ON p.project_id = pt.project_id " +
+			"WHERE pt.task_id = tasks.task_id AND p.deleted_at IS NULL)")
+	}
+	if f.DueFrom != nil {
+		q = q.Where("tasks.due_at >= ?", *f.DueFrom)
+	}
+	if f.DueTo != nil {
+		q = q.Where("tasks.due_at < ?", *f.DueTo)
+	}
+
+	var page appstore.TaskPage
+	if err := q.Session(&gorm.Session{}).Count(&page.Total).Error; err != nil {
+		return page, err
+	}
+	for _, before := range f.DueBefore {
+		var n int64
+		if err := q.Session(&gorm.Session{}).Where("tasks.due_at < ?", before).Count(&n).Error; err != nil {
+			return page, err
+		}
+		page.DueCounts = append(page.DueCounts, n)
+	}
+	// task_id last keeps the order total, so pages never overlap or skip.
+	switch f.State {
+	case appstore.TaskStateOpen:
+		q = q.Order("tasks.due_at ASC NULLS LAST").Order("tasks.created_at DESC").Order("tasks.task_id")
+	case appstore.TaskStateClosed:
+		q = q.Order("tasks.updated_at DESC").Order("tasks.task_id")
+	default:
+		q = q.Order("tasks.created_at DESC").Order("tasks.task_id")
+	}
+	if err := q.Limit(limit).Offset(offset).Find(&page.Tasks).Error; err != nil {
+		return page, err
+	}
+	return page, nil
+}
+
+func (s *PostgresStore) GetPersonalProject(ctx context.Context, houseID, memberID string) (*models.Project, error) {
+	var p models.Project
+	err := db.WithContext(ctx).
+		Where("house_id = ? AND personal_member_id = ? AND deleted_at IS NULL", houseID, memberID).
+		First(&p).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
 
 // Comment operations

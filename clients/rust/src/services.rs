@@ -29,6 +29,18 @@ pub trait AuthService {
         ctx: &Self::Context,
         input: EmptyRequest,
     ) -> Result<EmptyResponse, ServiceError>;
+    /// resume-session (request/response).
+    fn resume_session(
+        &self,
+        ctx: &Self::Context,
+        input: EmptyRequest,
+    ) -> Result<LoginResponse, ServiceError>;
+    /// end-session (request/response).
+    fn end_session(
+        &self,
+        ctx: &Self::Context,
+        input: EmptyRequest,
+    ) -> Result<EmptyResponse, ServiceError>;
     /// me (request/response).
     fn me(&self, ctx: &Self::Context, input: EmptyRequest) -> Result<MeResponse, ServiceError>;
     /// begin-cli-login (request/response).
@@ -511,8 +523,10 @@ pub trait TaskService {
     fn list_tasks(
         &self,
         ctx: &Self::Context,
-        input: HouseScopedListRequest,
+        input: TaskListRequest,
     ) -> Result<TaskList, ServiceError>;
+    /// create-personal-task (request/response).
+    fn create_personal_task(&self, ctx: &Self::Context, input: Task) -> Result<Task, ServiceError>;
     /// set-task-visibility (request/response).
     fn set_task_visibility(
         &self,

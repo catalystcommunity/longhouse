@@ -35,6 +35,16 @@ class AuthClient
     EmptyResponse.from_cbor(@transport.call("AuthService", "logout", req.to_cbor))
   end
 
+  # resume-session: -> LoginResponse
+  def resume_session(req)
+    LoginResponse.from_cbor(@transport.call("AuthService", "resume-session", req.to_cbor))
+  end
+
+  # end-session: -> EmptyResponse
+  def end_session(req)
+    EmptyResponse.from_cbor(@transport.call("AuthService", "end-session", req.to_cbor))
+  end
+
   # me: -> MeResponse
   def me(req)
     MeResponse.from_cbor(@transport.call("AuthService", "me", req.to_cbor))
@@ -538,6 +548,11 @@ class TaskClient
   # list-tasks: -> TaskList
   def list_tasks(req)
     TaskList.from_cbor(@transport.call("TaskService", "list-tasks", req.to_cbor))
+  end
+
+  # create-personal-task: -> Task
+  def create_personal_task(req)
+    Task.from_cbor(@transport.call("TaskService", "create-personal-task", req.to_cbor))
   end
 
   # set-task-visibility: -> Task

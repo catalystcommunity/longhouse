@@ -1,11 +1,12 @@
-import { For, Show, createMemo, createResource, createSignal } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { For, Show, createEffect, createMemo, createResource, createSignal } from "solid-js";
+import { A, useNavigate } from "@solidjs/router";
 import { HeroScene } from "~/components/HeroScene";
 import { Check, Pin, Plus } from "~/components/Icons";
 import { AuthGate } from "~/components/AuthGate";
 import { AvatarStack } from "~/components/Avatar";
 import { DayStrip } from "~/components/DayStrip";
 import { TaskDetailEditor } from "~/components/TaskDetailEditor";
+import { TaskFeedList } from "~/components/TaskFeedList";
 import { eventClient, memberClient, projectClient, taskClient } from "~/data/clients";
 import {
   dashboardKicker,
@@ -22,8 +23,16 @@ import {
   timeLabel,
   toAvatar,
 } from "~/lib/derive";
+import { PROJECT_LIST_LIMIT, loadMyProjectIds, loadProjectTasks, openTaskCount } from "~/lib/projects";
+import { createTaskFeed, dueBoundaries, dueGroupStarts } from "~/lib/taskFeed";
 import { currentMemberId, useCurrentHouseId, useSession } from "~/stores/auth";
-import type { Member, Task } from "@longhouse/client";
+import type { Member, Project, Task, TaskListRequest } from "@longhouse/client";
+
+/** Rows shown in the "Your projects" card before the "All projects" link. */
+const MY_PROJECTS_CAP = 6;
+
+// Group labels in due order: the order of the list and of dueBoundaries().
+const DASHBOARD_GROUP_LABELS = ["Overdue", "Today", "This week", "Later", "No due date"];
 
 export const Dashboard = () => {
   const houseId = useCurrentHouseId();
@@ -42,10 +51,43 @@ export const Dashboard = () => {
     navigate(`/calendar?${qs.toString()}`);
   };
 
-  const [tasks, { refetch: refetchTasks }] = createResource(
+  const list = (r: TaskListRequest) => taskClient.listTasks(r);
+  // The Tasks card: my open tasks that are in no project, paged by the
+  // server in due-date order. Project work is summarized per project in the
+  // "Your projects" card instead.
+  const miscFeed = createTaskFeed();
+  createEffect(() => {
+    const h = houseId();
+    if (!h) {
+      miscFeed.reset(null);
+      return;
+    }
+    const bounds = dueBoundaries();
+    miscFeed.reset((offset, limit, withCounts) =>
+      list({ houseId: h, state: "open", mine: true, loose: true, offset, limit, ...(withCounts ? { dueBefore: bounds } : {}) }),
+    );
+  });
+  // Recently completed: the newest five, and the done count from the total.
+  const [recent, { refetch: refetchRecent }] = createResource(
     () => houseId(),
-    async (h) => (await taskClient.listTasks({ houseId: h })).tasks,
+    (h) => list({ houseId: h, state: "closed", mine: true, loose: true, limit: 5 }),
   );
+  // Hero "due today" counts ALL my open tasks due today, project work
+  // included — the hero is the whole-day summary, not the Tasks card.
+  const [dueToday, { refetch: refetchDueToday }] = createResource(
+    () => houseId(),
+    (h) => {
+      const from = new Date();
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(from);
+      to.setDate(to.getDate() + 1);
+      return list({ houseId: h, state: "open", mine: true, dueFrom: from.toISOString(), dueTo: to.toISOString(), limit: 1 });
+    },
+  );
+  const allDueToday = () => (dueToday.state === "ready" ? Number(dueToday().total ?? dueToday().tasks.length) : 0);
+  const tasksRecent = () => (recent.state === "ready" ? recent().tasks : []);
+  const doneCount = () => (recent.state === "ready" ? Number(recent().total ?? recent().tasks.length) : 0);
+
   const [members] = createResource(
     () => houseId(),
     async (h) => memberClient.listMembers({ houseId: h }),
@@ -54,16 +96,15 @@ export const Dashboard = () => {
     () => houseId(),
     async (h) => eventClient.listEvents({ houseId: h }),
   );
-  const [projects] = createResource(
+  const [projects, { refetch: refetchProjects }] = createResource(
     () => houseId(),
-    async (h) => (await projectClient.listProjects({ houseId: h })).projects,
+    async (h) => (await projectClient.listProjects({ houseId: h, limit: PROJECT_LIST_LIMIT })).projects,
   );
 
-  // "My view" scoping. A task is mine when I own it, I'm assigned to it, or it
-  // lives in a project I own or belong to — never house-wide, even for admins.
-  // The project membership + task-membership fan-out is resolved here (tolerant
-  // of per-project failures) and cached in a Set of task ids.
-  const [myProjectTaskIds] = createResource(
+  // Which projects are mine (owner via created_by, explicit owner, or
+  // member), and the task list of each, for the open counts. Tolerant of
+  // per-project failures (see lib/projects.ts).
+  const [projectIndex] = createResource(
     () => {
       const h = houseId();
       const me = currentMemberId();
@@ -72,36 +113,43 @@ export const Dashboard = () => {
       return { h, me, projects: ps };
     },
     async ({ h, me, projects: ps }) => {
-      // Projects I own (created_by fallback) plus any where I'm an explicit
-      // owner or member.
-      const mine = new Set<string>(
-        ps.filter((p) => p.createdByMemberId === me).map((p) => p.projectId),
-      );
-      await Promise.all(
-        ps.map(async (p) => {
-          try {
-            const [pm, po] = await Promise.all([
-              projectClient.listProjectMembers(p.projectId),
-              projectClient.listProjectOwners(p.projectId),
-            ]);
-            if (pm.some((m) => m.memberId === me) || po.some((m) => m.memberId === me)) {
-              mine.add(p.projectId);
-            }
-          } catch { /* one project's grants failing shouldn't drop the rest */ }
-        }),
-      );
-      const taskIds = new Set<string>();
-      await Promise.all(
-        Array.from(mine).map(async (pid) => {
-          try {
-            const res = await projectClient.listProjectTasks({ houseId: h, projectId: pid });
-            for (const t of res.tasks) taskIds.add(t.taskId);
-          } catch { /* tolerate */ }
-        }),
-      );
-      return taskIds;
+      const mine = await loadMyProjectIds(projectClient, ps, me);
+      const tasksByProject = await loadProjectTasks(projectClient, h, ps.filter((p) => mine.has(p.projectId)));
+      return { mine, tasksByProject };
     },
   );
+  // The index as last loaded. Uses `latest` so a refetch keeps the card
+  // populated instead of flashing, and never throws on an errored load.
+  const index = () =>
+    projectIndex.state === "ready" || projectIndex.state === "refreshing"
+      ? projectIndex.latest
+      : undefined;
+  // An errored load (or no project list to fan out over) counts as done.
+  const indexSettled = () =>
+    !!index() ||
+    projectIndex.state === "errored" ||
+    projects.state === "errored" ||
+    (projects.state === "ready" && !currentMemberId());
+
+  // Projects I own or belong to, in list order, with their open task count.
+  const myProjects = createMemo((): { project: Project; open: number }[] => {
+    const idx = index();
+    if (!idx) return [];
+    return (projects() ?? [])
+      .filter((p) => idx.mine.has(p.projectId))
+      .map((p) => ({
+        project: p,
+        open: openTaskCount(idx.tasksByProject.get(p.projectId)?.tasks ?? []),
+      }));
+  });
+
+  // A task change can move it between the cards (into a project, closed,
+  // due today), so a row's mutate hook refreshes every source. A new
+  // project list (a Personal project made on first use) re-runs the
+  // project index through its source.
+  const refresh = async () => {
+    await Promise.all([miscFeed.refresh(), refetchRecent(), refetchDueToday(), refetchProjects()]);
+  };
 
   const memberById = createMemo(() => {
     const map = new Map<string, Member>();
@@ -109,36 +157,8 @@ export const Dashboard = () => {
     return map;
   });
 
-  // Every task the dashboard shows is filtered through this "mine" predicate.
-  const myTasks = createMemo(() => {
-    const me = currentMemberId();
-    if (!me) return [] as Task[];
-    const projTaskIds = myProjectTaskIds() ?? new Set<string>();
-    return (tasks() ?? []).filter(
-      (t) =>
-        t.ownerMemberId === me ||
-        (t.assignees ?? []).includes(me) ||
-        projTaskIds.has(t.taskId),
-    );
-  });
-
-  const tasksOpen = createMemo(() => myTasks().filter((t) => !t.deletedAt && !isTaskClosed(t)));
-  // Dashboard task buckets, in display order. Overdue and today come first
-  // (action items), then anything due this week, then undated work the
-  // member should still see ("things I just need to get done"), then later
-  // work last so the dashboard doesn't hide it but also doesn't shout it.
-  const tasksOverdue = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "overdue"));
-  const tasksToday   = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "today"));
-  const tasksWeek    = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "week"));
-  const tasksNoDate  = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "noDate"));
-  const tasksLater   = createMemo(() => tasksOpen().filter((t) => taskGroup(t) === "later"));
-  // Recently completed — newest 5 by updated_at, so the dashboard always
-  // shows what was just finished. status === "done" only (cancelled gets
-  // its own bucket if we ever surface one).
-  const tasksRecent  = createMemo(() => myTasks()
-    .filter((t) => !t.deletedAt && t.status === "done")
-    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
-    .slice(0, 5));
+  const miscGroups = createMemo(() => dueGroupStarts(miscFeed.dueCounts(), DASHBOARD_GROUP_LABELS));
+  const miscFirstLoad = () => !miscFeed.ready();
 
   const activeMembers = createMemo(
     () => (members() ?? []).filter((m) => memberStatus(m) === "active").length,
@@ -167,13 +187,13 @@ export const Dashboard = () => {
     return futures[0];
   });
 
-  const taskFootEstimate = createMemo(() => {
-    const ts = myTasks();
-    const done = ts.filter((t) => t.status === "done").length;
-    const remaining = ts.filter((t) => !t.deletedAt && !isTaskClosed(t));
-    const minutes = remaining.reduce((acc, t) => acc + (t.estimateMinutes ?? 0), 0);
-    return { done, remaining: remaining.length, hours: minutes / 60 };
+  // The estimate needs every open row, so it shows once the list is loaded.
+  const footHours = createMemo(() => {
+    if (!miscFeed.allLoaded()) return 0;
+    return miscFeed.loadedRows().reduce((acc, t) => acc + (t.estimateMinutes ?? 0), 0) / 60;
   });
+
+  const [composerOpen, setComposerOpen] = createSignal(false);
 
   const greetingName = () => session()?.displayName?.split(/\s+/)[0] ?? "there";
 
@@ -188,12 +208,12 @@ export const Dashboard = () => {
             {greetingName()}.
           </h1>
           <p class="greet-sub">
-            You have <b>{tasksToday().length} {tasksToday().length === 1 ? "task" : "tasks"} due today</b>{" "}
+            You have <b>{allDueToday()} {allDueToday() === 1 ? "task" : "tasks"} due today</b>{" "}
             and {nextEventCopy(upcomingEvents().length)}.{" "}
             {activeMembers()} {activeMembers() === 1 ? "member is" : "members are"} active right now.
           </p>
           <div class="hero-stats">
-            <Stat n={tasksToday().length} label="tasks due" onClick={() => navigate("/tasks")} />
+            <Stat n={allDueToday()} label="tasks due" onClick={() => navigate("/tasks")} />
             <Stat n={upcomingEvents().length} label="upcoming events" onClick={() => navigate("/calendar")} />
             <Stat n={activeMembers()} label="active members" onClick={() => navigate("/members")} />
             <Stat n={(projects() ?? []).length} label="projects" onClick={() => navigate("/projects")} />
@@ -206,61 +226,108 @@ export const Dashboard = () => {
           <div class="card-hd">
             <div>
               <h2>Tasks</h2>
-              <div class="sub">Assigned to you or watched by you.</div>
+              <div class="sub">Yours, not in a project.</div>
             </div>
           </div>
 
-          <Show when={!tasks.loading} fallback={<p style="padding:18px;color:var(--ink-mute)">Loading…</p>}>
-            <Show when={tasksOpen().length > 0} fallback={<EmptyTasks />}>
-              <div class="tasks">
-                <Show when={tasksOverdue().length > 0}>
-                  <div class="group-lbl">Overdue</div>
-                  <For each={tasksOverdue()}>{(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}</For>
-                </Show>
-                <Show when={tasksToday().length > 0}>
-                  <div class="group-lbl">Today</div>
-                  <For each={tasksToday()}>{(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}</For>
-                </Show>
-                <Show when={tasksWeek().length > 0}>
-                  <div class="group-lbl">This week</div>
-                  <For each={tasksWeek()}>{(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}</For>
-                </Show>
-                <Show when={tasksNoDate().length > 0}>
-                  <div class="group-lbl">No due date</div>
-                  <For each={tasksNoDate()}>{(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}</For>
-                </Show>
-                <Show when={tasksLater().length > 0}>
-                  <div class="group-lbl">Later</div>
-                  <For each={tasksLater()}>{(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}</For>
-                </Show>
-                <Show when={tasksRecent().length > 0}>
-                  <div class="group-lbl" style="margin-top:18px;color:var(--ink-mute)">
-                    Recently completed
-                  </div>
-                  <For each={tasksRecent()}>
-                    {(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={async () => { await refetchTasks(); }} />}
-                  </For>
-                </Show>
-              </div>
-            </Show>
+          <Show when={!miscFirstLoad()} fallback={<p style="padding:18px;color:var(--ink-mute)">Loading…</p>}>
+            <div class="tasks">
+              <Show when={miscFeed.estimatedTotal() > 0} fallback={<EmptyTasks />}>
+                <TaskFeedList
+                  feed={miscFeed}
+                  groups={miscGroups()}
+                  renderTask={(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={refresh} />}
+                />
+              </Show>
+              {/* Shown even with no open tasks: the latest finished work is
+                  still worth seeing. */}
+              <Show when={tasksRecent().length > 0}>
+                <div class="group-lbl" style="margin-top:18px;color:var(--ink-mute)">
+                  Recently completed
+                </div>
+                <For each={tasksRecent()}>
+                  {(t) => <TaskRow task={t} byId={memberById()} members={members() ?? []} onMutate={refresh} />}
+                </For>
+              </Show>
+            </div>
+          </Show>
+
+          <Show when={composerOpen()}>
+            <PersonalTaskComposer
+              houseId={houseId()!}
+              onCancel={() => setComposerOpen(false)}
+              onCreated={async () => {
+                setComposerOpen(false);
+                await refresh();
+              }}
+            />
           </Show>
 
           <div class="tasks-foot">
             <span>
-              {taskFootEstimate().done} done · {taskFootEstimate().remaining} remaining
-              <Show when={taskFootEstimate().hours > 0}>
+              {doneCount()} done · {miscFeed.estimatedTotal()} remaining
+              <Show when={footHours() > 0}>
                 {" "}— estimated{" "}
                 <b style="color:var(--grass-4);font-weight:600">
-                  {taskFootEstimate().hours.toFixed(1)} hours
+                  {footHours().toFixed(1)} hours
                 </b>
               </Show>
             </span>
-            <button class="btn-quiet"><Plus /> New task</button>
+            <button class="btn-quiet" type="button" onClick={() => setComposerOpen((v) => !v)}>
+              <Plus /> New task
+            </button>
           </div>
         </section>
 
         <aside class="side">
-          <section class="card gather reveal d3">
+          <section class="card myprojects reveal d3" aria-label="Your projects">
+            <div class="card-hd" style="padding:0 0 12px;border:0">
+              <div>
+                <h2>Your projects</h2>
+                <div class="sub">Projects you own or belong to.</div>
+              </div>
+            </div>
+            <Show when={indexSettled()} fallback={<p class="proj-empty">Loading…</p>}>
+              <Show
+                when={myProjects().length > 0}
+                fallback={
+                  <p class="proj-empty">
+                    You are not in a project yet. <A href="/projects">See all projects</A>
+                  </p>
+                }
+              >
+                <ul class="proj-list">
+                  <For each={myProjects().slice(0, MY_PROJECTS_CAP)}>
+                    {(row) => (
+                      <li>
+                        <A href={`/projects/${row.project.projectId}`} class="proj-row">
+                          <span class="proj-name">
+                            {row.project.name}
+                            <Show when={row.project.personal}>
+                              <span style="margin-left:6px;font-size:11px;color:var(--ink-mute)">private</span>
+                            </Show>
+                          </span>
+                          <span class="proj-count">
+                            {row.open} open {row.open === 1 ? "task" : "tasks"}
+                          </span>
+                        </A>
+                      </li>
+                    )}
+                  </For>
+                </ul>
+                <div class="proj-foot">
+                  <A href="/projects">
+                    All projects
+                    <Show when={myProjects().length > MY_PROJECTS_CAP}>
+                      {` (${myProjects().length - MY_PROJECTS_CAP} more of yours)`}
+                    </Show>
+                  </A>
+                </div>
+              </Show>
+            </Show>
+          </section>
+
+          <section class="card gather reveal d4">
             <div class="card-hd" style="padding:0 0 12px;border:0">
               <div>
                 <h2>Next event</h2>
@@ -313,7 +380,7 @@ export const Dashboard = () => {
             </Show>
           </section>
 
-          <section class="card folks reveal d4">
+          <section class="card folks reveal d5">
             <div class="card-hd" style="padding:0 0 12px;border:0">
               <div>
                 <h2>Active members</h2>
@@ -465,3 +532,63 @@ const relativeWhen = (iso?: string): string => {
 };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/**
+ * The dashboard's quick "New task": a private task for the caller. A loose
+ * task cannot be private (docs/rbac.md), so the server puts it in the
+ * caller's private "Personal" project, made on first use.
+ */
+const PersonalTaskComposer = (props: { houseId: string; onCancel: () => void; onCreated: () => Promise<void> }) => {
+  const [title, setTitle] = createSignal("");
+  const [busy, setBusy] = createSignal(false);
+  const [err, setErr] = createSignal<string | null>(null);
+  const submit = async (e: SubmitEvent) => {
+    e.preventDefault();
+    const t = title().trim();
+    if (!t || busy()) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await taskClient.createPersonalTask({
+        taskId: "",
+        houseId: props.houseId,
+        ownerMemberId: "",
+        title: t,
+        assignees: [],
+        createdAt: "",
+        updatedAt: "",
+      } as unknown as Task);
+      setTitle("");
+      await props.onCreated();
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : String(e2));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={submit} style="display:flex;flex-direction:column;gap:6px;padding:12px 18px;border-top:1px dashed var(--line)">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input
+          type="text"
+          value={title()}
+          onInput={(e) => setTitle(e.currentTarget.value)}
+          placeholder="What needs doing?"
+          aria-label="New private task"
+          autofocus
+          style="flex:1;min-width:0;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);color:var(--ink);font-size:14px"
+        />
+        <button class="btn btn-primary" type="submit" disabled={busy() || !title().trim()}>
+          {busy() ? "Adding…" : "Add"}
+        </button>
+        <button class="btn btn-ghost" type="button" onClick={() => props.onCancel()}>
+          Cancel
+        </button>
+      </div>
+      <span style="font-size:12px;color:var(--ink-mute)">
+        Private to you. It goes in your Personal project.
+      </span>
+      <Show when={err()}>{(m) => <span style="color:var(--rust);font-size:12px">{m()}</span>}</Show>
+    </form>
+  );
+};

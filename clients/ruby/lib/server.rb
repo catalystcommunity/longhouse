@@ -25,6 +25,16 @@ class AuthHandlers
     raise NotImplementedError, "AuthHandlers#logout"
   end
 
+  # resume-session
+  def resume_session(req)
+    raise NotImplementedError, "AuthHandlers#resume_session"
+  end
+
+  # end-session
+  def end_session(req)
+    raise NotImplementedError, "AuthHandlers#end_session"
+  end
+
   # me
   def me(req)
     raise NotImplementedError, "AuthHandlers#me"
@@ -498,6 +508,11 @@ class TaskHandlers
   # list-tasks
   def list_tasks(req)
     raise NotImplementedError, "TaskHandlers#list_tasks"
+  end
+
+  # create-personal-task
+  def create_personal_task(req)
+    raise NotImplementedError, "TaskHandlers#create_personal_task"
   end
 
   # set-task-visibility

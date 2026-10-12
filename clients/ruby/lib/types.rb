@@ -56,6 +56,10 @@
 
 # CliLoginStatus is an alias for String.
 
+# SessionKind is an alias for String.
+
+# TaskState is an alias for String.
+
 # house_id [HouseId]
 # name [String]
 # description [String]
@@ -199,10 +203,11 @@ GroupMember = Data.define(:group_id, :member_id, :created_at)
 # status [ProjectStatus]
 # visibility [AccessLevel]
 # created_by_member_id [MemberId]
+# personal [Boolean]
 # created_at [Timestamp]
 # updated_at [Timestamp]
-Project = Data.define(:project_id, :house_id, :name, :description, :category, :status, :visibility, :created_by_member_id, :created_at, :updated_at) do
-  def initialize(project_id:, house_id:, name:, created_at:, updated_at:, description: nil, category: nil, status: "active", visibility: "read", created_by_member_id: nil)
+Project = Data.define(:project_id, :house_id, :name, :description, :category, :status, :visibility, :created_by_member_id, :personal, :created_at, :updated_at) do
+  def initialize(project_id:, house_id:, name:, created_at:, updated_at:, description: nil, category: nil, status: "active", visibility: "read", created_by_member_id: nil, personal: nil)
     super
   end
 
@@ -447,8 +452,10 @@ RefreshSessionRequest = Data.define(:refresh_token)
 # last_used_at [Timestamp]
 # expires_at [Timestamp]
 # revoked_at [Timestamp]
-CliSessionSummary = Data.define(:session_id, :client_name, :created_at, :last_used_at, :expires_at, :revoked_at) do
-  def initialize(session_id:, client_name:, created_at:, last_used_at:, expires_at:, revoked_at: nil)
+# kind [SessionKind]
+# current [Boolean]
+CliSessionSummary = Data.define(:session_id, :client_name, :created_at, :last_used_at, :expires_at, :revoked_at, :kind, :current) do
+  def initialize(session_id:, client_name:, created_at:, last_used_at:, expires_at:, revoked_at: nil, kind: nil, current: nil)
     super
   end
 end
@@ -513,9 +520,30 @@ HouseScopedListRequest = Data.define(:house_id, :limit, :offset) do
   end
 end
 
+# house_id [HouseId]
+# limit [Integer]
+# offset [Integer]
+# state [TaskState]
+# mine [Boolean]
+# loose [Boolean]
+# due_from [Timestamp]
+# due_to [Timestamp]
+# due_before [Array<Timestamp>]
+TaskListRequest = Data.define(:house_id, :limit, :offset, :state, :mine, :loose, :due_from, :due_to, :due_before) do
+  def initialize(house_id:, limit: 50, offset: 0, state: nil, mine: nil, loose: nil, due_from: nil, due_to: nil, due_before: nil)
+    super
+  end
+end
+
 # tasks [Array<Task>]
 # hidden_count [Integer]
-TaskList = Data.define(:tasks, :hidden_count)
+# total [Integer]
+# due_counts [Array<Integer>]
+TaskList = Data.define(:tasks, :hidden_count, :total, :due_counts) do
+  def initialize(tasks:, hidden_count:, total: nil, due_counts: nil)
+    super
+  end
+end
 
 # projects [Array<Project>]
 # hidden_count [Integer]
@@ -535,8 +563,9 @@ end
 # project_id [ProjectId]
 # limit [Integer]
 # offset [Integer]
-ProjectScopedListRequest = Data.define(:house_id, :project_id, :limit, :offset) do
-  def initialize(house_id:, project_id:, limit: 50, offset: 0)
+# state [TaskState]
+ProjectScopedListRequest = Data.define(:house_id, :project_id, :limit, :offset, :state) do
+  def initialize(house_id:, project_id:, limit: 50, offset: 0, state: nil)
     super
   end
 end
@@ -688,8 +717,9 @@ SetProjectVisibilityRequest = Data.define(:project_id, :visibility)
 # bug_reports_enabled [Boolean]
 # bug_reports_project_id [ProjectId]
 # default_project_visibility [AccessLevel]
-EffectiveSettings = Data.define(:bug_reports_enabled, :bug_reports_project_id, :default_project_visibility) do
-  def initialize(bug_reports_enabled: false, bug_reports_project_id: nil, default_project_visibility: "read")
+# session_lifetime_hours [Integer]
+EffectiveSettings = Data.define(:bug_reports_enabled, :bug_reports_project_id, :default_project_visibility, :session_lifetime_hours) do
+  def initialize(bug_reports_enabled: false, bug_reports_project_id: nil, default_project_visibility: "read", session_lifetime_hours: 720)
     super
   end
 end

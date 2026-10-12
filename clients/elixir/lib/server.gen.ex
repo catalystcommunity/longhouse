@@ -15,6 +15,12 @@ defmodule Csilgen.Generated.AuthServer do
   @callback logout(req :: Csilgen.Generated.EmptyRequest.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback resume_session(req :: Csilgen.Generated.EmptyRequest.t(), ctx :: map()) ::
+              {:ok, Csilgen.Generated.LoginResponse.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback end_session(req :: Csilgen.Generated.EmptyRequest.t(), ctx :: map()) ::
+              {:ok, Csilgen.Generated.EmptyResponse.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback me(req :: Csilgen.Generated.EmptyRequest.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.MeResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
@@ -295,8 +301,10 @@ defmodule Csilgen.Generated.TaskServer do
   @callback delete_task(req :: Csilgen.Generated.TaskID.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
-  @callback list_tasks(req :: Csilgen.Generated.HouseScopedListRequest.t(), ctx :: map()) ::
+  @callback list_tasks(req :: Csilgen.Generated.TaskListRequest.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.TaskList.t()} | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback create_personal_task(req :: Csilgen.Generated.Task.t(), ctx :: map()) ::
+              {:ok, Csilgen.Generated.Task.t()} | {:error, Csilgen.Generated.ServiceError.t()}
   @callback set_task_visibility(
               req :: Csilgen.Generated.SetTaskVisibilityRequest.t(),
               ctx :: map()
