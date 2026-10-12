@@ -745,6 +745,9 @@ def _encode_project_value(v: "Project") -> Dict[Any, Any]:
     if csil_x is not None:
         csil_m["category"] = csil_x
     csil_m["house_id"] = v.house_id
+    csil_x = v.personal
+    if csil_x is not None:
+        csil_m["personal"] = csil_x
     csil_m["created_at"] = v.created_at
     csil_m["project_id"] = v.project_id
     csil_m["updated_at"] = v.updated_at
@@ -770,6 +773,7 @@ def _decode_project_value(tree: Any) -> "Project":
         status=(None if tree.get("status") is None else _decode_project_status_value(tree["status"])),
         visibility=(None if tree.get("visibility") is None else _decode_access_level_value(tree["visibility"])),
         created_by_member_id=(None if tree.get("created_by_member_id") is None else _csil_expect_text(tree["created_by_member_id"])),
+        personal=(None if tree.get("personal") is None else _csil_expect_bool(tree["personal"])),
         created_at=_csil_expect_text(tree["created_at"]),
         updated_at=_csil_expect_text(tree["updated_at"]),
     )
@@ -1573,6 +1577,12 @@ RefreshSessionRequest.from_cbor = staticmethod(_refresh_session_request_from_cbo
 
 def _encode_cli_session_summary_value(v: "CliSessionSummary") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
+    csil_x = v.kind
+    if csil_x is not None:
+        csil_m["kind"] = csil_x
+    csil_x = v.current
+    if csil_x is not None:
+        csil_m["current"] = csil_x
     csil_m["created_at"] = v.created_at
     csil_m["expires_at"] = v.expires_at
     csil_x = v.revoked_at
@@ -1592,6 +1602,8 @@ def _decode_cli_session_summary_value(tree: Any) -> "CliSessionSummary":
         last_used_at=_csil_expect_text(tree["last_used_at"]),
         expires_at=_csil_expect_text(tree["expires_at"]),
         revoked_at=(None if tree.get("revoked_at") is None else _csil_expect_text(tree["revoked_at"])),
+        kind=(None if tree.get("kind") is None else _decode_session_kind_value(tree["kind"])),
+        current=(None if tree.get("current") is None else _csil_expect_bool(tree["current"])),
     )
 
 
@@ -1895,9 +1907,70 @@ def _house_scoped_list_request_from_cbor(data: bytes) -> "HouseScopedListRequest
 HouseScopedListRequest.to_cbor = _house_scoped_list_request_to_cbor
 HouseScopedListRequest.from_cbor = staticmethod(_house_scoped_list_request_from_cbor)
 
+def _encode_task_list_request_value(v: "TaskListRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.mine
+    if csil_x is not None:
+        csil_m["mine"] = csil_x
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    csil_x = v.loose
+    if csil_x is not None:
+        csil_m["loose"] = csil_x
+    csil_x = v.state
+    if csil_x is not None:
+        csil_m["state"] = csil_x
+    csil_x = v.due_to
+    if csil_x is not None:
+        csil_m["due_to"] = csil_x
+    csil_x = v.offset
+    if csil_x is not None:
+        csil_m["offset"] = csil_x
+    csil_x = v.due_from
+    if csil_x is not None:
+        csil_m["due_from"] = csil_x
+    csil_m["house_id"] = v.house_id
+    csil_x = v.due_before
+    if csil_x is not None:
+        csil_m["due_before"] = csil_x
+    return csil_m
+
+def _decode_task_list_request_value(tree: Any) -> "TaskListRequest":
+    tree = _csil_expect_map(tree)
+    return TaskListRequest(
+        house_id=_csil_expect_text(tree["house_id"]),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+        offset=(None if tree.get("offset") is None else _csil_expect_uint(tree["offset"])),
+        state=(None if tree.get("state") is None else _decode_task_state_value(tree["state"])),
+        mine=(None if tree.get("mine") is None else _csil_expect_bool(tree["mine"])),
+        loose=(None if tree.get("loose") is None else _csil_expect_bool(tree["loose"])),
+        due_from=(None if tree.get("due_from") is None else _csil_expect_text(tree["due_from"])),
+        due_to=(None if tree.get("due_to") is None else _csil_expect_text(tree["due_to"])),
+        due_before=(None if tree.get("due_before") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["due_before"])]),
+    )
+
+
+def _task_list_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_task_list_request_value(self))
+
+
+def _task_list_request_from_cbor(data: bytes) -> "TaskListRequest":
+    return _decode_task_list_request_value(cbor_decode(data))
+
+
+TaskListRequest.to_cbor = _task_list_request_to_cbor
+TaskListRequest.from_cbor = staticmethod(_task_list_request_from_cbor)
+
 def _encode_task_list_value(v: "TaskList") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["tasks"] = [_encode_task_value(csil_e) for csil_e in v.tasks]
+    csil_x = v.total
+    if csil_x is not None:
+        csil_m["total"] = csil_x
+    csil_x = v.due_counts
+    if csil_x is not None:
+        csil_m["due_counts"] = csil_x
     csil_m["hidden_count"] = v.hidden_count
     return csil_m
 
@@ -1906,6 +1979,8 @@ def _decode_task_list_value(tree: Any) -> "TaskList":
     return TaskList(
         tasks=[_decode_task_value(csil_e) for csil_e in _csil_expect_array(tree["tasks"])],
         hidden_count=_csil_expect_uint(tree["hidden_count"]),
+        total=(None if tree.get("total") is None else _csil_expect_uint(tree["total"])),
+        due_counts=(None if tree.get("due_counts") is None else [_csil_expect_uint(csil_e) for csil_e in _csil_expect_array(tree["due_counts"])]),
     )
 
 
@@ -1983,6 +2058,9 @@ def _encode_project_scoped_list_request_value(v: "ProjectScopedListRequest") -> 
     csil_x = v.limit
     if csil_x is not None:
         csil_m["limit"] = csil_x
+    csil_x = v.state
+    if csil_x is not None:
+        csil_m["state"] = csil_x
     csil_x = v.offset
     if csil_x is not None:
         csil_m["offset"] = csil_x
@@ -1997,6 +2075,7 @@ def _decode_project_scoped_list_request_value(tree: Any) -> "ProjectScopedListRe
         project_id=_csil_expect_text(tree["project_id"]),
         limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
         offset=(None if tree.get("offset") is None else _csil_expect_uint(tree["offset"])),
+        state=(None if tree.get("state") is None else _decode_task_state_value(tree["state"])),
     )
 
 
@@ -2720,6 +2799,9 @@ def _encode_effective_settings_value(v: "EffectiveSettings") -> Dict[Any, Any]:
     csil_x = v.bug_reports_project_id
     if csil_x is not None:
         csil_m["bug_reports_project_id"] = csil_x
+    csil_x = v.session_lifetime_hours
+    if csil_x is not None:
+        csil_m["session_lifetime_hours"] = csil_x
     csil_x = v.default_project_visibility
     if csil_x is not None:
         csil_m["default_project_visibility"] = csil_x
@@ -2731,6 +2813,7 @@ def _decode_effective_settings_value(tree: Any) -> "EffectiveSettings":
         bug_reports_enabled=(None if tree.get("bug_reports_enabled") is None else _csil_expect_bool(tree["bug_reports_enabled"])),
         bug_reports_project_id=(None if tree.get("bug_reports_project_id") is None else _csil_expect_text(tree["bug_reports_project_id"])),
         default_project_visibility=(None if tree.get("default_project_visibility") is None else _decode_access_level_value(tree["default_project_visibility"])),
+        session_lifetime_hours=(None if tree.get("session_lifetime_hours") is None else _csil_expect_uint(tree["session_lifetime_hours"])),
     )
 
 
@@ -3216,6 +3299,20 @@ def _decode_cli_login_status_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("pending", "denied", "expired", "complete"):
         raise CsilDecodeError(f"csil cbor: unknown cli_login_status value {csil_v!r}")
+    return csil_v
+
+
+def _decode_session_kind_value(csil_v):
+    csil_v = _csil_expect_text(csil_v)
+    if csil_v not in ("cli", "browser"):
+        raise CsilDecodeError(f"csil cbor: unknown session_kind value {csil_v!r}")
+    return csil_v
+
+
+def _decode_task_state_value(csil_v):
+    csil_v = _csil_expect_text(csil_v)
+    if csil_v not in ("open", "closed"):
+        raise CsilDecodeError(f"csil cbor: unknown task_state value {csil_v!r}")
     return csil_v
 
 

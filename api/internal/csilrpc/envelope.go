@@ -72,7 +72,7 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
+	ctx, exchange := withHTTPExchange(r.Context(), r)
 	authenticated := !d.publicMethods[service+"."+method]
 	if authenticated {
 		identity, authErr := d.verifyBearerRPC(r, &req)
@@ -92,6 +92,9 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 	if authenticated {
 		d.emitAudit(ctx, service, method, callErr)
 	}
+	// Cookies are headers, so they go out before the envelope. An error reply
+	// can carry one too (a failed resume clears a dead session cookie).
+	exchange.writeCookies(w)
 
 	if callErr != nil {
 		var serr *Error

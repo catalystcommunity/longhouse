@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AccessLevel, ApproveCliLoginRequest, AuditEntry, AuditID, AuditPage, AuditQuery, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarSubscription, CalendarView, CliLoginRequestInfo, CliLoginStatus, CliSessionID, CliSessionSummary, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteRequest, DenyCliLoginRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, RefreshSessionRequest, ResourceRef, ResourceType, RestoreRequest, RevokeSessionRequest, Role, RoleID, ServiceError, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskStatus, Timestamp, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import type { AccessLevel, ApproveCliLoginRequest, AuditEntry, AuditID, AuditPage, AuditQuery, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarSubscription, CalendarView, CliLoginRequestInfo, CliLoginStatus, CliSessionID, CliSessionSummary, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteRequest, DenyCliLoginRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, RefreshSessionRequest, ResourceRef, ResourceType, RestoreRequest, RevokeSessionRequest, Role, RoleID, ServiceError, SessionKind, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskListRequest, TaskState, TaskStatus, Timestamp, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -666,6 +666,7 @@ export function toProjectCborValue(v: Project): CborValue {
   if (v.status !== undefined) csilMap.set("status", v.status);
   if (v.category !== undefined) csilMap.set("category", v.category);
   csilMap.set("house_id", v.houseId);
+  if (v.personal !== undefined) csilMap.set("personal", v.personal);
   csilMap.set("created_at", v.createdAt);
   csilMap.set("project_id", v.projectId);
   csilMap.set("updated_at", v.updatedAt);
@@ -685,6 +686,7 @@ export function fromProjectCborValue(value: CborValue): Project {
     status: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["active", "archived"]) as "active" | "archived"))(mapGet(value, "status")),
     visibility: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"))(mapGet(value, "visibility")),
     createdByMemberId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "created_by_member_id")),
+    personal: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "personal")),
     createdAt: asString(requireKey(value, "created_at")),
     updatedAt: asString(requireKey(value, "updated_at")),
   };
@@ -1350,6 +1352,8 @@ export function fromRefreshSessionRequestCbor(bytes: Uint8Array): RefreshSession
 
 export function toCliSessionSummaryCborValue(v: CliSessionSummary): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
+  if (v.kind !== undefined) csilMap.set("kind", v.kind);
+  if (v.current !== undefined) csilMap.set("current", v.current);
   csilMap.set("created_at", v.createdAt);
   csilMap.set("expires_at", v.expiresAt);
   if (v.revokedAt !== undefined) csilMap.set("revoked_at", v.revokedAt);
@@ -1367,6 +1371,8 @@ export function fromCliSessionSummaryCborValue(value: CborValue): CliSessionSumm
     lastUsedAt: asString(requireKey(value, "last_used_at")),
     expiresAt: asString(requireKey(value, "expires_at")),
     revokedAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "revoked_at")),
+    kind: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["cli", "browser"]) as "cli" | "browser"))(mapGet(value, "kind")),
+    current: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "current")),
   };
 }
 
@@ -1620,9 +1626,47 @@ export function fromHouseScopedListRequestCbor(bytes: Uint8Array): HouseScopedLi
   return fromHouseScopedListRequestCborValue(decode(bytes));
 }
 
+export function toTaskListRequestCborValue(v: TaskListRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.mine !== undefined) csilMap.set("mine", v.mine);
+  if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  if (v.loose !== undefined) csilMap.set("loose", v.loose);
+  if (v.state !== undefined) csilMap.set("state", v.state);
+  if (v.dueTo !== undefined) csilMap.set("due_to", v.dueTo);
+  if (v.offset !== undefined) csilMap.set("offset", v.offset);
+  if (v.dueFrom !== undefined) csilMap.set("due_from", v.dueFrom);
+  csilMap.set("house_id", v.houseId);
+  if (v.dueBefore !== undefined) csilMap.set("due_before", v.dueBefore);
+  return csilMap;
+}
+
+export function fromTaskListRequestCborValue(value: CborValue): TaskListRequest {
+  return {
+    houseId: asString(requireKey(value, "house_id")),
+    limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
+    offset: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "offset")),
+    state: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["open", "closed"]) as "open" | "closed"))(mapGet(value, "state")),
+    mine: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "mine")),
+    loose: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "loose")),
+    dueFrom: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "due_from")),
+    dueTo: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "due_to")),
+    dueBefore: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "due_before")),
+  };
+}
+
+export function toTaskListRequestCbor(v: TaskListRequest): Uint8Array {
+  return encodeValue(toTaskListRequestCborValue(v));
+}
+
+export function fromTaskListRequestCbor(bytes: Uint8Array): TaskListRequest {
+  return fromTaskListRequestCborValue(decode(bytes));
+}
+
 export function toTaskListCborValue(v: TaskList): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("tasks", v.tasks.map((csilE): CborValue => toTaskCborValue(csilE)));
+  if (v.total !== undefined) csilMap.set("total", v.total);
+  if (v.dueCounts !== undefined) csilMap.set("due_counts", v.dueCounts);
   csilMap.set("hidden_count", v.hiddenCount);
   return csilMap;
 }
@@ -1631,6 +1675,8 @@ export function fromTaskListCborValue(value: CborValue): TaskList {
   return {
     tasks: asArray(requireKey(value, "tasks")).map((csilE) => fromTaskCborValue(csilE)),
     hiddenCount: asNumber(requireKey(value, "hidden_count")),
+    total: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "total")),
+    dueCounts: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asNumber(csilE)))(mapGet(value, "due_counts")),
   };
 }
 
@@ -1693,6 +1739,7 @@ export function fromMemberScopedListRequestCbor(bytes: Uint8Array): MemberScoped
 export function toProjectScopedListRequestCborValue(v: ProjectScopedListRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   if (v.limit !== undefined) csilMap.set("limit", v.limit);
+  if (v.state !== undefined) csilMap.set("state", v.state);
   if (v.offset !== undefined) csilMap.set("offset", v.offset);
   csilMap.set("house_id", v.houseId);
   csilMap.set("project_id", v.projectId);
@@ -1705,6 +1752,7 @@ export function fromProjectScopedListRequestCborValue(value: CborValue): Project
     projectId: asString(requireKey(value, "project_id")),
     limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
     offset: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "offset")),
+    state: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["open", "closed"]) as "open" | "closed"))(mapGet(value, "state")),
   };
 }
 
@@ -2326,6 +2374,7 @@ export function toEffectiveSettingsCborValue(v: EffectiveSettings): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   if (v.bugReportsEnabled !== undefined) csilMap.set("bug_reports_enabled", v.bugReportsEnabled);
   if (v.bugReportsProjectId !== undefined) csilMap.set("bug_reports_project_id", v.bugReportsProjectId);
+  if (v.sessionLifetimeHours !== undefined) csilMap.set("session_lifetime_hours", v.sessionLifetimeHours);
   if (v.defaultProjectVisibility !== undefined) csilMap.set("default_project_visibility", v.defaultProjectVisibility);
   return csilMap;
 }
@@ -2335,6 +2384,7 @@ export function fromEffectiveSettingsCborValue(value: CborValue): EffectiveSetti
     bugReportsEnabled: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "bug_reports_enabled")),
     bugReportsProjectId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "bug_reports_project_id")),
     defaultProjectVisibility: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"))(mapGet(value, "default_project_visibility")),
+    sessionLifetimeHours: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "session_lifetime_hours")),
   };
 }
 

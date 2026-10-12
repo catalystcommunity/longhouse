@@ -42,6 +42,11 @@ DependencyNodeType = "task" / "project"
 RecurrenceFreq   = "hourly" / "daily" / "weekly" / "monthly" / "quarterly" / "yearly"
 MilestoneState   = "done" / "current" / "future"
 CliLoginStatus   = "pending" / "denied" / "expired" / "complete"
+;; What started a revocable session: a CLI installation or a browser sign-in.
+SessionKind      = "cli" / "browser"
+;; A task list filter: open = not done and not cancelled; closed = done or
+;; cancelled.
+TaskState        = "open" / "closed"
 
 ;; ============================================================
 ;; House + Membership
@@ -253,6 +258,11 @@ Project = {
     ;; explicit owner grants. Receive-only — set by the server at create.
     @receive-only
     ? created_by_member_id: MemberID,
+
+    ;; True for a member's private "Personal" project, which
+    ;; create-personal-task makes on first use. Receive-only.
+    @receive-only
+    ? personal: bool,
 
     @receive-only
     created_at: Timestamp,
@@ -578,7 +588,11 @@ CliSessionSummary = {
     created_at: Timestamp,
     last_used_at: Timestamp,
     expires_at: Timestamp,
-    ? revoked_at: Timestamp
+    ? revoked_at: Timestamp,
+    ;; Absent from older servers; treat absence as "cli".
+    ? kind: SessionKind,
+    ;; True when this is the session behind the caller's own bearer.
+    ? current: bool
 }
 
 CliSessionsResponse = {
@@ -646,12 +660,45 @@ HouseScopedListRequest = {
     ? offset: uint .default 0
 }
 
+;; list-tasks request. Every filter is optional and they combine with AND.
+;; Order is part of the contract, so a client can page and group by it:
+;;   state open   — due_at ascending (no due date last), then newest first
+;;   state closed — updated_at descending (most recently finished first)
+;;   no state     — created_at descending
+TaskListRequest = {
+    house_id: HouseID,
+    ? limit: uint .default 50,
+    ? offset: uint .default 0,
+    ? state: TaskState,
+    ;; Only tasks the caller owns or is assigned to.
+    ? mine: bool,
+    ;; Only tasks that are in no project.
+    ? loose: bool,
+    ;; due_at >= due_from (inclusive) and due_at < due_to (exclusive).
+    ? due_from: Timestamp,
+    ? due_to: Timestamp,
+    ;; For each timestamp, the response's due_counts says how many matching
+    ;; rows (before visibility) have due_at before it. With state open the
+    ;; list is in due order, so these are the row offsets where due-date
+    ;; groups start: a client can place group headers in rows it has not
+    ;; loaded yet. A far-future timestamp counts the rows that have a due
+    ;; date (no-due-date rows come after them). At most 8.
+    ? due_before: [* Timestamp]
+}
+
 ;; List wrappers that carry a count of rows the caller may NOT see (private
 ;; tasks/projects) alongside the rows they may. "You can hide a task, you
 ;; can't hide that you hid one." See docs/rbac.md.
+;;
+;; total is the count of rows that match the filters, before visibility. A
+;; client can size a scroll area from it and subtract hidden_count as pages
+;; arrive. Absent from older servers.
 TaskList = {
     tasks: [* Task],
-    hidden_count: uint
+    hidden_count: uint,
+    ? total: uint,
+    ;; One count per request due_before entry, in the same order.
+    ? due_counts: [* uint]
 }
 
 ProjectList = {
@@ -671,7 +718,10 @@ ProjectScopedListRequest = {
     house_id: HouseID,
     project_id: ProjectID,
     ? limit: uint .default 50,
-    ? offset: uint .default 0
+    ? offset: uint .default 0,
+    ;; list-project-tasks only: filter by state. Order stays the project's
+    ;; task order (position).
+    ? state: TaskState
 }
 
 CommentListRequest = {
@@ -890,7 +940,12 @@ EffectiveSettings = {
     ;; Default house-at-large visibility stamped onto newly-created projects.
     ;; House-layer; admin-writable. read = public house-wide (current
     ;; behaviour); none = private-by-default. See docs/rbac.md.
-    ? default_project_visibility: AccessLevel .default "read"
+    ? default_project_visibility: AccessLevel .default "read",
+    ;; Browser sign-in lifetime in hours. House-layer; admin-writable. Each
+    ;; resume-session slides the expiry forward by this much, so an active
+    ;; browser stays signed in. A person in several houses gets the shortest
+    ;; value of those houses. Bounds: 1..8760.
+    ? session_lifetime_hours: uint .default 720
 }
 
 ;; Partial-update request: only fields the caller wants to change need to
@@ -932,14 +987,22 @@ ServiceError = {
 
 ;; Auth: token issuance + introspection.
 ;;   login     — programmatic: caller already holds a verified assertion
-;;   complete  — browser callback: SPA posts the IDP's sealed token
-;;   refresh   — re-mint with a fresh houses+roles snapshot (needs bearer)
+;;   complete  — browser callback: SPA posts the IDP's sealed token. Also
+;;               starts a browser session (httpOnly cookie).
+;;   refresh   — re-mint with a fresh houses+roles snapshot (needs bearer).
+;;               A bearer from before browser sessions existed also gets a
+;;               browser session, so it can resume later.
+;;   resume-session — public: re-mint from the browser session cookie. The
+;;               cookie rotates on each call. Works with an expired bearer.
+;;   end-session    — public: revoke the browser session cookie and clear it.
 ;;   me        — identity + accessible houses (needs bearer)
 service AuthService {
     login:    LoginRequest    -> LoginResponse / ServiceError,
     complete: CompleteRequest -> LoginResponse / ServiceError,
     refresh:  EmptyRequest    -> LoginResponse / ServiceError,
     logout:   EmptyRequest    -> EmptyResponse / ServiceError,
+    resume-session: EmptyRequest -> LoginResponse / ServiceError,
+    end-session:    EmptyRequest -> EmptyResponse / ServiceError,
     me:       EmptyRequest    -> MeResponse    / ServiceError,
 
     ;; Device-style CLI authorization. begin/exchange/refresh-session are
@@ -1101,7 +1164,12 @@ service TaskService {
     get-task: TaskID -> Task / ServiceError,
     update-task: Task -> Task / ServiceError,
     delete-task: TaskID -> EmptyResponse / ServiceError,
-    list-tasks: HouseScopedListRequest -> TaskList / ServiceError,
+    list-tasks: TaskListRequest -> TaskList / ServiceError,
+    ;; Create a task owned by and assigned to the caller in the caller's
+    ;; private "Personal" project in task.house_id. The server makes the
+    ;; project (visibility none) on first use, and again if it was deleted.
+    ;; Owner, assignees, and visibility in the request are ignored.
+    create-personal-task: Task -> Task / ServiceError,
 
     ;; RBAC: set the task's house-at-large visibility (full required;
     ;; bounded by the umbrella guardrail) and manage its explicit grants.

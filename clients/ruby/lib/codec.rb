@@ -540,6 +540,7 @@ class Project
     csil_map["status"] = (status) unless status.nil?
     csil_map["category"] = category unless category.nil?
     csil_map["house_id"] = house_id
+    csil_map["personal"] = personal unless personal.nil?
     csil_map["created_at"] = created_at
     csil_map["project_id"] = project_id
     csil_map["updated_at"] = updated_at
@@ -575,6 +576,7 @@ else
   raise ArgumentError, "csilgen: unknown inline literal #{(node["visibility"]).inspect}"
 end) : nil),
       created_by_member_id: (node.key?("created_by_member_id") ? node["created_by_member_id"] : nil),
+      personal: (node.key?("personal") ? node["personal"] : nil),
       created_at: node["created_at"],
       updated_at: node["updated_at"]
     )
@@ -1396,6 +1398,8 @@ class CliSessionSummary
 
   def csil_to_tree
     csil_map = {}
+    csil_map["kind"] = (kind) unless kind.nil?
+    csil_map["current"] = current unless current.nil?
     csil_map["created_at"] = created_at
     csil_map["expires_at"] = expires_at
     csil_map["revoked_at"] = revoked_at unless revoked_at.nil?
@@ -1416,7 +1420,14 @@ class CliSessionSummary
       created_at: node["created_at"],
       last_used_at: node["last_used_at"],
       expires_at: node["expires_at"],
-      revoked_at: (node.key?("revoked_at") ? node["revoked_at"] : nil)
+      revoked_at: (node.key?("revoked_at") ? node["revoked_at"] : nil),
+      kind: (node.key?("kind") ? (case (node["kind"])
+when "cli" then "cli"
+when "browser" then "browser"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["kind"]).inspect}"
+end) : nil),
+      current: (node.key?("current") ? node["current"] : nil)
     )
   end
 end
@@ -1705,6 +1716,51 @@ class HouseScopedListRequest
   end
 end
 
+# CBOR codec for TaskListRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class TaskListRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["mine"] = mine unless mine.nil?
+    csil_map["limit"] = limit unless limit.nil?
+    csil_map["loose"] = loose unless loose.nil?
+    csil_map["state"] = (state) unless state.nil?
+    csil_map["due_to"] = due_to unless due_to.nil?
+    csil_map["offset"] = offset unless offset.nil?
+    csil_map["due_from"] = due_from unless due_from.nil?
+    csil_map["house_id"] = house_id
+    csil_map["due_before"] = (due_before).map { |csil_e| csil_e } unless due_before.nil?
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      house_id: node["house_id"],
+      limit: (node.key?("limit") ? node["limit"] : nil),
+      offset: (node.key?("offset") ? node["offset"] : nil),
+      state: (node.key?("state") ? (case (node["state"])
+when "open" then "open"
+when "closed" then "closed"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["state"]).inspect}"
+end) : nil),
+      mine: (node.key?("mine") ? node["mine"] : nil),
+      loose: (node.key?("loose") ? node["loose"] : nil),
+      due_from: (node.key?("due_from") ? node["due_from"] : nil),
+      due_to: (node.key?("due_to") ? node["due_to"] : nil),
+      due_before: (node.key?("due_before") ? (node["due_before"]).map { |csil_e| csil_e } : nil)
+    )
+  end
+end
+
 # CBOR codec for TaskList: a map keyed by the verbatim CSIL field names in
 # canonical RFC 8949 order.
 class TaskList
@@ -1715,6 +1771,8 @@ class TaskList
   def csil_to_tree
     csil_map = {}
     csil_map["tasks"] = (tasks).map { |csil_e| (csil_e).csil_to_tree }
+    csil_map["total"] = total unless total.nil?
+    csil_map["due_counts"] = (due_counts).map { |csil_e| csil_e } unless due_counts.nil?
     csil_map["hidden_count"] = hidden_count
     csil_map
   end
@@ -1726,7 +1784,9 @@ class TaskList
   def self.csil_from_tree(node)
     new(
       tasks: (node["tasks"]).map { |csil_e| Task.csil_from_tree(csil_e) },
-      hidden_count: node["hidden_count"]
+      hidden_count: node["hidden_count"],
+      total: (node.key?("total") ? node["total"] : nil),
+      due_counts: (node.key?("due_counts") ? (node["due_counts"]).map { |csil_e| csil_e } : nil)
     )
   end
 end
@@ -1797,6 +1857,7 @@ class ProjectScopedListRequest
   def csil_to_tree
     csil_map = {}
     csil_map["limit"] = limit unless limit.nil?
+    csil_map["state"] = (state) unless state.nil?
     csil_map["offset"] = offset unless offset.nil?
     csil_map["house_id"] = house_id
     csil_map["project_id"] = project_id
@@ -1812,7 +1873,13 @@ class ProjectScopedListRequest
       house_id: node["house_id"],
       project_id: node["project_id"],
       limit: (node.key?("limit") ? node["limit"] : nil),
-      offset: (node.key?("offset") ? node["offset"] : nil)
+      offset: (node.key?("offset") ? node["offset"] : nil),
+      state: (node.key?("state") ? (case (node["state"])
+when "open" then "open"
+when "closed" then "closed"
+else
+  raise ArgumentError, "csilgen: unknown inline literal #{(node["state"]).inspect}"
+end) : nil)
     )
   end
 end
@@ -2632,6 +2699,7 @@ class EffectiveSettings
     csil_map = {}
     csil_map["bug_reports_enabled"] = bug_reports_enabled unless bug_reports_enabled.nil?
     csil_map["bug_reports_project_id"] = bug_reports_project_id unless bug_reports_project_id.nil?
+    csil_map["session_lifetime_hours"] = session_lifetime_hours unless session_lifetime_hours.nil?
     csil_map["default_project_visibility"] = (default_project_visibility) unless default_project_visibility.nil?
     csil_map
   end
@@ -2651,7 +2719,8 @@ when "edit" then "edit"
 when "full" then "full"
 else
   raise ArgumentError, "csilgen: unknown inline literal #{(node["default_project_visibility"]).inspect}"
-end) : nil)
+end) : nil),
+      session_lifetime_hours: (node.key?("session_lifetime_hours") ? node["session_lifetime_hours"] : nil)
     )
   end
 end

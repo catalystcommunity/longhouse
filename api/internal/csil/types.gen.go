@@ -84,6 +84,12 @@ type MilestoneState string
 // CliLoginStatus is a type alias
 type CliLoginStatus string
 
+// SessionKind is a type alias
+type SessionKind string
+
+// TaskState is a type alias
+type TaskState string
+
 // House represents a structured data type
 type House struct {
 	HouseId     HouseID   `json:"house_id" yaml:"house_id"`
@@ -199,6 +205,7 @@ type Project struct {
 	Status            *ProjectStatus `json:"status,omitempty" yaml:"status,omitempty"`
 	Visibility        *AccessLevel   `json:"visibility,omitempty" yaml:"visibility,omitempty"`
 	CreatedByMemberId *MemberID      `json:"created_by_member_id,omitempty" yaml:"created_by_member_id,omitempty"`
+	Personal          *bool          `json:"personal,omitempty" yaml:"personal,omitempty"`
 	CreatedAt         Timestamp      `json:"created_at" yaml:"created_at"`
 	UpdatedAt         Timestamp      `json:"updated_at" yaml:"updated_at"`
 }
@@ -421,6 +428,8 @@ type CliSessionSummary struct {
 	LastUsedAt Timestamp    `json:"last_used_at" yaml:"last_used_at"`
 	ExpiresAt  Timestamp    `json:"expires_at" yaml:"expires_at"`
 	RevokedAt  *Timestamp   `json:"revoked_at,omitempty" yaml:"revoked_at,omitempty"`
+	Kind       *SessionKind `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Current    *bool        `json:"current,omitempty" yaml:"current,omitempty"`
 }
 
 // CliSessionsResponse represents a structured data type
@@ -489,10 +498,25 @@ type HouseScopedListRequest struct {
 	Offset  *uint64 `json:"offset,omitempty" yaml:"offset,omitempty"`
 }
 
+// TaskListRequest represents a structured data type
+type TaskListRequest struct {
+	HouseId   HouseID     `json:"house_id" yaml:"house_id"`
+	Limit     *uint64     `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Offset    *uint64     `json:"offset,omitempty" yaml:"offset,omitempty"`
+	State     *TaskState  `json:"state,omitempty" yaml:"state,omitempty"`
+	Mine      *bool       `json:"mine,omitempty" yaml:"mine,omitempty"`
+	Loose     *bool       `json:"loose,omitempty" yaml:"loose,omitempty"`
+	DueFrom   *Timestamp  `json:"due_from,omitempty" yaml:"due_from,omitempty"`
+	DueTo     *Timestamp  `json:"due_to,omitempty" yaml:"due_to,omitempty"`
+	DueBefore []Timestamp `json:"due_before,omitempty" yaml:"due_before,omitempty"`
+}
+
 // TaskList represents a structured data type
 type TaskList struct {
-	Tasks       []Task `json:"tasks" yaml:"tasks"`
-	HiddenCount uint64 `json:"hidden_count" yaml:"hidden_count"`
+	Tasks       []Task   `json:"tasks" yaml:"tasks"`
+	HiddenCount uint64   `json:"hidden_count" yaml:"hidden_count"`
+	Total       *uint64  `json:"total,omitempty" yaml:"total,omitempty"`
+	DueCounts   []uint64 `json:"due_counts,omitempty" yaml:"due_counts,omitempty"`
 }
 
 // ProjectList represents a structured data type
@@ -511,10 +535,11 @@ type MemberScopedListRequest struct {
 
 // ProjectScopedListRequest represents a structured data type
 type ProjectScopedListRequest struct {
-	HouseId   HouseID   `json:"house_id" yaml:"house_id"`
-	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
-	Limit     *uint64   `json:"limit,omitempty" yaml:"limit,omitempty"`
-	Offset    *uint64   `json:"offset,omitempty" yaml:"offset,omitempty"`
+	HouseId   HouseID    `json:"house_id" yaml:"house_id"`
+	ProjectId ProjectID  `json:"project_id" yaml:"project_id"`
+	Limit     *uint64    `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Offset    *uint64    `json:"offset,omitempty" yaml:"offset,omitempty"`
+	State     *TaskState `json:"state,omitempty" yaml:"state,omitempty"`
 }
 
 // CommentListRequest represents a structured data type
@@ -700,6 +725,7 @@ type EffectiveSettings struct {
 	BugReportsEnabled        *bool        `json:"bug_reports_enabled,omitempty" yaml:"bug_reports_enabled,omitempty"`
 	BugReportsProjectId      *ProjectID   `json:"bug_reports_project_id,omitempty" yaml:"bug_reports_project_id,omitempty"`
 	DefaultProjectVisibility *AccessLevel `json:"default_project_visibility,omitempty" yaml:"default_project_visibility,omitempty"`
+	SessionLifetimeHours     *uint64      `json:"session_lifetime_hours,omitempty" yaml:"session_lifetime_hours,omitempty"`
 }
 
 // UpdateSettingsRequest represents a structured data type

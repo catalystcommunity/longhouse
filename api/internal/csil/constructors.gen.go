@@ -63,6 +63,16 @@ func NewHouseScopedListRequest() *HouseScopedListRequest {
 	}
 }
 
+// NewTaskListRequest creates a TaskListRequest with default values:
+//   - limit: 50
+//   - offset: 0
+func NewTaskListRequest() *TaskListRequest {
+	return &TaskListRequest{
+		Limit:  func() *uint64 { v := uint64(50); return &v }(),
+		Offset: func() *uint64 { v := uint64(0); return &v }(),
+	}
+}
+
 // NewMemberScopedListRequest creates a MemberScopedListRequest with default values:
 //   - limit: 50
 //   - offset: 0
@@ -108,10 +118,12 @@ func NewNotificationListRequest() *NotificationListRequest {
 // NewEffectiveSettings creates a EffectiveSettings with default values:
 //   - bug_reports_enabled: false
 //   - default_project_visibility: "read"
+//   - session_lifetime_hours: 720
 func NewEffectiveSettings() *EffectiveSettings {
 	return &EffectiveSettings{
 		BugReportsEnabled:        func() *bool { v := bool(false); return &v }(),
 		DefaultProjectVisibility: func() *AccessLevel { v := AccessLevel("read"); return &v }(),
+		SessionLifetimeHours:     func() *uint64 { v := uint64(720); return &v }(),
 	}
 }
 

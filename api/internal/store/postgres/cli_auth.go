@@ -161,6 +161,19 @@ func (s *PostgresStore) ExchangeCliLogin(ctx context.Context, deviceCodeHash, re
 }
 
 func (s *PostgresStore) RotateCliRefreshToken(ctx context.Context, tokenHash, nextTokenHash []byte, now time.Time) (*models.CliSession, error) {
+	return rotateRefreshToken(ctx, models.SessionKindCli, tokenHash, nextTokenHash, now, 0)
+}
+
+func (s *PostgresStore) RotateBrowserRefreshToken(ctx context.Context, tokenHash, nextTokenHash []byte, now time.Time, reuseGrace time.Duration) (*models.CliSession, error) {
+	return rotateRefreshToken(ctx, models.SessionKindBrowser, tokenHash, nextTokenHash, now, reuseGrace)
+}
+
+// rotateRefreshToken marks the presented token used and stores its successor.
+// A used token seen again revokes the whole session, unless it was used less
+// than reuseGrace ago: then the session comes back with
+// ErrRefreshTokenRecentlyUsed and nothing changes. A token of the other
+// session kind is treated as unknown.
+func rotateRefreshToken(ctx context.Context, kind string, tokenHash, nextTokenHash []byte, now time.Time, reuseGrace time.Duration) (*models.CliSession, error) {
 	var out *models.CliSession
 	var resultErr error
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -180,7 +193,17 @@ func (s *PostgresStore) RotateCliRefreshToken(ctx context.Context, tokenHash, ne
 			Where("session_id = ?", token.SessionID).First(&session).Error; err != nil {
 			return err
 		}
+		if session.Kind != kind {
+			resultErr = appstore.ErrCliSessionInvalid
+			return nil
+		}
 		if token.UsedAt != nil {
+			if reuseGrace > 0 && session.RevokedAt == nil && session.ExpiresAt.After(now) &&
+				now.Sub(*token.UsedAt) < reuseGrace {
+				out = &session
+				resultErr = appstore.ErrRefreshTokenRecentlyUsed
+				return nil
+			}
 			if session.RevokedAt == nil {
 				session.RevokedAt = &now
 				if err := tx.Save(&session).Error; err != nil {
@@ -217,6 +240,73 @@ func (s *PostgresStore) RotateCliRefreshToken(ctx context.Context, tokenHash, ne
 		return nil, err
 	}
 	return out, resultErr
+}
+
+func (s *PostgresStore) CreateBrowserSession(ctx context.Context, session *models.CliSession, refreshTokenHash []byte) error {
+	session.Kind = models.SessionKindBrowser
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Same bounded cleanup as CreateCliLogin: every sign-in makes a row.
+		if err := tx.Where("expires_at < ?", time.Now().UTC().Add(-24*time.Hour)).
+			Delete(&models.CliSession{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(session).Error; err != nil {
+			return err
+		}
+		return tx.Create(&models.CliRefreshToken{
+			TokenHash: refreshTokenHash,
+			SessionID: session.SessionID,
+			CreatedAt: session.CreatedAt,
+		}).Error
+	})
+}
+
+func (s *PostgresStore) ExtendBrowserSession(ctx context.Context, sessionID string, expiresAt time.Time) error {
+	return db.WithContext(ctx).Model(&models.CliSession{}).
+		Where("session_id = ? AND kind = ? AND revoked_at IS NULL", sessionID, models.SessionKindBrowser).
+		Update("expires_at", expiresAt).Error
+}
+
+// RevokeBrowserSessionByToken revokes the browser session that owns the token,
+// used or not. It returns the session so the caller can audit the subject.
+func (s *PostgresStore) RevokeBrowserSessionByToken(ctx context.Context, tokenHash []byte, now time.Time) (*models.CliSession, error) {
+	var token models.CliRefreshToken
+	err := db.WithContext(ctx).Where("token_hash = ?", tokenHash).First(&token).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, appstore.ErrCliSessionInvalid
+	}
+	if err != nil {
+		return nil, err
+	}
+	var session models.CliSession
+	err = db.WithContext(ctx).
+		Where("session_id = ? AND kind = ?", token.SessionID, models.SessionKindBrowser).
+		First(&session).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, appstore.ErrCliSessionInvalid
+	}
+	if err != nil {
+		return nil, err
+	}
+	if session.RevokedAt == nil {
+		session.RevokedAt = &now
+		if err := db.WithContext(ctx).Model(&session).Update("revoked_at", now).Error; err != nil {
+			return nil, err
+		}
+	}
+	return &session, nil
+}
+
+func (s *PostgresStore) GetCliSession(ctx context.Context, sessionID string) (*models.CliSession, error) {
+	var session models.CliSession
+	err := db.WithContext(ctx).Where("session_id = ?", sessionID).First(&session).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, appstore.ErrCliSessionInvalid
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
 }
 
 func (s *PostgresStore) ListCliSessions(ctx context.Context, domain, userID string) ([]models.CliSession, error) {

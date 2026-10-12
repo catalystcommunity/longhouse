@@ -1,5 +1,5 @@
 import { A, useNavigate, useParams } from "@solidjs/router";
-import { For, Show, batch, createMemo, createResource, createSignal } from "solid-js";
+import { For, Show, batch, createEffect, createMemo, createResource, createSignal } from "solid-js";
 import { AuthGate } from "~/components/AuthGate";
 import { AvatarStack } from "~/components/Avatar";
 import { Check } from "~/components/Icons";
@@ -12,6 +12,8 @@ import { memberClient, projectClient, taskClient } from "~/data/clients";
 import { displayName, dueLabel, initial, isTaskClosed, memberSwatch, toAvatar } from "~/lib/derive";
 import { normalizeTaskCreate } from "~/lib/taskCreate";
 import { hasRole } from "~/stores/auth";
+import { createTaskFeed, listAllTasks, type TaskFeed } from "~/lib/taskFeed";
+import { TaskFeedList } from "~/components/TaskFeedList";
 import type { Member, Milestone, Project, Task } from "@longhouse/client";
 
 const MILESTONE_STATES = ["future", "current", "done"] as const;
@@ -22,8 +24,6 @@ interface DetailBundle {
   members: Member[];
   owners: Member[];
   milestones: Milestone[];
-  projectTasks: Task[];
-  houseTasks: Task[];
 }
 
 export const ProjectDetail = () => {
@@ -34,34 +34,48 @@ export const ProjectDetail = () => {
   const [bundle, { refetch }] = createResource(projectId, async (id): Promise<DetailBundle | null> => {
     try {
       const project = await projectClient.getProject(id);
-      const [houseMembers, members, owners, milestones, projectTaskList, houseTaskList] = await Promise.all([
+      const [houseMembers, members, owners, milestones] = await Promise.all([
         memberClient.listMembers({ houseId: project.houseId }),
         projectClient.listProjectMembers(id),
         projectClient.listProjectOwners(id),
         projectClient.listMilestones(id),
-        projectClient.listProjectTasks({ houseId: project.houseId, projectId: id }),
-        taskClient.listTasks({ houseId: project.houseId }),
       ]);
-      return {
-        project,
-        houseMembers,
-        members,
-        owners,
-        milestones,
-        projectTasks: projectTaskList.tasks,
-        houseTasks: houseTaskList.tasks,
-      };
+      return { project, houseMembers, members, owners, milestones };
     } catch {
       return null;
     }
   });
 
-  const progress = createMemo(() => {
-    const b = bundle();
-    if (!b || b.projectTasks.length === 0) return 0;
-    const done = b.projectTasks.filter((t) => t.status === "done").length;
-    return Math.round((done / b.projectTasks.length) * 100);
+  // The project's tasks, paged in project order. Counts come from the
+  // server, so the progress bar is right before every page loads. Done
+  // means closed: done or cancelled.
+  const taskFeed = createTaskFeed();
+  // Same ids, same key: a bundle reload (members, milestones) must not
+  // reset the task list.
+  const projectKey = createMemo(
+    () => {
+      const p = bundle()?.project;
+      return p ? { houseId: p.houseId, projectId: p.projectId } : null;
+    },
+    undefined,
+    { equals: (a, b) => a?.projectId === b?.projectId && a?.houseId === b?.houseId },
+  );
+  createEffect(() => {
+    const k = projectKey();
+    taskFeed.reset(k ? (offset, limit) => projectClient.listProjectTasks({ ...k, offset, limit }) : null);
   });
+  const [closedCount, { refetch: refetchClosed }] = createResource(projectKey, async (k) => {
+    const res = await projectClient.listProjectTasks({ ...k, state: "closed", limit: 1 });
+    return Number(res.total ?? 0);
+  });
+  const doneCount = () => (closedCount.state === "ready" ? closedCount() : 0);
+  const progress = createMemo(() => {
+    const total = taskFeed.total();
+    return total === 0 ? 0 : Math.round((doneCount() / total) * 100);
+  });
+  const refreshTasks = async () => {
+    await Promise.all([taskFeed.refresh(), refetchClosed()]);
+  };
 
   const [editing, setEditing] = createSignal(false);
   const isAdmin = () => hasRole("admin");
@@ -169,18 +183,17 @@ export const ProjectDetail = () => {
                         <dt>Started</dt>
                         <dd>{new Date(p().createdAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</dd>
                         <dt>Tasks</dt>
-                        <dd>{b().projectTasks.filter((t) => t.status === "done").length} of {b().projectTasks.length} done</dd>
+                        <dd>{doneCount()} of {taskFeed.total()} done</dd>
                       </dl>
                     </aside>
                   </div>
 
                   <ProjectTasksSection
                     project={p()}
-                    projectTasks={b().projectTasks}
-                    houseTasks={b().houseTasks}
+                    feed={taskFeed}
                     houseMembers={b().houseMembers}
                     canEdit={hasRole("admin", "member") || isAdmin()}
-                    onChanged={async () => { await refetch(); }}
+                    onChanged={refreshTasks}
                   />
 
                   <MilestoneList
@@ -408,24 +421,34 @@ const PeopleEditor = (props: {
 
 const ProjectTasksSection = (props: {
   project: Project;
-  projectTasks: Task[];
-  houseTasks: Task[];
+  feed: TaskFeed;
   houseMembers: Member[];
   canEdit: boolean;
   onChanged: () => Promise<unknown>;
 }) => {
   const [composerOpen, setComposerOpen] = createSignal(false);
+  const [pickerOpen, setPickerOpen] = createSignal(false);
   const [attachId, setAttachId] = createSignal("");
   const [busy, setBusy] = createSignal(false);
+  const [attachErr, setAttachErr] = createSignal<string | null>(null);
 
-  // House tasks not yet attached to this project — what the "Attach
-  // existing" picker offers. Excludes closed/deleted tasks.
-  const attachable = createMemo(() => {
-    const attached = new Set(props.projectTasks.map((t) => t.taskId));
-    return props.houseTasks.filter(
-      (t) => !attached.has(t.taskId) && !t.deletedAt && !isTaskClosed(t),
-    );
-  });
+  // New tasks go after every row the project holds, readable or not.
+  const nextPosition = () => props.feed.total();
+
+  // Open house tasks not yet in this project — what the "Attach existing"
+  // picker offers. It needs both full lists, so it loads them only when
+  // someone opens it.
+  const [attachable] = createResource(
+    () => (pickerOpen() ? props.project : null),
+    async (p) => {
+      const [houseOpen, inProject] = await Promise.all([
+        listAllTasks((offset, limit) => taskClient.listTasks({ houseId: p.houseId, state: "open", offset, limit })),
+        listAllTasks((offset, limit) => projectClient.listProjectTasks({ houseId: p.houseId, projectId: p.projectId, offset, limit })),
+      ]);
+      const attached = new Set(inProject.map((t) => t.taskId));
+      return houseOpen.filter((t) => !attached.has(t.taskId) && !t.deletedAt);
+    },
+  );
 
   const memberById = createMemo(() => {
     const map = new Map<string, Member>();
@@ -437,58 +460,79 @@ const ProjectTasksSection = (props: {
     const id = attachId();
     if (!id || busy()) return;
     setBusy(true);
+    setAttachErr(null);
     try {
       await projectClient.addProjectTask({
         projectId: props.project.projectId,
         taskId: id,
-        position: props.projectTasks.length,
+        position: nextPosition(),
       });
       setAttachId("");
+      setPickerOpen(false);
       await props.onChanged();
-    } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
-    finally { setBusy(false); }
+    } catch (e) {
+      setAttachErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <div class="section-padded" style="margin-top:24px;margin-bottom:18px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">
         <h3 style="margin:0;font-family:var(--display);font-size:20px;color:var(--grass-4)">Tasks</h3>
         <Show when={props.canEdit}>
-          <button class="btn-quiet" onClick={() => setComposerOpen((v) => !v)}>
-            {composerOpen() ? "Cancel" : "+ New task"}
-          </button>
+          <span style="display:flex;gap:4px">
+            <button class="btn-quiet" onClick={() => setPickerOpen((v) => !v)}>
+              {pickerOpen() ? "Cancel" : "Attach existing…"}
+            </button>
+            <button class="btn-quiet" onClick={() => setComposerOpen((v) => !v)}>
+              {composerOpen() ? "Cancel" : "+ New task"}
+            </button>
+          </span>
         </Show>
       </div>
 
       <Show when={composerOpen()}>
         <ProjectTaskComposer
           project={props.project}
-          nextPosition={props.projectTasks.length}
+          nextPosition={nextPosition()}
           onCancel={() => setComposerOpen(false)}
           onCreated={async () => { setComposerOpen(false); await props.onChanged(); }}
         />
       </Show>
 
-      <Show when={props.canEdit && attachable().length > 0}>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
-          <span style="font-size:12px;color:var(--ink-mute)">Attach existing:</span>
-          <select
-            value={attachId()}
-            onChange={(e) => setAttachId(e.currentTarget.value)}
-            disabled={busy()}
-            style="flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);font-size:13px"
+      <Show when={pickerOpen()}>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">
+          <Show
+            when={attachable.state === "ready"}
+            fallback={<span style="font-size:12px;color:var(--ink-mute)">{attachable.error ? "Could not load tasks." : "Loading tasks…"}</span>}
           >
-            <option value="">— pick a task —</option>
-            <For each={attachable()}>{(t) => <option value={t.taskId}>{t.title}</option>}</For>
-          </select>
-          <button type="button" class="btn-quiet" onClick={attach} disabled={busy() || !attachId()}>
-            Attach
-          </button>
+            <Show
+              when={(attachable() ?? []).length > 0}
+              fallback={<span style="font-size:12px;color:var(--ink-mute)">Every open task is already in this project.</span>}
+            >
+              <select
+                value={attachId()}
+                onChange={(e) => setAttachId(e.currentTarget.value)}
+                disabled={busy()}
+                aria-label="Task to attach"
+                style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);color:var(--ink);font-size:13px"
+              >
+                <option value="">— pick a task —</option>
+                <For each={attachable()}>{(t) => <option value={t.taskId}>{t.title}</option>}</For>
+              </select>
+              <button type="button" class="btn-quiet" onClick={attach} disabled={busy() || !attachId()}>
+                Attach
+              </button>
+            </Show>
+          </Show>
+          <Show when={attachErr()}>{(m) => <span style="color:var(--rust);font-size:12px;flex-basis:100%">{m()}</span>}</Show>
         </div>
       </Show>
 
       <Show
-        when={props.projectTasks.length > 0}
+        when={!props.feed.ready() || props.feed.total() > 0}
         fallback={
           <p style="color:var(--ink-mute);font-size:13px;margin:0">
             <Show when={props.canEdit} fallback={<>No tasks attached to this project yet.</>}>
@@ -497,20 +541,21 @@ const ProjectTasksSection = (props: {
           </p>
         }
       >
-        <div class="tasks" style="border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden">
-          <For each={props.projectTasks}>
-            {(t) => (
+        <div class="tasks" style="border:1px solid var(--line);border-radius:var(--r-md)">
+          <TaskFeedList
+            feed={props.feed}
+            renderTask={(t) => (
               <ProjectTaskRow
                 task={t}
                 project={props.project}
                 byId={memberById()}
                 members={props.houseMembers}
                 canEdit={props.canEdit}
-                nextPosition={props.projectTasks.length}
+                nextPosition={nextPosition()}
                 onChanged={props.onChanged}
               />
             )}
-          </For>
+          />
         </div>
       </Show>
     </div>

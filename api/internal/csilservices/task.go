@@ -20,7 +20,8 @@ import (
 type TaskService struct{ Store store.Store }
 
 func (s *TaskService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("task", "ListTasks", csilrpc.Route(s.ListTasks, csil.DecodeHouseScopedListRequest, csil.EncodeTaskList))
+	d.RegisterTyped("task", "ListTasks", csilrpc.Route(s.ListTasks, csil.DecodeTaskListRequest, csil.EncodeTaskList))
+	d.RegisterTyped("task", "CreatePersonalTask", csilrpc.Route(s.CreatePersonalTask, csil.DecodeTask, csil.EncodeTask))
 	d.RegisterTyped("task", "GetTask", csilrpc.Route(s.GetTask, csil.DecodeTaskGetTaskRequest, csil.EncodeTask))
 	d.RegisterTyped("task", "CreateTask", csilrpc.Route(s.CreateTask, csil.DecodeTask, csil.EncodeTask))
 	d.RegisterTyped("task", "UpdateTask", csilrpc.Route(s.UpdateTask, csil.DecodeTask, csil.EncodeTask))
@@ -31,16 +32,40 @@ func (s *TaskService) Register(d *csilrpc.Dispatcher) {
 	d.RegisterTyped("task", "DeleteTaskGrant", csilrpc.Route(s.DeleteTaskGrant, csil.DecodeTaskGrantRef, csil.EncodeEmptyResponse))
 }
 
-func (s *TaskService) ListTasks(ctx context.Context, req csil.HouseScopedListRequest) (csil.TaskList, error) {
+func (s *TaskService) ListTasks(ctx context.Context, req csil.TaskListRequest) (csil.TaskList, error) {
 	id, memberID, err := requireMemberForHouse(ctx, string(req.HouseId))
 	if err != nil {
 		return csil.TaskList{}, err
 	}
 	limit, offset := normalizePaging(req.Limit, req.Offset)
-	tasks, err := s.Store.ListTasksByHouse(ctx, string(req.HouseId), limit, offset)
+	f := store.TaskFilter{HouseID: string(req.HouseId), DueFrom: tsToTimePtr(req.DueFrom), DueTo: tsToTimePtr(req.DueTo)}
+	if req.State != nil {
+		switch string(*req.State) {
+		case store.TaskStateOpen, store.TaskStateClosed:
+			f.State = string(*req.State)
+		default:
+			return csil.TaskList{}, csilrpc.BadRequest("state must be open or closed")
+		}
+	}
+	if req.Mine != nil && *req.Mine {
+		f.MineMemberID = memberID
+	}
+	f.Loose = req.Loose != nil && *req.Loose
+	if len(req.DueBefore) > 8 {
+		return csil.TaskList{}, csilrpc.BadRequest("due_before takes at most 8 timestamps")
+	}
+	for _, ts := range req.DueBefore {
+		t := tsToTimePtr(&ts)
+		if t == nil {
+			return csil.TaskList{}, csilrpc.BadRequest("due_before has an invalid timestamp")
+		}
+		f.DueBefore = append(f.DueBefore, *t)
+	}
+	page, err := s.Store.ListTasks(ctx, f, limit, offset)
 	if err != nil {
 		return csil.TaskList{}, csilrpc.Internal("internal error")
 	}
+	tasks := page.Tasks
 	// Resolve effective access per task and filter to what the caller may
 	// read. hidden_count reports how many rows in this page were withheld —
 	// "you can hide a task, you can't hide that you hid one". See docs/rbac.md.
@@ -56,7 +81,12 @@ func (s *TaskService) ListTasks(ctx context.Context, req csil.HouseScopedListReq
 			hidden++
 		}
 	}
-	return csil.TaskList{Tasks: out, HiddenCount: hidden}, nil
+	totalCount := uint64(page.Total)
+	list := csil.TaskList{Tasks: out, HiddenCount: hidden, Total: &totalCount}
+	for _, n := range page.DueCounts {
+		list.DueCounts = append(list.DueCounts, uint64(n))
+	}
+	return list, nil
 }
 
 func (s *TaskService) GetTask(ctx context.Context, id csil.TaskID) (csil.Task, error) {
@@ -79,6 +109,77 @@ func (s *TaskService) GetTask(ctx context.Context, id csil.TaskID) (csil.Task, e
 	}
 	assignees, _ := s.Store.ListTaskAssignees(ctx, t.TaskID)
 	return taskToCSIL(t, assignees), nil
+}
+
+// CreatePersonalTask makes a quick task for the caller in their private
+// "Personal" project. A loose task cannot be private (docs/rbac.md), so the
+// project supplies the privacy through containment.
+func (s *TaskService) CreatePersonalTask(ctx context.Context, in csil.Task) (csil.Task, error) {
+	if in.HouseId == "" {
+		return csil.Task{}, csilrpc.BadRequest("house_id is required")
+	}
+	if in.Title == "" {
+		return csil.Task{}, csilrpc.BadRequest("title is required")
+	}
+	_, callerMemberID, err := requireMemberForHouse(ctx, string(in.HouseId))
+	if err != nil {
+		return csil.Task{}, err
+	}
+	project, err := s.personalProject(ctx, string(in.HouseId), callerMemberID)
+	if err != nil {
+		return csil.Task{}, err
+	}
+	in.OwnerMemberId = csil.MemberID(callerMemberID)
+	in.Assignees = []csil.MemberID{csil.MemberID(callerMemberID)}
+	in.ParentTaskId = nil
+	created, err := s.CreateTask(ctx, in)
+	if err != nil {
+		return csil.Task{}, err
+	}
+	taskID := string(created.TaskId)
+	if err := s.Store.AddProjectTask(ctx, project.ProjectID, taskID, nextProjectTaskPosition(ctx, s.Store, project.ProjectID)); err != nil {
+		return csil.Task{}, csilrpc.Internal("could not add the task to your personal project")
+	}
+	// The project already hides it; lower the task's own level to match, so
+	// it stays private if someone later takes it out of the project.
+	t, err := s.Store.GetTaskByID(ctx, taskID)
+	if err != nil {
+		return csil.Task{}, csilrpc.Internal("internal error")
+	}
+	t.Visibility = models.AccessNone
+	if err := s.Store.UpdateTask(ctx, t); err != nil {
+		return csil.Task{}, csilrpc.Internal("internal error")
+	}
+	assignees, _ := s.Store.ListTaskAssignees(ctx, taskID)
+	return taskToCSIL(t, assignees), nil
+}
+
+// personalProject returns the member's live "Personal" project, and makes it
+// when there is none. Two calls at once can both try to make it; the unique
+// index lets one win, and the other reads the winner.
+func (s *TaskService) personalProject(ctx context.Context, houseID, memberID string) (*models.Project, error) {
+	if p, err := s.Store.GetPersonalProject(ctx, houseID, memberID); err != nil {
+		return nil, csilrpc.Internal("internal error")
+	} else if p != nil {
+		return p, nil
+	}
+	creator := memberID
+	p := &models.Project{
+		HouseID:           houseID,
+		Name:              "Personal",
+		Description:       "Your private tasks. Only you can see this project.",
+		Status:            "active",
+		Visibility:        models.AccessNone,
+		CreatedByMemberID: &creator,
+		PersonalMemberID:  &creator,
+	}
+	if err := s.Store.CreateProject(ctx, p); err != nil {
+		if existing, gerr := s.Store.GetPersonalProject(ctx, houseID, memberID); gerr == nil && existing != nil {
+			return existing, nil
+		}
+		return nil, csilrpc.Internal("could not create your personal project")
+	}
+	return p, nil
 }
 
 func (s *TaskService) CreateTask(ctx context.Context, in csil.Task) (csil.Task, error) {

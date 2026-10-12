@@ -1,7 +1,8 @@
 import { For, Show, createResource, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { AuthGate } from "~/components/AuthGate";
-import { signOut, useHouses, useSession } from "~/stores/auth";
+import { useHouses, useSession } from "~/stores/auth";
+import { endSession } from "~/lib/session";
 import { authClient } from "~/data/clients";
 
 /**
@@ -18,19 +19,29 @@ export const AccountPage = () => {
   const [sessionError, setSessionError] = createSignal<string | null>(null);
   const [cliSessions, { refetch: refetchCliSessions }] = createResource(
     () => session()?.token,
-    async () => (await authClient.listSessions({})).sessions ?? [],
+    async () =>
+      ((await authClient.listSessions({})).sessions ?? []).filter(
+        // Every browser sign-in makes a session, so ended ones would pile
+        // up here. Keep only live browser sessions; CLI rows stay visible.
+        (s) => s.kind !== "browser" || (!s.revokedAt && Date.parse(s.expiresAt) > Date.now()),
+      ),
   );
 
-  const onSignOut = () => {
-    signOut();
+  const onSignOut = async () => {
+    await endSession();
     navigate(import.meta.env.DEV ? "/dev-login" : "/");
   };
 
-  const revokeCliSession = async (sessionId: string) => {
+  const revokeCliSession = async (sessionId: string, current: boolean) => {
     setRevoking(sessionId);
     setSessionError(null);
     try {
       await authClient.revokeSession({ sessionId });
+      // Revoking this browser's own session is a sign-out.
+      if (current) {
+        await onSignOut();
+        return;
+      }
       await refetchCliSessions();
     } catch (error) {
       setSessionError(error instanceof Error ? error.message : String(error));
@@ -68,31 +79,35 @@ export const AccountPage = () => {
 
       <section style="margin-top:20px;padding:20px 22px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-low)">
         <h3 style="margin:0 0 10px;font-family:var(--display);font-size:20px;color:var(--grass-4)">
-          CLI sessions
+          Sessions
         </h3>
         <p style="margin:0 0 14px;color:var(--ink-mute);font-size:14px">
-          Revoke a command-line session that you no longer use. Its current access bearer can work until it expires.
+          Browsers and command-line tools that are signed in as you. Revoke one that you no longer use, such as a lost phone. Its current access bearer can work until it expires.
         </p>
         <Show when={sessionError()}>{(message) => <p class="err">{message()}</p>}</Show>
-        <Show when={!cliSessions.loading} fallback={<p style="color:var(--ink-mute)">Loading CLI sessions…</p>}>
-          <Show when={(cliSessions() ?? []).length > 0} fallback={<p style="color:var(--ink-mute)">No CLI sessions.</p>}>
+        <Show when={!cliSessions.loading} fallback={<p style="color:var(--ink-mute)">Loading sessions…</p>}>
+          <Show when={(cliSessions() ?? []).length > 0} fallback={<p style="color:var(--ink-mute)">No sessions.</p>}>
             <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px">
               <For each={cliSessions()}>
                 {(cliSession) => {
                   const inactive = () => Boolean(cliSession.revokedAt) || Date.parse(cliSession.expiresAt) <= Date.now();
+                  const kindLabel = cliSession.kind === "browser" ? "Browser" : "Command line";
                   return (
                     <li style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-md)">
                       <span>
                         <strong>{cliSession.clientName}</strong>
+                        <Show when={cliSession.current}>
+                          <span style="margin-left:8px;font-size:12px;color:var(--grass-4)">This device</span>
+                        </Show>
                         <span style="display:block;color:var(--ink-mute);font-size:12px">
-                          {inactive() ? "Inactive" : `Last used ${new Date(cliSession.lastUsedAt).toLocaleString()}`}
+                          {kindLabel} · {inactive() ? "Inactive" : `Last used ${new Date(cliSession.lastUsedAt).toLocaleString()}`}
                         </span>
                       </span>
                       <button
                         class="btn btn-ghost"
                         type="button"
                         disabled={inactive() || revoking() !== null}
-                        onClick={() => void revokeCliSession(cliSession.sessionId)}
+                        onClick={() => void revokeCliSession(cliSession.sessionId, cliSession.current === true)}
                       >
                         {revoking() === cliSession.sessionId ? "Revoking…" : "Revoke"}
                       </button>
@@ -130,7 +145,7 @@ export const AccountPage = () => {
           Sign out
         </h3>
         <p style="margin:0 0 14px;color:var(--ink-mute);font-size:14px">
-          Drops your bearer locally. The next sign-in goes through linkkeys (or the dev picker, in dev builds).
+          Ends this browser's session. The next sign-in goes through linkkeys (or the dev picker, in dev builds).
         </p>
         <button class="btn btn-primary" type="button" onClick={onSignOut}>
           Sign out

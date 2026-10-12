@@ -52,8 +52,11 @@ type Identity struct {
 	DisplayName  string       `cbor:"display_name,omitempty"`
 	Houses       []HouseRoles `cbor:"houses"`
 	CliSessionID string       `cbor:"cli_session_id,omitempty"`
-	IssuedAt     int64        `cbor:"iat"`
-	ExpiresAt    int64        `cbor:"exp"`
+	// BrowserSessionID names the cookie-backed browser session that minted
+	// this bearer. Logout revokes it, and ListSessions marks it "current".
+	BrowserSessionID string `cbor:"browser_session_id,omitempty"`
+	IssuedAt         int64  `cbor:"iat"`
+	ExpiresAt        int64  `cbor:"exp"`
 }
 
 // House returns the caller's membership entry for houseID, or nil if the

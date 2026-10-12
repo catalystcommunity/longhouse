@@ -464,6 +464,44 @@ public extension CliLoginStatus {
     static func fromCbor(_ bytes: [UInt8]) throws -> CliLoginStatus { try CliLoginStatus(cborValue: CsilCbor.decode(bytes)) }
 }
 
+public extension SessionKind {
+    /// The CBOR value tree for this enum: its wire string verbatim.
+    func toCborValue() -> CsilCborValue { .text(self.rawValue) }
+
+    /// Reconstruct this enum from a decoded CBOR value tree, rejecting a wire
+    /// string outside the declared closed set.
+    init(cborValue: CsilCborValue) throws {
+        let csilS = try CsilCbor.asText(cborValue)
+        guard let csilV = SessionKind(rawValue: csilS) else { throw CsilCborError.typeMismatch }
+        self = csilV
+    }
+
+    /// Encode this enum to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this enum.
+    static func fromCbor(_ bytes: [UInt8]) throws -> SessionKind { try SessionKind(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension TaskState {
+    /// The CBOR value tree for this enum: its wire string verbatim.
+    func toCborValue() -> CsilCborValue { .text(self.rawValue) }
+
+    /// Reconstruct this enum from a decoded CBOR value tree, rejecting a wire
+    /// string outside the declared closed set.
+    init(cborValue: CsilCborValue) throws {
+        let csilS = try CsilCbor.asText(cborValue)
+        guard let csilV = TaskState(rawValue: csilS) else { throw CsilCborError.typeMismatch }
+        self = csilV
+    }
+
+    /// Encode this enum to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this enum.
+    static func fromCbor(_ bytes: [UInt8]) throws -> TaskState { try TaskState(cborValue: CsilCbor.decode(bytes)) }
+}
+
 public extension House {
     /// The CBOR value tree for this record (deep, canonical key order).
     func toCborValue() -> CsilCborValue {
@@ -803,6 +841,7 @@ public extension Project {
         if let csilV = self.status { csilEntries.append(("status", csilV.toCborValue())) }
         if let csilV = self.category { csilEntries.append(("category", .text(csilV))) }
         csilEntries.append(("house_id", .text(self.houseId)))
+        if let csilV = self.personal { csilEntries.append(("personal", .bool(csilV))) }
         csilEntries.append(("created_at", .text(self.createdAt)))
         csilEntries.append(("project_id", .text(self.projectId)))
         csilEntries.append(("updated_at", .text(self.updatedAt)))
@@ -822,9 +861,10 @@ public extension Project {
         let status: ProjectStatus? = if let csilV = CsilCbor.mapGet(cborValue, "status") { try ProjectStatus(cborValue: csilV) } else { nil }
         let visibility: AccessLevel? = if let csilV = CsilCbor.mapGet(cborValue, "visibility") { try AccessLevel(cborValue: csilV) } else { nil }
         let createdByMemberId: MemberId? = if let csilV = CsilCbor.mapGet(cborValue, "created_by_member_id") { try CsilCbor.asText(csilV) } else { nil }
+        let personal: Bool? = if let csilV = CsilCbor.mapGet(cborValue, "personal") { try CsilCbor.asBool(csilV) } else { nil }
         let createdAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "created_at")))
         let updatedAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "updated_at")))
-        self.init(projectId: projectId, houseId: houseId, name: name, description: description, category: category, status: status, visibility: visibility, createdByMemberId: createdByMemberId, createdAt: createdAt, updatedAt: updatedAt)
+        self.init(projectId: projectId, houseId: houseId, name: name, description: description, category: category, status: status, visibility: visibility, createdByMemberId: createdByMemberId, personal: personal, createdAt: createdAt, updatedAt: updatedAt)
     }
 
     /// Encode this record to canonical CSIL CBOR bytes.
@@ -1511,6 +1551,8 @@ public extension CliSessionSummary {
     /// The CBOR value tree for this record (deep, canonical key order).
     func toCborValue() -> CsilCborValue {
         var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        if let csilV = self.kind { csilEntries.append(("kind", csilV.toCborValue())) }
+        if let csilV = self.current { csilEntries.append(("current", .bool(csilV))) }
         csilEntries.append(("created_at", .text(self.createdAt)))
         csilEntries.append(("expires_at", .text(self.expiresAt)))
         if let csilV = self.revokedAt { csilEntries.append(("revoked_at", .text(csilV))) }
@@ -1528,7 +1570,9 @@ public extension CliSessionSummary {
         let lastUsedAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "last_used_at")))
         let expiresAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "expires_at")))
         let revokedAt: Timestamp? = if let csilV = CsilCbor.mapGet(cborValue, "revoked_at") { try CsilCbor.asText(csilV) } else { nil }
-        self.init(sessionId: sessionId, clientName: clientName, createdAt: createdAt, lastUsedAt: lastUsedAt, expiresAt: expiresAt, revokedAt: revokedAt)
+        let kind: SessionKind? = if let csilV = CsilCbor.mapGet(cborValue, "kind") { try SessionKind(cborValue: csilV) } else { nil }
+        let current: Bool? = if let csilV = CsilCbor.mapGet(cborValue, "current") { try CsilCbor.asBool(csilV) } else { nil }
+        self.init(sessionId: sessionId, clientName: clientName, createdAt: createdAt, lastUsedAt: lastUsedAt, expiresAt: expiresAt, revokedAt: revokedAt, kind: kind, current: current)
     }
 
     /// Encode this record to canonical CSIL CBOR bytes.
@@ -1791,11 +1835,50 @@ public extension HouseScopedListRequest {
     static func fromCbor(_ bytes: [UInt8]) throws -> HouseScopedListRequest { try HouseScopedListRequest(cborValue: CsilCbor.decode(bytes)) }
 }
 
+public extension TaskListRequest {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        if let csilV = self.mine { csilEntries.append(("mine", .bool(csilV))) }
+        if let csilV = self.limit { csilEntries.append(("limit", .uint(csilV))) }
+        if let csilV = self.loose { csilEntries.append(("loose", .bool(csilV))) }
+        if let csilV = self.state { csilEntries.append(("state", csilV.toCborValue())) }
+        if let csilV = self.dueTo { csilEntries.append(("due_to", .text(csilV))) }
+        if let csilV = self.offset { csilEntries.append(("offset", .uint(csilV))) }
+        if let csilV = self.dueFrom { csilEntries.append(("due_from", .text(csilV))) }
+        csilEntries.append(("house_id", .text(self.houseId)))
+        if let csilV = self.dueBefore { csilEntries.append(("due_before", CsilCborValue.array(csilV.map { .text($0) }))) }
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let houseId = try CsilCbor.asText((try CsilCbor.require(cborValue, "house_id")))
+        let limit: UInt64? = if let csilV = CsilCbor.mapGet(cborValue, "limit") { try CsilCbor.asU64(csilV) } else { nil }
+        let offset: UInt64? = if let csilV = CsilCbor.mapGet(cborValue, "offset") { try CsilCbor.asU64(csilV) } else { nil }
+        let state: TaskState? = if let csilV = CsilCbor.mapGet(cborValue, "state") { try TaskState(cborValue: csilV) } else { nil }
+        let mine: Bool? = if let csilV = CsilCbor.mapGet(cborValue, "mine") { try CsilCbor.asBool(csilV) } else { nil }
+        let loose: Bool? = if let csilV = CsilCbor.mapGet(cborValue, "loose") { try CsilCbor.asBool(csilV) } else { nil }
+        let dueFrom: Timestamp? = if let csilV = CsilCbor.mapGet(cborValue, "due_from") { try CsilCbor.asText(csilV) } else { nil }
+        let dueTo: Timestamp? = if let csilV = CsilCbor.mapGet(cborValue, "due_to") { try CsilCbor.asText(csilV) } else { nil }
+        let dueBefore: [Timestamp]? = if let csilV = CsilCbor.mapGet(cborValue, "due_before") { try CsilCbor.asArray(csilV).map { try CsilCbor.asText($0) } } else { nil }
+        self.init(houseId: houseId, limit: limit, offset: offset, state: state, mine: mine, loose: loose, dueFrom: dueFrom, dueTo: dueTo, dueBefore: dueBefore)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> TaskListRequest { try TaskListRequest(cborValue: CsilCbor.decode(bytes)) }
+}
+
 public extension TaskList {
     /// The CBOR value tree for this record (deep, canonical key order).
     func toCborValue() -> CsilCborValue {
         var csilEntries: [(CsilCborValue, CsilCborValue)] = []
         csilEntries.append(("tasks", CsilCborValue.array(self.tasks.map { $0.toCborValue() })))
+        if let csilV = self.total { csilEntries.append(("total", .uint(csilV))) }
+        if let csilV = self.dueCounts { csilEntries.append(("due_counts", CsilCborValue.array(csilV.map { .uint($0) }))) }
         csilEntries.append(("hidden_count", .uint(self.hiddenCount)))
         return .map(csilEntries)
     }
@@ -1804,7 +1887,9 @@ public extension TaskList {
     init(cborValue: CsilCborValue) throws {
         let tasks = try CsilCbor.asArray((try CsilCbor.require(cborValue, "tasks"))).map { try Task(cborValue: $0) }
         let hiddenCount = try CsilCbor.asU64((try CsilCbor.require(cborValue, "hidden_count")))
-        self.init(tasks: tasks, hiddenCount: hiddenCount)
+        let total: UInt64? = if let csilV = CsilCbor.mapGet(cborValue, "total") { try CsilCbor.asU64(csilV) } else { nil }
+        let dueCounts: [UInt64]? = if let csilV = CsilCbor.mapGet(cborValue, "due_counts") { try CsilCbor.asArray(csilV).map { try CsilCbor.asU64($0) } } else { nil }
+        self.init(tasks: tasks, hiddenCount: hiddenCount, total: total, dueCounts: dueCounts)
     }
 
     /// Encode this record to canonical CSIL CBOR bytes.
@@ -1869,6 +1954,7 @@ public extension ProjectScopedListRequest {
     func toCborValue() -> CsilCborValue {
         var csilEntries: [(CsilCborValue, CsilCborValue)] = []
         if let csilV = self.limit { csilEntries.append(("limit", .uint(csilV))) }
+        if let csilV = self.state { csilEntries.append(("state", csilV.toCborValue())) }
         if let csilV = self.offset { csilEntries.append(("offset", .uint(csilV))) }
         csilEntries.append(("house_id", .text(self.houseId)))
         csilEntries.append(("project_id", .text(self.projectId)))
@@ -1881,7 +1967,8 @@ public extension ProjectScopedListRequest {
         let projectId = try CsilCbor.asText((try CsilCbor.require(cborValue, "project_id")))
         let limit: UInt64? = if let csilV = CsilCbor.mapGet(cborValue, "limit") { try CsilCbor.asU64(csilV) } else { nil }
         let offset: UInt64? = if let csilV = CsilCbor.mapGet(cborValue, "offset") { try CsilCbor.asU64(csilV) } else { nil }
-        self.init(houseId: houseId, projectId: projectId, limit: limit, offset: offset)
+        let state: TaskState? = if let csilV = CsilCbor.mapGet(cborValue, "state") { try TaskState(cborValue: csilV) } else { nil }
+        self.init(houseId: houseId, projectId: projectId, limit: limit, offset: offset, state: state)
     }
 
     /// Encode this record to canonical CSIL CBOR bytes.
@@ -2528,6 +2615,7 @@ public extension EffectiveSettings {
         var csilEntries: [(CsilCborValue, CsilCborValue)] = []
         if let csilV = self.bugReportsEnabled { csilEntries.append(("bug_reports_enabled", .bool(csilV))) }
         if let csilV = self.bugReportsProjectId { csilEntries.append(("bug_reports_project_id", .text(csilV))) }
+        if let csilV = self.sessionLifetimeHours { csilEntries.append(("session_lifetime_hours", .uint(csilV))) }
         if let csilV = self.defaultProjectVisibility { csilEntries.append(("default_project_visibility", csilV.toCborValue())) }
         return .map(csilEntries)
     }
@@ -2537,7 +2625,8 @@ public extension EffectiveSettings {
         let bugReportsEnabled: Bool? = if let csilV = CsilCbor.mapGet(cborValue, "bug_reports_enabled") { try CsilCbor.asBool(csilV) } else { nil }
         let bugReportsProjectId: ProjectId? = if let csilV = CsilCbor.mapGet(cborValue, "bug_reports_project_id") { try CsilCbor.asText(csilV) } else { nil }
         let defaultProjectVisibility: AccessLevel? = if let csilV = CsilCbor.mapGet(cborValue, "default_project_visibility") { try AccessLevel(cborValue: csilV) } else { nil }
-        self.init(bugReportsEnabled: bugReportsEnabled, bugReportsProjectId: bugReportsProjectId, defaultProjectVisibility: defaultProjectVisibility)
+        let sessionLifetimeHours: UInt64? = if let csilV = CsilCbor.mapGet(cborValue, "session_lifetime_hours") { try CsilCbor.asU64(csilV) } else { nil }
+        self.init(bugReportsEnabled: bugReportsEnabled, bugReportsProjectId: bugReportsProjectId, defaultProjectVisibility: defaultProjectVisibility, sessionLifetimeHours: sessionLifetimeHours)
     }
 
     /// Encode this record to canonical CSIL CBOR bytes.

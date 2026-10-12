@@ -1,6 +1,6 @@
 import type { JSX } from "solid-js";
 import { Show } from "solid-js";
-import { useCurrentHouseId, useHousesLoaded, useSession } from "~/stores/auth";
+import { useCurrentHouseId, useHousesLoaded, useRestoring, useSession } from "~/stores/auth";
 
 /**
  * Wraps a page's body. When the caller has no session, renders a
@@ -18,9 +18,10 @@ export const AuthGate = (props: { children: JSX.Element }) => {
   const session = useSession();
   const houseId = useCurrentHouseId();
   const housesLoaded = useHousesLoaded();
+  const restoring = useRestoring();
   return (
-    <Show when={session()} fallback={<SignedOutCTA />}>
-      <Show when={houseId()} fallback={housesLoaded() ? <NoHouseCTA /> : <HousePicker />}>
+    <Show when={session()} fallback={restoring() ? <StatusCard text="Signing you in…" /> : <SignedOutCTA />}>
+      <Show when={houseId()} fallback={housesLoaded() ? <NoHouseCTA /> : <StatusCard text="Loading your houses…" />}>
         {props.children}
       </Show>
     </Show>
@@ -49,13 +50,13 @@ const SignedOutCTA = () => (
   </section>
 );
 
-const HousePicker = () => (
+const StatusCard = (props: { text: string }) => (
   <section
     class="reveal d1"
     style="margin-top:48px;padding:32px 24px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);text-align:center;max-width:520px;margin-left:auto;margin-right:auto"
   >
     <p style="margin:0;color:var(--ink-mute)">
-      Loading your houses…
+      {props.text}
     </p>
   </section>
 );

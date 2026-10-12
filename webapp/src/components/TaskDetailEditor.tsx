@@ -4,6 +4,7 @@ import { MarkdownEditor } from "./MarkdownEditor";
 import { RecurrenceFields, type RecurrenceFreq } from "./RecurrenceFields";
 import { CommentsSection } from "./CommentsSection";
 import { DependenciesSection } from "./DependenciesSection";
+import { AddToProject } from "./AddToProject";
 import { taskClient } from "~/data/clients";
 import { displayName, initial, memberSwatch } from "~/lib/derive";
 import type { Member, Task } from "@longhouse/client";
@@ -12,7 +13,8 @@ import type { Member, Task } from "@longhouse/client";
  * Inline detail-and-edit panel for a single task. Lives directly under
  * the task row in any list view (Tasks page, project detail). Surfaces
  * every editable field — title, description, tag, due, estimate, status,
- * assignees, recurrence — plus a delete action.
+ * assignees, recurrence — plus a delete action and an "Add to project"
+ * control (see AddToProject.tsx).
  *
  * Behavior: every field is an editable form control from the start; there
  * is no "view then edit" two-step. Save pushes a single UpdateTask call;
@@ -209,6 +211,11 @@ export const TaskDetailEditor = (props: Props) => {
         </button>
       </div>
     </form>
+
+      {/* Attaching is its own call, not part of Save. onSaved doubles as
+          the parent's refetch hook so the row moves (e.g. out of the
+          dashboard's no-project list) right away. */}
+      <AddToProject task={props.task} onAdded={props.onSaved} />
 
       <DependenciesSection nodeType="task" nodeId={props.task.taskId} houseId={props.task.houseId} />
 

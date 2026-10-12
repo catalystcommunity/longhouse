@@ -66,6 +66,28 @@ pub const AuthClient = struct {
         try codec.decode_EmptyResponse(alloc, csil_respb, out);
     }
 
+    /// Invoke AuthService/resume-session with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn resume_session(self: AuthClient, alloc: std.mem.Allocator, req: *const types.EmptyRequest, out: *types.LoginResponse) anyerror!void {
+        const csil_reqb = try codec.encode_EmptyRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "resume-session", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_LoginResponse(alloc, csil_respb, out);
+    }
+
+    /// Invoke AuthService/end-session with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn end_session(self: AuthClient, alloc: std.mem.Allocator, req: *const types.EmptyRequest, out: *types.EmptyResponse) anyerror!void {
+        const csil_reqb = try codec.encode_EmptyRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "end-session", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_EmptyResponse(alloc, csil_respb, out);
+    }
+
     /// Invoke AuthService/me with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
@@ -1105,12 +1127,23 @@ pub const TaskClient = struct {
     /// Invoke TaskService/list-tasks with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
-    pub fn list_tasks(self: TaskClient, alloc: std.mem.Allocator, req: *const types.HouseScopedListRequest, out: *types.TaskList) anyerror!void {
-        const csil_reqb = try codec.encode_HouseScopedListRequest(alloc, req);
+    pub fn list_tasks(self: TaskClient, alloc: std.mem.Allocator, req: *const types.TaskListRequest, out: *types.TaskList) anyerror!void {
+        const csil_reqb = try codec.encode_TaskListRequest(alloc, req);
         defer alloc.free(csil_reqb);
         const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TaskService", "list-tasks", csil_reqb);
         defer alloc.free(csil_respb);
         try codec.decode_TaskList(alloc, csil_respb, out);
+    }
+
+    /// Invoke TaskService/create-personal-task with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn create_personal_task(self: TaskClient, alloc: std.mem.Allocator, req: *const types.Task, out: *types.Task) anyerror!void {
+        const csil_reqb = try codec.encode_Task(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "TaskService", "create-personal-task", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_Task(alloc, csil_respb, out);
     }
 
     /// Invoke TaskService/set-task-visibility with a typed request, returning the decoded

@@ -31,6 +31,11 @@ func (fakeAuthStore) FindMembersByLinkkeysIdentity(context.Context, string, stri
 // no-op so the auth-flow tests don't need a real audit sink.
 func (fakeAuthStore) RecordAuditEntry(context.Context, *models.AuditEntry) error { return nil }
 
+// Complete starts a browser session, so the fake accepts one.
+func (fakeAuthStore) CreateBrowserSession(context.Context, *models.CliSession, []byte) error {
+	return nil
+}
+
 // fakeCompletePKI returns a fixed assertion from VerifyAssertion so we can
 // drive complete()'s audience check directly.
 type fakeCompletePKI struct {

@@ -61,6 +61,24 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
         decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
     }
 
+    /// resume-session (request/response).
+    pub async fn resume_session(&self, req: EmptyRequest) -> Result<LoginResponse, ClientError> {
+        let csil_resp = self
+            .transport
+            .call("AuthService", "resume-session", &encode_empty_request(&req))
+            .await?;
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// end-session (request/response).
+    pub async fn end_session(&self, req: EmptyRequest) -> Result<EmptyResponse, ClientError> {
+        let csil_resp = self
+            .transport
+            .call("AuthService", "end-session", &encode_empty_request(&req))
+            .await?;
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
     /// me (request/response).
     pub async fn me(&self, req: EmptyRequest) -> Result<MeResponse, ClientError> {
         let csil_resp = self
@@ -1345,16 +1363,21 @@ impl<T: AsyncTransport> TaskAsyncClient<T> {
     }
 
     /// list-tasks (request/response).
-    pub async fn list_tasks(&self, req: HouseScopedListRequest) -> Result<TaskList, ClientError> {
+    pub async fn list_tasks(&self, req: TaskListRequest) -> Result<TaskList, ClientError> {
         let csil_resp = self
             .transport
-            .call(
-                "TaskService",
-                "list-tasks",
-                &encode_house_scoped_list_request(&req),
-            )
+            .call("TaskService", "list-tasks", &encode_task_list_request(&req))
             .await?;
         decode_task_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// create-personal-task (request/response).
+    pub async fn create_personal_task(&self, req: Task) -> Result<Task, ClientError> {
+        let csil_resp = self
+            .transport
+            .call("TaskService", "create-personal-task", &encode_task(&req))
+            .await?;
+        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
     }
 
     /// set-task-visibility (request/response).

@@ -12,6 +12,8 @@ public interface IAuthService
     LoginResponse Complete(CompleteRequest completeRequest);
     LoginResponse Refresh(EmptyRequest emptyRequest);
     EmptyResponse Logout(EmptyRequest emptyRequest);
+    LoginResponse ResumeSession(EmptyRequest emptyRequest);
+    EmptyResponse EndSession(EmptyRequest emptyRequest);
     MeResponse Me(EmptyRequest emptyRequest);
     BeginCliLoginResponse BeginCliLogin(BeginCliLoginRequest beginCliLoginRequest);
     CliLoginRequestInfo InspectCliLogin(ApproveCliLoginRequest approveCliLoginRequest);
@@ -148,7 +150,8 @@ public interface ITaskService
     Task GetTask(TaskID taskID);
     Task UpdateTask(Task task);
     EmptyResponse DeleteTask(TaskID taskID);
-    TaskList ListTasks(HouseScopedListRequest houseScopedListRequest);
+    TaskList ListTasks(TaskListRequest taskListRequest);
+    Task CreatePersonalTask(Task task);
     Task SetTaskVisibility(SetTaskVisibilityRequest setTaskVisibilityRequest);
     System.Collections.Generic.List<Grant> ListTaskGrants(TaskID taskID);
     EmptyResponse PutTaskGrant(PutTaskGrantRequest putTaskGrantRequest);

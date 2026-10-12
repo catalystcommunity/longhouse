@@ -29,6 +29,8 @@ and dependency_node_type = Task | Project
 and recurrence_freq = Hourly | Daily | Weekly | Monthly | Quarterly | Yearly
 and milestone_state = Done | Current | Future
 and cli_login_status = Pending | Denied | Expired | Complete
+and session_kind = Cli | Browser
+and task_state = Open | Closed
 
 and house = {
   house_id : house_id;
@@ -133,6 +135,7 @@ and project = {
   status : project_status option;
   visibility : access_level option;
   created_by_member_id : member_id option;
+  personal : bool option;
   created_at : timestamp;
   updated_at : timestamp;
 }
@@ -311,6 +314,8 @@ and cli_session_summary = {
   last_used_at : timestamp;
   expires_at : timestamp;
   revoked_at : timestamp option;
+  kind : session_kind option;
+  current : bool option;
 }
 
 and cli_sessions_response = { sessions : cli_session_summary list }
@@ -348,7 +353,25 @@ and house_scoped_list_request = {
   offset : int64 option;
 }
 
-and task_list = { tasks : task list; hidden_count : int64 }
+and task_list_request = {
+  house_id : house_id;
+  limit : int64 option;
+  offset : int64 option;
+  state : task_state option;
+  mine : bool option;
+  loose : bool option;
+  due_from : timestamp option;
+  due_to : timestamp option;
+  due_before : timestamp list option;
+}
+
+and task_list = {
+  tasks : task list;
+  hidden_count : int64;
+  total : int64 option;
+  due_counts : int64 list option;
+}
+
 and project_list = { projects : project list; hidden_count : int64 }
 
 and member_scoped_list_request = {
@@ -363,6 +386,7 @@ and project_scoped_list_request = {
   project_id : project_id;
   limit : int64 option;
   offset : int64 option;
+  state : task_state option;
 }
 
 and comment_list_request = {
@@ -487,6 +511,7 @@ and effective_settings = {
   bug_reports_enabled : bool option;
   bug_reports_project_id : project_id option;
   default_project_visibility : access_level option;
+  session_lifetime_hours : int64 option;
 }
 
 and update_settings_request = {

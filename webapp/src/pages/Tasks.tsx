@@ -1,22 +1,46 @@
-import { For, Show, batch, createMemo, createResource, createSignal } from "solid-js";
+import { For, Show, batch, createEffect, createMemo, createResource, createSignal } from "solid-js";
 import { Check, Plus } from "~/components/Icons";
 import { AuthGate } from "~/components/AuthGate";
 import { AvatarStack } from "~/components/Avatar";
 import { DateTimePicker } from "~/components/DateTimePicker";
 import { RecurrenceFields, recurrenceLabel, toRecurrence, type RecurrenceFreq } from "~/components/RecurrenceFields";
 import { TaskDetailEditor } from "~/components/TaskDetailEditor";
+import { TaskFeedList } from "~/components/TaskFeedList";
 import { memberClient, taskClient } from "~/data/clients";
 import { displayName, dueLabel, initial, isTaskClosed, memberSwatch, taskGroup, toAvatar } from "~/lib/derive";
 import { normalizeTaskCreate } from "~/lib/taskCreate";
+import { createTaskFeed, dueBoundaries, dueGroupStarts, listAllTasks } from "~/lib/taskFeed";
 import { currentMemberId, useCurrentHouseId } from "~/stores/auth";
-import type { Member, Task } from "@longhouse/client";
+import type { Member, Task, TaskListRequest } from "@longhouse/client";
+
+// Group labels in due order: the order of the list and of dueBoundaries().
+const GROUP_LABELS = ["Overdue", "Today", "This week", "Later", "No date"];
 
 export const TasksPage = () => {
   const houseId = useCurrentHouseId();
-  const [tasks, { refetch: refetchTasks }] = createResource(
-    () => houseId(),
-    async (h) => (await taskClient.listTasks({ houseId: h })).tasks,
-  );
+  // Open tasks arrive due-date first (no date last). The first page also
+  // brings the due counts that place each group header, so a header sits
+  // in the right spot before the rows around it load. Closed tasks are a
+  // second feed, most recently finished first.
+  const openFeed = createTaskFeed();
+  const closedFeed = createTaskFeed();
+  createEffect(() => {
+    const h = houseId();
+    if (!h) {
+      openFeed.reset(null);
+      closedFeed.reset(null);
+      return;
+    }
+    const bounds = dueBoundaries();
+    openFeed.reset((offset, limit, withCounts) =>
+      taskClient.listTasks({ houseId: h, state: "open", offset, limit, ...(withCounts ? { dueBefore: bounds } : {}) }),
+    );
+    closedFeed.reset((offset, limit) => taskClient.listTasks({ houseId: h, state: "closed", offset, limit }));
+  });
+  const refreshAll = async () => {
+    await Promise.all([openFeed.refresh(), closedFeed.refresh()]);
+  };
+
   const [members] = createResource(
     () => houseId(),
     async (h) => memberClient.listMembers({ houseId: h }),
@@ -28,36 +52,15 @@ export const TasksPage = () => {
     return map;
   });
 
-  // The bucketed view shows only OPEN tasks; closed ones go into a
-  // dedicated "Completed" group below so the day's slate isn't muddied
-  // with strikethrough rows. Completed tasks are still one click away
-  // (and one more click to uncomplete).
-  const grouped = createMemo(() => {
-    const ts = (tasks() ?? []).filter((t) => !t.deletedAt && !isTaskClosed(t));
-    return {
-      overdue: ts.filter((t) => taskGroup(t) === "overdue"),
-      today:   ts.filter((t) => taskGroup(t) === "today"),
-      week:    ts.filter((t) => taskGroup(t) === "week"),
-      later:   ts.filter((t) => taskGroup(t) === "later"),
-      noDate:  ts.filter((t) => taskGroup(t) === "noDate"),
-    };
-  });
-
-  // Completed tasks sorted by updated_at (most-recent first) so the
-  // newest completion bubbles up. Capped at 50 by default to keep the
-  // page bounded; the "show all" toggle lifts the cap for a full archive.
-  const [showAllCompleted, setShowAllCompleted] = createSignal(false);
-  const completedAll = createMemo(() => (tasks() ?? [])
-    .filter((t) => !t.deletedAt && isTaskClosed(t))
-    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)));
-  const completedVisible = createMemo(() =>
-    showAllCompleted() ? completedAll() : completedAll().slice(0, 50));
-
-  const openCount  = createMemo(() => (tasks() ?? []).filter((t) => !isTaskClosed(t) && !t.deletedAt).length);
-  const totalCount = createMemo(() => (tasks() ?? []).filter((t) => !t.deletedAt).length);
+  const openGroups = createMemo(() => dueGroupStarts(openFeed.dueCounts(), GROUP_LABELS));
+  const openCount = () => openFeed.estimatedTotal();
+  const closedCount = () => closedFeed.estimatedTotal();
+  const firstLoad = () => !openFeed.ready() || !closedFeed.ready();
 
   const [composerOpen, setComposerOpen] = createSignal(false);
   const [completedOpen, setCompletedOpen] = createSignal(false);
+
+  const renderTask = (t: Task) => <Row task={t} members={members() ?? []} byId={memberById()} onMutate={refreshAll} />;
 
   return (
     <AuthGate>
@@ -71,7 +74,7 @@ export const TasksPage = () => {
           <div>
             <h2>Open tasks</h2>
             <div class="sub">
-              {tasks() ? `${openCount()} open · ${totalCount()} total` : "…"}
+              {firstLoad() ? "…" : `${openCount()} open · ${openCount() + closedCount()} total`}
             </div>
           </div>
           <button class="btn-quiet" onClick={() => setComposerOpen((v) => !v)}>
@@ -83,28 +86,30 @@ export const TasksPage = () => {
           <TaskComposer
             houseId={houseId()!}
             members={members() ?? []}
-            tasks={(tasks() ?? []).filter((t) => !t.deletedAt)}
             onCancel={() => setComposerOpen(false)}
             onCreated={async () => {
               setComposerOpen(false);
-              await refetchTasks();
+              await refreshAll();
             }}
           />
         </Show>
 
+        <Show when={openFeed.error()}>
+          {(e) => <p class="err" role="alert" style="padding:0 20px">{e() instanceof Error ? (e() as Error).message : "Could not load tasks."}</p>}
+        </Show>
+
         <Show
-          when={!tasks.loading}
+          when={!firstLoad()}
           fallback={<p style="padding:20px;color:var(--ink-mute)">Loading tasks…</p>}
         >
-          <Show when={totalCount() > 0} fallback={<EmptyTasks onCreate={() => setComposerOpen(true)} />}>
+          <Show
+            when={openCount() + closedCount() > 0}
+            fallback={<EmptyTasks onCreate={() => setComposerOpen(true)} />}
+          >
             <div class="tasks">
-              <GroupSection label="Overdue"   items={grouped().overdue} members={members() ?? []} byId={memberById()} onMutate={async () => { await refetchTasks(); }} />
-              <GroupSection label="Today"     items={grouped().today}   members={members() ?? []} byId={memberById()} onMutate={async () => { await refetchTasks(); }} />
-              <GroupSection label="This week" items={grouped().week}    members={members() ?? []} byId={memberById()} onMutate={async () => { await refetchTasks(); }} />
-              <GroupSection label="Later"     items={grouped().later}   members={members() ?? []} byId={memberById()} onMutate={async () => { await refetchTasks(); }} />
-              <GroupSection label="No date"   items={grouped().noDate}  members={members() ?? []} byId={memberById()} onMutate={async () => { await refetchTasks(); }} />
+              <TaskFeedList feed={openFeed} groups={openGroups()} renderTask={renderTask} />
 
-              <Show when={completedAll().length > 0}>
+              <Show when={closedCount() > 0}>
                 <div style="margin-top:24px;padding-top:12px;border-top:1px solid var(--line)">
                   <button
                     type="button"
@@ -112,22 +117,10 @@ export const TasksPage = () => {
                     style="background:transparent;border:0;cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 0;color:var(--ink-mute);font-size:13px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600"
                   >
                     <span>{completedOpen() ? "▾" : "▸"}</span>
-                    Completed ({completedAll().length})
+                    Completed ({closedCount()})
                   </button>
                   <Show when={completedOpen()}>
-                    <For each={completedVisible()}>
-                      {(t) => <Row task={t} members={members() ?? []} byId={memberById()} onMutate={async () => { await refetchTasks(); }} />}
-                    </For>
-                    <Show when={completedAll().length > completedVisible().length}>
-                      <button
-                        type="button"
-                        onClick={() => setShowAllCompleted(true)}
-                        class="btn-quiet"
-                        style="margin:8px 0 0;font-size:12px"
-                      >
-                        Show all {completedAll().length} completed
-                      </button>
-                    </Show>
+                    <TaskFeedList feed={closedFeed} renderTask={renderTask} />
                   </Show>
                 </div>
               </Show>
@@ -144,10 +137,14 @@ export const TasksPage = () => {
 const TaskComposer = (props: {
   houseId: string;
   members: Member[];
-  tasks: Task[];
   onCancel: () => void;
   onCreated: () => Promise<void> | void;
 }) => {
+  // The parent picker needs every open task, not just the loaded pages.
+  const [openTasks] = createResource(
+    () => props.houseId,
+    (h) => listAllTasks((offset, limit) => taskClient.listTasks({ houseId: h, state: "open", offset, limit })),
+  );
   const [title, setTitle] = createSignal("");
   const [tag, setTag] = createSignal("");
   const [due, setDue] = createSignal("");
@@ -173,7 +170,7 @@ const TaskComposer = (props: {
   const defaultAssigneeIds = createMemo(() => {
     const pid = parentId();
     if (pid) {
-      const parent = props.tasks.find((t) => t.taskId === pid);
+      const parent = (openTasks() ?? []).find((t) => t.taskId === pid);
       return parent?.assignees ?? [];
     }
     const me = currentMemberId();
@@ -282,7 +279,7 @@ const TaskComposer = (props: {
             style="padding:6px 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);font-size:13px"
           >
             <option value="">— top-level —</option>
-            <For each={props.tasks.filter((t) => !isTaskClosed(t))}>
+            <For each={openTasks() ?? []}>
               {(t) => <option value={t.taskId}>{t.title}</option>}
             </For>
           </select>

@@ -56,57 +56,81 @@ const CONTENT_TYPE = "application/cbor";
 // extra routing. The envelope self-routes, so the path is not semantic.
 const RPC_ENDPOINT = "/api/csil/v1/rpc";
 
+// Called once when a request comes back unauthenticated. lib/session
+// registers resumeSession here (the transport cannot import it: that module
+// imports the generated clients, which import this one). It resolves true
+// when there is a usable bearer to retry with.
+let onUnauthenticated: (() => Promise<boolean>) | null = null;
+export function setUnauthenticatedHandler(fn: () => Promise<boolean>): void {
+  onUnauthenticated = fn;
+}
+
+// Ops that must not trigger a resume-and-retry: the resume itself, and the
+// sign-out that clears the cookie.
+const NO_RETRY_OPS = new Set(["resume-session", "end-session"]);
+
 /**
  * cborTransport is the singleton carrier every generated client shares. Each call
  * wraps the request bytes in a CSIL-RPC envelope, POSTs it, and routes the
- * response: the success arm's inner payload bytes are returned for the client to
+ * response (an unauthenticated reply gets one resume-and-retry): the success arm's inner payload bytes are returned for the client to
  * decode; a declared `ServiceError` arm or a non-zero transport status becomes a
  * thrown {@link ServiceError}.
  */
 export const cborTransport: ServiceTransport = {
   async call(service: string, op: string, req: Uint8Array): Promise<Uint8Array> {
-    const headers: Record<string, string> = { "Content-Type": CONTENT_TYPE, Accept: CONTENT_TYPE };
-    const tok = currentToken();
-    if (tok) headers["Authorization"] = `Bearer ${tok}`;
-
-    const envelope = new RpcRequest(service, methodToOp(op), req).encode();
-
-    const res = await fetch(RPC_ENDPOINT, {
-      method: "POST",
-      headers,
-      body: new Uint8Array(envelope),
-    });
-
-    const buf = new Uint8Array(await res.arrayBuffer());
-
-    // The carrier returns 200 with a CBOR envelope for every outcome (the real
-    // status is inside it). A non-200 with an undecodable body is a genuine
-    // network/proxy failure — surface the HTTP status.
-    let resp: RpcResponse;
     try {
-      resp = RpcResponse.decode(buf);
-    } catch {
-      throw new ServiceError(res.ok ? "invalid response envelope" : `${res.status} ${res.statusText}`, res.status);
+      return await send(service, op, req);
+    } catch (e) {
+      const kebab = methodToOp(op);
+      if (!(e instanceof ServiceError) || e.code !== 401 || !onUnauthenticated || NO_RETRY_OPS.has(kebab)) throw e;
+      if (!(await onUnauthenticated())) throw e;
+      return send(service, op, req);
     }
-
-    if (resp.status !== Status.Ok) {
-      // Transport failure — distinct from an application error. Map onto the
-      // HTTP-shaped codes the app's catch sites understand.
-      throw new ServiceError(resp.error ?? statusName(resp.status), transportStatusToCode(resp.status));
-    }
-
-    if (resp.variant === "ServiceError") {
-      // Declared application-error arm: decode the typed { code, message } with
-      // the generated codec and rethrow as the app's ServiceError.
-      const e = fromServiceErrorCbor(resp.payload) as { code?: number; message?: string };
-      throw new ServiceError(e?.message ?? "request failed", e?.code ?? 500);
-    }
-
-    // Success arm: hand the inner payload bytes back to the generated client,
-    // which decodes them into the typed response.
-    return resp.payload;
   },
 };
+
+async function send(service: string, op: string, req: Uint8Array): Promise<Uint8Array> {
+  const headers: Record<string, string> = { "Content-Type": CONTENT_TYPE, Accept: CONTENT_TYPE };
+  const tok = currentToken();
+  if (tok) headers["Authorization"] = `Bearer ${tok}`;
+
+  const envelope = new RpcRequest(service, methodToOp(op), req).encode();
+
+  const res = await fetch(RPC_ENDPOINT, {
+    method: "POST",
+    headers,
+    body: new Uint8Array(envelope),
+  });
+
+  const buf = new Uint8Array(await res.arrayBuffer());
+
+  // The carrier returns 200 with a CBOR envelope for every outcome (the real
+  // status is inside it). A non-200 with an undecodable body is a genuine
+  // network/proxy failure — surface the HTTP status.
+  let resp: RpcResponse;
+  try {
+    resp = RpcResponse.decode(buf);
+  } catch {
+    throw new ServiceError(res.ok ? "invalid response envelope" : `${res.status} ${res.statusText}`, res.status);
+  }
+
+  if (resp.status !== Status.Ok) {
+    // Transport failure — distinct from an application error. Map onto the
+    // HTTP-shaped codes the app's catch sites understand.
+    throw new ServiceError(resp.error ?? statusName(resp.status), transportStatusToCode(resp.status));
+  }
+
+  if (resp.variant === "ServiceError") {
+    // Declared application-error arm: decode the typed { code, message } with
+    // the generated codec and rethrow as the app's ServiceError.
+    const e = fromServiceErrorCbor(resp.payload) as { code?: number; message?: string };
+    throw new ServiceError(e?.message ?? "request failed", e?.code ?? 500);
+  }
+
+  // Success arm: hand the inner payload bytes back to the generated client,
+  // which decodes them into the typed response.
+  return resp.payload;
+}
 
 // methodToOp converts the generated PascalCase method ("ListTasks") to the
 // canonical kebab-case CSIL op ("list-tasks") the envelope carries — the exact

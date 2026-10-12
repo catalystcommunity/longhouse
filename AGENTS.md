@@ -48,6 +48,16 @@ setting controls this lifetime. CLI login uses browser approval and a rotating
 refresh token. The database stores only refresh-token hashes. A CLI session
 cannot use the browser-only `AuthService.Refresh` op.
 
+A browser sign-in also starts a browser session (`cli_sessions.kind =
+'browser'`). Its rotating refresh token is in an httpOnly cookie
+(`longhouse_session`, path `/api`). The SPA calls the public
+`AuthService.ResumeSession` op at boot, on page visibility, and on a 401. Each
+resume rotates the cookie and moves the session expiry forward. The house
+setting `session_lifetime_hours` (default 720) sets that period. A person in
+more than one house gets the shortest value. `EndSession` revokes the session
+and clears the cookie. A CSIL op reads and sets cookies through
+`csilrpc.RequestCookie` / `csilrpc.SetCookie`.
+
 ## Dev setup
 
 ```bash

@@ -83,6 +83,34 @@ defmodule Csilgen.Generated.AuthClient do
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
+  @spec resume_session(t(), Csilgen.Generated.EmptyRequest.t()) ::
+          Csilgen.Generated.LoginResponse.t()
+  def resume_session(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "AuthService",
+        "resume-session",
+        Csilgen.Generated.EmptyRequest.to_cbor(req)
+      )
+
+    Csilgen.Generated.LoginResponse.from_cbor(resp)
+  end
+
+  @spec end_session(t(), Csilgen.Generated.EmptyRequest.t()) ::
+          Csilgen.Generated.EmptyResponse.t()
+  def end_session(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "AuthService",
+        "end-session",
+        Csilgen.Generated.EmptyRequest.to_cbor(req)
+      )
+
+    Csilgen.Generated.EmptyResponse.from_cbor(resp)
+  end
+
   @spec me(t(), Csilgen.Generated.EmptyRequest.t()) :: Csilgen.Generated.MeResponse.t()
   def me(%__MODULE__{transport: transport}, req) do
     resp =
@@ -1587,18 +1615,30 @@ defmodule Csilgen.Generated.TaskClient do
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
-  @spec list_tasks(t(), Csilgen.Generated.HouseScopedListRequest.t()) ::
-          Csilgen.Generated.TaskList.t()
+  @spec list_tasks(t(), Csilgen.Generated.TaskListRequest.t()) :: Csilgen.Generated.TaskList.t()
   def list_tasks(%__MODULE__{transport: transport}, req) do
     resp =
       Csilgen.Generated.Transport.call(
         transport,
         "TaskService",
         "list-tasks",
-        Csilgen.Generated.HouseScopedListRequest.to_cbor(req)
+        Csilgen.Generated.TaskListRequest.to_cbor(req)
       )
 
     Csilgen.Generated.TaskList.from_cbor(resp)
+  end
+
+  @spec create_personal_task(t(), Csilgen.Generated.Task.t()) :: Csilgen.Generated.Task.t()
+  def create_personal_task(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "TaskService",
+        "create-personal-task",
+        Csilgen.Generated.Task.to_cbor(req)
+      )
+
+    Csilgen.Generated.Task.from_cbor(resp)
   end
 
   @spec set_task_visibility(t(), Csilgen.Generated.SetTaskVisibilityRequest.t()) ::

@@ -33,6 +33,16 @@ module Auth_service = struct
     | Ok payload -> Ok (Codec.decode_empty_response_bytes payload)
     | Error _ as e -> e
 
+  let resume_session (c : client) (req : empty_request) : (login_response, string) result =
+    match c.call ~service:"AuthService" ~op:"resume-session" ~payload:(Codec.encode_empty_request_bytes req) with
+    | Ok payload -> Ok (Codec.decode_login_response_bytes payload)
+    | Error _ as e -> e
+
+  let end_session (c : client) (req : empty_request) : (empty_response, string) result =
+    match c.call ~service:"AuthService" ~op:"end-session" ~payload:(Codec.encode_empty_request_bytes req) with
+    | Ok payload -> Ok (Codec.decode_empty_response_bytes payload)
+    | Error _ as e -> e
+
   let me (c : client) (req : empty_request) : (me_response, string) result =
     match c.call ~service:"AuthService" ~op:"me" ~payload:(Codec.encode_empty_request_bytes req) with
     | Ok payload -> Ok (Codec.decode_me_response_bytes payload)
@@ -555,9 +565,14 @@ module Task_service = struct
     | Ok payload -> Ok (Codec.decode_empty_response_bytes payload)
     | Error _ as e -> e
 
-  let list_tasks (c : client) (req : house_scoped_list_request) : (task_list, string) result =
-    match c.call ~service:"TaskService" ~op:"list-tasks" ~payload:(Codec.encode_house_scoped_list_request_bytes req) with
+  let list_tasks (c : client) (req : task_list_request) : (task_list, string) result =
+    match c.call ~service:"TaskService" ~op:"list-tasks" ~payload:(Codec.encode_task_list_request_bytes req) with
     | Ok payload -> Ok (Codec.decode_task_list_bytes payload)
+    | Error _ as e -> e
+
+  let create_personal_task (c : client) (req : task) : (task, string) result =
+    match c.call ~service:"TaskService" ~op:"create-personal-task" ~payload:(Codec.encode_task_bytes req) with
+    | Ok payload -> Ok (Codec.decode_task_bytes payload)
     | Error _ as e -> e
 
   let set_task_visibility (c : client) (req : set_task_visibility_request) : (task, string) result =

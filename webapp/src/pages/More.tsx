@@ -1,18 +1,18 @@
 import { Show } from "solid-js";
 import { A } from "@solidjs/router";
-import { Calendar, Clock, Cloud, Home, People, Pin } from "~/components/Icons";
+import { Calendar, Clock, Cloud, Home, People } from "~/components/Icons";
 import { hasRole } from "~/stores/auth";
 
 /**
  * Mobile "More" surface — every section not pinned to the bottom tabbar
- * lives here so phone users can still reach Projects, Groups, Skills,
- * Settings, and Account. Desktop users get the full top-nav so they
+ * lives here so phone users can still reach Members, Groups, Skills,
+ * Settings, and Account (the same list as the tabbar's More menu). Desktop users get the full top-nav so they
  * shouldn't see this page in normal flow; the route still exists so
  * deep-links work.
  */
 
 const SECTIONS: { href: string; label: string; sub: string; Icon: typeof Home }[] = [
-  { href: "/projects", label: "Projects", sub: "Initiatives with milestones, owners, and tasks.", Icon: Pin },
+  { href: "/members",  label: "Members",  sub: "Everyone in the house and their roles.", Icon: People },
   { href: "/groups",   label: "Groups",   sub: "Working groups across the house.", Icon: People },
   { href: "/skills",   label: "Skills",   sub: "Who can do what, and which groups hold which skills.", Icon: Cloud },
   { href: "/settings", label: "Settings", sub: "Rename the house, create a new one, manage features.", Icon: Calendar },

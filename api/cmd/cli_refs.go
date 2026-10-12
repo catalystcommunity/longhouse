@@ -263,7 +263,7 @@ func (resolver *cliReferenceResolver) resolveType(typeName, query string) (strin
 		return resolveNamedReference(resolver.projects, "project_id", "name", query)
 	case "TaskID":
 		if resolver.tasks == nil {
-			values, err := longhouseclient.NewTaskClient(resolver.runtime.transport).ListTasks(ctx, request)
+			values, err := longhouseclient.NewTaskClient(resolver.runtime.transport).ListTasks(ctx, taskListRequest(request))
 			if err != nil {
 				return "", err
 			}
@@ -391,4 +391,10 @@ func looksLikeStableID(value string) bool {
 		}
 	}
 	return true
+}
+
+// taskListRequest carries a house-scoped page into list-tasks, which takes
+// its own request type with optional filters.
+func taskListRequest(r longhouseclient.HouseScopedListRequest) longhouseclient.TaskListRequest {
+	return longhouseclient.TaskListRequest{HouseId: r.HouseId, Limit: r.Limit, Offset: r.Offset}
 }

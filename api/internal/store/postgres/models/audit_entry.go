@@ -49,19 +49,21 @@ type AuditFilter struct {
 // Audit action vocabulary. Free-form text in the column; these constants keep
 // call sites consistent.
 const (
-	AuditActionCreate      = "create"
-	AuditActionUpdate      = "update"
-	AuditActionDelete      = "delete"
-	AuditActionRestore     = "restore"
-	AuditActionPurge       = "purge"
-	AuditActionLogin       = "login"
-	AuditActionLoginFailed = "login_failed"
-	AuditActionLogout      = "logout"
-	AuditActionRefresh     = "refresh"
-	AuditActionDevLogin    = "dev_login"
-	AuditActionCliLogin    = "cli_login"
-	AuditActionCliRefresh  = "cli_refresh"
-	AuditActionCliRevoke   = "cli_revoke"
+	AuditActionCreate        = "create"
+	AuditActionUpdate        = "update"
+	AuditActionDelete        = "delete"
+	AuditActionRestore       = "restore"
+	AuditActionPurge         = "purge"
+	AuditActionLogin         = "login"
+	AuditActionLoginFailed   = "login_failed"
+	AuditActionLogout        = "logout"
+	AuditActionRefresh       = "refresh"
+	AuditActionDevLogin      = "dev_login"
+	AuditActionCliLogin      = "cli_login"
+	AuditActionCliRefresh    = "cli_refresh"
+	AuditActionCliRevoke     = "cli_revoke"
+	AuditActionSessionResume = "session_resume"
+	AuditActionSessionEnd    = "session_end"
 )
 
 // Audit outcomes.

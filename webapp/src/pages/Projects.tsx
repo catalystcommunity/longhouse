@@ -1,9 +1,17 @@
 import { A } from "@solidjs/router";
-import { For, Show, createResource, createSignal } from "solid-js";
+import { For, Show, createEffect, createMemo, createResource, createSignal } from "solid-js";
 import { AuthGate } from "~/components/AuthGate";
 import { projectClient } from "~/data/clients";
+import {
+  PROJECT_LIST_LIMIT,
+  effectiveProjectsFilter,
+  loadMyProjectIds,
+  readProjectsFilter,
+  writeProjectsFilter,
+  type ProjectsFilter,
+} from "~/lib/projects";
 import { normalizeProjectCreate } from "~/lib/taskCreate";
-import { useCurrentHouseId } from "~/stores/auth";
+import { currentMemberId, useCurrentHouseId } from "~/stores/auth";
 import type { Project } from "@longhouse/client";
 
 const SWATCHES = ["r1", "r2", "r3", "r4"] as const;
@@ -17,8 +25,45 @@ export const ProjectsPage = () => {
   const houseId = useCurrentHouseId();
   const [projects, { refetch }] = createResource(
     () => houseId(),
-    async (h) => (await projectClient.listProjects({ houseId: h })).projects,
+    async (h) => (await projectClient.listProjects({ houseId: h, limit: PROJECT_LIST_LIMIT })).projects,
   );
+
+  // All / Mine filter. Mine = projects I created (created_by fallback owner)
+  // or hold an explicit owner/member grant on — same rule as the dashboard
+  // (lib/projects.ts). The choice is remembered per member in localStorage;
+  // with nothing saved it defaults to Mine when I have any projects.
+  const [myIds] = createResource(
+    () => {
+      const me = currentMemberId();
+      const ps = projects.state === "ready" || projects.state === "refreshing" ? projects.latest : undefined;
+      if (!me || !ps) return null;
+      return { me, ps };
+    },
+    async ({ me, ps }) => loadMyProjectIds(projectClient, ps, me),
+  );
+  const [saved, setSaved] = createSignal<ProjectsFilter | undefined>();
+  createEffect(() => {
+    const me = currentMemberId();
+    setSaved(me ? readProjectsFilter(me) : undefined);
+  });
+  const myIdsLoaded = () => (myIds.state === "ready" || myIds.state === "refreshing" ? myIds.latest : undefined);
+  const filter = () => effectiveProjectsFilter(saved(), myIdsLoaded()?.size ?? 0);
+  const choose = (v: ProjectsFilter) => {
+    setSaved(v);
+    const me = currentMemberId();
+    if (me) writeProjectsFilter(me, v);
+  };
+  const shown = createMemo(() => {
+    const ps = projects() ?? [];
+    if (filter() === "all") return ps;
+    const mine = myIdsLoaded() ?? new Set<string>();
+    return ps.filter((p) => mine.has(p.projectId));
+  });
+  // Hold the list until "mine" is known, so the default doesn't flip from
+  // All to Mine (or show an empty Mine list) mid-load. A failed grant
+  // lookup degrades to the created_by rule inside loadMyProjectIds.
+  const filterReady = () =>
+    !!myIdsLoaded() || myIds.state === "errored" || !currentMemberId();
 
   const [composerOpen, setComposerOpen] = createSignal(false);
 
@@ -27,10 +72,18 @@ export const ProjectsPage = () => {
       <div class="section-hd reveal">
         <h2>Projects <em>in flight</em></h2>
         <p class="lead">Longer pieces of work with their own members, tasks, and discussion.</p>
-        <div style="margin-top:12px">
+        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">
           <button class="btn btn-primary" onClick={() => setComposerOpen((v) => !v)}>
             {composerOpen() ? "Cancel" : "New project"}
           </button>
+          <div class="seg" role="group" aria-label="Show projects">
+            <button type="button" class={filter() === "all" ? "on" : ""} aria-pressed={filter() === "all"} onClick={() => choose("all")}>
+              All
+            </button>
+            <button type="button" class={filter() === "mine" ? "on" : ""} aria-pressed={filter() === "mine"} onClick={() => choose("mine")}>
+              Mine
+            </button>
+          </div>
         </div>
       </div>
 
@@ -43,13 +96,15 @@ export const ProjectsPage = () => {
       </Show>
 
       <Show
-        when={!projects.loading}
+        when={!projects.loading && filterReady()}
         fallback={<p style="padding:24px;color:var(--ink-mute)">Loading…</p>}
       >
         <Show when={(projects() ?? []).length > 0} fallback={<EmptyProjects />}>
-          <div class="rooms">
-            <For each={projects()!}>{(p, i) => <ProjectCard p={p} delay={2 + (i() % 4)} />}</For>
-          </div>
+          <Show when={shown().length > 0} fallback={<EmptyMine onShowAll={() => choose("all")} />}>
+            <div class="rooms">
+              <For each={shown()}>{(p, i) => <ProjectCard p={p} delay={2 + (i() % 4)} />}</For>
+            </div>
+          </Show>
         </Show>
       </Show>
     </AuthGate>
@@ -65,12 +120,28 @@ const EmptyProjects = () => (
   </section>
 );
 
-export const ProjectCard = (props: { p: Project; delay?: number }) => (
+const EmptyMine = (props: { onShowAll: () => void }) => (
+  <section
+    style="margin-top:24px;padding:32px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);text-align:center;color:var(--ink-mute)"
+  >
+    <p style="margin:0 0 4px"><b>You are not in a project yet.</b></p>
+    <p style="margin:0">
+      <button type="button" class="btn-quiet" onClick={props.onShowAll}>Show all projects</button>
+    </p>
+  </section>
+);
+
+export const ProjectCard =(props: { p: Project; delay?: number }) => (
   <A
     href={`/projects/${props.p.projectId}`}
     class={`room ${swatchFor(props.p.projectId)} reveal ${props.delay ? `d${props.delay}` : ""}`}
   >
-    <Show when={props.p.category}>{(c) => <span class="corner">{c()}</span>}</Show>
+    <Show
+      when={props.p.personal}
+      fallback={<Show when={props.p.category}>{(c) => <span class="corner">{c()}</span>}</Show>}
+    >
+      <span class="corner">Private</span>
+    </Show>
     <div class="swatch">{props.p.name.charAt(0)}</div>
     <h3>{props.p.name}</h3>
     <Show when={props.p.description}>{(d) => <p>{d()}</p>}</Show>

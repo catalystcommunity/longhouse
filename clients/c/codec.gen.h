@@ -176,6 +176,22 @@ static inline void *csilc_arena_alloc(CsilCodecArena *a, size_t size) {
     return p;
 }
 
+/* The most elements a decoded array or map reserves before it reads them. The
+ * declared length is checked against the remaining input, but one input byte can
+ * become a much larger value, so reserving the full declared length lets a small
+ * frame reserve a large multiple of its size at every nesting level. Past this
+ * bound, the storage doubles only as elements are actually read. */
+#define CSILC_PREALLOC_LIMIT 1024u
+
+/* A bump arena cannot resize in place, so growth copies into a fresh allocation.
+ * The abandoned block is freed with the arena; doubling keeps that waste below
+ * the final size. */
+static inline void *csilc_arena_grow(CsilCodecArena *a, const void *old, size_t used, size_t size) {
+    void *p = csilc_arena_alloc(a, size);
+    if (p && used) memcpy(p, old, used);
+    return p;
+}
+
 /* Free the whole decoded value tree (and the C arrays mapped out of it) at once. */
 static inline void csil_codec_arena_free(CsilCodecArena *a) {
     if (!a) return;
@@ -365,12 +381,19 @@ static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t
     case 4: {
         if (arg > len - head || arg > SIZE_MAX / sizeof(csilc_value)) return -1;
         csilc_value *items = NULL;
-        if (arg) {
-            items = (csilc_value *)csilc_arena_alloc(a, (size_t)arg * sizeof(*items));
+        size_t cap = arg < CSILC_PREALLOC_LIMIT ? (size_t)arg : CSILC_PREALLOC_LIMIT;
+        if (cap) {
+            items = (csilc_value *)csilc_arena_alloc(a, cap * sizeof(*items));
             if (!items) return -1;
         }
         size_t off = head;
         for (uint64_t i = 0; i < arg; i++) {
+            if (i == cap) {
+                size_t grown = cap * 2 < (size_t)arg ? cap * 2 : (size_t)arg;
+                items = (csilc_value *)csilc_arena_grow(a, items, cap * sizeof(*items), grown * sizeof(*items));
+                if (!items) return -1;
+                cap = grown;
+            }
             size_t m = 0;
             if (csilc_decode_value(a, b + off, len - off, &items[i], &m, depth + 1)) return -1;
             off += m;
@@ -384,12 +407,19 @@ static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t
     case 5: {
         if (arg > len - head || arg > SIZE_MAX / sizeof(csilc_pair)) return -1;
         csilc_pair *pairs = NULL;
-        if (arg) {
-            pairs = (csilc_pair *)csilc_arena_alloc(a, (size_t)arg * sizeof(*pairs));
+        size_t cap = arg < CSILC_PREALLOC_LIMIT ? (size_t)arg : CSILC_PREALLOC_LIMIT;
+        if (cap) {
+            pairs = (csilc_pair *)csilc_arena_alloc(a, cap * sizeof(*pairs));
             if (!pairs) return -1;
         }
         size_t off = head;
         for (uint64_t i = 0; i < arg; i++) {
+            if (i == cap) {
+                size_t grown = cap * 2 < (size_t)arg ? cap * 2 : (size_t)arg;
+                pairs = (csilc_pair *)csilc_arena_grow(a, pairs, cap * sizeof(*pairs), grown * sizeof(*pairs));
+                if (!pairs) return -1;
+                cap = grown;
+            }
             csilc_value *k = (csilc_value *)csilc_arena_alloc(a, sizeof(*k));
             csilc_value *v = (csilc_value *)csilc_arena_alloc(a, sizeof(*v));
             if (!k || !v) return -1;
@@ -621,6 +651,10 @@ static inline int csilc_enc_MilestoneState(csilc_buf *b, const MilestoneState *v
 static inline int csilc_dec_MilestoneState(const csilc_value *src, CsilCodecArena *a, MilestoneState *out);
 static inline int csilc_enc_CliLoginStatus(csilc_buf *b, const CliLoginStatus *v);
 static inline int csilc_dec_CliLoginStatus(const csilc_value *src, CsilCodecArena *a, CliLoginStatus *out);
+static inline int csilc_enc_SessionKind(csilc_buf *b, const SessionKind *v);
+static inline int csilc_dec_SessionKind(const csilc_value *src, CsilCodecArena *a, SessionKind *out);
+static inline int csilc_enc_TaskState(csilc_buf *b, const TaskState *v);
+static inline int csilc_dec_TaskState(const csilc_value *src, CsilCodecArena *a, TaskState *out);
 static inline int csilc_enc_House(csilc_buf *b, const House *v);
 static inline int csilc_dec_House(const csilc_value *m, CsilCodecArena *a, House *out);
 static inline int csilc_enc_Member(csilc_buf *b, const Member *v);
@@ -715,6 +749,8 @@ static inline int csilc_enc_HouseListRequest(csilc_buf *b, const HouseListReques
 static inline int csilc_dec_HouseListRequest(const csilc_value *m, CsilCodecArena *a, HouseListRequest *out);
 static inline int csilc_enc_HouseScopedListRequest(csilc_buf *b, const HouseScopedListRequest *v);
 static inline int csilc_dec_HouseScopedListRequest(const csilc_value *m, CsilCodecArena *a, HouseScopedListRequest *out);
+static inline int csilc_enc_TaskListRequest(csilc_buf *b, const TaskListRequest *v);
+static inline int csilc_dec_TaskListRequest(const csilc_value *m, CsilCodecArena *a, TaskListRequest *out);
 static inline int csilc_enc_TaskList(csilc_buf *b, const TaskList *v);
 static inline int csilc_dec_TaskList(const csilc_value *m, CsilCodecArena *a, TaskList *out);
 static inline int csilc_enc_ProjectList(csilc_buf *b, const ProjectList *v);
@@ -1047,6 +1083,54 @@ static inline int csilc_dec_CliLoginStatus(const csilc_value *src, CsilCodecAren
         if (strlen(csilc_CliLoginStatus_names[csilc_i]) == src->as.bytes.len &&
             memcmp(csilc_CliLoginStatus_names[csilc_i], src->as.bytes.ptr, src->as.bytes.len) == 0) {
             *out = (CliLoginStatus)csilc_i;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+static CSILC_UNUSED const char *const csilc_SessionKind_names[] = {
+    "cli",
+    "browser",
+};
+/* csilc_enc_SessionKind writes the SessionKind variant's wire text. */
+static inline int csilc_enc_SessionKind(csilc_buf *b, const SessionKind *v) {
+    const char *csilc_s = csilc_SessionKind_names[(size_t)(*v)];
+    return csilc_w_text(b, csilc_s, strlen(csilc_s));
+}
+
+/* csilc_dec_SessionKind matches the wire text back to a SessionKind variant. */
+static inline int csilc_dec_SessionKind(const csilc_value *src, CsilCodecArena *a, SessionKind *out) {
+    (void)a;
+    if (!src || src->kind != CSILC_TEXT) return -1;
+    for (size_t csilc_i = 0; csilc_i < sizeof(csilc_SessionKind_names) / sizeof(csilc_SessionKind_names[0]); csilc_i++) {
+        if (strlen(csilc_SessionKind_names[csilc_i]) == src->as.bytes.len &&
+            memcmp(csilc_SessionKind_names[csilc_i], src->as.bytes.ptr, src->as.bytes.len) == 0) {
+            *out = (SessionKind)csilc_i;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+static CSILC_UNUSED const char *const csilc_TaskState_names[] = {
+    "open",
+    "closed",
+};
+/* csilc_enc_TaskState writes the TaskState variant's wire text. */
+static inline int csilc_enc_TaskState(csilc_buf *b, const TaskState *v) {
+    const char *csilc_s = csilc_TaskState_names[(size_t)(*v)];
+    return csilc_w_text(b, csilc_s, strlen(csilc_s));
+}
+
+/* csilc_dec_TaskState matches the wire text back to a TaskState variant. */
+static inline int csilc_dec_TaskState(const csilc_value *src, CsilCodecArena *a, TaskState *out) {
+    (void)a;
+    if (!src || src->kind != CSILC_TEXT) return -1;
+    for (size_t csilc_i = 0; csilc_i < sizeof(csilc_TaskState_names) / sizeof(csilc_TaskState_names[0]); csilc_i++) {
+        if (strlen(csilc_TaskState_names[csilc_i]) == src->as.bytes.len &&
+            memcmp(csilc_TaskState_names[csilc_i], src->as.bytes.ptr, src->as.bytes.len) == 0) {
+            *out = (TaskState)csilc_i;
             return 0;
         }
     }
@@ -1536,6 +1620,7 @@ static inline int csilc_enc_Project(csilc_buf *b, const Project *v) {
     size_t csilc_n = 5;
     if (v->status) csilc_n++;
     if (v->category) csilc_n++;
+    if (v->personal) csilc_n++;
     if (v->visibility) csilc_n++;
     if (v->description) csilc_n++;
     if (v->created_by_member_id) csilc_n++;
@@ -1552,6 +1637,10 @@ static inline int csilc_enc_Project(csilc_buf *b, const Project *v) {
     }
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
+    if (v->personal) {
+        if (csilc_w_text(b, "personal", 8)) return -1;
+        if (csilc_w_bool(b, ((*v->personal)))) return -1;
+    }
     if (csilc_w_text(b, "created_at", 10)) return -1;
     if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
@@ -1592,6 +1681,14 @@ static inline int csilc_dec_Project(const csilc_value *m, CsilCodecArena *a, Pro
     out->category = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
+    csilc_f = csilc_map_get(m, "personal");
+    out->personal = NULL;
+    if (csilc_f) {
+        bool *csilc_p = (bool *)csilc_arena_alloc(a, sizeof(bool));
+        if (!csilc_p) return -1;
+        if (!csilc_as_bool(csilc_f, &((*csilc_p)))) return -1;
+        out->personal = csilc_p;
+    }
     csilc_f = csilc_map_get(m, "created_at");
     if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
     csilc_f = csilc_map_get(m, "project_id");
@@ -2748,8 +2845,18 @@ static inline int csilc_dec_RefreshSessionRequest(const csilc_value *m, CsilCode
 /* csilc_enc_CliSessionSummary writes CliSessionSummary as a canonical CBOR map. */
 static inline int csilc_enc_CliSessionSummary(csilc_buf *b, const CliSessionSummary *v) {
     size_t csilc_n = 5;
+    if (v->kind) csilc_n++;
+    if (v->current) csilc_n++;
     if (v->revoked_at) csilc_n++;
     if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (v->kind) {
+        if (csilc_w_text(b, "kind", 4)) return -1;
+        if (csilc_enc_SessionKind(b, &((*v->kind)))) return -1;
+    }
+    if (v->current) {
+        if (csilc_w_text(b, "current", 7)) return -1;
+        if (csilc_w_bool(b, ((*v->current)))) return -1;
+    }
     if (csilc_w_text(b, "created_at", 10)) return -1;
     if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
@@ -2772,6 +2879,22 @@ static inline int csilc_dec_CliSessionSummary(const csilc_value *m, CsilCodecAre
     (void)a;
     const csilc_value *csilc_f;
     if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "kind");
+    out->kind = NULL;
+    if (csilc_f) {
+        SessionKind *csilc_p = (SessionKind *)csilc_arena_alloc(a, sizeof(SessionKind));
+        if (!csilc_p) return -1;
+        if (csilc_dec_SessionKind(csilc_f, a, &((*csilc_p)))) return -1;
+        out->kind = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "current");
+    out->current = NULL;
+    if (csilc_f) {
+        bool *csilc_p = (bool *)csilc_arena_alloc(a, sizeof(bool));
+        if (!csilc_p) return -1;
+        if (!csilc_as_bool(csilc_f, &((*csilc_p)))) return -1;
+        out->current = csilc_p;
+    }
     csilc_f = csilc_map_get(m, "created_at");
     if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
@@ -3144,14 +3267,156 @@ static inline int csilc_dec_HouseScopedListRequest(const csilc_value *m, CsilCod
     return 0;
 }
 
+/* csilc_enc_TaskListRequest writes TaskListRequest as a canonical CBOR map. */
+static inline int csilc_enc_TaskListRequest(csilc_buf *b, const TaskListRequest *v) {
+    size_t csilc_n = 1;
+    if (v->mine) csilc_n++;
+    if (v->limit) csilc_n++;
+    if (v->loose) csilc_n++;
+    if (v->state) csilc_n++;
+    if (v->due_to) csilc_n++;
+    if (v->offset) csilc_n++;
+    if (v->due_from) csilc_n++;
+    if (v->due_before_count) csilc_n++;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (v->mine) {
+        if (csilc_w_text(b, "mine", 4)) return -1;
+        if (csilc_w_bool(b, ((*v->mine)))) return -1;
+    }
+    if (v->limit) {
+        if (csilc_w_text(b, "limit", 5)) return -1;
+        if (csilc_w_uint(b, (uint64_t)((*v->limit)))) return -1;
+    }
+    if (v->loose) {
+        if (csilc_w_text(b, "loose", 5)) return -1;
+        if (csilc_w_bool(b, ((*v->loose)))) return -1;
+    }
+    if (v->state) {
+        if (csilc_w_text(b, "state", 5)) return -1;
+        if (csilc_enc_TaskState(b, &((*v->state)))) return -1;
+    }
+    if (v->due_to) {
+        if (csilc_w_text(b, "due_to", 6)) return -1;
+        if (csilc_w_text(b, ((*v->due_to)), ((*v->due_to)) ? strlen((*v->due_to)) : 0)) return -1;
+    }
+    if (v->offset) {
+        if (csilc_w_text(b, "offset", 6)) return -1;
+        if (csilc_w_uint(b, (uint64_t)((*v->offset)))) return -1;
+    }
+    if (v->due_from) {
+        if (csilc_w_text(b, "due_from", 8)) return -1;
+        if (csilc_w_text(b, ((*v->due_from)), ((*v->due_from)) ? strlen((*v->due_from)) : 0)) return -1;
+    }
+    if (csilc_w_text(b, "house_id", 8)) return -1;
+    if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
+    if (v->due_before_count) {
+        if (csilc_w_text(b, "due_before", 10)) return -1;
+        if (csilc_w_array_head(b, v->due_before_count)) return -1;
+        for (size_t csilc_i = 0; csilc_i < v->due_before_count; csilc_i++) {
+            if (csilc_w_text(b, (v->due_before[csilc_i]), (v->due_before[csilc_i]) ? strlen(v->due_before[csilc_i]) : 0)) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_dec_TaskListRequest reads TaskListRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_TaskListRequest(const csilc_value *m, CsilCodecArena *a, TaskListRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "mine");
+    out->mine = NULL;
+    if (csilc_f) {
+        bool *csilc_p = (bool *)csilc_arena_alloc(a, sizeof(bool));
+        if (!csilc_p) return -1;
+        if (!csilc_as_bool(csilc_f, &((*csilc_p)))) return -1;
+        out->mine = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "limit");
+    out->limit = NULL;
+    if (csilc_f) {
+        uint64_t *csilc_p = (uint64_t *)csilc_arena_alloc(a, sizeof(uint64_t));
+        if (!csilc_p) return -1;
+        if (!csilc_as_u64(csilc_f, &((*csilc_p)))) return -1;
+        out->limit = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "loose");
+    out->loose = NULL;
+    if (csilc_f) {
+        bool *csilc_p = (bool *)csilc_arena_alloc(a, sizeof(bool));
+        if (!csilc_p) return -1;
+        if (!csilc_as_bool(csilc_f, &((*csilc_p)))) return -1;
+        out->loose = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "state");
+    out->state = NULL;
+    if (csilc_f) {
+        TaskState *csilc_p = (TaskState *)csilc_arena_alloc(a, sizeof(TaskState));
+        if (!csilc_p) return -1;
+        if (csilc_dec_TaskState(csilc_f, a, &((*csilc_p)))) return -1;
+        out->state = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "due_to");
+    out->due_to = NULL;
+    if (csilc_f) {
+        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        if (!csilc_p) return -1;
+        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        out->due_to = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "offset");
+    out->offset = NULL;
+    if (csilc_f) {
+        uint64_t *csilc_p = (uint64_t *)csilc_arena_alloc(a, sizeof(uint64_t));
+        if (!csilc_p) return -1;
+        if (!csilc_as_u64(csilc_f, &((*csilc_p)))) return -1;
+        out->offset = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "due_from");
+    out->due_from = NULL;
+    if (csilc_f) {
+        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        if (!csilc_p) return -1;
+        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        out->due_from = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "house_id");
+    if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
+    csilc_f = csilc_map_get(m, "due_before");
+    if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
+    out->due_before_count = csilc_f->as.array.count;
+    out->due_before = NULL;
+    if (out->due_before_count) {
+        out->due_before = (Timestamp *)csilc_arena_alloc(a, out->due_before_count * sizeof(Timestamp));
+        if (!out->due_before) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->due_before_count; csilc_i++) {
+            if (!csilc_get_text(&csilc_f->as.array.items[csilc_i], &(out->due_before[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
 /* csilc_enc_TaskList writes TaskList as a canonical CBOR map. */
 static inline int csilc_enc_TaskList(csilc_buf *b, const TaskList *v) {
     size_t csilc_n = 2;
+    if (v->total) csilc_n++;
+    if (v->due_counts_count) csilc_n++;
     if (csilc_w_map_head(b, csilc_n)) return -1;
     if (csilc_w_text(b, "tasks", 5)) return -1;
     if (csilc_w_array_head(b, v->tasks_count)) return -1;
     for (size_t csilc_i = 0; csilc_i < v->tasks_count; csilc_i++) {
         if (csilc_enc_Task(b, &(v->tasks[csilc_i]))) return -1;
+    }
+    if (v->total) {
+        if (csilc_w_text(b, "total", 5)) return -1;
+        if (csilc_w_uint(b, (uint64_t)((*v->total)))) return -1;
+    }
+    if (v->due_counts_count) {
+        if (csilc_w_text(b, "due_counts", 10)) return -1;
+        if (csilc_w_array_head(b, v->due_counts_count)) return -1;
+        for (size_t csilc_i = 0; csilc_i < v->due_counts_count; csilc_i++) {
+            if (csilc_w_uint(b, (uint64_t)(v->due_counts[csilc_i]))) return -1;
+        }
     }
     if (csilc_w_text(b, "hidden_count", 12)) return -1;
     if (csilc_w_uint(b, (uint64_t)(v->hidden_count))) return -1;
@@ -3172,6 +3437,25 @@ static inline int csilc_dec_TaskList(const csilc_value *m, CsilCodecArena *a, Ta
         if (!out->tasks) return -1;
         for (size_t csilc_i = 0; csilc_i < out->tasks_count; csilc_i++) {
             if (csilc_dec_Task(&csilc_f->as.array.items[csilc_i], a, &(out->tasks[csilc_i]))) return -1;
+        }
+    }
+    csilc_f = csilc_map_get(m, "total");
+    out->total = NULL;
+    if (csilc_f) {
+        uint64_t *csilc_p = (uint64_t *)csilc_arena_alloc(a, sizeof(uint64_t));
+        if (!csilc_p) return -1;
+        if (!csilc_as_u64(csilc_f, &((*csilc_p)))) return -1;
+        out->total = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "due_counts");
+    if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
+    out->due_counts_count = csilc_f->as.array.count;
+    out->due_counts = NULL;
+    if (out->due_counts_count) {
+        out->due_counts = (uint64_t *)csilc_arena_alloc(a, out->due_counts_count * sizeof(uint64_t));
+        if (!out->due_counts) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->due_counts_count; csilc_i++) {
+            if (!csilc_as_u64(&csilc_f->as.array.items[csilc_i], &(out->due_counts[csilc_i]))) return -1;
         }
     }
     csilc_f = csilc_map_get(m, "hidden_count");
@@ -3267,11 +3551,16 @@ static inline int csilc_dec_MemberScopedListRequest(const csilc_value *m, CsilCo
 static inline int csilc_enc_ProjectScopedListRequest(csilc_buf *b, const ProjectScopedListRequest *v) {
     size_t csilc_n = 2;
     if (v->limit) csilc_n++;
+    if (v->state) csilc_n++;
     if (v->offset) csilc_n++;
     if (csilc_w_map_head(b, csilc_n)) return -1;
     if (v->limit) {
         if (csilc_w_text(b, "limit", 5)) return -1;
         if (csilc_w_uint(b, (uint64_t)((*v->limit)))) return -1;
+    }
+    if (v->state) {
+        if (csilc_w_text(b, "state", 5)) return -1;
+        if (csilc_enc_TaskState(b, &((*v->state)))) return -1;
     }
     if (v->offset) {
         if (csilc_w_text(b, "offset", 6)) return -1;
@@ -3296,6 +3585,14 @@ static inline int csilc_dec_ProjectScopedListRequest(const csilc_value *m, CsilC
         if (!csilc_p) return -1;
         if (!csilc_as_u64(csilc_f, &((*csilc_p)))) return -1;
         out->limit = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "state");
+    out->state = NULL;
+    if (csilc_f) {
+        TaskState *csilc_p = (TaskState *)csilc_arena_alloc(a, sizeof(TaskState));
+        if (!csilc_p) return -1;
+        if (csilc_dec_TaskState(csilc_f, a, &((*csilc_p)))) return -1;
+        out->state = csilc_p;
     }
     csilc_f = csilc_map_get(m, "offset");
     out->offset = NULL;
@@ -4100,6 +4397,7 @@ static inline int csilc_enc_EffectiveSettings(csilc_buf *b, const EffectiveSetti
     size_t csilc_n = 0;
     if (v->bug_reports_enabled) csilc_n++;
     if (v->bug_reports_project_id) csilc_n++;
+    if (v->session_lifetime_hours) csilc_n++;
     if (v->default_project_visibility) csilc_n++;
     if (csilc_w_map_head(b, csilc_n)) return -1;
     if (v->bug_reports_enabled) {
@@ -4109,6 +4407,10 @@ static inline int csilc_enc_EffectiveSettings(csilc_buf *b, const EffectiveSetti
     if (v->bug_reports_project_id) {
         if (csilc_w_text(b, "bug_reports_project_id", 22)) return -1;
         if (csilc_w_text(b, ((*v->bug_reports_project_id)), ((*v->bug_reports_project_id)) ? strlen((*v->bug_reports_project_id)) : 0)) return -1;
+    }
+    if (v->session_lifetime_hours) {
+        if (csilc_w_text(b, "session_lifetime_hours", 22)) return -1;
+        if (csilc_w_uint(b, (uint64_t)((*v->session_lifetime_hours)))) return -1;
     }
     if (v->default_project_visibility) {
         if (csilc_w_text(b, "default_project_visibility", 26)) return -1;
@@ -4137,6 +4439,14 @@ static inline int csilc_dec_EffectiveSettings(const csilc_value *m, CsilCodecAre
         if (!csilc_p) return -1;
         if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
         out->bug_reports_project_id = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "session_lifetime_hours");
+    out->session_lifetime_hours = NULL;
+    if (csilc_f) {
+        uint64_t *csilc_p = (uint64_t *)csilc_arena_alloc(a, sizeof(uint64_t));
+        if (!csilc_p) return -1;
+        if (!csilc_as_u64(csilc_f, &((*csilc_p)))) return -1;
+        out->session_lifetime_hours = csilc_p;
     }
     csilc_f = csilc_map_get(m, "default_project_visibility");
     out->default_project_visibility = NULL;
@@ -5477,6 +5787,52 @@ static inline int csil_decode_CliLoginStatus(const uint8_t *in, size_t len, CliL
     return 0;
 }
 
+/* Encode a SessionKind to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_SessionKind(const SessionKind *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_SessionKind(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a SessionKind. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_SessionKind(const uint8_t *in, size_t len, SessionKind *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_SessionKind(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a TaskState to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_TaskState(const TaskState *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_TaskState(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a TaskState. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_TaskState(const uint8_t *in, size_t len, TaskState *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_TaskState(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
 /* Encode a House to CBOR. On success *out is a malloc'd buffer of
  * *out_len bytes the caller frees with free(); returns non-zero on failure. */
 static inline int csil_encode_House(const House *v, uint8_t **out, size_t *out_len) {
@@ -6554,6 +6910,29 @@ static inline int csil_decode_HouseScopedListRequest(const uint8_t *in, size_t l
     const csilc_value *root;
     if (csilc_decode(in, len, &a, &root)) return -1;
     if (csilc_dec_HouseScopedListRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a TaskListRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_TaskListRequest(const TaskListRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_TaskListRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a TaskListRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_TaskListRequest(const uint8_t *in, size_t len, TaskListRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_TaskListRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
     *owner = a;
     return 0;
 }

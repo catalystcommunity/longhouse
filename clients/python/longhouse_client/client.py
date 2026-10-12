@@ -47,6 +47,14 @@ class AuthClient:
         """logout"""
         return EmptyResponse.from_cbor(self._transport.call("AuthService", "logout", req.to_cbor()))
 
+    def resume_session(self, req: EmptyRequest) -> LoginResponse:
+        """resume-session"""
+        return LoginResponse.from_cbor(self._transport.call("AuthService", "resume-session", req.to_cbor()))
+
+    def end_session(self, req: EmptyRequest) -> EmptyResponse:
+        """end-session"""
+        return EmptyResponse.from_cbor(self._transport.call("AuthService", "end-session", req.to_cbor()))
+
     def me(self, req: EmptyRequest) -> MeResponse:
         """me"""
         return MeResponse.from_cbor(self._transport.call("AuthService", "me", req.to_cbor()))
@@ -441,9 +449,13 @@ class TaskClient:
         """delete-task"""
         return EmptyResponse.from_cbor(self._transport.call("TaskService", "delete-task", encode_task_delete_task_request(req)))
 
-    def list_tasks(self, req: HouseScopedListRequest) -> TaskList:
+    def list_tasks(self, req: TaskListRequest) -> TaskList:
         """list-tasks"""
         return TaskList.from_cbor(self._transport.call("TaskService", "list-tasks", req.to_cbor()))
+
+    def create_personal_task(self, req: Task) -> Task:
+        """create-personal-task"""
+        return Task.from_cbor(self._transport.call("TaskService", "create-personal-task", req.to_cbor()))
 
     def set_task_visibility(self, req: SetTaskVisibilityRequest) -> Task:
         """set-task-visibility"""

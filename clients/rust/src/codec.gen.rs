@@ -170,6 +170,13 @@ fn cbor_read_arg(b: &[u8], pos: &mut usize, low: u8) -> Result<u64, CsilCborErro
     Ok(v)
 }
 
+/// The most elements a decoded array or map reserves before it reads them. The
+/// declared length is checked against the remaining input, but one input byte can
+/// become a much larger value, so reserving the full declared length lets a small
+/// frame reserve a large multiple of its size at every nesting level. Past this
+/// bound, the vector grows only as elements are actually read.
+const CSIL_CBOR_PREALLOC_LIMIT: usize = 1024;
+
 fn cbor_dec(b: &[u8], pos: &mut usize, depth: usize) -> Result<CsilCborValue, CsilCborError> {
     if depth > 64 {
         return Err(CsilCborError(
@@ -253,7 +260,7 @@ fn cbor_dec(b: &[u8], pos: &mut usize, depth: usize) -> Result<CsilCborValue, Cs
                 ));
             }
             let n = arg as usize;
-            let mut items = Vec::with_capacity(n);
+            let mut items = Vec::with_capacity(n.min(CSIL_CBOR_PREALLOC_LIMIT));
             for _ in 0..n {
                 items.push(cbor_dec(b, pos, depth + 1)?);
             }
@@ -266,7 +273,7 @@ fn cbor_dec(b: &[u8], pos: &mut usize, depth: usize) -> Result<CsilCborValue, Cs
                 ));
             }
             let n = arg as usize;
-            let mut entries = Vec::with_capacity(n);
+            let mut entries = Vec::with_capacity(n.min(CSIL_CBOR_PREALLOC_LIMIT));
             for _ in 0..n {
                 let k = cbor_dec(b, pos, depth + 1)?;
                 let val = cbor_dec(b, pos, depth + 1)?;
@@ -1165,7 +1172,7 @@ pub fn decode_group_member(csil_data: &[u8]) -> Result<GroupMember, CsilCborErro
 
 /// Build the canonical CBOR value tree for a Project.
 fn csil_enc_project(csil_v: &Project) -> CsilCborValue {
-    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(10);
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(11);
     csil_entries.push((cbor_text("name"), cbor_text(&csil_v.name)));
     if let Some(csil_inner) = &csil_v.status {
         csil_entries.push((cbor_text("status"), csil_enc_project_status(csil_inner)));
@@ -1174,6 +1181,9 @@ fn csil_enc_project(csil_v: &Project) -> CsilCborValue {
         csil_entries.push((cbor_text("category"), cbor_text(csil_inner)));
     }
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
+    if let Some(csil_inner) = &csil_v.personal {
+        csil_entries.push((cbor_text("personal"), cbor_bool(*csil_inner)));
+    }
     csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
     csil_entries.push((cbor_text("project_id"), cbor_text(&csil_v.project_id)));
     csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
@@ -1241,6 +1251,13 @@ fn csil_dec_project(csil_root: &CsilCborValue) -> Result<Project, CsilCborError>
         }
         None => None,
     };
+    let personal = match cbor_map_get(csil_root, "personal") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_bool;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
         let csil_decode = cbor_as_text;
@@ -1260,6 +1277,7 @@ fn csil_dec_project(csil_root: &CsilCborValue) -> Result<Project, CsilCborError>
         status,
         visibility,
         created_by_member_id,
+        personal,
         created_at,
         updated_at,
     })
@@ -2845,7 +2863,13 @@ pub fn decode_refresh_session_request(
 
 /// Build the canonical CBOR value tree for a CliSessionSummary.
 fn csil_enc_cli_session_summary(csil_v: &CliSessionSummary) -> CsilCborValue {
-    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(6);
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(8);
+    if let Some(csil_inner) = &csil_v.kind {
+        csil_entries.push((cbor_text("kind"), csil_enc_session_kind(csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.current {
+        csil_entries.push((cbor_text("current"), cbor_bool(*csil_inner)));
+    }
     csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
     csil_entries.push((cbor_text("expires_at"), cbor_text(&csil_v.expires_at)));
     if let Some(csil_inner) = &csil_v.revoked_at {
@@ -2893,6 +2917,20 @@ fn csil_dec_cli_session_summary(
         }
         None => None,
     };
+    let kind = match cbor_map_get(csil_root, "kind") {
+        Some(csil_field) => {
+            let csil_decode = csil_dec_session_kind;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let current = match cbor_map_get(csil_root, "current") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_bool;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
     Ok(CliSessionSummary {
         session_id,
         client_name,
@@ -2900,6 +2938,8 @@ fn csil_dec_cli_session_summary(
         last_used_at,
         expires_at,
         revoked_at,
+        kind,
+        current,
     })
 }
 
@@ -3364,13 +3404,143 @@ pub fn decode_house_scoped_list_request(
     csil_dec_house_scoped_list_request(&csil_root)
 }
 
+/// Build the canonical CBOR value tree for a TaskListRequest.
+fn csil_enc_task_list_request(csil_v: &TaskListRequest) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(9);
+    if let Some(csil_inner) = &csil_v.mine {
+        csil_entries.push((cbor_text("mine"), cbor_bool(*csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.limit {
+        csil_entries.push((cbor_text("limit"), cbor_uint(*csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.loose {
+        csil_entries.push((cbor_text("loose"), cbor_bool(*csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.state {
+        csil_entries.push((cbor_text("state"), csil_enc_task_state(csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.due_to {
+        csil_entries.push((cbor_text("due_to"), cbor_text(csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.offset {
+        csil_entries.push((cbor_text("offset"), cbor_uint(*csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.due_from {
+        csil_entries.push((cbor_text("due_from"), cbor_text(csil_inner)));
+    }
+    csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
+    if let Some(csil_inner) = &csil_v.due_before {
+        csil_entries.push((
+            cbor_text("due_before"),
+            cbor_enc_array(csil_inner, |csil_elem| cbor_text(csil_elem)),
+        ));
+    }
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a TaskListRequest from a decoded CBOR value tree.
+fn csil_dec_task_list_request(csil_root: &CsilCborValue) -> Result<TaskListRequest, CsilCborError> {
+    let house_id = {
+        let csil_field = cbor_require(csil_root, "house_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let limit = match cbor_map_get(csil_root, "limit") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_u64;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let offset = match cbor_map_get(csil_root, "offset") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_u64;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let state = match cbor_map_get(csil_root, "state") {
+        Some(csil_field) => {
+            let csil_decode = csil_dec_task_state;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let mine = match cbor_map_get(csil_root, "mine") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_bool;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let loose = match cbor_map_get(csil_root, "loose") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_bool;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let due_from = match cbor_map_get(csil_root, "due_from") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let due_to = match cbor_map_get(csil_root, "due_to") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let due_before = match cbor_map_get(csil_root, "due_before") {
+        Some(csil_field) => {
+            let csil_decode = |csil_v| cbor_dec_array(csil_v, cbor_as_text);
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    Ok(TaskListRequest {
+        house_id,
+        limit,
+        offset,
+        state,
+        mine,
+        loose,
+        due_from,
+        due_to,
+        due_before,
+    })
+}
+
+/// Encode a TaskListRequest to canonical CSIL CBOR bytes.
+pub fn encode_task_list_request(csil_v: &TaskListRequest) -> Vec<u8> {
+    cbor_encode(&csil_enc_task_list_request(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a TaskListRequest.
+pub fn decode_task_list_request(csil_data: &[u8]) -> Result<TaskListRequest, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_task_list_request(&csil_root)
+}
+
 /// Build the canonical CBOR value tree for a TaskList.
 fn csil_enc_task_list(csil_v: &TaskList) -> CsilCborValue {
-    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(2);
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(4);
     csil_entries.push((
         cbor_text("tasks"),
         cbor_enc_array(&csil_v.tasks, csil_enc_task),
     ));
+    if let Some(csil_inner) = &csil_v.total {
+        csil_entries.push((cbor_text("total"), cbor_uint(*csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.due_counts {
+        csil_entries.push((
+            cbor_text("due_counts"),
+            cbor_enc_array(csil_inner, |csil_elem| cbor_uint(*csil_elem)),
+        ));
+    }
     csil_entries.push((cbor_text("hidden_count"), cbor_uint(csil_v.hidden_count)));
     CsilCborValue::Map(csil_entries)
 }
@@ -3387,9 +3557,25 @@ fn csil_dec_task_list(csil_root: &CsilCborValue) -> Result<TaskList, CsilCborErr
         let csil_decode = cbor_as_u64;
         csil_decode(csil_field)?
     };
+    let total = match cbor_map_get(csil_root, "total") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_u64;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let due_counts = match cbor_map_get(csil_root, "due_counts") {
+        Some(csil_field) => {
+            let csil_decode = |csil_v| cbor_dec_array(csil_v, cbor_as_u64);
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
     Ok(TaskList {
         tasks,
         hidden_count,
+        total,
+        due_counts,
     })
 }
 
@@ -3509,9 +3695,12 @@ pub fn decode_member_scoped_list_request(
 
 /// Build the canonical CBOR value tree for a ProjectScopedListRequest.
 fn csil_enc_project_scoped_list_request(csil_v: &ProjectScopedListRequest) -> CsilCborValue {
-    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(4);
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(5);
     if let Some(csil_inner) = &csil_v.limit {
         csil_entries.push((cbor_text("limit"), cbor_uint(*csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.state {
+        csil_entries.push((cbor_text("state"), csil_enc_task_state(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.offset {
         csil_entries.push((cbor_text("offset"), cbor_uint(*csil_inner)));
@@ -3549,11 +3738,19 @@ fn csil_dec_project_scoped_list_request(
         }
         None => None,
     };
+    let state = match cbor_map_get(csil_root, "state") {
+        Some(csil_field) => {
+            let csil_decode = csil_dec_task_state;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
     Ok(ProjectScopedListRequest {
         house_id,
         project_id,
         limit,
         offset,
+        state,
     })
 }
 
@@ -4824,12 +5021,15 @@ pub fn decode_set_project_visibility_request(
 
 /// Build the canonical CBOR value tree for a EffectiveSettings.
 fn csil_enc_effective_settings(csil_v: &EffectiveSettings) -> CsilCborValue {
-    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(4);
     if let Some(csil_inner) = &csil_v.bug_reports_enabled {
         csil_entries.push((cbor_text("bug_reports_enabled"), cbor_bool(*csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.bug_reports_project_id {
         csil_entries.push((cbor_text("bug_reports_project_id"), cbor_text(csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.session_lifetime_hours {
+        csil_entries.push((cbor_text("session_lifetime_hours"), cbor_uint(*csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.default_project_visibility {
         csil_entries.push((
@@ -4865,10 +5065,18 @@ fn csil_dec_effective_settings(
         }
         None => None,
     };
+    let session_lifetime_hours = match cbor_map_get(csil_root, "session_lifetime_hours") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_u64;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
     Ok(EffectiveSettings {
         bug_reports_enabled,
         bug_reports_project_id,
         default_project_visibility,
+        session_lifetime_hours,
     })
 }
 
@@ -5865,6 +6073,46 @@ fn csil_dec_cli_login_status(csil_v: &CsilCborValue) -> Result<CliLoginStatus, C
         "complete" => Ok(CliLoginStatus::Complete),
         csil_other => Err(CsilCborError(format!(
             "csil cbor: unknown CliLoginStatus value {csil_other:?}"
+        ))),
+    }
+}
+
+/// Encode a SessionKind enum as its bare literal value.
+fn csil_enc_session_kind(csil_v: &SessionKind) -> CsilCborValue {
+    match csil_v {
+        SessionKind::Cli => cbor_text("cli"),
+        SessionKind::Browser => cbor_text("browser"),
+    }
+}
+
+/// Decode a bare literal value into a SessionKind enum.
+fn csil_dec_session_kind(csil_v: &CsilCborValue) -> Result<SessionKind, CsilCborError> {
+    let csil_val = cbor_as_text(csil_v)?;
+    match csil_val.as_str() {
+        "cli" => Ok(SessionKind::Cli),
+        "browser" => Ok(SessionKind::Browser),
+        csil_other => Err(CsilCborError(format!(
+            "csil cbor: unknown SessionKind value {csil_other:?}"
+        ))),
+    }
+}
+
+/// Encode a TaskState enum as its bare literal value.
+fn csil_enc_task_state(csil_v: &TaskState) -> CsilCborValue {
+    match csil_v {
+        TaskState::Open => cbor_text("open"),
+        TaskState::Closed => cbor_text("closed"),
+    }
+}
+
+/// Decode a bare literal value into a TaskState enum.
+fn csil_dec_task_state(csil_v: &CsilCborValue) -> Result<TaskState, CsilCborError> {
+    let csil_val = cbor_as_text(csil_v)?;
+    match csil_val.as_str() {
+        "open" => Ok(TaskState::Open),
+        "closed" => Ok(TaskState::Closed),
+        csil_other => Err(CsilCborError(format!(
+            "csil cbor: unknown TaskState value {csil_other:?}"
         ))),
     }
 }

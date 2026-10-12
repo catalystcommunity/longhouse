@@ -57,6 +57,24 @@ final class AuthAsyncClient {
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
+  Future<LoginResponse> resumeSession(EmptyRequest request) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'resume-session',
+      request.toCbor(),
+    );
+    return LoginResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<EmptyResponse> endSession(EmptyRequest request) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'end-session',
+      request.toCbor(),
+    );
+    return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
   Future<MeResponse> me(EmptyRequest request) async {
     final csilResp = await transport.call(
       'AuthService',
@@ -956,13 +974,22 @@ final class TaskAsyncClient {
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
-  Future<TaskList> listTasks(HouseScopedListRequest request) async {
+  Future<TaskList> listTasks(TaskListRequest request) async {
     final csilResp = await transport.call(
       'TaskService',
       'list-tasks',
       request.toCbor(),
     );
     return TaskList.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<Task> createPersonalTask(Task request) async {
+    final csilResp = await transport.call(
+      'TaskService',
+      'create-personal-task',
+      request.toCbor(),
+    );
+    return Task.fromCborValue(CsilCbor.decode(csilResp));
   }
 
   Future<Task> setTaskVisibility(SetTaskVisibilityRequest request) async {

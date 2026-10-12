@@ -13,7 +13,10 @@ type Project struct {
 	// CreatedByMemberID is the creating member; owner falls back to this
 	// when the project has no explicit owner (full) grants. Nullable: the
 	// member row may have been deleted (ON DELETE SET NULL).
-	CreatedByMemberID *string    `gorm:"column:created_by_member_id" json:"created_by_member_id,omitempty"`
+	CreatedByMemberID *string `gorm:"column:created_by_member_id" json:"created_by_member_id,omitempty"`
+	// PersonalMemberID marks a member's private "Personal" project. At most
+	// one live one per member and house.
+	PersonalMemberID  *string    `gorm:"column:personal_member_id" json:"personal_member_id,omitempty"`
 	DeletedAt         *time.Time `gorm:"column:deleted_at" json:"deleted_at,omitempty"`
 	DeletedByMemberID *string    `gorm:"column:deleted_by_member_id" json:"deleted_by_member_id,omitempty"`
 	DeletedOpID       *string    `gorm:"column:deleted_op_id" json:"deleted_op_id,omitempty"`

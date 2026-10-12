@@ -26,6 +26,10 @@ public sealed class AuthAsyncClient(ICsilAsyncTransport transport)
         Codec.Decode<LoginResponse>(await transport.Call("AuthService", "refresh", Codec.Encode(emptyRequest)));
     public async System.Threading.Tasks.Task<EmptyResponse> LogoutAsync(EmptyRequest emptyRequest) =>
         Codec.Decode<EmptyResponse>(await transport.Call("AuthService", "logout", Codec.Encode(emptyRequest)));
+    public async System.Threading.Tasks.Task<LoginResponse> ResumeSessionAsync(EmptyRequest emptyRequest) =>
+        Codec.Decode<LoginResponse>(await transport.Call("AuthService", "resume-session", Codec.Encode(emptyRequest)));
+    public async System.Threading.Tasks.Task<EmptyResponse> EndSessionAsync(EmptyRequest emptyRequest) =>
+        Codec.Decode<EmptyResponse>(await transport.Call("AuthService", "end-session", Codec.Encode(emptyRequest)));
     public async System.Threading.Tasks.Task<MeResponse> MeAsync(EmptyRequest emptyRequest) =>
         Codec.Decode<MeResponse>(await transport.Call("AuthService", "me", Codec.Encode(emptyRequest)));
     public async System.Threading.Tasks.Task<BeginCliLoginResponse> BeginCliLoginAsync(BeginCliLoginRequest beginCliLoginRequest) =>
@@ -258,8 +262,10 @@ public sealed class TaskAsyncClient(ICsilAsyncTransport transport)
         Codec.Decode<Task>(await transport.Call("TaskService", "update-task", Codec.Encode(task)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteTaskAsync(TaskID taskID) =>
         Codec.Decode<EmptyResponse>(await transport.Call("TaskService", "delete-task", Codec.EncodeTaskDeleteTaskRequest(taskID)));
-    public async System.Threading.Tasks.Task<TaskList> ListTasksAsync(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.Decode<TaskList>(await transport.Call("TaskService", "list-tasks", Codec.Encode(houseScopedListRequest)));
+    public async System.Threading.Tasks.Task<TaskList> ListTasksAsync(TaskListRequest taskListRequest) =>
+        Codec.Decode<TaskList>(await transport.Call("TaskService", "list-tasks", Codec.Encode(taskListRequest)));
+    public async System.Threading.Tasks.Task<Task> CreatePersonalTaskAsync(Task task) =>
+        Codec.Decode<Task>(await transport.Call("TaskService", "create-personal-task", Codec.Encode(task)));
     public async System.Threading.Tasks.Task<Task> SetTaskVisibilityAsync(SetTaskVisibilityRequest setTaskVisibilityRequest) =>
         Codec.Decode<Task>(await transport.Call("TaskService", "set-task-visibility", Codec.Encode(setTaskVisibilityRequest)));
     public async System.Threading.Tasks.Task<System.Collections.Generic.List<Grant>> ListTaskGrantsAsync(TaskID taskID) =>

@@ -74,6 +74,22 @@ impl<T: Transport> AuthClient<T> {
         decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
     }
 
+    /// resume-session (request/response).
+    pub fn resume_session(&self, req: EmptyRequest) -> Result<LoginResponse, ClientError> {
+        let csil_resp =
+            self.transport
+                .call("AuthService", "resume-session", &encode_empty_request(&req))?;
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// end-session (request/response).
+    pub fn end_session(&self, req: EmptyRequest) -> Result<EmptyResponse, ClientError> {
+        let csil_resp =
+            self.transport
+                .call("AuthService", "end-session", &encode_empty_request(&req))?;
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
     /// me (request/response).
     pub fn me(&self, req: EmptyRequest) -> Result<MeResponse, ClientError> {
         let csil_resp = self
@@ -1077,13 +1093,19 @@ impl<T: Transport> TaskClient<T> {
     }
 
     /// list-tasks (request/response).
-    pub fn list_tasks(&self, req: HouseScopedListRequest) -> Result<TaskList, ClientError> {
-        let csil_resp = self.transport.call(
-            "TaskService",
-            "list-tasks",
-            &encode_house_scoped_list_request(&req),
-        )?;
+    pub fn list_tasks(&self, req: TaskListRequest) -> Result<TaskList, ClientError> {
+        let csil_resp =
+            self.transport
+                .call("TaskService", "list-tasks", &encode_task_list_request(&req))?;
         decode_task_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// create-personal-task (request/response).
+    pub fn create_personal_task(&self, req: Task) -> Result<Task, ClientError> {
+        let csil_resp =
+            self.transport
+                .call("TaskService", "create-personal-task", &encode_task(&req))?;
+        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
     }
 
     /// set-task-visibility (request/response).

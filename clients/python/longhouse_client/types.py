@@ -60,6 +60,10 @@ MilestoneState = Union[str, str, str]
 
 CliLoginStatus = Union[str, str, str, str]
 
+SessionKind = Union[str, str]
+
+TaskState = Union[str, str]
+
 @dataclass
 class House:
     house_id: HouseId
@@ -491,6 +495,7 @@ class Project:
     status: Optional[ProjectStatus] = "active"
     visibility: Optional[AccessLevel] = "read"
     created_by_member_id: Optional[MemberId] = None
+    personal: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -511,7 +516,7 @@ class Project:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Project':
         """Create instance from dictionary."""
-        return cls(project_id=data.get('project_id'), house_id=data.get('house_id'), name=data.get('name'), description=data.get('description'), category=data.get('category'), status=data.get('status'), visibility=data.get('visibility'), created_by_member_id=data.get('created_by_member_id'), created_at=data.get('created_at'), updated_at=data.get('updated_at'))
+        return cls(project_id=data.get('project_id'), house_id=data.get('house_id'), name=data.get('name'), description=data.get('description'), category=data.get('category'), status=data.get('status'), visibility=data.get('visibility'), created_by_member_id=data.get('created_by_member_id'), personal=data.get('personal'), created_at=data.get('created_at'), updated_at=data.get('updated_at'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1425,6 +1430,8 @@ class CliSessionSummary:
     last_used_at: Timestamp
     expires_at: Timestamp
     revoked_at: Optional[Timestamp] = None
+    kind: Optional[SessionKind] = None
+    current: Optional[bool] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -1440,12 +1447,16 @@ class CliSessionSummary:
             result['expires_at'] = self.expires_at
         if hasattr(self, 'revoked_at') and self.revoked_at is not None:
             result['revoked_at'] = self.revoked_at
+        if hasattr(self, 'kind') and self.kind is not None:
+            result['kind'] = self.kind
+        if hasattr(self, 'current') and self.current is not None:
+            result['current'] = self.current
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'CliSessionSummary':
         """Create instance from dictionary."""
-        return cls(session_id=data.get('session_id'), client_name=data.get('client_name'), created_at=data.get('created_at'), last_used_at=data.get('last_used_at'), expires_at=data.get('expires_at'), revoked_at=data.get('revoked_at'))
+        return cls(session_id=data.get('session_id'), client_name=data.get('client_name'), created_at=data.get('created_at'), last_used_at=data.get('last_used_at'), expires_at=data.get('expires_at'), revoked_at=data.get('revoked_at'), kind=data.get('kind'), current=data.get('current'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1730,9 +1741,60 @@ class HouseScopedListRequest:
 
 
 @dataclass
+class TaskListRequest:
+    house_id: HouseId
+    limit: Optional[int] = 50
+    offset: Optional[int] = 0
+    state: Optional[TaskState] = None
+    mine: Optional[bool] = None
+    loose: Optional[bool] = None
+    due_from: Optional[Timestamp] = None
+    due_to: Optional[Timestamp] = None
+    due_before: Optional[List[Timestamp]] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'house_id') and self.house_id is not None:
+            result['house_id'] = self.house_id
+        if hasattr(self, 'limit') and self.limit is not None:
+            result['limit'] = self.limit
+        if hasattr(self, 'offset') and self.offset is not None:
+            result['offset'] = self.offset
+        if hasattr(self, 'state') and self.state is not None:
+            result['state'] = self.state
+        if hasattr(self, 'mine') and self.mine is not None:
+            result['mine'] = self.mine
+        if hasattr(self, 'loose') and self.loose is not None:
+            result['loose'] = self.loose
+        if hasattr(self, 'due_from') and self.due_from is not None:
+            result['due_from'] = self.due_from
+        if hasattr(self, 'due_to') and self.due_to is not None:
+            result['due_to'] = self.due_to
+        if hasattr(self, 'due_before') and self.due_before is not None:
+            result['due_before'] = self.due_before
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'TaskListRequest':
+        """Create instance from dictionary."""
+        return cls(house_id=data.get('house_id'), limit=data.get('limit'), offset=data.get('offset'), state=data.get('state'), mine=data.get('mine'), loose=data.get('loose'), due_from=data.get('due_from'), due_to=data.get('due_to'), due_before=data.get('due_before'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'TaskListRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class TaskList:
     tasks: List[Task]
     hidden_count: int
+    total: Optional[int] = None
+    due_counts: Optional[List[int]] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -1740,12 +1802,16 @@ class TaskList:
             result['tasks'] = self.tasks
         if hasattr(self, 'hidden_count') and self.hidden_count is not None:
             result['hidden_count'] = self.hidden_count
+        if hasattr(self, 'total') and self.total is not None:
+            result['total'] = self.total
+        if hasattr(self, 'due_counts') and self.due_counts is not None:
+            result['due_counts'] = self.due_counts
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TaskList':
         """Create instance from dictionary."""
-        return cls(tasks=data.get('tasks'), hidden_count=data.get('hidden_count'))
+        return cls(tasks=data.get('tasks'), hidden_count=data.get('hidden_count'), total=data.get('total'), due_counts=data.get('due_counts'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -1825,6 +1891,7 @@ class ProjectScopedListRequest:
     project_id: ProjectId
     limit: Optional[int] = 50
     offset: Optional[int] = 0
+    state: Optional[TaskState] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -1836,12 +1903,14 @@ class ProjectScopedListRequest:
             result['limit'] = self.limit
         if hasattr(self, 'offset') and self.offset is not None:
             result['offset'] = self.offset
+        if hasattr(self, 'state') and self.state is not None:
+            result['state'] = self.state
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ProjectScopedListRequest':
         """Create instance from dictionary."""
-        return cls(house_id=data.get('house_id'), project_id=data.get('project_id'), limit=data.get('limit'), offset=data.get('offset'))
+        return cls(house_id=data.get('house_id'), project_id=data.get('project_id'), limit=data.get('limit'), offset=data.get('offset'), state=data.get('state'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2638,6 +2707,7 @@ class EffectiveSettings:
     bug_reports_enabled: Optional[bool] = False
     bug_reports_project_id: Optional[ProjectId] = None
     default_project_visibility: Optional[AccessLevel] = "read"
+    session_lifetime_hours: Optional[int] = 720
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -2647,12 +2717,14 @@ class EffectiveSettings:
             result['bug_reports_project_id'] = self.bug_reports_project_id
         if hasattr(self, 'default_project_visibility') and self.default_project_visibility is not None:
             result['default_project_visibility'] = self.default_project_visibility
+        if hasattr(self, 'session_lifetime_hours') and self.session_lifetime_hours is not None:
+            result['session_lifetime_hours'] = self.session_lifetime_hours
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EffectiveSettings':
         """Create instance from dictionary."""
-        return cls(bug_reports_enabled=data.get('bug_reports_enabled'), bug_reports_project_id=data.get('bug_reports_project_id'), default_project_visibility=data.get('default_project_visibility'))
+        return cls(bug_reports_enabled=data.get('bug_reports_enabled'), bug_reports_project_id=data.get('bug_reports_project_id'), default_project_visibility=data.get('default_project_visibility'), session_lifetime_hours=data.get('session_lifetime_hours'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

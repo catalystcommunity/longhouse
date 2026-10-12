@@ -85,6 +85,18 @@ typedef enum CliLoginStatus {
     CLI_LOGIN_STATUS_COMPLETE,
 } CliLoginStatus;
 
+/* SessionKind is an enumeration. */
+typedef enum SessionKind {
+    SESSION_KIND_CLI,
+    SESSION_KIND_BROWSER,
+} SessionKind;
+
+/* TaskState is an enumeration. */
+typedef enum TaskState {
+    TASK_STATE_OPEN,
+    TASK_STATE_CLOSED,
+} TaskState;
+
 /* Forward declarations (resolve mutual and out-of-order references). */
 typedef struct House House;
 typedef struct Member Member;
@@ -133,6 +145,7 @@ typedef struct EmptyResponse EmptyResponse;
 typedef struct BoolResponse BoolResponse;
 typedef struct HouseListRequest HouseListRequest;
 typedef struct HouseScopedListRequest HouseScopedListRequest;
+typedef struct TaskListRequest TaskListRequest;
 typedef struct TaskList TaskList;
 typedef struct ProjectList ProjectList;
 typedef struct MemberScopedListRequest MemberScopedListRequest;
@@ -345,6 +358,7 @@ typedef struct Project {
     ProjectStatus *status;
     AccessLevel *visibility;
     MemberID *created_by_member_id;
+    bool *personal;
     Timestamp created_at;
     Timestamp updated_at;
 } Project;
@@ -573,6 +587,8 @@ typedef struct CliSessionSummary {
     Timestamp last_used_at;
     Timestamp expires_at;
     Timestamp *revoked_at;
+    SessionKind *kind;
+    bool *current;
 } CliSessionSummary;
 
 /* CliSessionsResponse is a structured data type. */
@@ -645,11 +661,28 @@ typedef struct HouseScopedListRequest {
     uint64_t *offset;
 } HouseScopedListRequest;
 
+/* TaskListRequest is a structured data type. */
+typedef struct TaskListRequest {
+    HouseID house_id;
+    uint64_t *limit;
+    uint64_t *offset;
+    TaskState *state;
+    bool *mine;
+    bool *loose;
+    Timestamp *due_from;
+    Timestamp *due_to;
+    Timestamp *due_before;
+    size_t due_before_count;
+} TaskListRequest;
+
 /* TaskList is a structured data type. */
 typedef struct TaskList {
     Task *tasks;
     size_t tasks_count;
     uint64_t hidden_count;
+    uint64_t *total;
+    uint64_t *due_counts;
+    size_t due_counts_count;
 } TaskList;
 
 /* ProjectList is a structured data type. */
@@ -673,6 +706,7 @@ typedef struct ProjectScopedListRequest {
     ProjectID project_id;
     uint64_t *limit;
     uint64_t *offset;
+    TaskState *state;
 } ProjectScopedListRequest;
 
 /* CommentListRequest is a structured data type. */
@@ -860,6 +894,7 @@ typedef struct EffectiveSettings {
     bool *bug_reports_enabled;
     ProjectID *bug_reports_project_id;
     AccessLevel *default_project_visibility;
+    uint64_t *session_lifetime_hours;
 } EffectiveSettings;
 
 /* UpdateSettingsRequest is a structured data type. */

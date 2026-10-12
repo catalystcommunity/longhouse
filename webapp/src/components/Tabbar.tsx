@@ -3,22 +3,23 @@ import { For, Show, createSignal, onCleanup, onMount } from "solid-js";
 import { Calendar, Clock, Cloud, Home, Menu, People, Pin } from "./Icons";
 
 /**
- * Mobile bottom tabbar. The first four entries deep-link to top-level
- * pages; the last "More" entry pops a sheet of the routes that don't fit
- * (Projects, Groups, Skills, Settings, Account). The deep-linkable /more
- * route is preserved as a fallback for shared URLs.
+ * Mobile bottom tabbar. The first four entries (Home, Tasks, Events,
+ * Projects) deep-link to top-level pages; the last "More" entry pops a
+ * sheet of the routes that don't fit (Members, Groups, Skills, Settings,
+ * Account). The deep-linkable /more route is preserved as a fallback for
+ * shared URLs and lists the same sections.
  */
 
 const TABS = [
-  { href: "/",         label: "Home",    Icon: Home },
-  { href: "/tasks",    label: "Tasks",   Icon: Clock },
-  { href: "/calendar", label: "Events",  Icon: Calendar },
-  { href: "/members",  label: "Members", Icon: People },
+  { href: "/",         label: "Home",     Icon: Home },
+  { href: "/tasks",    label: "Tasks",    Icon: Clock },
+  { href: "/calendar", label: "Events",   Icon: Calendar },
+  { href: "/projects", label: "Projects", Icon: Pin },
 ];
 
 const MORE_ITEMS: { href: string; label: string; Icon: typeof Home }[] = [
-  { href: "/projects", label: "Projects", Icon: Pin },
-  { href: "/groups",   label: "Groups",   Icon: People },
+  { href: "/members",  label: "Members",  Icon: People },
+  { href: "/groups",  label: "Groups",   Icon: People },
   { href: "/skills",   label: "Skills",   Icon: Cloud },
   { href: "/settings", label: "Settings", Icon: Calendar },
   { href: "/account",  label: "Account",  Icon: Clock },

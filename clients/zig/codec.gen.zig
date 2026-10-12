@@ -190,6 +190,12 @@ fn half_to_f64(h: u16) f64 {
     return @as(f64, @as(f32, @bitCast(bits)));
 }
 
+// The most elements a decoded array or map reserves before it reads them. The
+// declared length is checked against the remaining input, but one input byte can
+// become a much larger value, so reserving the full declared length lets a small
+// frame reserve a large multiple of its size at every nesting level.
+const prealloc_limit: usize = 1024;
+
 fn decode_value(alloc: std.mem.Allocator, b: []const u8, depth: usize) CodecError!Decoded {
     if (depth > 64) return error.Malformed;
     if (b.len == 0) return error.UnexpectedEof;
@@ -216,20 +222,20 @@ fn decode_value(alloc: std.mem.Allocator, b: []const u8, depth: usize) CodecErro
         4 => {
             if (arg > b.len - n) return error.UnexpectedEof;
             const count: usize = @intCast(arg);
-            const items = try alloc.alloc(Value, count);
+            var items = try std.ArrayListUnmanaged(Value).initCapacity(alloc, @min(count, prealloc_limit));
             var off = n;
             var i: usize = 0;
             while (i < count) : (i += 1) {
                 const d = try decode_value(alloc, b[off..], depth + 1);
-                items[i] = d.value;
+                try items.append(alloc, d.value);
                 off += d.consumed;
             }
-            return .{ .value = .{ .array = items }, .consumed = off };
+            return .{ .value = .{ .array = try items.toOwnedSlice(alloc) }, .consumed = off };
         },
         5 => {
             if (arg > b.len - n) return error.UnexpectedEof;
             const count: usize = @intCast(arg);
-            const pairs = try alloc.alloc(Pair, count);
+            var pairs = try std.ArrayListUnmanaged(Pair).initCapacity(alloc, @min(count, prealloc_limit));
             var off = n;
             var i: usize = 0;
             while (i < count) : (i += 1) {
@@ -237,9 +243,9 @@ fn decode_value(alloc: std.mem.Allocator, b: []const u8, depth: usize) CodecErro
                 off += k.consumed;
                 const v = try decode_value(alloc, b[off..], depth + 1);
                 off += v.consumed;
-                pairs[i] = .{ .key = k.value, .val = v.value };
+                try pairs.append(alloc, .{ .key = k.value, .val = v.value });
             }
-            return .{ .value = .{ .map = pairs }, .consumed = off };
+            return .{ .value = .{ .map = try pairs.toOwnedSlice(alloc) }, .consumed = off };
         },
         6 => {
             const inner = try decode_value(alloc, b[n..], depth + 1);
@@ -568,6 +574,42 @@ fn dec_CliLoginStatus(alloc: std.mem.Allocator, src: Value, out: *types.CliLogin
     }
     if (std.mem.eql(u8, csil_s, "complete")) {
         out.* = .complete;
+        return;
+    }
+    return error.WrongType;
+}
+
+fn enc_SessionKind(out: *std.ArrayList(u8), v: *const types.SessionKind) CodecError!void {
+    try w_text(out, v.wire_name());
+}
+
+fn dec_SessionKind(alloc: std.mem.Allocator, src: Value, out: *types.SessionKind) CodecError!void {
+    _ = alloc;
+    const csil_s = try as_text(src);
+    if (std.mem.eql(u8, csil_s, "cli")) {
+        out.* = .cli;
+        return;
+    }
+    if (std.mem.eql(u8, csil_s, "browser")) {
+        out.* = .browser;
+        return;
+    }
+    return error.WrongType;
+}
+
+fn enc_TaskState(out: *std.ArrayList(u8), v: *const types.TaskState) CodecError!void {
+    try w_text(out, v.wire_name());
+}
+
+fn dec_TaskState(alloc: std.mem.Allocator, src: Value, out: *types.TaskState) CodecError!void {
+    _ = alloc;
+    const csil_s = try as_text(src);
+    if (std.mem.eql(u8, csil_s, "open")) {
+        out.* = .open;
+        return;
+    }
+    if (std.mem.eql(u8, csil_s, "closed")) {
+        out.* = .closed;
         return;
     }
     return error.WrongType;
@@ -1138,6 +1180,7 @@ fn enc_Project(out: *std.ArrayList(u8), v: *const types.Project) CodecError!void
     var csil_n: usize = 5;
     if (v.status != null) csil_n += 1;
     if (v.category != null) csil_n += 1;
+    if (v.personal != null) csil_n += 1;
     if (v.visibility != null) csil_n += 1;
     if (v.description != null) csil_n += 1;
     if (v.created_by_member_id != null) csil_n += 1;
@@ -1154,6 +1197,10 @@ fn enc_Project(out: *std.ArrayList(u8), v: *const types.Project) CodecError!void
     }
     try w_text(out, "house_id");
     try w_text(out, v.house_id);
+    if (v.personal) |csil_x| {
+        try w_text(out, "personal");
+        try w_bool(out, csil_x);
+    }
     try w_text(out, "created_at");
     try w_text(out, v.created_at);
     try w_text(out, "project_id");
@@ -1199,6 +1246,13 @@ fn dec_Project(alloc: std.mem.Allocator, m: Value, out: *types.Project) CodecErr
     {
         const csil_fv = try req(m, "house_id");
         out.house_id = try as_text(csil_fv);
+    }
+    {
+        if (mget(m, "personal")) |csil_fv| {
+            out.personal = try as_bool(csil_fv);
+        } else {
+            out.personal = null;
+        }
     }
     {
         const csil_fv = try req(m, "created_at");
@@ -2407,8 +2461,18 @@ fn dec_RefreshSessionRequest(alloc: std.mem.Allocator, m: Value, out: *types.Ref
 
 fn enc_CliSessionSummary(out: *std.ArrayList(u8), v: *const types.CliSessionSummary) CodecError!void {
     var csil_n: usize = 5;
+    if (v.kind != null) csil_n += 1;
+    if (v.current != null) csil_n += 1;
     if (v.revoked_at != null) csil_n += 1;
     try w_map_head(out, csil_n);
+    if (v.kind) |csil_x| {
+        try w_text(out, "kind");
+        try enc_SessionKind(out, &(csil_x));
+    }
+    if (v.current) |csil_x| {
+        try w_text(out, "current");
+        try w_bool(out, csil_x);
+    }
     try w_text(out, "created_at");
     try w_text(out, v.created_at);
     try w_text(out, "expires_at");
@@ -2426,8 +2490,23 @@ fn enc_CliSessionSummary(out: *std.ArrayList(u8), v: *const types.CliSessionSumm
 }
 
 fn dec_CliSessionSummary(alloc: std.mem.Allocator, m: Value, out: *types.CliSessionSummary) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
+    {
+        if (mget(m, "kind")) |csil_fv| {
+            var csil_tmp: types.SessionKind = undefined;
+            try dec_SessionKind(alloc, csil_fv, &csil_tmp);
+            out.kind = csil_tmp;
+        } else {
+            out.kind = null;
+        }
+    }
+    {
+        if (mget(m, "current")) |csil_fv| {
+            out.current = try as_bool(csil_fv);
+        } else {
+            out.current = null;
+        }
+    }
     {
         const csil_fv = try req(m, "created_at");
         out.created_at = try as_text(csil_fv);
@@ -2768,12 +2847,147 @@ fn dec_HouseScopedListRequest(alloc: std.mem.Allocator, m: Value, out: *types.Ho
     }
 }
 
+fn enc_TaskListRequest(out: *std.ArrayList(u8), v: *const types.TaskListRequest) CodecError!void {
+    var csil_n: usize = 1;
+    if (v.mine != null) csil_n += 1;
+    if (v.limit != null) csil_n += 1;
+    if (v.loose != null) csil_n += 1;
+    if (v.state != null) csil_n += 1;
+    if (v.due_to != null) csil_n += 1;
+    if (v.offset != null) csil_n += 1;
+    if (v.due_from != null) csil_n += 1;
+    if (v.due_before != null) csil_n += 1;
+    try w_map_head(out, csil_n);
+    if (v.mine) |csil_x| {
+        try w_text(out, "mine");
+        try w_bool(out, csil_x);
+    }
+    if (v.limit) |csil_x| {
+        try w_text(out, "limit");
+        try w_uint(out, csil_x);
+    }
+    if (v.loose) |csil_x| {
+        try w_text(out, "loose");
+        try w_bool(out, csil_x);
+    }
+    if (v.state) |csil_x| {
+        try w_text(out, "state");
+        try enc_TaskState(out, &(csil_x));
+    }
+    if (v.due_to) |csil_x| {
+        try w_text(out, "due_to");
+        try w_text(out, csil_x);
+    }
+    if (v.offset) |csil_x| {
+        try w_text(out, "offset");
+        try w_uint(out, csil_x);
+    }
+    if (v.due_from) |csil_x| {
+        try w_text(out, "due_from");
+        try w_text(out, csil_x);
+    }
+    try w_text(out, "house_id");
+    try w_text(out, v.house_id);
+    if (v.due_before) |csil_arr| {
+        try w_text(out, "due_before");
+        try w_array_head(out, csil_arr.len);
+        for (csil_arr) |csil_it| {
+            try w_text(out, csil_it);
+        }
+    }
+}
+
+fn dec_TaskListRequest(alloc: std.mem.Allocator, m: Value, out: *types.TaskListRequest) CodecError!void {
+    if (m != .map) return error.WrongType;
+    {
+        if (mget(m, "mine")) |csil_fv| {
+            out.mine = try as_bool(csil_fv);
+        } else {
+            out.mine = null;
+        }
+    }
+    {
+        if (mget(m, "limit")) |csil_fv| {
+            out.limit = try as_u64(csil_fv);
+        } else {
+            out.limit = null;
+        }
+    }
+    {
+        if (mget(m, "loose")) |csil_fv| {
+            out.loose = try as_bool(csil_fv);
+        } else {
+            out.loose = null;
+        }
+    }
+    {
+        if (mget(m, "state")) |csil_fv| {
+            var csil_tmp: types.TaskState = undefined;
+            try dec_TaskState(alloc, csil_fv, &csil_tmp);
+            out.state = csil_tmp;
+        } else {
+            out.state = null;
+        }
+    }
+    {
+        if (mget(m, "due_to")) |csil_fv| {
+            out.due_to = try as_text(csil_fv);
+        } else {
+            out.due_to = null;
+        }
+    }
+    {
+        if (mget(m, "offset")) |csil_fv| {
+            out.offset = try as_u64(csil_fv);
+        } else {
+            out.offset = null;
+        }
+    }
+    {
+        if (mget(m, "due_from")) |csil_fv| {
+            out.due_from = try as_text(csil_fv);
+        } else {
+            out.due_from = null;
+        }
+    }
+    {
+        const csil_fv = try req(m, "house_id");
+        out.house_id = try as_text(csil_fv);
+    }
+    {
+        if (mget(m, "due_before")) |csil_fv| {
+            if (csil_fv != .array) return error.WrongType;
+            const csil_tmp = try alloc.alloc(types.Timestamp, csil_fv.array.len);
+            for (csil_fv.array, 0..) |csil_it, csil_i| {
+                csil_tmp[csil_i] = try as_text(csil_it);
+            }
+            out.due_before = csil_tmp;
+        } else {
+            out.due_before = null;
+        }
+    }
+}
+
 fn enc_TaskList(out: *std.ArrayList(u8), v: *const types.TaskList) CodecError!void {
-    try w_map_head(out, 2);
+    var csil_n: usize = 2;
+    if (v.total != null) csil_n += 1;
+    if (v.due_counts != null) csil_n += 1;
+    try w_map_head(out, csil_n);
     try w_text(out, "tasks");
     try w_array_head(out, v.tasks.len);
     for (v.tasks) |csil_it| {
         try enc_Task(out, &(csil_it));
+    }
+    if (v.total) |csil_x| {
+        try w_text(out, "total");
+        try w_uint(out, csil_x);
+    }
+    if (v.due_counts) |csil_arr| {
+        try w_text(out, "due_counts");
+        try w_array_head(out, csil_arr.len);
+        for (csil_arr) |csil_it| {
+            try w_uint(out, csil_it);
+        }
     }
     try w_text(out, "hidden_count");
     try w_uint(out, v.hidden_count);
@@ -2787,6 +3001,25 @@ fn dec_TaskList(alloc: std.mem.Allocator, m: Value, out: *types.TaskList) CodecE
         out.tasks = try alloc.alloc(types.Task, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
             try dec_Task(alloc, csil_it, &(out.tasks[csil_i]));
+        }
+    }
+    {
+        if (mget(m, "total")) |csil_fv| {
+            out.total = try as_u64(csil_fv);
+        } else {
+            out.total = null;
+        }
+    }
+    {
+        if (mget(m, "due_counts")) |csil_fv| {
+            if (csil_fv != .array) return error.WrongType;
+            const csil_tmp = try alloc.alloc(u64, csil_fv.array.len);
+            for (csil_fv.array, 0..) |csil_it, csil_i| {
+                csil_tmp[csil_i] = try as_u64(csil_it);
+            }
+            out.due_counts = csil_tmp;
+        } else {
+            out.due_counts = null;
         }
     }
     {
@@ -2871,11 +3104,16 @@ fn dec_MemberScopedListRequest(alloc: std.mem.Allocator, m: Value, out: *types.M
 fn enc_ProjectScopedListRequest(out: *std.ArrayList(u8), v: *const types.ProjectScopedListRequest) CodecError!void {
     var csil_n: usize = 2;
     if (v.limit != null) csil_n += 1;
+    if (v.state != null) csil_n += 1;
     if (v.offset != null) csil_n += 1;
     try w_map_head(out, csil_n);
     if (v.limit) |csil_x| {
         try w_text(out, "limit");
         try w_uint(out, csil_x);
+    }
+    if (v.state) |csil_x| {
+        try w_text(out, "state");
+        try enc_TaskState(out, &(csil_x));
     }
     if (v.offset) |csil_x| {
         try w_text(out, "offset");
@@ -2888,13 +3126,21 @@ fn enc_ProjectScopedListRequest(out: *std.ArrayList(u8), v: *const types.Project
 }
 
 fn dec_ProjectScopedListRequest(alloc: std.mem.Allocator, m: Value, out: *types.ProjectScopedListRequest) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
         if (mget(m, "limit")) |csil_fv| {
             out.limit = try as_u64(csil_fv);
         } else {
             out.limit = null;
+        }
+    }
+    {
+        if (mget(m, "state")) |csil_fv| {
+            var csil_tmp: types.TaskState = undefined;
+            try dec_TaskState(alloc, csil_fv, &csil_tmp);
+            out.state = csil_tmp;
+        } else {
+            out.state = null;
         }
     }
     {
@@ -3675,6 +3921,7 @@ fn enc_EffectiveSettings(out: *std.ArrayList(u8), v: *const types.EffectiveSetti
     var csil_n: usize = 0;
     if (v.bug_reports_enabled != null) csil_n += 1;
     if (v.bug_reports_project_id != null) csil_n += 1;
+    if (v.session_lifetime_hours != null) csil_n += 1;
     if (v.default_project_visibility != null) csil_n += 1;
     try w_map_head(out, csil_n);
     if (v.bug_reports_enabled) |csil_x| {
@@ -3684,6 +3931,10 @@ fn enc_EffectiveSettings(out: *std.ArrayList(u8), v: *const types.EffectiveSetti
     if (v.bug_reports_project_id) |csil_x| {
         try w_text(out, "bug_reports_project_id");
         try w_text(out, csil_x);
+    }
+    if (v.session_lifetime_hours) |csil_x| {
+        try w_text(out, "session_lifetime_hours");
+        try w_uint(out, csil_x);
     }
     if (v.default_project_visibility) |csil_x| {
         try w_text(out, "default_project_visibility");
@@ -3705,6 +3956,13 @@ fn dec_EffectiveSettings(alloc: std.mem.Allocator, m: Value, out: *types.Effecti
             out.bug_reports_project_id = try as_text(csil_fv);
         } else {
             out.bug_reports_project_id = null;
+        }
+    }
+    {
+        if (mget(m, "session_lifetime_hours")) |csil_fv| {
+            out.session_lifetime_hours = try as_u64(csil_fv);
+        } else {
+            out.session_lifetime_hours = null;
         }
     }
     {
@@ -4468,6 +4726,38 @@ pub fn decode_CliLoginStatus(alloc: std.mem.Allocator, bytes: []const u8, out: *
     try dec_CliLoginStatus(alloc, root, out);
 }
 
+/// Encode a SessionKind to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_SessionKind(alloc: std.mem.Allocator, v: *const types.SessionKind) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_SessionKind(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a SessionKind. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_SessionKind(alloc: std.mem.Allocator, bytes: []const u8, out: *types.SessionKind) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_SessionKind(alloc, root, out);
+}
+
+/// Encode a TaskState to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_TaskState(alloc: std.mem.Allocator, v: *const types.TaskState) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_TaskState(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a TaskState. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_TaskState(alloc: std.mem.Allocator, bytes: []const u8, out: *types.TaskState) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_TaskState(alloc, root, out);
+}
+
 /// Encode a House to CBOR. The returned slice is owned by the caller
 /// (free it with alloc.free).
 pub fn encode_House(alloc: std.mem.Allocator, v: *const types.House) CodecError![]u8 {
@@ -5218,6 +5508,22 @@ pub fn encode_HouseScopedListRequest(alloc: std.mem.Allocator, v: *const types.H
 pub fn decode_HouseScopedListRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.HouseScopedListRequest) CodecError!void {
     const root = try decode(alloc, bytes);
     try dec_HouseScopedListRequest(alloc, root, out);
+}
+
+/// Encode a TaskListRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_TaskListRequest(alloc: std.mem.Allocator, v: *const types.TaskListRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_TaskListRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a TaskListRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_TaskListRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.TaskListRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_TaskListRequest(alloc, root, out);
 }
 
 /// Encode a TaskList to CBOR. The returned slice is owned by the caller

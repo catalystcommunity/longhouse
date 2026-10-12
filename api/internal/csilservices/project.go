@@ -201,8 +201,27 @@ func (s *ProjectService) ListProjectTasks(ctx context.Context, req csil.ProjectS
 	if err != nil {
 		return csil.TaskList{}, err
 	}
+	// The project must be in the named house and readable by the caller.
+	// Without this, a member could list (and count) the tasks of a private
+	// project, or of a project in another house.
+	p, err := s.Store.GetProjectByID(ctx, string(req.ProjectId))
+	if err != nil || p.DeletedAt != nil || p.HouseID != string(req.HouseId) {
+		return csil.TaskList{}, csilrpc.NotFound("project not found")
+	}
+	if _, _, err := s.requireProjectAccess(ctx, p, models.AccessRead); err != nil {
+		return csil.TaskList{}, err
+	}
 	limit, offset := normalizePaging(req.Limit, req.Offset)
-	tasks, err := s.Store.ListProjectTasks(ctx, string(req.ProjectId), limit, offset)
+	state := ""
+	if req.State != nil {
+		switch string(*req.State) {
+		case store.TaskStateOpen, store.TaskStateClosed:
+			state = string(*req.State)
+		default:
+			return csil.TaskList{}, csilrpc.BadRequest("state must be open or closed")
+		}
+	}
+	tasks, total, err := s.Store.ListProjectTasksPage(ctx, string(req.ProjectId), state, limit, offset)
 	if err != nil {
 		return csil.TaskList{}, csilrpc.Internal("internal error")
 	}
@@ -220,7 +239,8 @@ func (s *ProjectService) ListProjectTasks(ctx context.Context, req csil.ProjectS
 			hidden++
 		}
 	}
-	return csil.TaskList{Tasks: out, HiddenCount: hidden}, nil
+	totalCount := uint64(total)
+	return csil.TaskList{Tasks: out, HiddenCount: hidden, Total: &totalCount}, nil
 }
 
 func (s *ProjectService) AddProjectTask(ctx context.Context, req csil.ProjectTaskOrderRequest) (csil.EmptyResponse, error) {
@@ -228,6 +248,9 @@ func (s *ProjectService) AddProjectTask(ctx context.Context, req csil.ProjectTas
 		return csil.EmptyResponse{}, err
 	}
 	if err := s.Store.AddProjectTask(ctx, string(req.ProjectId), string(req.TaskId), int(req.Position)); err != nil {
+		if errors.Is(err, store.ErrAlreadyExists) {
+			return csil.EmptyResponse{}, csilrpc.Conflict("the task is already in this project")
+		}
 		return csil.EmptyResponse{}, csilrpc.Internal("internal error")
 	}
 	return csil.EmptyResponse{}, nil

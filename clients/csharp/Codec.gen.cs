@@ -166,6 +166,12 @@ public static partial class Cbor
         }
     }
 
+    // PreallocLimit bounds the elements a decoded array or map reserves before it reads
+    // them. The declared length is checked against the remaining input, but one input
+    // byte can become a much larger value, so reserving the full declared length lets a
+    // small frame reserve a large multiple of its size at every nesting level.
+    const int PreallocLimit = 1024;
+
     static CborValue Dec(byte[] b, ref int csilPos, int csilDepth)
     {
         if (csilDepth > 64) { throw new CborException("nesting limit exceeded"); }
@@ -226,7 +232,7 @@ public static partial class Cbor
             {
                 if (arg > (ulong)(b.Length - csilPos)) { throw new CborException("array length exceeds remaining input"); }
                 var n = (int)arg;
-                var items = new System.Collections.Generic.List<CborValue>(n);
+                var items = new System.Collections.Generic.List<CborValue>(System.Math.Min(n, PreallocLimit));
                 for (int csilI = 0; csilI < n; csilI++) { items.Add(Dec(b, ref csilPos, csilDepth + 1)); }
                 return new CborValue.Array(items);
             }
@@ -234,7 +240,7 @@ public static partial class Cbor
             {
                 if (arg > (ulong)(b.Length - csilPos)) { throw new CborException("map length exceeds remaining input"); }
                 var n = (int)arg;
-                var kvs = new System.Collections.Generic.List<(CborValue, CborValue)>(n);
+                var kvs = new System.Collections.Generic.List<(CborValue, CborValue)>(System.Math.Min(n, PreallocLimit));
                 for (int csilI = 0; csilI < n; csilI++)
                 {
                     var k = Dec(b, ref csilPos, csilDepth + 1);
@@ -349,6 +355,8 @@ public static class Codec
         RecurrenceFreq csilTyped => RecurrenceFreqToCborValue(csilTyped),
         MilestoneState csilTyped => MilestoneStateToCborValue(csilTyped),
         CliLoginStatus csilTyped => CliLoginStatusToCborValue(csilTyped),
+        SessionKind csilTyped => SessionKindToCborValue(csilTyped),
+        TaskState csilTyped => TaskStateToCborValue(csilTyped),
         House csilTyped => HouseToCborValue(csilTyped),
         Member csilTyped => MemberToCborValue(csilTyped),
         TrustedDomain csilTyped => TrustedDomainToCborValue(csilTyped),
@@ -396,6 +404,7 @@ public static class Codec
         BoolResponse csilTyped => BoolResponseToCborValue(csilTyped),
         HouseListRequest csilTyped => HouseListRequestToCborValue(csilTyped),
         HouseScopedListRequest csilTyped => HouseScopedListRequestToCborValue(csilTyped),
+        TaskListRequest csilTyped => TaskListRequestToCborValue(csilTyped),
         TaskList csilTyped => TaskListToCborValue(csilTyped),
         ProjectList csilTyped => ProjectListToCborValue(csilTyped),
         MemberScopedListRequest csilTyped => MemberScopedListRequestToCborValue(csilTyped),
@@ -453,6 +462,8 @@ public static class Codec
         if (csilType == typeof(RecurrenceFreq)) return RecurrenceFreqFromCborValue(value);
         if (csilType == typeof(MilestoneState)) return MilestoneStateFromCborValue(value);
         if (csilType == typeof(CliLoginStatus)) return CliLoginStatusFromCborValue(value);
+        if (csilType == typeof(SessionKind)) return SessionKindFromCborValue(value);
+        if (csilType == typeof(TaskState)) return TaskStateFromCborValue(value);
         if (csilType == typeof(House)) return HouseFromCborValue(value);
         if (csilType == typeof(Member)) return MemberFromCborValue(value);
         if (csilType == typeof(TrustedDomain)) return TrustedDomainFromCborValue(value);
@@ -500,6 +511,7 @@ public static class Codec
         if (csilType == typeof(BoolResponse)) return BoolResponseFromCborValue(value);
         if (csilType == typeof(HouseListRequest)) return HouseListRequestFromCborValue(value);
         if (csilType == typeof(HouseScopedListRequest)) return HouseScopedListRequestFromCborValue(value);
+        if (csilType == typeof(TaskListRequest)) return TaskListRequestFromCborValue(value);
         if (csilType == typeof(TaskList)) return TaskListFromCborValue(value);
         if (csilType == typeof(ProjectList)) return ProjectListFromCborValue(value);
         if (csilType == typeof(MemberScopedListRequest)) return MemberScopedListRequestFromCborValue(value);
@@ -729,6 +741,38 @@ public static class Codec
         "expired" => CliLoginStatus.Expired,
         "complete" => CliLoginStatus.Complete,
         _ => throw new CborException("invalid CliLoginStatus value"),
+    };
+
+    /// <summary>The bare-literal CBOR value for a SessionKind.</summary>
+    public static CborValue SessionKindToCborValue(SessionKind value) => value switch
+    {
+        SessionKind.Cli => new CborValue.Text("cli"),
+        SessionKind.Browser => new CborValue.Text("browser"),
+        _ => throw new CborException("invalid SessionKind"),
+    };
+
+    /// <summary>Reconstruct a SessionKind from its bare-literal CBOR value.</summary>
+    public static SessionKind SessionKindFromCborValue(CborValue value) => Cbor.AsText(value) switch
+    {
+        "cli" => SessionKind.Cli,
+        "browser" => SessionKind.Browser,
+        _ => throw new CborException("invalid SessionKind value"),
+    };
+
+    /// <summary>The bare-literal CBOR value for a TaskState.</summary>
+    public static CborValue TaskStateToCborValue(TaskState value) => value switch
+    {
+        TaskState.Open => new CborValue.Text("open"),
+        TaskState.Closed => new CborValue.Text("closed"),
+        _ => throw new CborException("invalid TaskState"),
+    };
+
+    /// <summary>Reconstruct a TaskState from its bare-literal CBOR value.</summary>
+    public static TaskState TaskStateFromCborValue(CborValue value) => Cbor.AsText(value) switch
+    {
+        "open" => TaskState.Open,
+        "closed" => TaskState.Closed,
+        _ => throw new CborException("invalid TaskState value"),
     };
 
     /// <summary>The canonical CBOR value tree for a House.</summary>
@@ -1138,20 +1182,24 @@ public static class Codec
             csilEntries.Add((new CborValue.Text("category"), new CborValue.Text(csilV2)));
         }
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
+        if (value.Personal is { } csilV4)
+        {
+            csilEntries.Add((new CborValue.Text("personal"), new CborValue.Bool(csilV4)));
+        }
         csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
         csilEntries.Add((new CborValue.Text("project_id"), new CborValue.Text(value.ProjectId)));
         csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
-        if (value.Visibility is { } csilV7)
+        if (value.Visibility is { } csilV8)
         {
-            csilEntries.Add((new CborValue.Text("visibility"), AccessLevelToCborValue(csilV7)));
+            csilEntries.Add((new CborValue.Text("visibility"), AccessLevelToCborValue(csilV8)));
         }
-        if (value.Description is { } csilV8)
+        if (value.Description is { } csilV9)
         {
-            csilEntries.Add((new CborValue.Text("description"), new CborValue.Text(csilV8)));
+            csilEntries.Add((new CborValue.Text("description"), new CborValue.Text(csilV9)));
         }
-        if (value.CreatedByMemberId is { } csilV9)
+        if (value.CreatedByMemberId is { } csilV10)
         {
-            csilEntries.Add((new CborValue.Text("created_by_member_id"), new CborValue.Text(csilV9)));
+            csilEntries.Add((new CborValue.Text("created_by_member_id"), new CborValue.Text(csilV10)));
         }
         return new CborValue.Map(csilEntries);
     }
@@ -1167,8 +1215,9 @@ public static class Codec
         ProjectStatus? csilField5 = Cbor.MapGet(value, "status") is { } csilRaw5 ? ProjectStatusFromCborValue(csilRaw5) : null;
         AccessLevel? csilField6 = Cbor.MapGet(value, "visibility") is { } csilRaw6 ? AccessLevelFromCborValue(csilRaw6) : null;
         MemberID? csilField7 = Cbor.MapGet(value, "created_by_member_id") is { } csilRaw7 ? Cbor.AsText(csilRaw7) : null;
-        var csilField8 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField9 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        bool? csilField8 = Cbor.MapGet(value, "personal") is { } csilRaw8 ? Cbor.AsBool(csilRaw8) : null;
+        var csilField9 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField10 = Cbor.AsText(Cbor.Require(value, "updated_at"));
         return new Project
         {
             ProjectId = csilField0,
@@ -1179,8 +1228,9 @@ public static class Codec
             Status = csilField5,
             Visibility = csilField6,
             CreatedByMemberId = csilField7,
-            CreatedAt = csilField8,
-            UpdatedAt = csilField9,
+            Personal = csilField8,
+            CreatedAt = csilField9,
+            UpdatedAt = csilField10,
         };
     }
 
@@ -1986,11 +2036,19 @@ public static class Codec
     public static CborValue CliSessionSummaryToCborValue(CliSessionSummary value)
     {
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        if (value.Kind is { } csilV0)
+        {
+            csilEntries.Add((new CborValue.Text("kind"), SessionKindToCborValue(csilV0)));
+        }
+        if (value.Current is { } csilV1)
+        {
+            csilEntries.Add((new CborValue.Text("current"), new CborValue.Bool(csilV1)));
+        }
         csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
         csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
-        if (value.RevokedAt is { } csilV2)
+        if (value.RevokedAt is { } csilV4)
         {
-            csilEntries.Add((new CborValue.Text("revoked_at"), new CborValue.Text(csilV2)));
+            csilEntries.Add((new CborValue.Text("revoked_at"), new CborValue.Text(csilV4)));
         }
         csilEntries.Add((new CborValue.Text("session_id"), new CborValue.Text(value.SessionId)));
         csilEntries.Add((new CborValue.Text("client_name"), new CborValue.Text(value.ClientName)));
@@ -2007,6 +2065,8 @@ public static class Codec
         var csilField3 = Cbor.AsText(Cbor.Require(value, "last_used_at"));
         var csilField4 = Cbor.AsText(Cbor.Require(value, "expires_at"));
         Timestamp? csilField5 = Cbor.MapGet(value, "revoked_at") is { } csilRaw5 ? Cbor.AsText(csilRaw5) : null;
+        SessionKind? csilField6 = Cbor.MapGet(value, "kind") is { } csilRaw6 ? SessionKindFromCborValue(csilRaw6) : null;
+        bool? csilField7 = Cbor.MapGet(value, "current") is { } csilRaw7 ? Cbor.AsBool(csilRaw7) : null;
         return new CliSessionSummary
         {
             SessionId = csilField0,
@@ -2015,6 +2075,8 @@ public static class Codec
             LastUsedAt = csilField3,
             ExpiresAt = csilField4,
             RevokedAt = csilField5,
+            Kind = csilField6,
+            Current = csilField7,
         };
     }
 
@@ -2273,11 +2335,85 @@ public static class Codec
         };
     }
 
+    /// <summary>The canonical CBOR value tree for a TaskListRequest.</summary>
+    public static CborValue TaskListRequestToCborValue(TaskListRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        if (value.Mine is { } csilV0)
+        {
+            csilEntries.Add((new CborValue.Text("mine"), new CborValue.Bool(csilV0)));
+        }
+        if (value.Limit is { } csilV1)
+        {
+            csilEntries.Add((new CborValue.Text("limit"), new CborValue.Uint(csilV1)));
+        }
+        if (value.Loose is { } csilV2)
+        {
+            csilEntries.Add((new CborValue.Text("loose"), new CborValue.Bool(csilV2)));
+        }
+        if (value.State is { } csilV3)
+        {
+            csilEntries.Add((new CborValue.Text("state"), TaskStateToCborValue(csilV3)));
+        }
+        if (value.DueTo is { } csilV4)
+        {
+            csilEntries.Add((new CborValue.Text("due_to"), new CborValue.Text(csilV4)));
+        }
+        if (value.Offset is { } csilV5)
+        {
+            csilEntries.Add((new CborValue.Text("offset"), new CborValue.Uint(csilV5)));
+        }
+        if (value.DueFrom is { } csilV6)
+        {
+            csilEntries.Add((new CborValue.Text("due_from"), new CborValue.Text(csilV6)));
+        }
+        csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
+        if (value.DueBefore is { } csilV8)
+        {
+            csilEntries.Add((new CborValue.Text("due_before"), new CborValue.Array(csilV8.Select(csilElem => (CborValue)new CborValue.Text(csilElem)).ToList())));
+        }
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a TaskListRequest from a decoded CBOR value tree.</summary>
+    public static TaskListRequest TaskListRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "house_id"));
+        ulong? csilField1 = Cbor.MapGet(value, "limit") is { } csilRaw1 ? Cbor.AsU64(csilRaw1) : null;
+        ulong? csilField2 = Cbor.MapGet(value, "offset") is { } csilRaw2 ? Cbor.AsU64(csilRaw2) : null;
+        TaskState? csilField3 = Cbor.MapGet(value, "state") is { } csilRaw3 ? TaskStateFromCborValue(csilRaw3) : null;
+        bool? csilField4 = Cbor.MapGet(value, "mine") is { } csilRaw4 ? Cbor.AsBool(csilRaw4) : null;
+        bool? csilField5 = Cbor.MapGet(value, "loose") is { } csilRaw5 ? Cbor.AsBool(csilRaw5) : null;
+        Timestamp? csilField6 = Cbor.MapGet(value, "due_from") is { } csilRaw6 ? Cbor.AsText(csilRaw6) : null;
+        Timestamp? csilField7 = Cbor.MapGet(value, "due_to") is { } csilRaw7 ? Cbor.AsText(csilRaw7) : null;
+        System.Collections.Generic.List<Timestamp>? csilField8 = Cbor.MapGet(value, "due_before") is { } csilRaw8 ? Cbor.AsArray(csilRaw8).Select(csilElem => Cbor.AsText(csilElem)).ToList() : null;
+        return new TaskListRequest
+        {
+            HouseId = csilField0,
+            Limit = csilField1,
+            Offset = csilField2,
+            State = csilField3,
+            Mine = csilField4,
+            Loose = csilField5,
+            DueFrom = csilField6,
+            DueTo = csilField7,
+            DueBefore = csilField8,
+        };
+    }
+
     /// <summary>The canonical CBOR value tree for a TaskList.</summary>
     public static CborValue TaskListToCborValue(TaskList value)
     {
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("tasks"), new CborValue.Array(value.Tasks.Select(csilElem => (CborValue)TaskToCborValue(csilElem)).ToList())));
+        if (value.Total is { } csilV1)
+        {
+            csilEntries.Add((new CborValue.Text("total"), new CborValue.Uint(csilV1)));
+        }
+        if (value.DueCounts is { } csilV2)
+        {
+            csilEntries.Add((new CborValue.Text("due_counts"), new CborValue.Array(csilV2.Select(csilElem => (CborValue)new CborValue.Uint(csilElem)).ToList())));
+        }
         csilEntries.Add((new CborValue.Text("hidden_count"), new CborValue.Uint(value.HiddenCount)));
         return new CborValue.Map(csilEntries);
     }
@@ -2287,10 +2423,14 @@ public static class Codec
     {
         var csilField0 = Cbor.AsArray(Cbor.Require(value, "tasks")).Select(csilElem => TaskFromCborValue(csilElem)).ToList();
         var csilField1 = Cbor.AsU64(Cbor.Require(value, "hidden_count"));
+        ulong? csilField2 = Cbor.MapGet(value, "total") is { } csilRaw2 ? Cbor.AsU64(csilRaw2) : null;
+        System.Collections.Generic.List<ulong>? csilField3 = Cbor.MapGet(value, "due_counts") is { } csilRaw3 ? Cbor.AsArray(csilRaw3).Select(csilElem => Cbor.AsU64(csilElem)).ToList() : null;
         return new TaskList
         {
             Tasks = csilField0,
             HiddenCount = csilField1,
+            Total = csilField2,
+            DueCounts = csilField3,
         };
     }
 
@@ -2356,9 +2496,13 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("limit"), new CborValue.Uint(csilV0)));
         }
-        if (value.Offset is { } csilV1)
+        if (value.State is { } csilV1)
         {
-            csilEntries.Add((new CborValue.Text("offset"), new CborValue.Uint(csilV1)));
+            csilEntries.Add((new CborValue.Text("state"), TaskStateToCborValue(csilV1)));
+        }
+        if (value.Offset is { } csilV2)
+        {
+            csilEntries.Add((new CborValue.Text("offset"), new CborValue.Uint(csilV2)));
         }
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
         csilEntries.Add((new CborValue.Text("project_id"), new CborValue.Text(value.ProjectId)));
@@ -2372,12 +2516,14 @@ public static class Codec
         var csilField1 = Cbor.AsText(Cbor.Require(value, "project_id"));
         ulong? csilField2 = Cbor.MapGet(value, "limit") is { } csilRaw2 ? Cbor.AsU64(csilRaw2) : null;
         ulong? csilField3 = Cbor.MapGet(value, "offset") is { } csilRaw3 ? Cbor.AsU64(csilRaw3) : null;
+        TaskState? csilField4 = Cbor.MapGet(value, "state") is { } csilRaw4 ? TaskStateFromCborValue(csilRaw4) : null;
         return new ProjectScopedListRequest
         {
             HouseId = csilField0,
             ProjectId = csilField1,
             Limit = csilField2,
             Offset = csilField3,
+            State = csilField4,
         };
     }
 
@@ -3032,9 +3178,13 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("bug_reports_project_id"), new CborValue.Text(csilV1)));
         }
-        if (value.DefaultProjectVisibility is { } csilV2)
+        if (value.SessionLifetimeHours is { } csilV2)
         {
-            csilEntries.Add((new CborValue.Text("default_project_visibility"), AccessLevelToCborValue(csilV2)));
+            csilEntries.Add((new CborValue.Text("session_lifetime_hours"), new CborValue.Uint(csilV2)));
+        }
+        if (value.DefaultProjectVisibility is { } csilV3)
+        {
+            csilEntries.Add((new CborValue.Text("default_project_visibility"), AccessLevelToCborValue(csilV3)));
         }
         return new CborValue.Map(csilEntries);
     }
@@ -3045,11 +3195,13 @@ public static class Codec
         bool? csilField0 = Cbor.MapGet(value, "bug_reports_enabled") is { } csilRaw0 ? Cbor.AsBool(csilRaw0) : null;
         ProjectID? csilField1 = Cbor.MapGet(value, "bug_reports_project_id") is { } csilRaw1 ? Cbor.AsText(csilRaw1) : null;
         AccessLevel? csilField2 = Cbor.MapGet(value, "default_project_visibility") is { } csilRaw2 ? AccessLevelFromCborValue(csilRaw2) : null;
+        ulong? csilField3 = Cbor.MapGet(value, "session_lifetime_hours") is { } csilRaw3 ? Cbor.AsU64(csilRaw3) : null;
         return new EffectiveSettings
         {
             BugReportsEnabled = csilField0,
             BugReportsProjectId = csilField1,
             DefaultProjectVisibility = csilField2,
+            SessionLifetimeHours = csilField3,
         };
     }
 

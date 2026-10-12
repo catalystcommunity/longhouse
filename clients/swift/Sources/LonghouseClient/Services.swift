@@ -14,6 +14,8 @@ public protocol AuthService {
     func complete(_ request: CompleteRequest) throws -> LoginResponse
     func refresh(_ request: EmptyRequest) throws -> LoginResponse
     func logout(_ request: EmptyRequest) throws -> EmptyResponse
+    func resumeSession(_ request: EmptyRequest) throws -> LoginResponse
+    func endSession(_ request: EmptyRequest) throws -> EmptyResponse
     func me(_ request: EmptyRequest) throws -> MeResponse
     func beginCliLogin(_ request: BeginCliLoginRequest) throws -> BeginCliLoginResponse
     func inspectCliLogin(_ request: ApproveCliLoginRequest) throws -> CliLoginRequestInfo
@@ -140,7 +142,8 @@ public protocol TaskService {
     func getTask(_ request: TaskId) throws -> Task
     func updateTask(_ request: Task) throws -> Task
     func deleteTask(_ request: TaskId) throws -> EmptyResponse
-    func listTasks(_ request: HouseScopedListRequest) throws -> TaskList
+    func listTasks(_ request: TaskListRequest) throws -> TaskList
+    func createPersonalTask(_ request: Task) throws -> Task
     func setTaskVisibility(_ request: SetTaskVisibilityRequest) throws -> Task
     func listTaskGrants(_ request: TaskId) throws -> [Grant]
     func putTaskGrant(_ request: PutTaskGrantRequest) throws -> EmptyResponse

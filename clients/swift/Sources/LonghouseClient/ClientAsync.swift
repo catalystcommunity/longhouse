@@ -37,6 +37,16 @@ public struct AuthAsyncClient {
         return try EmptyResponse.fromCbor(csilResp)
     }
 
+    public func resumeSession(_ request: EmptyRequest) async throws -> LoginResponse {
+        let csilResp = try await transport.call(service: "AuthService", op: "resume-session", request: request.toCbor())
+        return try LoginResponse.fromCbor(csilResp)
+    }
+
+    public func endSession(_ request: EmptyRequest) async throws -> EmptyResponse {
+        let csilResp = try await transport.call(service: "AuthService", op: "end-session", request: request.toCbor())
+        return try EmptyResponse.fromCbor(csilResp)
+    }
+
     public func me(_ request: EmptyRequest) async throws -> MeResponse {
         let csilResp = try await transport.call(service: "AuthService", op: "me", request: request.toCbor())
         return try MeResponse.fromCbor(csilResp)
@@ -567,9 +577,14 @@ public struct TaskAsyncClient {
         return try EmptyResponse.fromCbor(csilResp)
     }
 
-    public func listTasks(_ request: HouseScopedListRequest) async throws -> TaskList {
+    public func listTasks(_ request: TaskListRequest) async throws -> TaskList {
         let csilResp = try await transport.call(service: "TaskService", op: "list-tasks", request: request.toCbor())
         return try TaskList.fromCbor(csilResp)
+    }
+
+    public func createPersonalTask(_ request: Task) async throws -> Task {
+        let csilResp = try await transport.call(service: "TaskService", op: "create-personal-task", request: request.toCbor())
+        return try Task.fromCbor(csilResp)
     }
 
     public func setTaskVisibility(_ request: SetTaskVisibilityRequest) async throws -> Task {

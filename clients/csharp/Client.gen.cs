@@ -37,6 +37,10 @@ public sealed class AuthClient(ICsilTransport transport)
         Codec.Decode<LoginResponse>(transport.Call("AuthService", "refresh", Codec.Encode(emptyRequest)));
     public EmptyResponse Logout(EmptyRequest emptyRequest) =>
         Codec.Decode<EmptyResponse>(transport.Call("AuthService", "logout", Codec.Encode(emptyRequest)));
+    public LoginResponse ResumeSession(EmptyRequest emptyRequest) =>
+        Codec.Decode<LoginResponse>(transport.Call("AuthService", "resume-session", Codec.Encode(emptyRequest)));
+    public EmptyResponse EndSession(EmptyRequest emptyRequest) =>
+        Codec.Decode<EmptyResponse>(transport.Call("AuthService", "end-session", Codec.Encode(emptyRequest)));
     public MeResponse Me(EmptyRequest emptyRequest) =>
         Codec.Decode<MeResponse>(transport.Call("AuthService", "me", Codec.Encode(emptyRequest)));
     public BeginCliLoginResponse BeginCliLogin(BeginCliLoginRequest beginCliLoginRequest) =>
@@ -269,8 +273,10 @@ public sealed class TaskClient(ICsilTransport transport)
         Codec.Decode<Task>(transport.Call("TaskService", "update-task", Codec.Encode(task)));
     public EmptyResponse DeleteTask(TaskID taskID) =>
         Codec.Decode<EmptyResponse>(transport.Call("TaskService", "delete-task", Codec.EncodeTaskDeleteTaskRequest(taskID)));
-    public TaskList ListTasks(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.Decode<TaskList>(transport.Call("TaskService", "list-tasks", Codec.Encode(houseScopedListRequest)));
+    public TaskList ListTasks(TaskListRequest taskListRequest) =>
+        Codec.Decode<TaskList>(transport.Call("TaskService", "list-tasks", Codec.Encode(taskListRequest)));
+    public Task CreatePersonalTask(Task task) =>
+        Codec.Decode<Task>(transport.Call("TaskService", "create-personal-task", Codec.Encode(task)));
     public Task SetTaskVisibility(SetTaskVisibilityRequest setTaskVisibilityRequest) =>
         Codec.Decode<Task>(transport.Call("TaskService", "set-task-visibility", Codec.Encode(setTaskVisibilityRequest)));
     public System.Collections.Generic.List<Grant> ListTaskGrants(TaskID taskID) =>

@@ -25,6 +25,15 @@
 		file_server
 	}
 
+	# PWA manifest. Set the media type explicitly so it does not depend
+	# on the image's mime table, and keep it short-cached so icon/name
+	# changes reach installed home-screen apps.
+	handle /manifest.webmanifest {
+		header Content-Type "application/manifest+json"
+		header Cache-Control "public, max-age=3600"
+		file_server
+	}
+
 	# Everything else: serve the static file if it exists, otherwise
 	# fall through to /index.html so @solidjs/router can take over
 	# (covers /auth/callback, /dev-login, /projects/:slug, etc.)

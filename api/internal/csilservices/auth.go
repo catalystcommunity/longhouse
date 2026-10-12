@@ -2,6 +2,7 @@ package csilservices
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/catalystcommunity/longhouse/api/internal/auth"
@@ -124,6 +125,8 @@ func (s *AuthService) Register(d *csilrpc.Dispatcher) {
 	d.RegisterTypedPublic("auth", "Complete", csilrpc.Route(s.Complete, csil.DecodeCompleteRequest, csil.EncodeLoginResponse))
 	d.RegisterTyped("auth", "Refresh", csilrpc.Route(s.Refresh, csil.DecodeEmptyRequest, csil.EncodeLoginResponse))
 	d.RegisterTyped("auth", "Logout", csilrpc.Route(s.Logout, csil.DecodeEmptyRequest, csil.EncodeEmptyResponse))
+	d.RegisterTypedPublic("auth", "ResumeSession", csilrpc.Route(s.ResumeSession, csil.DecodeEmptyRequest, csil.EncodeLoginResponse))
+	d.RegisterTypedPublic("auth", "EndSession", csilrpc.Route(s.EndSession, csil.DecodeEmptyRequest, csil.EncodeEmptyResponse))
 	d.RegisterTyped("auth", "Me", csilrpc.Route(s.Me, csil.DecodeEmptyRequest, csil.EncodeMeResponse))
 	d.RegisterTypedPublic("auth", "BeginCliLogin", csilrpc.Route(s.BeginCliLogin, csil.DecodeBeginCliLoginRequest, csil.EncodeBeginCliLoginResponse))
 	d.RegisterTyped("auth", "InspectCliLogin", csilrpc.Route(s.InspectCliLogin, csil.DecodeApproveCliLoginRequest, csil.EncodeCliLoginRequestInfo))
@@ -135,16 +138,23 @@ func (s *AuthService) Register(d *csilrpc.Dispatcher) {
 	d.RegisterTyped("auth", "RevokeSession", csilrpc.Route(s.RevokeSession, csil.DecodeRevokeSessionRequest, csil.EncodeEmptyResponse))
 }
 
-// logout records a logout security event for the bearer's identity. Tokens are
-// stateless (HMAC, no server-side revocation list), so this is an audit marker
-// — not a revocation; the bearer remains valid until its exp. Recorded per
-// house so each house admin sees their members' logouts.
+// logout records a logout security event for the bearer's identity and ends
+// its browser session, if it has one. The bearer itself is stateless (HMAC, no
+// server-side revocation list), so it remains valid until its exp. Recorded
+// per house so each house admin sees their members' logouts.
 func (s *AuthService) Logout(ctx context.Context, _ csil.EmptyRequest) (csil.EmptyResponse, error) {
 	id, err := requireIdentity(ctx)
 	if err != nil {
 		return csil.EmptyResponse{}, err
 	}
 	s.recordSecurityEvent(ctx, models.AuditActionLogout, id.Domain, id.UserID, id.Houses, nil)
+	if id.BrowserSessionID != "" {
+		if err := s.Store.RevokeCliSession(ctx, id.BrowserSessionID, id.Domain, id.UserID, time.Now().UTC()); err != nil &&
+			!errors.Is(err, store.ErrCliSessionInvalid) {
+			log.WithError(err).Warn("auth: revoke browser session on logout failed")
+		}
+	}
+	clearBrowserSessionCookie(ctx)
 	return csil.EmptyResponse{}, nil
 }
 
@@ -250,7 +260,7 @@ func (s *AuthService) Complete(ctx context.Context, req csil.CompleteRequest) (c
 	}
 	claims := s.fetchClaims(signed, assertion)
 	display := resolveDisplayName(claims, assertion)
-	return s.issueToken(ctx, assertion.Domain, assertion.UserID, display, claims, models.AuditActionLogin)
+	return s.issueBrowserToken(ctx, assertion.Domain, assertion.UserID, display, claims, models.AuditActionLogin)
 }
 
 func (s *AuthService) Refresh(ctx context.Context, _ csil.EmptyRequest) (csil.LoginResponse, error) {
@@ -263,7 +273,12 @@ func (s *AuthService) Refresh(ctx context.Context, _ csil.EmptyRequest) (csil.Lo
 	}
 	// Refresh re-mints from the bearer without re-contacting linkkeys, so there
 	// are no fresh claims to reconcile — pass nil and keep the cached identity.
-	return s.issueToken(ctx, id.Domain, id.UserID, id.DisplayName, nil, models.AuditActionRefresh)
+	if id.BrowserSessionID != "" {
+		return s.refreshBrowserBearer(ctx, id)
+	}
+	// A bearer from before browser sessions existed: give it a session now so
+	// the browser can resume after this bearer expires.
+	return s.issueBrowserToken(ctx, id.Domain, id.UserID, id.DisplayName, nil, models.AuditActionRefresh)
 }
 
 func (s *AuthService) Me(ctx context.Context, _ csil.EmptyRequest) (csil.MeResponse, error) {
@@ -303,10 +318,45 @@ func (s *AuthService) Me(ctx context.Context, _ csil.EmptyRequest) (csil.MeRespo
 // this redemption (nil on refresh/dev-login); it seeds/reconciles the
 // claim-backed member fields and is otherwise ignored.
 func (s *AuthService) issueToken(ctx context.Context, domain, userID, displayName string, claims map[string]string, action string) (csil.LoginResponse, error) {
-	return s.issueTokenWithTTL(ctx, domain, userID, displayName, claims, action, s.bearerTTL(), "")
+	houses, err := s.prepareIdentity(ctx, domain, userID, displayName, claims)
+	if err != nil {
+		return csil.LoginResponse{}, err
+	}
+	return s.mintToken(ctx, domain, userID, displayName, houses, action, s.bearerTTL(), sessionRef{})
 }
 
-func (s *AuthService) issueTokenWithTTL(ctx context.Context, domain, userID, displayName string, claims map[string]string, action string, ttl time.Duration, cliSessionID string) (csil.LoginResponse, error) {
+// issueBrowserToken is issueToken for a browser sign-in: it also starts a
+// cookie-backed browser session, so the browser can resume later without the
+// IDP. A session cookie the browser already holds is revoked first.
+func (s *AuthService) issueBrowserToken(ctx context.Context, domain, userID, displayName string, claims map[string]string, action string) (csil.LoginResponse, error) {
+	houses, err := s.prepareIdentity(ctx, domain, userID, displayName, claims)
+	if err != nil {
+		return csil.LoginResponse{}, err
+	}
+	ref, lifetime, err := s.startBrowserSession(ctx, domain, userID, displayName, houses)
+	if err != nil {
+		return csil.LoginResponse{}, err
+	}
+	return s.mintToken(ctx, domain, userID, displayName, houses, action, min(s.bearerTTL(), lifetime), ref)
+}
+
+// sessionRef names the revocable session, if any, behind a bearer.
+type sessionRef struct {
+	cli     string
+	browser string
+}
+
+func (s *AuthService) issueTokenWithTTL(ctx context.Context, domain, userID, displayName string, claims map[string]string, action string, ttl time.Duration, ref sessionRef) (csil.LoginResponse, error) {
+	houses, err := s.prepareIdentity(ctx, domain, userID, displayName, claims)
+	if err != nil {
+		return csil.LoginResponse{}, err
+	}
+	return s.mintToken(ctx, domain, userID, displayName, houses, action, ttl, ref)
+}
+
+// prepareIdentity brings the identity's member rows up to date and returns its
+// per-house roles snapshot for the bearer.
+func (s *AuthService) prepareIdentity(ctx context.Context, domain, userID, displayName string, claims map[string]string) ([]auth.HouseRoles, error) {
 	// Auto-provision: if this verified identity's domain is in any house's
 	// trusted_domains table and they aren't already a member there, insert
 	// a member row + grant the canonical "member" role before we snapshot
@@ -325,14 +375,19 @@ func (s *AuthService) issueTokenWithTTL(ctx context.Context, domain, userID, dis
 	houses, err := buildHouseRoles(ctx, s.Store, domain, userID)
 	if err != nil {
 		log.WithError(err).Error("auth: enrich houses failed")
-		return csil.LoginResponse{}, csilrpc.Internal("internal error")
+		return nil, csilrpc.Internal("internal error")
 	}
+	return houses, nil
+}
+
+func (s *AuthService) mintToken(ctx context.Context, domain, userID, displayName string, houses []auth.HouseRoles, action string, ttl time.Duration, ref sessionRef) (csil.LoginResponse, error) {
 	tok, err := auth.Mint(s.JWTSecret, auth.Identity{
-		Domain:       domain,
-		UserID:       userID,
-		DisplayName:  displayName,
-		Houses:       houses,
-		CliSessionID: cliSessionID,
+		Domain:           domain,
+		UserID:           userID,
+		DisplayName:      displayName,
+		Houses:           houses,
+		CliSessionID:     ref.cli,
+		BrowserSessionID: ref.browser,
 	}, ttl)
 	if err != nil {
 		log.WithError(err).Error("auth: jwt mint failed")

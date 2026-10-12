@@ -20,6 +20,10 @@ module Auth_service = struct
     (* request payload decodes to: empty_request *)
     logout : bytes -> outcome;
     (* request payload decodes to: empty_request *)
+    resume_session : bytes -> outcome;
+    (* request payload decodes to: empty_request *)
+    end_session : bytes -> outcome;
+    (* request payload decodes to: empty_request *)
     me : bytes -> outcome;
     (* request payload decodes to: begin_cli_login_request *)
     begin_cli_login : bytes -> outcome;
@@ -47,6 +51,8 @@ module Auth_service = struct
     | "complete" -> h.complete payload
     | "refresh" -> h.refresh payload
     | "logout" -> h.logout payload
+    | "resume-session" -> h.resume_session payload
+    | "end-session" -> h.end_session payload
     | "me" -> h.me payload
     | "begin-cli-login" -> h.begin_cli_login payload
     | "inspect-cli-login" -> h.inspect_cli_login payload
@@ -387,8 +393,10 @@ module Task_service = struct
     update_task : bytes -> outcome;
     (* request payload decodes to: task_id *)
     delete_task : bytes -> outcome;
-    (* request payload decodes to: house_scoped_list_request *)
+    (* request payload decodes to: task_list_request *)
     list_tasks : bytes -> outcome;
+    (* request payload decodes to: task *)
+    create_personal_task : bytes -> outcome;
     (* request payload decodes to: set_task_visibility_request *)
     set_task_visibility : bytes -> outcome;
     (* request payload decodes to: task_id *)
@@ -408,6 +416,7 @@ module Task_service = struct
     | "update-task" -> h.update_task payload
     | "delete-task" -> h.delete_task payload
     | "list-tasks" -> h.list_tasks payload
+    | "create-personal-task" -> h.create_personal_task payload
     | "set-task-visibility" -> h.set_task_visibility payload
     | "list-task-grants" -> h.list_task_grants payload
     | "put-task-grant" -> h.put_task_grant payload

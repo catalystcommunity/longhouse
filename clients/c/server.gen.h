@@ -23,6 +23,8 @@ typedef struct AuthHandlers {
     int (*complete)(void *ctx, const CompleteRequest *req, LoginResponse *resp);
     int (*refresh)(void *ctx, const EmptyRequest *req, LoginResponse *resp);
     int (*logout)(void *ctx, const EmptyRequest *req, EmptyResponse *resp);
+    int (*resume_session)(void *ctx, const EmptyRequest *req, LoginResponse *resp);
+    int (*end_session)(void *ctx, const EmptyRequest *req, EmptyResponse *resp);
     int (*me)(void *ctx, const EmptyRequest *req, MeResponse *resp);
     int (*begin_cli_login)(void *ctx, const BeginCliLoginRequest *req, BeginCliLoginResponse *resp);
     int (*inspect_cli_login)(void *ctx, const ApproveCliLoginRequest *req, CliLoginRequestInfo *resp);
@@ -149,7 +151,8 @@ typedef struct TaskHandlers {
     int (*get_task)(void *ctx, const TaskID *req, Task *resp);
     int (*update_task)(void *ctx, const Task *req, Task *resp);
     int (*delete_task)(void *ctx, const TaskID *req, EmptyResponse *resp);
-    int (*list_tasks)(void *ctx, const HouseScopedListRequest *req, TaskList *resp);
+    int (*list_tasks)(void *ctx, const TaskListRequest *req, TaskList *resp);
+    int (*create_personal_task)(void *ctx, const Task *req, Task *resp);
     int (*set_task_visibility)(void *ctx, const SetTaskVisibilityRequest *req, Task *resp);
     int (*list_task_grants)(void *ctx, const TaskID *req, Grant * *resp);
     int (*put_task_grant)(void *ctx, const PutTaskGrantRequest *req, EmptyResponse *resp);
