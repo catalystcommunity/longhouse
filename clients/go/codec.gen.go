@@ -4783,6 +4783,94 @@ func DecodeHouseScopedListRequest(csilData []byte) (HouseScopedListRequest, erro
 	return csilDecHouseScopedListRequest(csilRoot)
 }
 
+// csilEncEventListRequest builds the canonical CBOR value tree for a EventListRequest.
+func csilEncEventListRequest(csilV EventListRequest) cborValue {
+	csilEntries := make(cborMap, 0, 5)
+	if csilV.Limit != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
+	}
+	if csilV.Offset != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("offset"), cborUint((*csilV.Offset))})
+	}
+	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
+	if csilV.RangeEnd != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("range_end"), cborText((*csilV.RangeEnd))})
+	}
+	if csilV.RangeStart != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("range_start"), cborText((*csilV.RangeStart))})
+	}
+	return csilEntries
+}
+
+// csilDecEventListRequest reconstructs a EventListRequest from a decoded CBOR value tree.
+func csilDecEventListRequest(csilRoot cborValue) (EventListRequest, error) {
+	var csilOut EventListRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "house_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (HouseID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return HouseID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.HouseId = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "range_start"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.RangeStart = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "range_end"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.RangeEnd = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "limit"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Limit = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "offset"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Offset = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeEventListRequest encodes a EventListRequest to canonical CSIL CBOR bytes.
+func EncodeEventListRequest(csilV EventListRequest) []byte {
+	return cborEncode(csilEncEventListRequest(csilV))
+}
+
+// DecodeEventListRequest decodes canonical CSIL CBOR bytes into a EventListRequest.
+func DecodeEventListRequest(csilData []byte) (EventListRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero EventListRequest
+		return csilZero, csilErr
+	}
+	return csilDecEventListRequest(csilRoot)
+}
+
 // csilEncTaskListRequest builds the canonical CBOR value tree for a TaskListRequest.
 func csilEncTaskListRequest(csilV TaskListRequest) cborValue {
 	csilEntries := make(cborMap, 0, 9)

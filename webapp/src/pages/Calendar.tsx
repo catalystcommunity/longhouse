@@ -7,6 +7,7 @@ import { RecurrenceFields, recurrenceLabel, toRecurrence, type RecurrenceFreq } 
 import { eventClient, memberClient } from "~/data/clients";
 import { displayName, eventTone, timeLabel, ymdLocal } from "~/lib/derive";
 import { normalizeEventCreate } from "~/lib/taskCreate";
+import { loadEvents, startOfRange, viewRange, VIEW_DAYS, type CalendarViewMode as ViewMode } from "~/lib/events";
 import { currentMemberId, useCurrentHouseId } from "~/stores/auth";
 import { buildCells, groupSingleByDate, placeSpans } from "~/lib/month";
 import type { CalendarSubscription, Event as ApiEvent } from "@longhouse/client";
@@ -25,14 +26,18 @@ const GRID_END_HOUR = 23;
 const GRID_HOURS = GRID_END_HOUR - GRID_START_HOUR + 1;
 const HOUR_HEIGHT = 44; // px per hour row
 
-type ViewMode = "month" | "week" | "3day" | "day";
-const VIEW_DAYS: Record<Exclude<ViewMode, "month">, number> = { week: 7, "3day": 3, day: 1 };
-
 export const CalendarPage = () => {
   const houseId = useCurrentHouseId();
+  const [view, setView] = createSignal<ViewMode>("month");
+  const [anchor, setAnchor] = createSignal(new Date());
   const [allEvents, { refetch: refetchEvents }] = createResource(
-    () => houseId(),
-    async (h) => eventClient.listEvents({ houseId: h }),
+    () => {
+      const h = houseId();
+      if (!h) return null;
+      const { start, end } = viewRange(view(), anchor());
+      return { houseId: h, rangeStart: start.toISOString(), rangeEnd: end.toISOString() };
+    },
+    (request) => loadEvents(eventClient, request),
   );
   const [members] = createResource(
     () => houseId(),
@@ -97,12 +102,6 @@ export const CalendarPage = () => {
     | { mode: "edit"; event: ApiEvent };
   const [composer, setComposer] = createSignal<ComposerState | null>(null);
 
-  const [view, setView] = createSignal<ViewMode>("month");
-  // anchor = the date that determines what's visible. Month view: anchor's
-  // month is shown. Week view: anchor's week (Mon-first). Day view: just
-  // the anchor. Prev/Next nav adjusts by one view-unit at a time.
-  const [anchor, setAnchor] = createSignal(new Date());
-
   // Deep-link via query params: /calendar?view=day&date=YYYY-MM-DD&event=ID.
   // Lets the dashboard's Next-event card jump straight to the day view and
   // optionally pop the event editor. The params are consumed (set to
@@ -116,7 +115,6 @@ export const CalendarPage = () => {
   createEffect(() => {
     const v = searchParams.view;
     const d = searchParams.date;
-    const evId = searchParams.event;
     if (v && (v === "month" || v === "week" || v === "3day" || v === "day")) {
       setView(v);
     }
@@ -124,6 +122,9 @@ export const CalendarPage = () => {
       const [y, m, day] = d.split("-").map(Number);
       setAnchor(new Date(y, m - 1, day));
     }
+  });
+  createEffect(() => {
+    const evId = searchParams.event;
     if (evId) {
       const match = (allEvents() ?? []).find((e) => e.eventId === evId);
       if (match) {
@@ -982,37 +983,6 @@ function viewTitle(view: ViewMode, anchor: Date): string {
     return `${start.toLocaleDateString(undefined, { month: "long", day: "numeric" })}–${end.getDate()}, ${start.getFullYear()}`;
   }
   return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ${start.getFullYear()}`;
-}
-
-function viewRange(view: ViewMode, anchor: Date): { start: Date; end: Date } {
-  if (view === "month") {
-    const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-    // Mon-first 6-week window covers any month + spill-over days.
-    const day = first.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    const gridStart = new Date(first); gridStart.setDate(first.getDate() + diff);
-    const gridEnd = new Date(gridStart); gridEnd.setDate(gridStart.getDate() + 42);
-    return { start: gridStart, end: gridEnd };
-  }
-  const start = startOfRange(anchor, view);
-  const days = VIEW_DAYS[view];
-  const end = new Date(start); end.setDate(start.getDate() + days);
-  return { start, end };
-}
-
-function startOfRange(anchor: Date, view: Exclude<ViewMode, "month">): Date {
-  if (view === "day") {
-    const d = new Date(anchor); d.setHours(0, 0, 0, 0); return d;
-  }
-  if (view === "3day") {
-    const d = new Date(anchor); d.setHours(0, 0, 0, 0); return d;
-  }
-  // week — Mon-first
-  const d = new Date(anchor); d.setHours(0, 0, 0, 0);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d;
 }
 
 function shiftAnchor(anchor: Date, view: ViewMode, dir: -1 | 1): Date {

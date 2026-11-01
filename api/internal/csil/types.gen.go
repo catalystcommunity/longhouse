@@ -498,6 +498,15 @@ type HouseScopedListRequest struct {
 	Offset  *uint64 `json:"offset,omitempty" yaml:"offset,omitempty"`
 }
 
+// EventListRequest represents a structured data type
+type EventListRequest struct {
+	HouseId    HouseID    `json:"house_id" yaml:"house_id"`
+	RangeStart *Timestamp `json:"range_start,omitempty" yaml:"range_start,omitempty"`
+	RangeEnd   *Timestamp `json:"range_end,omitempty" yaml:"range_end,omitempty"`
+	Limit      *uint64    `json:"limit,omitempty" yaml:"limit,omitempty"`
+	Offset     *uint64    `json:"offset,omitempty" yaml:"offset,omitempty"`
+}
+
 // TaskListRequest represents a structured data type
 type TaskListRequest struct {
 	HouseId   HouseID     `json:"house_id" yaml:"house_id"`

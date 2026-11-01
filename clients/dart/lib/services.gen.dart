@@ -145,7 +145,7 @@ abstract interface class EventServiceHandler {
   Event updateEvent(Event request);
   EmptyResponse deleteEvent(EventId request);
   EmptyResponse deleteEventAndFuture(EventId request);
-  List<Event> listEvents(HouseScopedListRequest request);
+  List<Event> listEvents(EventListRequest request);
   CalendarView getCalendarView(HouseId request);
   CalendarView setCalendarView(CalendarView request);
 }

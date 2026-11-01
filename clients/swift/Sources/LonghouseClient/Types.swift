@@ -537,7 +537,7 @@ public struct Project: Equatable, Sendable {
     /// wire key: updated_at
     public let updatedAt: Timestamp
 
-    public init(projectId: ProjectId, houseId: HouseId, name: String, description: String? = nil, category: String? = nil, status: ProjectStatus? = "active", visibility: AccessLevel? = "read", createdByMemberId: MemberId? = nil, personal: Bool? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(projectId: ProjectId, houseId: HouseId, name: String, description: String? = nil, category: String? = nil, status: ProjectStatus? = .active, visibility: AccessLevel? = .read, createdByMemberId: MemberId? = nil, personal: Bool? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
         self.projectId = projectId
         self.houseId = houseId
         self.name = name
@@ -826,7 +826,7 @@ public struct Task: Equatable, Sendable {
     /// wire key: updated_at
     public let updatedAt: Timestamp
 
-    public init(taskId: TaskId, houseId: HouseId, ownerMemberId: MemberId, assignees: [MemberId]? = nil, assignedToSkillId: SkillId? = nil, parentTaskId: TaskId? = nil, visibility: AccessLevel? = "read", title: String, description: String? = nil, status: TaskStatus? = "open", dueAt: Timestamp? = nil, tag: String? = nil, estimateMinutes: UInt64? = nil, recurrenceFreq: RecurrenceFreq? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: Timestamp? = nil, recurrenceRootTaskId: TaskId? = nil, deletedAt: Timestamp? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(taskId: TaskId, houseId: HouseId, ownerMemberId: MemberId, assignees: [MemberId]? = nil, assignedToSkillId: SkillId? = nil, parentTaskId: TaskId? = nil, visibility: AccessLevel? = .read, title: String, description: String? = nil, status: TaskStatus? = .`open`, dueAt: Timestamp? = nil, tag: String? = nil, estimateMinutes: UInt64? = nil, recurrenceFreq: RecurrenceFreq? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: Timestamp? = nil, recurrenceRootTaskId: TaskId? = nil, deletedAt: Timestamp? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
         self.taskId = taskId
         self.houseId = houseId
         self.ownerMemberId = ownerMemberId
@@ -963,7 +963,7 @@ public struct Share: Equatable, Sendable {
     /// wire key: expires_at
     public let expiresAt: Timestamp?
 
-    public init(shareId: ShareId, houseId: HouseId, sharedBy: MemberId, linkkeysDomain: String, linkkeysUserId: String, resourceType: ResourceType, resourceId: String, accessLevel: AccessLevel? = "read", createdAt: Timestamp, expiresAt: Timestamp? = nil) {
+    public init(shareId: ShareId, houseId: HouseId, sharedBy: MemberId, linkkeysDomain: String, linkkeysUserId: String, resourceType: ResourceType, resourceId: String, accessLevel: AccessLevel? = .read, createdAt: Timestamp, expiresAt: Timestamp? = nil) {
         self.shareId = shareId
         self.houseId = houseId
         self.sharedBy = sharedBy
@@ -1550,6 +1550,35 @@ public struct HouseScopedListRequest: Equatable, Sendable {
     /// CBOR wire keys (verbatim) keyed by Swift property name.
     public static let wireKeys: [String: String] = [
         "houseId": "house_id",
+        "limit": "limit",
+        "offset": "offset"
+    ]
+}
+
+/// EventListRequest is a generated CSIL record type.
+public struct EventListRequest: Equatable, Sendable {
+    /// wire key: house_id
+    public let houseId: HouseId
+    /// wire key: range_start
+    public let rangeStart: Timestamp?
+    /// wire key: range_end
+    public let rangeEnd: Timestamp?
+    public let limit: UInt64?
+    public let offset: UInt64?
+
+    public init(houseId: HouseId, rangeStart: Timestamp? = nil, rangeEnd: Timestamp? = nil, limit: UInt64? = 50, offset: UInt64? = 0) {
+        self.houseId = houseId
+        self.rangeStart = rangeStart
+        self.rangeEnd = rangeEnd
+        self.limit = limit
+        self.offset = offset
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "houseId": "house_id",
+        "rangeStart": "range_start",
+        "rangeEnd": "range_end",
         "limit": "limit",
         "offset": "offset"
     ]
@@ -2272,7 +2301,7 @@ public struct EffectiveSettings: Equatable, Sendable {
     /// wire key: session_lifetime_hours
     public let sessionLifetimeHours: UInt64?
 
-    public init(bugReportsEnabled: Bool? = false, bugReportsProjectId: ProjectId? = nil, defaultProjectVisibility: AccessLevel? = "read", sessionLifetimeHours: UInt64? = 720) {
+    public init(bugReportsEnabled: Bool? = false, bugReportsProjectId: ProjectId? = nil, defaultProjectVisibility: AccessLevel? = .read, sessionLifetimeHours: UInt64? = 720) {
         self.bugReportsEnabled = bugReportsEnabled
         self.bugReportsProjectId = bugReportsProjectId
         self.defaultProjectVisibility = defaultProjectVisibility

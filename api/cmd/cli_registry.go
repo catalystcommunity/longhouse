@@ -360,6 +360,8 @@ func (o *cliOperation) newRequest() reflect.Value {
 		request.Elem().Set(reflect.ValueOf(*longhouseclient.NewHouseListRequest()))
 	case *longhouseclient.HouseScopedListRequest:
 		request.Elem().Set(reflect.ValueOf(*longhouseclient.NewHouseScopedListRequest()))
+	case *longhouseclient.EventListRequest:
+		request.Elem().Set(reflect.ValueOf(*longhouseclient.NewEventListRequest()))
 	case *longhouseclient.MemberScopedListRequest:
 		request.Elem().Set(reflect.ValueOf(*longhouseclient.NewMemberScopedListRequest()))
 	case *longhouseclient.ProjectScopedListRequest:

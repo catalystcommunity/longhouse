@@ -904,6 +904,20 @@ public sealed record HouseScopedListRequest
     public ulong? Offset { get; init; }
 }
 
+public sealed record EventListRequest
+{
+    // CBOR key: house_id
+    public required HouseID HouseId { get; init; }
+    // CBOR key: range_start
+    public Timestamp? RangeStart { get; init; }
+    // CBOR key: range_end
+    public Timestamp? RangeEnd { get; init; }
+    // CBOR key: limit
+    public ulong? Limit { get; init; }
+    // CBOR key: offset
+    public ulong? Offset { get; init; }
+}
+
 public sealed record TaskListRequest
 {
     // CBOR key: house_id

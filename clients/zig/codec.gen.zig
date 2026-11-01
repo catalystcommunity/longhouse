@@ -2847,6 +2847,70 @@ fn dec_HouseScopedListRequest(alloc: std.mem.Allocator, m: Value, out: *types.Ho
     }
 }
 
+fn enc_EventListRequest(out: *std.ArrayList(u8), v: *const types.EventListRequest) CodecError!void {
+    var csil_n: usize = 1;
+    if (v.limit != null) csil_n += 1;
+    if (v.offset != null) csil_n += 1;
+    if (v.range_end != null) csil_n += 1;
+    if (v.range_start != null) csil_n += 1;
+    try w_map_head(out, csil_n);
+    if (v.limit) |csil_x| {
+        try w_text(out, "limit");
+        try w_uint(out, csil_x);
+    }
+    if (v.offset) |csil_x| {
+        try w_text(out, "offset");
+        try w_uint(out, csil_x);
+    }
+    try w_text(out, "house_id");
+    try w_text(out, v.house_id);
+    if (v.range_end) |csil_x| {
+        try w_text(out, "range_end");
+        try w_text(out, csil_x);
+    }
+    if (v.range_start) |csil_x| {
+        try w_text(out, "range_start");
+        try w_text(out, csil_x);
+    }
+}
+
+fn dec_EventListRequest(alloc: std.mem.Allocator, m: Value, out: *types.EventListRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        if (mget(m, "limit")) |csil_fv| {
+            out.limit = try as_u64(csil_fv);
+        } else {
+            out.limit = null;
+        }
+    }
+    {
+        if (mget(m, "offset")) |csil_fv| {
+            out.offset = try as_u64(csil_fv);
+        } else {
+            out.offset = null;
+        }
+    }
+    {
+        const csil_fv = try req(m, "house_id");
+        out.house_id = try as_text(csil_fv);
+    }
+    {
+        if (mget(m, "range_end")) |csil_fv| {
+            out.range_end = try as_text(csil_fv);
+        } else {
+            out.range_end = null;
+        }
+    }
+    {
+        if (mget(m, "range_start")) |csil_fv| {
+            out.range_start = try as_text(csil_fv);
+        } else {
+            out.range_start = null;
+        }
+    }
+}
+
 fn enc_TaskListRequest(out: *std.ArrayList(u8), v: *const types.TaskListRequest) CodecError!void {
     var csil_n: usize = 1;
     if (v.mine != null) csil_n += 1;
@@ -5508,6 +5572,22 @@ pub fn encode_HouseScopedListRequest(alloc: std.mem.Allocator, v: *const types.H
 pub fn decode_HouseScopedListRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.HouseScopedListRequest) CodecError!void {
     const root = try decode(alloc, bytes);
     try dec_HouseScopedListRequest(alloc, root, out);
+}
+
+/// Encode a EventListRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_EventListRequest(alloc: std.mem.Allocator, v: *const types.EventListRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_EventListRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a EventListRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_EventListRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.EventListRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_EventListRequest(alloc, root, out);
 }
 
 /// Encode a TaskListRequest to CBOR. The returned slice is owned by the caller

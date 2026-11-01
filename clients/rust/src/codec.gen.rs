@@ -3404,6 +3404,82 @@ pub fn decode_house_scoped_list_request(
     csil_dec_house_scoped_list_request(&csil_root)
 }
 
+/// Build the canonical CBOR value tree for a EventListRequest.
+fn csil_enc_event_list_request(csil_v: &EventListRequest) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(5);
+    if let Some(csil_inner) = &csil_v.limit {
+        csil_entries.push((cbor_text("limit"), cbor_uint(*csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.offset {
+        csil_entries.push((cbor_text("offset"), cbor_uint(*csil_inner)));
+    }
+    csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
+    if let Some(csil_inner) = &csil_v.range_end {
+        csil_entries.push((cbor_text("range_end"), cbor_text(csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.range_start {
+        csil_entries.push((cbor_text("range_start"), cbor_text(csil_inner)));
+    }
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a EventListRequest from a decoded CBOR value tree.
+fn csil_dec_event_list_request(
+    csil_root: &CsilCborValue,
+) -> Result<EventListRequest, CsilCborError> {
+    let house_id = {
+        let csil_field = cbor_require(csil_root, "house_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let range_start = match cbor_map_get(csil_root, "range_start") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let range_end = match cbor_map_get(csil_root, "range_end") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let limit = match cbor_map_get(csil_root, "limit") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_u64;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let offset = match cbor_map_get(csil_root, "offset") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_u64;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    Ok(EventListRequest {
+        house_id,
+        range_start,
+        range_end,
+        limit,
+        offset,
+    })
+}
+
+/// Encode a EventListRequest to canonical CSIL CBOR bytes.
+pub fn encode_event_list_request(csil_v: &EventListRequest) -> Vec<u8> {
+    cbor_encode(&csil_enc_event_list_request(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a EventListRequest.
+pub fn decode_event_list_request(csil_data: &[u8]) -> Result<EventListRequest, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_event_list_request(&csil_root)
+}
+
 /// Build the canonical CBOR value tree for a TaskListRequest.
 fn csil_enc_task_list_request(csil_v: &TaskListRequest) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(9);

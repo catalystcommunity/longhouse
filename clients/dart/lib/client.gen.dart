@@ -874,7 +874,7 @@ final class EventClient {
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
-  List<Event> listEvents(HouseScopedListRequest request) {
+  List<Event> listEvents(EventListRequest request) {
     final csilResp = transport.call(
       'EventService',
       'list-events',

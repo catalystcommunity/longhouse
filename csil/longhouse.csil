@@ -330,6 +330,8 @@ Event = {
     event_id: EventID,
 
     house_id: HouseID,
+    ;; Empty selects the caller. Only a house admin can select another
+    ;; active member of this house. Updates cannot change the owner.
     owner_member_id: MemberID,
 
     title: text .size (1..512),
@@ -656,6 +658,20 @@ HouseListRequest = {
 
 HouseScopedListRequest = {
     house_id: HouseID,
+    ? limit: uint .default 50,
+    ? offset: uint .default 0
+}
+
+;; Events that overlap [range_start, range_end). Either bound can be absent.
+;; An event with one timestamp, or equal start and end, is a point in time.
+;; Events with no timestamps appear only when both bounds are absent.
+;; Order: starts_at ascending, absent starts last, then event_id ascending.
+;; Read successive pages until a page has fewer rows than the requested
+;; limit. The default page size is 50; the maximum is 500.
+EventListRequest = {
+    house_id: HouseID,
+    ? range_start: Timestamp,
+    ? range_end: Timestamp,
     ? limit: uint .default 50,
     ? offset: uint .default 0
 }
@@ -1150,7 +1166,7 @@ service EventService {
     ;;     root's recurrence_freq + next_recurrence_at so the spawner
     ;;     stops respawning into the now-empty future.
     delete-event-and-future: EventID -> EmptyResponse / ServiceError,
-    list-events: HouseScopedListRequest -> [* Event] / ServiceError,
+    list-events: EventListRequest -> [* Event] / ServiceError,
 
     ;; Per-member calendar view (whose calendars I've added + enabled).
     ;; get returns the caller's saved view for the house (empty if never set);

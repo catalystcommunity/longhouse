@@ -488,7 +488,7 @@ pub trait EventService {
     fn list_events(
         &self,
         ctx: &Self::Context,
-        input: HouseScopedListRequest,
+        input: EventListRequest,
     ) -> Result<Vec<Event>, ServiceError>;
     /// get-calendar-view (request/response).
     fn get_calendar_view(

@@ -136,7 +136,7 @@ pub const EventHandlers = struct {
     update_event: *const fn (ctx: *anyopaque, req: *const types.Event, resp: *types.Event) anyerror!void,
     delete_event: *const fn (ctx: *anyopaque, req: *const types.EventID, resp: *types.EmptyResponse) anyerror!void,
     delete_event_and_future: *const fn (ctx: *anyopaque, req: *const types.EventID, resp: *types.EmptyResponse) anyerror!void,
-    list_events: *const fn (ctx: *anyopaque, req: *const types.HouseScopedListRequest, resp: *[]types.Event) anyerror!void,
+    list_events: *const fn (ctx: *anyopaque, req: *const types.EventListRequest, resp: *[]types.Event) anyerror!void,
     get_calendar_view: *const fn (ctx: *anyopaque, req: *const types.HouseID, resp: *types.CalendarView) anyerror!void,
     set_calendar_view: *const fn (ctx: *anyopaque, req: *const types.CalendarView, resp: *types.CalendarView) anyerror!void,
 };

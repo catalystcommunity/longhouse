@@ -1907,6 +1907,45 @@ def _house_scoped_list_request_from_cbor(data: bytes) -> "HouseScopedListRequest
 HouseScopedListRequest.to_cbor = _house_scoped_list_request_to_cbor
 HouseScopedListRequest.from_cbor = staticmethod(_house_scoped_list_request_from_cbor)
 
+def _encode_event_list_request_value(v: "EventListRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.limit
+    if csil_x is not None:
+        csil_m["limit"] = csil_x
+    csil_x = v.offset
+    if csil_x is not None:
+        csil_m["offset"] = csil_x
+    csil_m["house_id"] = v.house_id
+    csil_x = v.range_end
+    if csil_x is not None:
+        csil_m["range_end"] = csil_x
+    csil_x = v.range_start
+    if csil_x is not None:
+        csil_m["range_start"] = csil_x
+    return csil_m
+
+def _decode_event_list_request_value(tree: Any) -> "EventListRequest":
+    tree = _csil_expect_map(tree)
+    return EventListRequest(
+        house_id=_csil_expect_text(tree["house_id"]),
+        range_start=(None if tree.get("range_start") is None else _csil_expect_text(tree["range_start"])),
+        range_end=(None if tree.get("range_end") is None else _csil_expect_text(tree["range_end"])),
+        limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
+        offset=(None if tree.get("offset") is None else _csil_expect_uint(tree["offset"])),
+    )
+
+
+def _event_list_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_event_list_request_value(self))
+
+
+def _event_list_request_from_cbor(data: bytes) -> "EventListRequest":
+    return _decode_event_list_request_value(cbor_decode(data))
+
+
+EventListRequest.to_cbor = _event_list_request_to_cbor
+EventListRequest.from_cbor = staticmethod(_event_list_request_from_cbor)
+
 def _encode_task_list_request_value(v: "TaskListRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_x = v.mine

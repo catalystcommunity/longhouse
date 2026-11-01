@@ -140,7 +140,7 @@ typedef struct EventHandlers {
     int (*update_event)(void *ctx, const Event *req, Event *resp);
     int (*delete_event)(void *ctx, const EventID *req, EmptyResponse *resp);
     int (*delete_event_and_future)(void *ctx, const EventID *req, EmptyResponse *resp);
-    int (*list_events)(void *ctx, const HouseScopedListRequest *req, Event * *resp);
+    int (*list_events)(void *ctx, const EventListRequest *req, Event * *resp);
     int (*get_calendar_view)(void *ctx, const HouseID *req, CalendarView *resp);
     int (*set_calendar_view)(void *ctx, const CalendarView *req, CalendarView *resp);
 } EventHandlers;

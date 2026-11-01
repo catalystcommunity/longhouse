@@ -1485,15 +1485,14 @@ defmodule Csilgen.Generated.EventClient do
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
-  @spec list_events(t(), Csilgen.Generated.HouseScopedListRequest.t()) ::
-          [Csilgen.Generated.Event.t()]
+  @spec list_events(t(), Csilgen.Generated.EventListRequest.t()) :: [Csilgen.Generated.Event.t()]
   def list_events(%__MODULE__{transport: transport}, req) do
     resp =
       Csilgen.Generated.Transport.call(
         transport,
         "EventService",
         "list-events",
-        Csilgen.Generated.HouseScopedListRequest.to_cbor(req)
+        Csilgen.Generated.EventListRequest.to_cbor(req)
       )
 
     decode_list_events_response(resp)

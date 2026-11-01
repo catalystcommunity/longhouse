@@ -543,7 +543,7 @@ public struct EventClient {
         return try EmptyResponse.fromCbor(csilResp)
     }
 
-    public func listEvents(_ request: HouseScopedListRequest) throws -> [Event] {
+    public func listEvents(_ request: EventListRequest) throws -> [Event] {
         let csilResp = try transport.call(service: "EventService", op: "list-events", request: request.toCbor())
         return try decodeEventListEventsResponse(csilResp)
     }

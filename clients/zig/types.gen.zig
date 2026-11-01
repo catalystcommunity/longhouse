@@ -694,6 +694,15 @@ pub const HouseScopedListRequest = struct {
     offset: ?u64 = null,
 };
 
+/// EventListRequest is a structured data type.
+pub const EventListRequest = struct {
+    house_id: HouseID,
+    range_start: ?Timestamp = null,
+    range_end: ?Timestamp = null,
+    limit: ?u64 = null,
+    offset: ?u64 = null,
+};
+
 /// TaskListRequest is a structured data type.
 pub const TaskListRequest = struct {
     house_id: HouseID,

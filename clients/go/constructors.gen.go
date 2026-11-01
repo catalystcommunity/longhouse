@@ -63,6 +63,16 @@ func NewHouseScopedListRequest() *HouseScopedListRequest {
 	}
 }
 
+// NewEventListRequest creates a EventListRequest with default values:
+//   - limit: 50
+//   - offset: 0
+func NewEventListRequest() *EventListRequest {
+	return &EventListRequest{
+		Limit:  func() *uint64 { v := uint64(50); return &v }(),
+		Offset: func() *uint64 { v := uint64(0); return &v }(),
+	}
+}
+
 // NewTaskListRequest creates a TaskListRequest with default values:
 //   - limit: 50
 //   - offset: 0

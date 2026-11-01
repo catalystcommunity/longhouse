@@ -131,7 +131,7 @@ public protocol EventService {
     func updateEvent(_ request: Event) throws -> Event
     func deleteEvent(_ request: EventId) throws -> EmptyResponse
     func deleteEventAndFuture(_ request: EventId) throws -> EmptyResponse
-    func listEvents(_ request: HouseScopedListRequest) throws -> [Event]
+    func listEvents(_ request: EventListRequest) throws -> [Event]
     func getCalendarView(_ request: HouseId) throws -> CalendarView
     func setCalendarView(_ request: CalendarView) throws -> CalendarView
 }

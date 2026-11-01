@@ -3954,6 +3954,88 @@ final class HouseScopedListRequest {
       HouseScopedListRequest.fromCborValue(CsilCbor.decode(bytes));
 }
 
+final class EventListRequest {
+  final HouseId houseId;
+  final Timestamp? rangeStart;
+  final Timestamp? rangeEnd;
+  final int? limit;
+  final int? offset;
+
+  const EventListRequest({
+    required this.houseId,
+    this.rangeStart,
+    this.rangeEnd,
+    this.limit,
+    this.offset,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    if (rangeStart != null) map['range_start'] = rangeStart;
+    if (rangeEnd != null) map['range_end'] = rangeEnd;
+    if (limit != null) map['limit'] = limit;
+    if (offset != null) map['offset'] = offset;
+    return map;
+  }
+
+  factory EventListRequest.fromMap(Map<String, Object?> map) {
+    return EventListRequest(
+      houseId: map['house_id'] as HouseId,
+      rangeStart: map['range_start'] as Timestamp?,
+      rangeEnd: map['range_end'] as Timestamp?,
+      limit: map['limit'] as int?,
+      offset: map['offset'] as int?,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! EventListRequest) return false;
+    return houseId == other.houseId &&
+        rangeStart == other.rangeStart &&
+        rangeEnd == other.rangeEnd &&
+        limit == other.limit &&
+        offset == other.offset;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hashAll([houseId, rangeStart, rangeEnd, limit, offset]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    if (rangeStart != null) map['range_start'] = rangeStart!;
+    if (rangeEnd != null) map['range_end'] = rangeEnd!;
+    if (limit != null) map['limit'] = limit!;
+    if (offset != null) map['offset'] = offset!;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory EventListRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return EventListRequest(
+      houseId: map['house_id'] as String,
+      rangeStart: map['range_start'] == null
+          ? null
+          : map['range_start'] as String,
+      rangeEnd: map['range_end'] == null ? null : map['range_end'] as String,
+      limit: map['limit'] == null ? null : map['limit'] as int,
+      offset: map['offset'] == null ? null : map['offset'] as int,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory EventListRequest.fromCbor(List<int> bytes) =>
+      EventListRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
 final class TaskListRequest {
   final HouseId houseId;
   final int? limit;

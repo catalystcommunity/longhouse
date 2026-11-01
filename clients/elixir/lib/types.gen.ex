@@ -3775,6 +3775,89 @@ defmodule Csilgen.Generated.HouseScopedListRequest do
   def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
 end
 
+defmodule Csilgen.Generated.EventListRequest do
+  @moduledoc "Generated struct for the EventListRequest type."
+
+  @enforce_keys [:house_id]
+  defstruct [:house_id, :range_start, :range_end, limit: 50, offset: 0]
+
+  @type t :: %__MODULE__{
+          house_id: Csilgen.Generated.HouseID.t(),
+          range_start: Csilgen.Generated.Timestamp.t() | nil,
+          range_end: Csilgen.Generated.Timestamp.t() | nil,
+          limit: integer() | nil,
+          offset: integer() | nil
+        }
+
+  @wire_keys [
+    house_id: "house_id",
+    range_start: "range_start",
+    range_end: "range_end",
+    limit: "limit",
+    offset: "offset"
+  ]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         if(is_nil(v.limit), do: nil, else: {{:text, "limit"}, {:int, v.limit}}),
+         if(is_nil(v.offset), do: nil, else: {{:text, "offset"}, {:int, v.offset}}),
+         {{:text, "house_id"}, {:text, v.house_id}},
+         if(is_nil(v.range_end), do: nil, else: {{:text, "range_end"}, {:text, v.range_end}}),
+         if(is_nil(v.range_start),
+           do: nil,
+           else: {{:text, "range_start"}, {:text, v.range_start}}
+         )
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+
+    %__MODULE__{
+      limit:
+        case Map.get(csil_fields, {:text, "limit"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_int(csil_v)
+        end,
+      offset:
+        case Map.get(csil_fields, {:text, "offset"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_int(csil_v)
+        end,
+      house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
+      range_end:
+        case Map.get(csil_fields, {:text, "range_end"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end,
+      range_start:
+        case Map.get(csil_fields, {:text, "range_start"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
 defmodule Csilgen.Generated.TaskListRequest do
   @moduledoc "Generated struct for the TaskListRequest type."
 

@@ -1014,11 +1014,11 @@ impl<T: Transport> EventClient<T> {
     }
 
     /// list-events (request/response).
-    pub fn list_events(&self, req: HouseScopedListRequest) -> Result<Vec<Event>, ClientError> {
+    pub fn list_events(&self, req: EventListRequest) -> Result<Vec<Event>, ClientError> {
         let csil_resp = self.transport.call(
             "EventService",
             "list-events",
-            &encode_house_scoped_list_request(&req),
+            &encode_event_list_request(&req),
         )?;
         decode_event_list_events_response(&csil_resp)
             .map_err(|e| ClientError::Transport(e.to_string()))

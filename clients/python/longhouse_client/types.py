@@ -1741,6 +1741,43 @@ class HouseScopedListRequest:
 
 
 @dataclass
+class EventListRequest:
+    house_id: HouseId
+    range_start: Optional[Timestamp] = None
+    range_end: Optional[Timestamp] = None
+    limit: Optional[int] = 50
+    offset: Optional[int] = 0
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'house_id') and self.house_id is not None:
+            result['house_id'] = self.house_id
+        if hasattr(self, 'range_start') and self.range_start is not None:
+            result['range_start'] = self.range_start
+        if hasattr(self, 'range_end') and self.range_end is not None:
+            result['range_end'] = self.range_end
+        if hasattr(self, 'limit') and self.limit is not None:
+            result['limit'] = self.limit
+        if hasattr(self, 'offset') and self.offset is not None:
+            result['offset'] = self.offset
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'EventListRequest':
+        """Create instance from dictionary."""
+        return cls(house_id=data.get('house_id'), range_start=data.get('range_start'), range_end=data.get('range_end'), limit=data.get('limit'), offset=data.get('offset'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'EventListRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class TaskListRequest:
     house_id: HouseId
     limit: Optional[int] = 50

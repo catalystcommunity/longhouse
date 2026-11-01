@@ -253,8 +253,8 @@ public sealed class EventClient(ICsilTransport transport)
         Codec.Decode<EmptyResponse>(transport.Call("EventService", "delete-event", Codec.EncodeEventDeleteEventRequest(eventID)));
     public EmptyResponse DeleteEventAndFuture(EventID eventID) =>
         Codec.Decode<EmptyResponse>(transport.Call("EventService", "delete-event-and-future", Codec.EncodeEventDeleteEventAndFutureRequest(eventID)));
-    public System.Collections.Generic.List<Event> ListEvents(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeEventListEventsResponse(transport.Call("EventService", "list-events", Codec.Encode(houseScopedListRequest)));
+    public System.Collections.Generic.List<Event> ListEvents(EventListRequest eventListRequest) =>
+        Codec.DecodeEventListEventsResponse(transport.Call("EventService", "list-events", Codec.Encode(eventListRequest)));
     public CalendarView GetCalendarView(HouseID houseID) =>
         Codec.Decode<CalendarView>(transport.Call("EventService", "get-calendar-view", Codec.EncodeEventGetCalendarViewRequest(houseID)));
     public CalendarView SetCalendarView(CalendarView calendarView) =>

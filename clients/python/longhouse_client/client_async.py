@@ -416,7 +416,7 @@ class EventAsyncClient:
         """delete-event-and-future"""
         return EmptyResponse.from_cbor(await self._transport.call("EventService", "delete-event-and-future", encode_event_delete_event_and_future_request(req)))
 
-    async def list_events(self, req: HouseScopedListRequest) -> List[Event]:
+    async def list_events(self, req: EventListRequest) -> List[Event]:
         """list-events"""
         return decode_event_list_events_response(await self._transport.call("EventService", "list-events", req.to_cbor()))
 

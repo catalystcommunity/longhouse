@@ -1041,8 +1041,8 @@ pub const EventClient = struct {
     /// Invoke EventService/list-events with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
-    pub fn list_events(self: EventClient, alloc: std.mem.Allocator, req: *const types.HouseScopedListRequest, out: *[]types.Event) anyerror!void {
-        const csil_reqb = try codec.encode_HouseScopedListRequest(alloc, req);
+    pub fn list_events(self: EventClient, alloc: std.mem.Allocator, req: *const types.EventListRequest, out: *[]types.Event) anyerror!void {
+        const csil_reqb = try codec.encode_EventListRequest(alloc, req);
         defer alloc.free(csil_reqb);
         const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "list-events", csil_reqb);
         defer alloc.free(csil_respb);

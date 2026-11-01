@@ -898,9 +898,9 @@ func (c *EventClient) DeleteEventAndFuture(ctx context.Context, req EventID) (Em
 	return DecodeEmptyResponse(csilResp)
 }
 
-func (c *EventClient) ListEvents(ctx context.Context, req HouseScopedListRequest) ([]Event, error) {
+func (c *EventClient) ListEvents(ctx context.Context, req EventListRequest) ([]Event, error) {
 	var csilZero []Event
-	csilResp, csilErr := c.transport.Call(ctx, "EventService", "list-events", EncodeHouseScopedListRequest(req))
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "list-events", EncodeEventListRequest(req))
 	if csilErr != nil {
 		return csilZero, csilErr
 	}

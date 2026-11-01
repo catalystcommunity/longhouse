@@ -223,7 +223,7 @@ type Store interface {
 	SoftDeleteEventsAfter(ctx context.Context, rootEventID string, fromInclusive time.Time, byMemberID, opID string) error
 	RestoreEventsByOp(ctx context.Context, opID string) error
 	PurgeEventsDeletedBefore(ctx context.Context, cutoff time.Time) (int64, error)
-	ListEventsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Event, error)
+	ListEvents(ctx context.Context, filter EventFilter, limit, offset int) ([]models.Event, error)
 
 	// Per-member calendar view (whose calendars a viewer has added + enabled).
 	// GetCalendarView returns nil (no error) when the viewer has never saved one.

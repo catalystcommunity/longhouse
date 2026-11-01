@@ -18,7 +18,7 @@ import (
 type EventService struct{ Store store.Store }
 
 func (s *EventService) Register(d *csilrpc.Dispatcher) {
-	d.RegisterTyped("event", "ListEvents", csilrpc.Route(s.ListEvents, csil.DecodeHouseScopedListRequest, csil.EncodeEventListEventsResponse))
+	d.RegisterTyped("event", "ListEvents", csilrpc.Route(s.ListEvents, csil.DecodeEventListRequest, csil.EncodeEventListEventsResponse))
 	d.RegisterTyped("event", "GetEvent", csilrpc.Route(s.GetEvent, csil.DecodeEventGetEventRequest, csil.EncodeEvent))
 	d.RegisterTyped("event", "CreateEvent", csilrpc.Route(s.CreateEvent, csil.DecodeEvent, csil.EncodeEvent))
 	d.RegisterTyped("event", "UpdateEvent", csilrpc.Route(s.UpdateEvent, csil.DecodeEvent, csil.EncodeEvent))
@@ -83,12 +83,22 @@ func (s *EventService) SetCalendarView(ctx context.Context, in csil.CalendarView
 	return calendarViewToCSIL(string(in.HouseId), viewerMemberID, view), nil
 }
 
-func (s *EventService) ListEvents(ctx context.Context, req csil.HouseScopedListRequest) ([]csil.Event, error) {
+func (s *EventService) ListEvents(ctx context.Context, req csil.EventListRequest) ([]csil.Event, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}
 	limit, offset := normalizePaging(req.Limit, req.Offset)
-	rows, err := s.Store.ListEventsByHouse(ctx, string(req.HouseId), limit, offset)
+	f := store.EventFilter{HouseID: string(req.HouseId), RangeStart: tsToTimePtr(req.RangeStart), RangeEnd: tsToTimePtr(req.RangeEnd)}
+	if req.RangeStart != nil && f.RangeStart == nil {
+		return nil, csilrpc.BadRequest("range_start must be an RFC3339 timestamp")
+	}
+	if req.RangeEnd != nil && f.RangeEnd == nil {
+		return nil, csilrpc.BadRequest("range_end must be an RFC3339 timestamp")
+	}
+	if f.RangeStart != nil && f.RangeEnd != nil && !f.RangeEnd.After(*f.RangeStart) {
+		return nil, csilrpc.BadRequest("range_end must be after range_start")
+	}
+	rows, err := s.Store.ListEvents(ctx, f, limit, offset)
 	if err != nil {
 		return nil, csilrpc.Internal("internal error")
 	}
@@ -116,12 +126,25 @@ func (s *EventService) CreateEvent(ctx context.Context, in csil.Event) (csil.Eve
 	if in.HouseId == "" || in.Title == "" {
 		return csil.Event{}, csilrpc.BadRequest("house_id and title are required")
 	}
-	_, callerMemberID, err := requireMemberForHouse(ctx, string(in.HouseId))
+	ident, callerMemberID, err := requireMemberForHouse(ctx, string(in.HouseId))
 	if err != nil {
 		return csil.Event{}, err
 	}
 	owner := callerMemberID
-	if in.OwnerMemberId != "" {
+	if in.OwnerMemberId != "" && string(in.OwnerMemberId) != callerMemberID {
+		if _, err := requireRole(ident, string(in.HouseId), "admin"); err != nil {
+			return csil.Event{}, csilrpc.Forbidden("only a house admin may create an event for another member")
+		}
+		member, err := s.Store.GetMemberByID(ctx, string(in.OwnerMemberId))
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return csil.Event{}, csilrpc.BadRequest("owner must be an active member of this house")
+		}
+		if err != nil {
+			return csil.Event{}, csilrpc.Internal("internal error")
+		}
+		if member.HouseID != string(in.HouseId) || member.DeactivatedAt != nil {
+			return csil.Event{}, csilrpc.BadRequest("owner must be an active member of this house")
+		}
 		owner = string(in.OwnerMemberId)
 	}
 	e := &models.Event{

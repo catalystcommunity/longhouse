@@ -130,7 +130,7 @@ type EventService interface {
 	UpdateEvent(ctx context.Context, req Event) (Event, error)
 	DeleteEvent(ctx context.Context, req EventID) (EmptyResponse, error)
 	DeleteEventAndFuture(ctx context.Context, req EventID) (EmptyResponse, error)
-	ListEvents(ctx context.Context, req HouseScopedListRequest) ([]Event, error)
+	ListEvents(ctx context.Context, req EventListRequest) ([]Event, error)
 	GetCalendarView(ctx context.Context, req HouseID) (CalendarView, error)
 	SetCalendarView(ctx context.Context, req CalendarView) (CalendarView, error)
 }
