@@ -421,6 +421,14 @@ export interface HouseScopedListRequest {
   offset?: number;
 }
 
+export interface EventListRequest {
+  houseId: HouseID;
+  rangeStart?: Timestamp;
+  rangeEnd?: Timestamp;
+  limit?: number;
+  offset?: number;
+}
+
 export interface TaskListRequest {
   houseId: HouseID;
   limit?: number;

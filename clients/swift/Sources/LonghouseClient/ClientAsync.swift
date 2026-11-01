@@ -532,7 +532,7 @@ public struct EventAsyncClient {
         return try EmptyResponse.fromCbor(csilResp)
     }
 
-    public func listEvents(_ request: HouseScopedListRequest) async throws -> [Event] {
+    public func listEvents(_ request: EventListRequest) async throws -> [Event] {
         let csilResp = try await transport.call(service: "EventService", op: "list-events", request: request.toCbor())
         return try decodeEventListEventsResponse(csilResp)
     }

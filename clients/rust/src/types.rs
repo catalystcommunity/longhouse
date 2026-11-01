@@ -742,6 +742,17 @@ pub struct HouseScopedListRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct EventListRequest {
+    pub house_id: HouseID,
+    pub range_start: Option<Timestamp>,
+    pub range_end: Option<Timestamp>,
+    /// default: 50
+    pub limit: Option<u64>,
+    /// default: 0
+    pub offset: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct TaskListRequest {
     pub house_id: HouseID,
     /// default: 50

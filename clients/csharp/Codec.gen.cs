@@ -404,6 +404,7 @@ public static class Codec
         BoolResponse csilTyped => BoolResponseToCborValue(csilTyped),
         HouseListRequest csilTyped => HouseListRequestToCborValue(csilTyped),
         HouseScopedListRequest csilTyped => HouseScopedListRequestToCborValue(csilTyped),
+        EventListRequest csilTyped => EventListRequestToCborValue(csilTyped),
         TaskListRequest csilTyped => TaskListRequestToCborValue(csilTyped),
         TaskList csilTyped => TaskListToCborValue(csilTyped),
         ProjectList csilTyped => ProjectListToCborValue(csilTyped),
@@ -511,6 +512,7 @@ public static class Codec
         if (csilType == typeof(BoolResponse)) return BoolResponseFromCborValue(value);
         if (csilType == typeof(HouseListRequest)) return HouseListRequestFromCborValue(value);
         if (csilType == typeof(HouseScopedListRequest)) return HouseScopedListRequestFromCborValue(value);
+        if (csilType == typeof(EventListRequest)) return EventListRequestFromCborValue(value);
         if (csilType == typeof(TaskListRequest)) return TaskListRequestFromCborValue(value);
         if (csilType == typeof(TaskList)) return TaskListFromCborValue(value);
         if (csilType == typeof(ProjectList)) return ProjectListFromCborValue(value);
@@ -2332,6 +2334,48 @@ public static class Codec
             HouseId = csilField0,
             Limit = csilField1,
             Offset = csilField2,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a EventListRequest.</summary>
+    public static CborValue EventListRequestToCborValue(EventListRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        if (value.Limit is { } csilV0)
+        {
+            csilEntries.Add((new CborValue.Text("limit"), new CborValue.Uint(csilV0)));
+        }
+        if (value.Offset is { } csilV1)
+        {
+            csilEntries.Add((new CborValue.Text("offset"), new CborValue.Uint(csilV1)));
+        }
+        csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
+        if (value.RangeEnd is { } csilV3)
+        {
+            csilEntries.Add((new CborValue.Text("range_end"), new CborValue.Text(csilV3)));
+        }
+        if (value.RangeStart is { } csilV4)
+        {
+            csilEntries.Add((new CborValue.Text("range_start"), new CborValue.Text(csilV4)));
+        }
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a EventListRequest from a decoded CBOR value tree.</summary>
+    public static EventListRequest EventListRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "house_id"));
+        Timestamp? csilField1 = Cbor.MapGet(value, "range_start") is { } csilRaw1 ? Cbor.AsText(csilRaw1) : null;
+        Timestamp? csilField2 = Cbor.MapGet(value, "range_end") is { } csilRaw2 ? Cbor.AsText(csilRaw2) : null;
+        ulong? csilField3 = Cbor.MapGet(value, "limit") is { } csilRaw3 ? Cbor.AsU64(csilRaw3) : null;
+        ulong? csilField4 = Cbor.MapGet(value, "offset") is { } csilRaw4 ? Cbor.AsU64(csilRaw4) : null;
+        return new EventListRequest
+        {
+            HouseId = csilField0,
+            RangeStart = csilField1,
+            RangeEnd = csilField2,
+            Limit = csilField3,
+            Offset = csilField4,
         };
     }
 

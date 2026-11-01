@@ -522,8 +522,8 @@ module Event_service = struct
 
   let list_events (c : client)
       ~(decode_response : bytes -> event list)
-      (req : house_scoped_list_request) : (event list, string) result =
-    match c.call ~service:"EventService" ~op:"list-events" ~payload:(Codec.encode_house_scoped_list_request_bytes req) with
+      (req : event_list_request) : (event list, string) result =
+    match c.call ~service:"EventService" ~op:"list-events" ~payload:(Codec.encode_event_list_request_bytes req) with
     | Ok payload -> Ok (decode_response payload)
     | Error _ as e -> e
 

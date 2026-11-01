@@ -360,7 +360,7 @@ module Event_service = struct
     delete_event : bytes -> outcome;
     (* request payload decodes to: event_id *)
     delete_event_and_future : bytes -> outcome;
-    (* request payload decodes to: house_scoped_list_request *)
+    (* request payload decodes to: event_list_request *)
     list_events : bytes -> outcome;
     (* request payload decodes to: house_id *)
     get_calendar_view : bytes -> outcome;

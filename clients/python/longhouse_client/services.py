@@ -472,7 +472,7 @@ class EventServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_events(self, req: HouseScopedListRequest, ctx: dict) -> Union[List[Event], ServiceError]:
+    def list_events(self, req: EventListRequest, ctx: dict) -> Union[List[Event], ServiceError]:
         """list-events"""
         ...
 

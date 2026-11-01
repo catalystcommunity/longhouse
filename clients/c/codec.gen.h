@@ -749,6 +749,8 @@ static inline int csilc_enc_HouseListRequest(csilc_buf *b, const HouseListReques
 static inline int csilc_dec_HouseListRequest(const csilc_value *m, CsilCodecArena *a, HouseListRequest *out);
 static inline int csilc_enc_HouseScopedListRequest(csilc_buf *b, const HouseScopedListRequest *v);
 static inline int csilc_dec_HouseScopedListRequest(const csilc_value *m, CsilCodecArena *a, HouseScopedListRequest *out);
+static inline int csilc_enc_EventListRequest(csilc_buf *b, const EventListRequest *v);
+static inline int csilc_dec_EventListRequest(const csilc_value *m, CsilCodecArena *a, EventListRequest *out);
 static inline int csilc_enc_TaskListRequest(csilc_buf *b, const TaskListRequest *v);
 static inline int csilc_dec_TaskListRequest(const csilc_value *m, CsilCodecArena *a, TaskListRequest *out);
 static inline int csilc_enc_TaskList(csilc_buf *b, const TaskList *v);
@@ -3264,6 +3266,77 @@ static inline int csilc_dec_HouseScopedListRequest(const csilc_value *m, CsilCod
     }
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
+    return 0;
+}
+
+/* csilc_enc_EventListRequest writes EventListRequest as a canonical CBOR map. */
+static inline int csilc_enc_EventListRequest(csilc_buf *b, const EventListRequest *v) {
+    size_t csilc_n = 1;
+    if (v->limit) csilc_n++;
+    if (v->offset) csilc_n++;
+    if (v->range_end) csilc_n++;
+    if (v->range_start) csilc_n++;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (v->limit) {
+        if (csilc_w_text(b, "limit", 5)) return -1;
+        if (csilc_w_uint(b, (uint64_t)((*v->limit)))) return -1;
+    }
+    if (v->offset) {
+        if (csilc_w_text(b, "offset", 6)) return -1;
+        if (csilc_w_uint(b, (uint64_t)((*v->offset)))) return -1;
+    }
+    if (csilc_w_text(b, "house_id", 8)) return -1;
+    if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
+    if (v->range_end) {
+        if (csilc_w_text(b, "range_end", 9)) return -1;
+        if (csilc_w_text(b, ((*v->range_end)), ((*v->range_end)) ? strlen((*v->range_end)) : 0)) return -1;
+    }
+    if (v->range_start) {
+        if (csilc_w_text(b, "range_start", 11)) return -1;
+        if (csilc_w_text(b, ((*v->range_start)), ((*v->range_start)) ? strlen((*v->range_start)) : 0)) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_EventListRequest reads EventListRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_EventListRequest(const csilc_value *m, CsilCodecArena *a, EventListRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "limit");
+    out->limit = NULL;
+    if (csilc_f) {
+        uint64_t *csilc_p = (uint64_t *)csilc_arena_alloc(a, sizeof(uint64_t));
+        if (!csilc_p) return -1;
+        if (!csilc_as_u64(csilc_f, &((*csilc_p)))) return -1;
+        out->limit = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "offset");
+    out->offset = NULL;
+    if (csilc_f) {
+        uint64_t *csilc_p = (uint64_t *)csilc_arena_alloc(a, sizeof(uint64_t));
+        if (!csilc_p) return -1;
+        if (!csilc_as_u64(csilc_f, &((*csilc_p)))) return -1;
+        out->offset = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "house_id");
+    if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
+    csilc_f = csilc_map_get(m, "range_end");
+    out->range_end = NULL;
+    if (csilc_f) {
+        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        if (!csilc_p) return -1;
+        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        out->range_end = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "range_start");
+    out->range_start = NULL;
+    if (csilc_f) {
+        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        if (!csilc_p) return -1;
+        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        out->range_start = csilc_p;
+    }
     return 0;
 }
 
@@ -6910,6 +6983,29 @@ static inline int csil_decode_HouseScopedListRequest(const uint8_t *in, size_t l
     const csilc_value *root;
     if (csilc_decode(in, len, &a, &root)) return -1;
     if (csilc_dec_HouseScopedListRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a EventListRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_EventListRequest(const EventListRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_EventListRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a EventListRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_EventListRequest(const uint8_t *in, size_t len, EventListRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_EventListRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
     *owner = a;
     return 0;
 }

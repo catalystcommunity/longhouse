@@ -1553,11 +1553,11 @@ static inline int csil_event_delete_event_and_future(const CsilgenTransport *t, 
 /* Invoke EventService/list-events with a typed request and decode the typed
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
-static inline int csil_event_list_events(const CsilgenTransport *t, const HouseScopedListRequest *req,
+static inline int csil_event_list_events(const CsilgenTransport *t, const EventListRequest *req,
                         CsilEventList *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
-    if (csil_encode_HouseScopedListRequest(req, &csil_reqb, &csil_reqn)) return -1;
+    if (csil_encode_EventListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
     int csil_rc = t->call(t->self, "EventService", "list-events", csil_reqb, csil_reqn, &csil_respb, &csil_respn);

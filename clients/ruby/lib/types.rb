@@ -521,6 +521,17 @@ HouseScopedListRequest = Data.define(:house_id, :limit, :offset) do
 end
 
 # house_id [HouseId]
+# range_start [Timestamp]
+# range_end [Timestamp]
+# limit [Integer]
+# offset [Integer]
+EventListRequest = Data.define(:house_id, :range_start, :range_end, :limit, :offset) do
+  def initialize(house_id:, range_start: nil, range_end: nil, limit: 50, offset: 0)
+    super
+  end
+end
+
+# house_id [HouseId]
 # limit [Integer]
 # offset [Integer]
 # state [TaskState]

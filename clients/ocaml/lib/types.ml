@@ -353,6 +353,14 @@ and house_scoped_list_request = {
   offset : int64 option;
 }
 
+and event_list_request = {
+  house_id : house_id;
+  range_start : timestamp option;
+  range_end : timestamp option;
+  limit : int64 option;
+  offset : int64 option;
+}
+
 and task_list_request = {
   house_id : house_id;
   limit : int64 option;

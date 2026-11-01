@@ -299,11 +299,21 @@ func (resolver *cliReferenceResolver) resolveType(typeName, query string) (strin
 		return resolveNamedReference(resolver.groups, "group_id", "name", query)
 	case "EventID":
 		if resolver.events == nil {
-			values, err := longhouseclient.NewEventClient(resolver.runtime.transport).ListEvents(ctx, request)
-			if err != nil {
-				return "", err
+			client := longhouseclient.NewEventClient(resolver.runtime.transport)
+			limit, offset := uint64(500), uint64(0)
+			var events []longhouseclient.Event
+			for {
+				values, err := client.ListEvents(ctx, longhouseclient.EventListRequest{HouseId: request.HouseId, Limit: &limit, Offset: &offset})
+				if err != nil {
+					return "", err
+				}
+				events = append(events, values...)
+				if len(values) < int(limit) {
+					break
+				}
+				offset += limit
 			}
-			resolver.events = values
+			resolver.events = events
 		}
 		return resolveNamedReference(resolver.events, "event_id", "title", query)
 	case "MilestoneID":

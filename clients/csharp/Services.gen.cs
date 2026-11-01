@@ -138,7 +138,7 @@ public interface IEventService
     Event UpdateEvent(Event @event);
     EmptyResponse DeleteEvent(EventID eventID);
     EmptyResponse DeleteEventAndFuture(EventID eventID);
-    System.Collections.Generic.List<Event> ListEvents(HouseScopedListRequest houseScopedListRequest);
+    System.Collections.Generic.List<Event> ListEvents(EventListRequest eventListRequest);
     CalendarView GetCalendarView(HouseID houseID);
     CalendarView SetCalendarView(CalendarView calendarView);
 }

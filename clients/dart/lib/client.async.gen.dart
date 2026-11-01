@@ -901,7 +901,7 @@ final class EventAsyncClient {
     return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
   }
 
-  Future<List<Event>> listEvents(HouseScopedListRequest request) async {
+  Future<List<Event>> listEvents(EventListRequest request) async {
     final csilResp = await transport.call(
       'EventService',
       'list-events',

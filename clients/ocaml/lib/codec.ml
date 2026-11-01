@@ -582,6 +582,18 @@ and encode_house_scoped_list_request (v : house_scoped_list_request) : Cbor.t =
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
        ])
 
+and encode_event_list_request (v : event_list_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         (match v.limit with Some csil_x -> Some (Cbor.Text "limit", (Cbor.int64 csil_x)) | None -> None);
+         (match v.offset with Some csil_x -> Some (Cbor.Text "offset", (Cbor.int64 csil_x)) | None -> None);
+         Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
+         (match v.range_end with Some csil_x -> Some (Cbor.Text "range_end", (Cbor.Text csil_x)) | None -> None);
+         (match v.range_start with Some csil_x -> Some (Cbor.Text "range_start", (Cbor.Text csil_x)) | None -> None);
+       ])
+
 and encode_task_list_request (v : task_list_request) : Cbor.t =
   Cbor.Map
     (List.filter_map
@@ -1844,6 +1856,23 @@ and decode_house_scoped_list_request (csil_c : Cbor.t) : house_scoped_list_reque
       }
   | _ -> failwith "csilgen: expected map for house_scoped_list_request"
 
+and decode_event_list_request (csil_c : Cbor.t) : event_list_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        limit = (match csil_field "limit" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
+        offset = (match csil_field "offset" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
+        house_id = (Cbor.to_text (csil_req "house_id"));
+        range_end = (match csil_field "range_end" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        range_start = (match csil_field "range_start" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+      }
+  | _ -> failwith "csilgen: expected map for event_list_request"
+
 and decode_task_list_request (csil_c : Cbor.t) : task_list_request =
   match csil_c with
   | Cbor.Map csil_kvs ->
@@ -2754,6 +2783,10 @@ let decode_house_list_request_bytes (b : bytes) : house_list_request =
 let encode_house_scoped_list_request_bytes (v : house_scoped_list_request) : bytes = Cbor.encode (encode_house_scoped_list_request v)
 let decode_house_scoped_list_request_bytes (b : bytes) : house_scoped_list_request =
   match Cbor.decode b with Ok c -> decode_house_scoped_list_request c | Error e -> failwith e
+
+let encode_event_list_request_bytes (v : event_list_request) : bytes = Cbor.encode (encode_event_list_request v)
+let decode_event_list_request_bytes (b : bytes) : event_list_request =
+  match Cbor.decode b with Ok c -> decode_event_list_request c | Error e -> failwith e
 
 let encode_task_list_request_bytes (v : task_list_request) : bytes = Cbor.encode (encode_task_list_request v)
 let decode_task_list_request_bytes (b : bytes) : task_list_request =

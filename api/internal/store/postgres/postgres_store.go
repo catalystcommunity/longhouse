@@ -946,9 +946,18 @@ func (s *PostgresStore) DeleteEvent(ctx context.Context, eventID string) error {
 	return db.WithContext(ctx).Where("event_id = ?", eventID).Delete(&models.Event{}).Error
 }
 
-func (s *PostgresStore) ListEventsByHouse(ctx context.Context, houseID string, limit, offset int) ([]models.Event, error) {
+func (s *PostgresStore) ListEvents(ctx context.Context, f appstore.EventFilter, limit, offset int) ([]models.Event, error) {
 	var events []models.Event
-	if err := db.WithContext(ctx).Where("house_id = ? AND deleted_at IS NULL", houseID).Order("starts_at ASC NULLS LAST").Limit(limit).Offset(offset).Find(&events).Error; err != nil {
+	q := db.WithContext(ctx).Where("house_id = ? AND deleted_at IS NULL", f.HouseID)
+	if f.RangeStart != nil {
+		// Include events that started earlier but are still in progress.
+		// A missing end or a zero duration makes the start a point in time.
+		q = q.Where("(ends_at > ? OR COALESCE(starts_at, ends_at) >= ?)", *f.RangeStart, *f.RangeStart)
+	}
+	if f.RangeEnd != nil {
+		q = q.Where("COALESCE(starts_at, ends_at) < ?", *f.RangeEnd)
+	}
+	if err := q.Order("starts_at ASC NULLS LAST, event_id ASC").Limit(limit).Offset(offset).Find(&events).Error; err != nil {
 		return nil, err
 	}
 	return events, nil

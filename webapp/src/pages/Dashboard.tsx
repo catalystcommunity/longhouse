@@ -25,6 +25,7 @@ import {
 } from "~/lib/derive";
 import { PROJECT_LIST_LIMIT, loadMyProjectIds, loadProjectTasks, openTaskCount } from "~/lib/projects";
 import { createTaskFeed, dueBoundaries, dueGroupStarts } from "~/lib/taskFeed";
+import { loadEvents, startOfRange } from "~/lib/events";
 import { currentMemberId, useCurrentHouseId, useSession } from "~/stores/auth";
 import type { Member, Project, Task, TaskListRequest } from "@longhouse/client";
 
@@ -94,7 +95,7 @@ export const Dashboard = () => {
   );
   const [events] = createResource(
     () => houseId(),
-    async (h) => eventClient.listEvents({ houseId: h }),
+    (h) => loadEvents(eventClient, { houseId: h, rangeStart: startOfRange(new Date(), "day").toISOString() }),
   );
   const [projects, { refetch: refetchProjects }] = createResource(
     () => houseId(),

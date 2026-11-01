@@ -1716,6 +1716,38 @@ class HouseScopedListRequest
   end
 end
 
+# CBOR codec for EventListRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class EventListRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["limit"] = limit unless limit.nil?
+    csil_map["offset"] = offset unless offset.nil?
+    csil_map["house_id"] = house_id
+    csil_map["range_end"] = range_end unless range_end.nil?
+    csil_map["range_start"] = range_start unless range_start.nil?
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      house_id: node["house_id"],
+      range_start: (node.key?("range_start") ? node["range_start"] : nil),
+      range_end: (node.key?("range_end") ? node["range_end"] : nil),
+      limit: (node.key?("limit") ? node["limit"] : nil),
+      offset: (node.key?("offset") ? node["offset"] : nil)
+    )
+  end
+end
+
 # CBOR codec for TaskListRequest: a map keyed by the verbatim CSIL field names in
 # canonical RFC 8949 order.
 class TaskListRequest

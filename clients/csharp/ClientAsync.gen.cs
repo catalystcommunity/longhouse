@@ -242,8 +242,8 @@ public sealed class EventAsyncClient(ICsilAsyncTransport transport)
         Codec.Decode<EmptyResponse>(await transport.Call("EventService", "delete-event", Codec.EncodeEventDeleteEventRequest(eventID)));
     public async System.Threading.Tasks.Task<EmptyResponse> DeleteEventAndFutureAsync(EventID eventID) =>
         Codec.Decode<EmptyResponse>(await transport.Call("EventService", "delete-event-and-future", Codec.EncodeEventDeleteEventAndFutureRequest(eventID)));
-    public async System.Threading.Tasks.Task<System.Collections.Generic.List<Event>> ListEventsAsync(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeEventListEventsResponse(await transport.Call("EventService", "list-events", Codec.Encode(houseScopedListRequest)));
+    public async System.Threading.Tasks.Task<System.Collections.Generic.List<Event>> ListEventsAsync(EventListRequest eventListRequest) =>
+        Codec.DecodeEventListEventsResponse(await transport.Call("EventService", "list-events", Codec.Encode(eventListRequest)));
     public async System.Threading.Tasks.Task<CalendarView> GetCalendarViewAsync(HouseID houseID) =>
         Codec.Decode<CalendarView>(await transport.Call("EventService", "get-calendar-view", Codec.EncodeEventGetCalendarViewRequest(houseID)));
     public async System.Threading.Tasks.Task<CalendarView> SetCalendarViewAsync(CalendarView calendarView) =>

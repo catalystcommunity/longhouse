@@ -145,6 +145,7 @@ typedef struct EmptyResponse EmptyResponse;
 typedef struct BoolResponse BoolResponse;
 typedef struct HouseListRequest HouseListRequest;
 typedef struct HouseScopedListRequest HouseScopedListRequest;
+typedef struct EventListRequest EventListRequest;
 typedef struct TaskListRequest TaskListRequest;
 typedef struct TaskList TaskList;
 typedef struct ProjectList ProjectList;
@@ -660,6 +661,15 @@ typedef struct HouseScopedListRequest {
     uint64_t *limit;
     uint64_t *offset;
 } HouseScopedListRequest;
+
+/* EventListRequest is a structured data type. */
+typedef struct EventListRequest {
+    HouseID house_id;
+    Timestamp *range_start;
+    Timestamp *range_end;
+    uint64_t *limit;
+    uint64_t *offset;
+} EventListRequest;
 
 /* TaskListRequest is a structured data type. */
 typedef struct TaskListRequest {
