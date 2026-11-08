@@ -139,6 +139,22 @@ pub const EventHandlers = struct {
     list_events: *const fn (ctx: *anyopaque, req: *const types.EventListRequest, resp: *[]types.Event) anyerror!void,
     get_calendar_view: *const fn (ctx: *anyopaque, req: *const types.HouseID, resp: *types.CalendarView) anyerror!void,
     set_calendar_view: *const fn (ctx: *anyopaque, req: *const types.CalendarView, resp: *types.CalendarView) anyerror!void,
+    accept_event: *const fn (ctx: *anyopaque, req: *const types.EventDecision, resp: *types.Event) anyerror!void,
+    recover_edit: *const fn (ctx: *anyopaque, req: *const types.EventID, resp: *types.Event) anyerror!void,
+    decline_event: *const fn (ctx: *anyopaque, req: *const types.EventDecision, resp: *types.Event) anyerror!void,
+    list_local_events: *const fn (ctx: *anyopaque, req: *const types.HouseID, resp: *[]types.Event) anyerror!void,
+};
+
+/// CalendarHandlers is the host's implementation of the CalendarService service.
+pub const CalendarHandlers = struct {
+    get_status: *const fn (ctx: *anyopaque, req: *const types.HouseID, resp: *types.CalendarStatus) anyerror!void,
+    configure_calendar: *const fn (ctx: *anyopaque, req: *const types.ConfigureCalendarRequest, resp: *types.CalendarStatus) anyerror!void,
+    begin_connect: *const fn (ctx: *anyopaque, req: *const types.HouseID, resp: *types.CalendarConnectResponse) anyerror!void,
+    complete_connect: *const fn (ctx: *anyopaque, req: *const types.CompleteCalendarConnectRequest, resp: *types.CalendarStatus) anyerror!void,
+    disconnect: *const fn (ctx: *anyopaque, req: *const types.HouseID, resp: *types.EmptyResponse) anyerror!void,
+    preview_migration: *const fn (ctx: *anyopaque, req: *const types.HouseID, resp: *[]types.CalendarMigrationRow) anyerror!void,
+    list_trash: *const fn (ctx: *anyopaque, req: *const types.HouseID, resp: *[]types.CalendarTrashEntry) anyerror!void,
+    restore_event: *const fn (ctx: *anyopaque, req: *const types.RestoreCalendarEventRequest, resp: *types.Event) anyerror!void,
 };
 
 /// TaskHandlers is the host's implementation of the TaskService service.

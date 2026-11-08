@@ -480,6 +480,70 @@ class EventHandlers
   def set_calendar_view(req)
     raise NotImplementedError, "EventHandlers#set_calendar_view"
   end
+
+  # accept-event
+  def accept_event(req)
+    raise NotImplementedError, "EventHandlers#accept_event"
+  end
+
+  # recover-edit
+  def recover_edit(req)
+    raise NotImplementedError, "EventHandlers#recover_edit"
+  end
+
+  # decline-event
+  def decline_event(req)
+    raise NotImplementedError, "EventHandlers#decline_event"
+  end
+
+  # list-local-events
+  def list_local_events(req)
+    raise NotImplementedError, "EventHandlers#list_local_events"
+  end
+end
+
+# Server-side handlers for the CalendarService service. Subclass and override each
+# operation; the unimplemented base raises NotImplementedError.
+class CalendarHandlers
+  # get-status
+  def get_status(req)
+    raise NotImplementedError, "CalendarHandlers#get_status"
+  end
+
+  # configure-calendar
+  def configure_calendar(req)
+    raise NotImplementedError, "CalendarHandlers#configure_calendar"
+  end
+
+  # begin-connect
+  def begin_connect(req)
+    raise NotImplementedError, "CalendarHandlers#begin_connect"
+  end
+
+  # complete-connect
+  def complete_connect(req)
+    raise NotImplementedError, "CalendarHandlers#complete_connect"
+  end
+
+  # disconnect
+  def disconnect(req)
+    raise NotImplementedError, "CalendarHandlers#disconnect"
+  end
+
+  # preview-migration
+  def preview_migration(req)
+    raise NotImplementedError, "CalendarHandlers#preview_migration"
+  end
+
+  # list-trash
+  def list_trash(req)
+    raise NotImplementedError, "CalendarHandlers#list_trash"
+  end
+
+  # restore-event
+  def restore_event(req)
+    raise NotImplementedError, "CalendarHandlers#restore_event"
+  end
 end
 
 # Server-side handlers for the TaskService service. Subclass and override each

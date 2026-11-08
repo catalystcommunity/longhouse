@@ -486,6 +486,69 @@ class EventServiceHandlers(ABC):
         """set-calendar-view"""
         ...
 
+    @abstractmethod
+    def accept_event(self, req: EventDecision, ctx: dict) -> Union[Event, ServiceError]:
+        """accept-event"""
+        ...
+
+    @abstractmethod
+    def recover_edit(self, req: EventId, ctx: dict) -> Union[Event, ServiceError]:
+        """recover-edit"""
+        ...
+
+    @abstractmethod
+    def decline_event(self, req: EventDecision, ctx: dict) -> Union[Event, ServiceError]:
+        """decline-event"""
+        ...
+
+    @abstractmethod
+    def list_local_events(self, req: HouseId, ctx: dict) -> Union[List[Event], ServiceError]:
+        """list-local-events"""
+        ...
+
+class CalendarServiceHandlers(ABC):
+    """Server-side handlers for CalendarService service operations."""
+
+    @abstractmethod
+    def get_status(self, req: HouseId, ctx: dict) -> Union[CalendarStatus, ServiceError]:
+        """get-status"""
+        ...
+
+    @abstractmethod
+    def configure_calendar(self, req: ConfigureCalendarRequest, ctx: dict) -> Union[CalendarStatus, ServiceError]:
+        """configure-calendar"""
+        ...
+
+    @abstractmethod
+    def begin_connect(self, req: HouseId, ctx: dict) -> Union[CalendarConnectResponse, ServiceError]:
+        """begin-connect"""
+        ...
+
+    @abstractmethod
+    def complete_connect(self, req: CompleteCalendarConnectRequest, ctx: dict) -> Union[CalendarStatus, ServiceError]:
+        """complete-connect"""
+        ...
+
+    @abstractmethod
+    def disconnect(self, req: HouseId, ctx: dict) -> Union[EmptyResponse, ServiceError]:
+        """disconnect"""
+        ...
+
+    @abstractmethod
+    def preview_migration(self, req: HouseId, ctx: dict) -> Union[List[CalendarMigrationRow], ServiceError]:
+        """preview-migration"""
+        ...
+
+    @abstractmethod
+    def list_trash(self, req: HouseId, ctx: dict) -> Union[List[CalendarTrashEntry], ServiceError]:
+        """list-trash"""
+        ...
+
+    @abstractmethod
+    def restore_event(self, req: RestoreCalendarEventRequest, ctx: dict) -> Union[Event, ServiceError]:
+        """restore-event"""
+        ...
+
 class TaskServiceHandlers(ABC):
     """Server-side handlers for TaskService service operations."""
 

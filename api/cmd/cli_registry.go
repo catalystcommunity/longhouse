@@ -85,6 +85,7 @@ var cliClientFamilies = []cliClientFamily{
 	{"GroupService", func(t longhouseclient.Transport) any { return longhouseclient.NewGroupClient(t) }},
 	{"ProjectService", func(t longhouseclient.Transport) any { return longhouseclient.NewProjectClient(t) }},
 	{"EventService", func(t longhouseclient.Transport) any { return longhouseclient.NewEventClient(t) }},
+	{"CalendarService", func(t longhouseclient.Transport) any { return longhouseclient.NewCalendarClient(t) }},
 	{"TaskService", func(t longhouseclient.Transport) any { return longhouseclient.NewTaskClient(t) }},
 	{"DependencyService", func(t longhouseclient.Transport) any { return longhouseclient.NewDependencyClient(t) }},
 	{"CommentService", func(t longhouseclient.Transport) any { return longhouseclient.NewCommentClient(t) }},
@@ -171,6 +172,18 @@ var cliPathOverrides = map[string]string{
 	"EventService.ListEvents":                  "event list",
 	"EventService.GetCalendarView":             "calendar view",
 	"EventService.SetCalendarView":             "calendar edit",
+	"EventService.RecoverEdit":                 "event recover-edit",
+	"EventService.AcceptEvent":                 "event accept",
+	"EventService.DeclineEvent":                "event decline",
+	"EventService.ListLocalEvents":             "event local",
+	"CalendarService.GetStatus":                "calendar status",
+	"CalendarService.ConfigureCalendar":        "calendar configure",
+	"CalendarService.BeginConnect":             "calendar connect",
+	"CalendarService.CompleteConnect":          "calendar complete-connect",
+	"CalendarService.Disconnect":               "calendar disconnect",
+	"CalendarService.PreviewMigration":         "calendar preview-migration",
+	"CalendarService.ListTrash":                "calendar trash",
+	"CalendarService.RestoreEvent":             "calendar restore",
 	"TaskService.CreateTask":                   "task create",
 	"TaskService.GetTask":                      "task view",
 	"TaskService.UpdateTask":                   "task edit",
@@ -578,6 +591,7 @@ func responseFieldHelp(responseType reflect.Type) []cliFieldHelp {
 
 func hiddenInputFields(operation *cliOperation) map[string]bool {
 	hidden := map[string]bool{
+		"calendar_state": true, "proposed_by_member_id": true, "publication_error": true,
 		"created_at": true, "updated_at": true, "audit_id": true,
 		"email": true, "handle": true, "last_seen_at": true,
 		"deactivated_at": true, "created_by_member_id": true,
@@ -606,6 +620,9 @@ func hiddenInputFields(operation *cliOperation) map[string]bool {
 		hidden["house_id"] = true
 		hidden["visibility"] = true
 	case "EventService.CreateEvent", "EventService.UpdateEvent":
+		if operation.ID == "EventService.CreateEvent" {
+			hidden["revision"] = true
+		}
 		hidden["next_recurrence_at"] = true
 		if operation.ID == "EventService.UpdateEvent" {
 			hidden["house_id"] = true

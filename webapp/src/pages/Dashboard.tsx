@@ -95,7 +95,11 @@ export const Dashboard = () => {
   );
   const [events] = createResource(
     () => houseId(),
-    (h) => loadEvents(eventClient, { houseId: h, rangeStart: startOfRange(new Date(), "day").toISOString() }),
+    (h) => {
+      const start = startOfRange(new Date(), "day");
+      const end = new Date(start); end.setFullYear(end.getFullYear() + 2);
+      return loadEvents(eventClient, { houseId: h, rangeStart: start.toISOString(), rangeEnd: end.toISOString() });
+    },
   );
   const [projects, { refetch: refetchProjects }] = createResource(
     () => houseId(),

@@ -24,7 +24,10 @@ import (
 //     members' comments — editing someone's words is different from removing
 //     them.
 //   - delete: the author OR a house admin may delete.
-type CommentService struct{ Store store.Store }
+type CommentService struct {
+	Store    store.Store
+	Calendar *CalendarService
+}
 
 const maxCommentBody = 10000
 
@@ -69,6 +72,11 @@ func (s *CommentService) GetComment(ctx context.Context, id csil.CommentID) (csi
 	}
 	if _, _, err := requireMemberForHouse(ctx, c.HouseID); err != nil {
 		return csil.Comment{}, err
+	}
+	if c.TargetType == "event" && s.Calendar != nil {
+		if _, err := s.Calendar.member(ctx, c.HouseID, false); err != nil {
+			return csil.Comment{}, err
+		}
 	}
 	return commentToCSIL(c), nil
 }
@@ -156,6 +164,11 @@ func (s *CommentService) UpdateComment(ctx context.Context, in csil.Comment) (cs
 		return csil.Comment{}, err
 	}
 	// Author-only: an admin may delete but not rewrite someone else's comment.
+	if existing.TargetType == "event" && s.Calendar != nil {
+		if _, err := s.Calendar.member(ctx, existing.HouseID, false); err != nil {
+			return csil.Comment{}, err
+		}
+	}
 	if callerMemberID != existing.MemberID {
 		return csil.Comment{}, csilrpc.Forbidden("only the author may edit a comment")
 	}
@@ -184,6 +197,11 @@ func (s *CommentService) DeleteComment(ctx context.Context, id csil.CommentID) (
 	if callerMemberID != existing.MemberID {
 		if _, err := requireRole(ident, existing.HouseID, "admin"); err != nil {
 			return csil.EmptyResponse{}, csilrpc.Forbidden("only the author or a house admin may delete a comment")
+		}
+	}
+	if existing.TargetType == "event" && s.Calendar != nil {
+		if _, err := s.Calendar.member(ctx, existing.HouseID, callerMemberID != existing.MemberID); err != nil {
+			return csil.EmptyResponse{}, err
 		}
 	}
 	opID, err := s.Store.NewID(ctx)
@@ -255,6 +273,14 @@ func (s *CommentService) resolveTarget(ctx context.Context, targetType, targetID
 		e, err := s.Store.GetEventByID(ctx, targetID)
 		if err != nil {
 			return nil, csilrpc.NotFound("event not found")
+		}
+		if s.Calendar != nil {
+			if _, err := s.Calendar.member(ctx, e.HouseID, false); err != nil {
+				return nil, err
+			}
+		}
+		if e.Title == "" {
+			e.Title = "Calendar event"
 		}
 		return &targetInfo{houseID: e.HouseID, title: e.Title}, nil
 	default:

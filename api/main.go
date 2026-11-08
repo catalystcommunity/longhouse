@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	_ "time/tzdata" // The scratch image has no system time-zone database.
 
 	"github.com/catalystcommunity/longhouse/api/cmd"
 )

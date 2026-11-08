@@ -903,6 +903,130 @@ final class EventClient {
     );
     return CalendarView.fromCborValue(CsilCbor.decode(csilResp));
   }
+
+  Event acceptEvent(EventDecision request) {
+    final csilResp = transport.call(
+      'EventService',
+      'accept-event',
+      request.toCbor(),
+    );
+    return Event.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Event recoverEdit(EventId request) {
+    final csilResp = transport.call(
+      'EventService',
+      'recover-edit',
+      CsilCbor.encodeValue(request),
+    );
+    return Event.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Event declineEvent(EventDecision request) {
+    final csilResp = transport.call(
+      'EventService',
+      'decline-event',
+      request.toCbor(),
+    );
+    return Event.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  List<Event> listLocalEvents(HouseId request) {
+    final csilResp = transport.call(
+      'EventService',
+      'list-local-events',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Event.fromCborValue(csilE))
+        .cast<Event>()
+        .toList();
+  }
+}
+
+/// A typed, transport-agnostic client for the CalendarService service. The client owns
+/// (de)serialization; the carrier only moves bytes.
+final class CalendarClient {
+  final CsilTransport transport;
+  const CalendarClient(this.transport);
+
+  CalendarStatus getStatus(HouseId request) {
+    final csilResp = transport.call(
+      'CalendarService',
+      'get-status',
+      CsilCbor.encodeValue(request),
+    );
+    return CalendarStatus.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  CalendarStatus configureCalendar(ConfigureCalendarRequest request) {
+    final csilResp = transport.call(
+      'CalendarService',
+      'configure-calendar',
+      request.toCbor(),
+    );
+    return CalendarStatus.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  CalendarConnectResponse beginConnect(HouseId request) {
+    final csilResp = transport.call(
+      'CalendarService',
+      'begin-connect',
+      CsilCbor.encodeValue(request),
+    );
+    return CalendarConnectResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  CalendarStatus completeConnect(CompleteCalendarConnectRequest request) {
+    final csilResp = transport.call(
+      'CalendarService',
+      'complete-connect',
+      request.toCbor(),
+    );
+    return CalendarStatus.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  EmptyResponse disconnect(HouseId request) {
+    final csilResp = transport.call(
+      'CalendarService',
+      'disconnect',
+      CsilCbor.encodeValue(request),
+    );
+    return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  List<CalendarMigrationRow> previewMigration(HouseId request) {
+    final csilResp = transport.call(
+      'CalendarService',
+      'preview-migration',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => CalendarMigrationRow.fromCborValue(csilE))
+        .cast<CalendarMigrationRow>()
+        .toList();
+  }
+
+  List<CalendarTrashEntry> listTrash(HouseId request) {
+    final csilResp = transport.call(
+      'CalendarService',
+      'list-trash',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => CalendarTrashEntry.fromCborValue(csilE))
+        .cast<CalendarTrashEntry>()
+        .toList();
+  }
+
+  Event restoreEvent(RestoreCalendarEventRequest request) {
+    final csilResp = transport.call(
+      'CalendarService',
+      'restore-event',
+      request.toCbor(),
+    );
+    return Event.fromCborValue(CsilCbor.decode(csilResp));
+  }
 }
 
 /// A typed, transport-agnostic client for the TaskService service. The client owns

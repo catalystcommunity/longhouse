@@ -939,7 +939,16 @@ func (s *PostgresStore) GetEventByID(ctx context.Context, eventID string) (*mode
 }
 
 func (s *PostgresStore) UpdateEvent(ctx context.Context, event *models.Event) error {
-	return db.WithContext(ctx).Save(event).Error
+	q := db.WithContext(ctx).Model(event).Where("revision = ? AND calendar_state NOT IN ('publishing','remote') AND deleted_at IS NULL", event.Revision)
+	event.Revision++
+	r := q.Select("*").Updates(event)
+	if r.Error != nil {
+		return r.Error
+	}
+	if r.RowsAffected != 1 {
+		return fmt.Errorf("event changed; reload before retry")
+	}
+	return nil
 }
 
 func (s *PostgresStore) DeleteEvent(ctx context.Context, eventID string) error {
@@ -948,7 +957,7 @@ func (s *PostgresStore) DeleteEvent(ctx context.Context, eventID string) error {
 
 func (s *PostgresStore) ListEvents(ctx context.Context, f appstore.EventFilter, limit, offset int) ([]models.Event, error) {
 	var events []models.Event
-	q := db.WithContext(ctx).Where("house_id = ? AND deleted_at IS NULL", f.HouseID)
+	q := db.WithContext(ctx).Where("house_id = ? AND deleted_at IS NULL AND calendar_state IN ('legacy','local')", f.HouseID)
 	if f.RangeStart != nil {
 		// Include events that started earlier but are still in progress.
 		// A missing end or a zero duration makes the start a point in time.
@@ -1002,6 +1011,7 @@ func (s *PostgresStore) ListDueRecurringEvents(ctx context.Context, before time.
 	var events []models.Event
 	err := db.WithContext(ctx).
 		Where("recurrence_freq IS NOT NULL AND next_recurrence_at IS NOT NULL AND next_recurrence_at <= ? AND deleted_at IS NULL", before).
+		Where("calendar_state IN ('legacy','local') AND NOT EXISTS (SELECT 1 FROM house_calendars hc WHERE hc.house_id=events.house_id AND hc.enabled)").
 		Order("next_recurrence_at ASC").
 		Limit(limit).
 		Find(&events).Error
@@ -1038,9 +1048,16 @@ func (s *PostgresStore) DeleteEventsAfter(ctx context.Context, rootEventID strin
 // root, the caller is expected to also soft-delete its children via
 // SoftDeleteEventsAfter under the same opID).
 func (s *PostgresStore) SoftDeleteEvent(ctx context.Context, eventID, byMemberID, opID string) error {
-	return db.WithContext(ctx).Model(&models.Event{}).
-		Where("event_id = ? AND deleted_at IS NULL", eventID).
-		Updates(softDeleteFields(byMemberID, opID)).Error
+	r := db.WithContext(ctx).Model(&models.Event{}).
+		Where("event_id = ? AND deleted_at IS NULL AND calendar_state NOT IN ('publishing','remote')", eventID).
+		Updates(softDeleteFields(byMemberID, opID))
+	if r.Error != nil {
+		return r.Error
+	}
+	if r.RowsAffected != 1 {
+		return fmt.Errorf("event changed before deletion")
+	}
+	return nil
 }
 
 // SoftDeleteEventsAfter soft-deletes the children of rootEventID at/after

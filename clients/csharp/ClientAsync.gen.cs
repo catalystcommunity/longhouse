@@ -248,6 +248,36 @@ public sealed class EventAsyncClient(ICsilAsyncTransport transport)
         Codec.Decode<CalendarView>(await transport.Call("EventService", "get-calendar-view", Codec.EncodeEventGetCalendarViewRequest(houseID)));
     public async System.Threading.Tasks.Task<CalendarView> SetCalendarViewAsync(CalendarView calendarView) =>
         Codec.Decode<CalendarView>(await transport.Call("EventService", "set-calendar-view", Codec.Encode(calendarView)));
+    public async System.Threading.Tasks.Task<Event> AcceptEventAsync(EventDecision eventDecision) =>
+        Codec.Decode<Event>(await transport.Call("EventService", "accept-event", Codec.Encode(eventDecision)));
+    public async System.Threading.Tasks.Task<Event> RecoverEditAsync(EventID eventID) =>
+        Codec.Decode<Event>(await transport.Call("EventService", "recover-edit", Codec.EncodeEventRecoverEditRequest(eventID)));
+    public async System.Threading.Tasks.Task<Event> DeclineEventAsync(EventDecision eventDecision) =>
+        Codec.Decode<Event>(await transport.Call("EventService", "decline-event", Codec.Encode(eventDecision)));
+    public async System.Threading.Tasks.Task<System.Collections.Generic.List<Event>> ListLocalEventsAsync(HouseID houseID) =>
+        Codec.DecodeEventListLocalEventsResponse(await transport.Call("EventService", "list-local-events", Codec.EncodeEventListLocalEventsRequest(houseID)));
+}
+
+/// <summary>Typed RPC client for the CalendarService service. The client owns
+/// (de)serialization via the generated codec; the transport only moves bytes.</summary>
+public sealed class CalendarAsyncClient(ICsilAsyncTransport transport)
+{
+    public async System.Threading.Tasks.Task<CalendarStatus> GetStatusAsync(HouseID houseID) =>
+        Codec.Decode<CalendarStatus>(await transport.Call("CalendarService", "get-status", Codec.EncodeCalendarGetStatusRequest(houseID)));
+    public async System.Threading.Tasks.Task<CalendarStatus> ConfigureCalendarAsync(ConfigureCalendarRequest configureCalendarRequest) =>
+        Codec.Decode<CalendarStatus>(await transport.Call("CalendarService", "configure-calendar", Codec.Encode(configureCalendarRequest)));
+    public async System.Threading.Tasks.Task<CalendarConnectResponse> BeginConnectAsync(HouseID houseID) =>
+        Codec.Decode<CalendarConnectResponse>(await transport.Call("CalendarService", "begin-connect", Codec.EncodeCalendarBeginConnectRequest(houseID)));
+    public async System.Threading.Tasks.Task<CalendarStatus> CompleteConnectAsync(CompleteCalendarConnectRequest completeCalendarConnectRequest) =>
+        Codec.Decode<CalendarStatus>(await transport.Call("CalendarService", "complete-connect", Codec.Encode(completeCalendarConnectRequest)));
+    public async System.Threading.Tasks.Task<EmptyResponse> DisconnectAsync(HouseID houseID) =>
+        Codec.Decode<EmptyResponse>(await transport.Call("CalendarService", "disconnect", Codec.EncodeCalendarDisconnectRequest(houseID)));
+    public async System.Threading.Tasks.Task<System.Collections.Generic.List<CalendarMigrationRow>> PreviewMigrationAsync(HouseID houseID) =>
+        Codec.DecodeCalendarPreviewMigrationResponse(await transport.Call("CalendarService", "preview-migration", Codec.EncodeCalendarPreviewMigrationRequest(houseID)));
+    public async System.Threading.Tasks.Task<System.Collections.Generic.List<CalendarTrashEntry>> ListTrashAsync(HouseID houseID) =>
+        Codec.DecodeCalendarListTrashResponse(await transport.Call("CalendarService", "list-trash", Codec.EncodeCalendarListTrashRequest(houseID)));
+    public async System.Threading.Tasks.Task<Event> RestoreEventAsync(RestoreCalendarEventRequest restoreCalendarEventRequest) =>
+        Codec.Decode<Event>(await transport.Call("CalendarService", "restore-event", Codec.Encode(restoreCalendarEventRequest)));
 }
 
 /// <summary>Typed RPC client for the TaskService service. The client owns

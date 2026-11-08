@@ -255,12 +255,21 @@ type Event struct {
 	StartsAt              *Timestamp      `json:"starts_at,omitempty" yaml:"starts_at,omitempty"`
 	EndsAt                *Timestamp      `json:"ends_at,omitempty" yaml:"ends_at,omitempty"`
 	AllDay                *bool           `json:"all_day,omitempty" yaml:"all_day,omitempty"`
+	Timezone              *string         `json:"timezone,omitempty" yaml:"timezone,omitempty"`
+	RecurrenceRule        *string         `json:"recurrence_rule,omitempty" yaml:"recurrence_rule,omitempty"`
 	RecurrenceFreq        *RecurrenceFreq `json:"recurrence_freq,omitempty" yaml:"recurrence_freq,omitempty"`
 	RecurrenceInterval    *int64          `json:"recurrence_interval,omitempty" yaml:"recurrence_interval,omitempty"`
 	RecurrenceByWeekday   []int64         `json:"recurrence_by_weekday,omitempty" yaml:"recurrence_by_weekday,omitempty"`
 	RecurrenceBySetpos    *int64          `json:"recurrence_by_setpos,omitempty" yaml:"recurrence_by_setpos,omitempty"`
 	NextRecurrenceAt      *Timestamp      `json:"next_recurrence_at,omitempty" yaml:"next_recurrence_at,omitempty"`
 	RecurrenceRootEventId *EventID        `json:"recurrence_root_event_id,omitempty" yaml:"recurrence_root_event_id,omitempty"`
+	CalendarState         *string         `json:"calendar_state,omitempty" yaml:"calendar_state,omitempty"`
+	Revision              *uint64         `json:"revision,omitempty" yaml:"revision,omitempty"`
+	ProposedByMemberId    *MemberID       `json:"proposed_by_member_id,omitempty" yaml:"proposed_by_member_id,omitempty"`
+	PublicationError      *string         `json:"publication_error,omitempty" yaml:"publication_error,omitempty"`
+	EditPendingMemberId   *MemberID       `json:"edit_pending_member_id,omitempty" yaml:"edit_pending_member_id,omitempty"`
+	CalendarUnbound       *bool           `json:"calendar_unbound,omitempty" yaml:"calendar_unbound,omitempty"`
+	EditScope             *string         `json:"edit_scope,omitempty" yaml:"edit_scope,omitempty"`
 	CreatedAt             Timestamp       `json:"created_at" yaml:"created_at"`
 	UpdatedAt             Timestamp       `json:"updated_at" yaml:"updated_at"`
 }
@@ -767,6 +776,63 @@ type CalendarView struct {
 	HouseId        HouseID                `json:"house_id" yaml:"house_id"`
 	ViewerMemberId MemberID               `json:"viewer_member_id" yaml:"viewer_member_id"`
 	Subscriptions  []CalendarSubscription `json:"subscriptions,omitempty" yaml:"subscriptions,omitempty"`
+}
+
+// EventDecision represents a structured data type
+type EventDecision struct {
+	EventId  EventID `json:"event_id" yaml:"event_id"`
+	Revision uint64  `json:"revision" yaml:"revision"`
+}
+
+// CalendarStatus represents a structured data type
+type CalendarStatus struct {
+	HouseId          HouseID    `json:"house_id" yaml:"house_id"`
+	Available        bool       `json:"available" yaml:"available"`
+	Enabled          bool       `json:"enabled" yaml:"enabled"`
+	Ready            bool       `json:"ready" yaml:"ready"`
+	Connected        bool       `json:"connected" yaml:"connected"`
+	LastError        *string    `json:"last_error,omitempty" yaml:"last_error,omitempty"`
+	SyncPendingSince *Timestamp `json:"sync_pending_since,omitempty" yaml:"sync_pending_since,omitempty"`
+}
+
+// ConfigureCalendarRequest represents a structured data type
+type ConfigureCalendarRequest struct {
+	HouseId HouseID `json:"house_id" yaml:"house_id"`
+	Enabled bool    `json:"enabled" yaml:"enabled"`
+}
+
+// CalendarConnectResponse represents a structured data type
+type CalendarConnectResponse struct {
+	Url string `json:"url" yaml:"url"`
+}
+
+// CompleteCalendarConnectRequest represents a structured data type
+type CompleteCalendarConnectRequest struct {
+	HouseId HouseID `json:"house_id" yaml:"house_id"`
+	GrantId string  `json:"grant_id" yaml:"grant_id"`
+	Nonce   string  `json:"nonce" yaml:"nonce"`
+}
+
+// CalendarTrashEntry represents a structured data type
+type CalendarTrashEntry struct {
+	TrashId   string    `json:"trash_id" yaml:"trash_id"`
+	Event     Event     `json:"event" yaml:"event"`
+	DeletedAt Timestamp `json:"deleted_at" yaml:"deleted_at"`
+	ExpiresAt Timestamp `json:"expires_at" yaml:"expires_at"`
+}
+
+// RestoreCalendarEventRequest represents a structured data type
+type RestoreCalendarEventRequest struct {
+	HouseId HouseID `json:"house_id" yaml:"house_id"`
+	TrashId string  `json:"trash_id" yaml:"trash_id"`
+}
+
+// CalendarMigrationRow represents a structured data type
+type CalendarMigrationRow struct {
+	EventId     EventID `json:"event_id" yaml:"event_id"`
+	Title       string  `json:"title" yaml:"title"`
+	Disposition string  `json:"disposition" yaml:"disposition"`
+	Reason      string  `json:"reason" yaml:"reason"`
 }
 
 // AuditID is a type alias

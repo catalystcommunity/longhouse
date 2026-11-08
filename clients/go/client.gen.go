@@ -925,6 +925,124 @@ func (c *EventClient) SetCalendarView(ctx context.Context, req CalendarView) (Ca
 	return DecodeCalendarView(csilResp)
 }
 
+func (c *EventClient) AcceptEvent(ctx context.Context, req EventDecision) (Event, error) {
+	var csilZero Event
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "accept-event", EncodeEventDecision(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEvent(csilResp)
+}
+
+func (c *EventClient) RecoverEdit(ctx context.Context, req EventID) (Event, error) {
+	var csilZero Event
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "recover-edit", EncodeEventRecoverEditRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEvent(csilResp)
+}
+
+func (c *EventClient) DeclineEvent(ctx context.Context, req EventDecision) (Event, error) {
+	var csilZero Event
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "decline-event", EncodeEventDecision(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEvent(csilResp)
+}
+
+func (c *EventClient) ListLocalEvents(ctx context.Context, req HouseID) ([]Event, error) {
+	var csilZero []Event
+	csilResp, csilErr := c.transport.Call(ctx, "EventService", "list-local-events", EncodeEventListLocalEventsRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEventListLocalEventsResponse(csilResp)
+}
+
+// CalendarClient is a typed client for the CalendarService service. The client owns
+// (de)serialization via the generated codec; the transport only moves bytes.
+type CalendarClient struct {
+	transport Transport
+}
+
+func NewCalendarClient(transport Transport) *CalendarClient {
+	return &CalendarClient{transport: transport}
+}
+
+func (c *CalendarClient) GetStatus(ctx context.Context, req HouseID) (CalendarStatus, error) {
+	var csilZero CalendarStatus
+	csilResp, csilErr := c.transport.Call(ctx, "CalendarService", "get-status", EncodeCalendarGetStatusRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCalendarStatus(csilResp)
+}
+
+func (c *CalendarClient) ConfigureCalendar(ctx context.Context, req ConfigureCalendarRequest) (CalendarStatus, error) {
+	var csilZero CalendarStatus
+	csilResp, csilErr := c.transport.Call(ctx, "CalendarService", "configure-calendar", EncodeConfigureCalendarRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCalendarStatus(csilResp)
+}
+
+func (c *CalendarClient) BeginConnect(ctx context.Context, req HouseID) (CalendarConnectResponse, error) {
+	var csilZero CalendarConnectResponse
+	csilResp, csilErr := c.transport.Call(ctx, "CalendarService", "begin-connect", EncodeCalendarBeginConnectRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCalendarConnectResponse(csilResp)
+}
+
+func (c *CalendarClient) CompleteConnect(ctx context.Context, req CompleteCalendarConnectRequest) (CalendarStatus, error) {
+	var csilZero CalendarStatus
+	csilResp, csilErr := c.transport.Call(ctx, "CalendarService", "complete-connect", EncodeCompleteCalendarConnectRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCalendarStatus(csilResp)
+}
+
+func (c *CalendarClient) Disconnect(ctx context.Context, req HouseID) (EmptyResponse, error) {
+	var csilZero EmptyResponse
+	csilResp, csilErr := c.transport.Call(ctx, "CalendarService", "disconnect", EncodeCalendarDisconnectRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEmptyResponse(csilResp)
+}
+
+func (c *CalendarClient) PreviewMigration(ctx context.Context, req HouseID) ([]CalendarMigrationRow, error) {
+	var csilZero []CalendarMigrationRow
+	csilResp, csilErr := c.transport.Call(ctx, "CalendarService", "preview-migration", EncodeCalendarPreviewMigrationRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCalendarPreviewMigrationResponse(csilResp)
+}
+
+func (c *CalendarClient) ListTrash(ctx context.Context, req HouseID) ([]CalendarTrashEntry, error) {
+	var csilZero []CalendarTrashEntry
+	csilResp, csilErr := c.transport.Call(ctx, "CalendarService", "list-trash", EncodeCalendarListTrashRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeCalendarListTrashResponse(csilResp)
+}
+
+func (c *CalendarClient) RestoreEvent(ctx context.Context, req RestoreCalendarEventRequest) (Event, error) {
+	var csilZero Event
+	csilResp, csilErr := c.transport.Call(ctx, "CalendarService", "restore-event", EncodeRestoreCalendarEventRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeEvent(csilResp)
+}
+
 // TaskClient is a typed client for the TaskService service. The client owns
 // (de)serialization via the generated codec; the transport only moves bytes.
 type TaskClient struct {

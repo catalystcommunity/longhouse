@@ -695,12 +695,21 @@ class Event:
     starts_at: Optional[Timestamp] = None
     ends_at: Optional[Timestamp] = None
     all_day: Optional[bool] = False
+    timezone: Optional[str] = None
+    recurrence_rule: Optional[str] = None
     recurrence_freq: Optional[RecurrenceFreq] = None
     recurrence_interval: Optional[int] = 1
     recurrence_by_weekday: Optional[List[int]] = None
     recurrence_by_setpos: Optional[int] = None
     next_recurrence_at: Optional[Timestamp] = None
     recurrence_root_event_id: Optional[EventId] = None
+    calendar_state: Optional[str] = None
+    revision: Optional[int] = None
+    proposed_by_member_id: Optional[MemberId] = None
+    publication_error: Optional[str] = None
+    edit_pending_member_id: Optional[MemberId] = None
+    calendar_unbound: Optional[bool] = None
+    edit_scope: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
@@ -720,6 +729,10 @@ class Event:
             result['ends_at'] = self.ends_at
         if hasattr(self, 'all_day') and self.all_day is not None:
             result['all_day'] = self.all_day
+        if hasattr(self, 'timezone') and self.timezone is not None:
+            result['timezone'] = self.timezone
+        if hasattr(self, 'recurrence_rule') and self.recurrence_rule is not None:
+            result['recurrence_rule'] = self.recurrence_rule
         if hasattr(self, 'recurrence_freq') and self.recurrence_freq is not None:
             result['recurrence_freq'] = self.recurrence_freq
         if hasattr(self, 'recurrence_interval') and self.recurrence_interval is not None:
@@ -732,12 +745,16 @@ class Event:
             result['next_recurrence_at'] = self.next_recurrence_at
         if hasattr(self, 'recurrence_root_event_id') and self.recurrence_root_event_id is not None:
             result['recurrence_root_event_id'] = self.recurrence_root_event_id
+        if hasattr(self, 'revision') and self.revision is not None:
+            result['revision'] = self.revision
+        if hasattr(self, 'edit_scope') and self.edit_scope is not None:
+            result['edit_scope'] = self.edit_scope
         return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Event':
         """Create instance from dictionary."""
-        return cls(event_id=data.get('event_id'), house_id=data.get('house_id'), owner_member_id=data.get('owner_member_id'), title=data.get('title'), description=data.get('description'), location=data.get('location'), starts_at=data.get('starts_at'), ends_at=data.get('ends_at'), all_day=data.get('all_day'), recurrence_freq=data.get('recurrence_freq'), recurrence_interval=data.get('recurrence_interval'), recurrence_by_weekday=data.get('recurrence_by_weekday'), recurrence_by_setpos=data.get('recurrence_by_setpos'), next_recurrence_at=data.get('next_recurrence_at'), recurrence_root_event_id=data.get('recurrence_root_event_id'), created_at=data.get('created_at'), updated_at=data.get('updated_at'))
+        return cls(event_id=data.get('event_id'), house_id=data.get('house_id'), owner_member_id=data.get('owner_member_id'), title=data.get('title'), description=data.get('description'), location=data.get('location'), starts_at=data.get('starts_at'), ends_at=data.get('ends_at'), all_day=data.get('all_day'), timezone=data.get('timezone'), recurrence_rule=data.get('recurrence_rule'), recurrence_freq=data.get('recurrence_freq'), recurrence_interval=data.get('recurrence_interval'), recurrence_by_weekday=data.get('recurrence_by_weekday'), recurrence_by_setpos=data.get('recurrence_by_setpos'), next_recurrence_at=data.get('next_recurrence_at'), recurrence_root_event_id=data.get('recurrence_root_event_id'), calendar_state=data.get('calendar_state'), revision=data.get('revision'), proposed_by_member_id=data.get('proposed_by_member_id'), publication_error=data.get('publication_error'), edit_pending_member_id=data.get('edit_pending_member_id'), calendar_unbound=data.get('calendar_unbound'), edit_scope=data.get('edit_scope'), created_at=data.get('created_at'), updated_at=data.get('updated_at'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2925,6 +2942,257 @@ class CalendarView:
 
     @classmethod
     def from_json(cls, json_str: str) -> 'CalendarView':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class EventDecision:
+    event_id: EventId
+    revision: int
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'event_id') and self.event_id is not None:
+            result['event_id'] = self.event_id
+        if hasattr(self, 'revision') and self.revision is not None:
+            result['revision'] = self.revision
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'EventDecision':
+        """Create instance from dictionary."""
+        return cls(event_id=data.get('event_id'), revision=data.get('revision'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'EventDecision':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class CalendarStatus:
+    house_id: HouseId
+    available: bool
+    enabled: bool
+    ready: bool
+    connected: bool
+    last_error: Optional[str] = None
+    sync_pending_since: Optional[Timestamp] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'house_id') and self.house_id is not None:
+            result['house_id'] = self.house_id
+        if hasattr(self, 'available') and self.available is not None:
+            result['available'] = self.available
+        if hasattr(self, 'enabled') and self.enabled is not None:
+            result['enabled'] = self.enabled
+        if hasattr(self, 'ready') and self.ready is not None:
+            result['ready'] = self.ready
+        if hasattr(self, 'connected') and self.connected is not None:
+            result['connected'] = self.connected
+        if hasattr(self, 'last_error') and self.last_error is not None:
+            result['last_error'] = self.last_error
+        if hasattr(self, 'sync_pending_since') and self.sync_pending_since is not None:
+            result['sync_pending_since'] = self.sync_pending_since
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CalendarStatus':
+        """Create instance from dictionary."""
+        return cls(house_id=data.get('house_id'), available=data.get('available'), enabled=data.get('enabled'), ready=data.get('ready'), connected=data.get('connected'), last_error=data.get('last_error'), sync_pending_since=data.get('sync_pending_since'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CalendarStatus':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ConfigureCalendarRequest:
+    house_id: HouseId
+    enabled: bool
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'house_id') and self.house_id is not None:
+            result['house_id'] = self.house_id
+        if hasattr(self, 'enabled') and self.enabled is not None:
+            result['enabled'] = self.enabled
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ConfigureCalendarRequest':
+        """Create instance from dictionary."""
+        return cls(house_id=data.get('house_id'), enabled=data.get('enabled'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ConfigureCalendarRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class CalendarConnectResponse:
+    url: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'url') and self.url is not None:
+            result['url'] = self.url
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CalendarConnectResponse':
+        """Create instance from dictionary."""
+        return cls(url=data.get('url'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CalendarConnectResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class CompleteCalendarConnectRequest:
+    house_id: HouseId
+    grant_id: str
+    nonce: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'house_id') and self.house_id is not None:
+            result['house_id'] = self.house_id
+        if hasattr(self, 'grant_id') and self.grant_id is not None:
+            result['grant_id'] = self.grant_id
+        if hasattr(self, 'nonce') and self.nonce is not None:
+            result['nonce'] = self.nonce
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CompleteCalendarConnectRequest':
+        """Create instance from dictionary."""
+        return cls(house_id=data.get('house_id'), grant_id=data.get('grant_id'), nonce=data.get('nonce'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CompleteCalendarConnectRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class CalendarTrashEntry:
+    trash_id: str
+    event: Event
+    deleted_at: Timestamp
+    expires_at: Timestamp
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'trash_id') and self.trash_id is not None:
+            result['trash_id'] = self.trash_id
+        if hasattr(self, 'event') and self.event is not None:
+            result['event'] = self.event
+        if hasattr(self, 'deleted_at') and self.deleted_at is not None:
+            result['deleted_at'] = self.deleted_at
+        if hasattr(self, 'expires_at') and self.expires_at is not None:
+            result['expires_at'] = self.expires_at
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CalendarTrashEntry':
+        """Create instance from dictionary."""
+        return cls(trash_id=data.get('trash_id'), event=data.get('event'), deleted_at=data.get('deleted_at'), expires_at=data.get('expires_at'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CalendarTrashEntry':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class RestoreCalendarEventRequest:
+    house_id: HouseId
+    trash_id: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'house_id') and self.house_id is not None:
+            result['house_id'] = self.house_id
+        if hasattr(self, 'trash_id') and self.trash_id is not None:
+            result['trash_id'] = self.trash_id
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RestoreCalendarEventRequest':
+        """Create instance from dictionary."""
+        return cls(house_id=data.get('house_id'), trash_id=data.get('trash_id'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'RestoreCalendarEventRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class CalendarMigrationRow:
+    event_id: EventId
+    title: str
+    disposition: str
+    reason: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'event_id') and self.event_id is not None:
+            result['event_id'] = self.event_id
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'disposition') and self.disposition is not None:
+            result['disposition'] = self.disposition
+        if hasattr(self, 'reason') and self.reason is not None:
+            result['reason'] = self.reason
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CalendarMigrationRow':
+        """Create instance from dictionary."""
+        return cls(event_id=data.get('event_id'), title=data.get('title'), disposition=data.get('disposition'), reason=data.get('reason'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'CalendarMigrationRow':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

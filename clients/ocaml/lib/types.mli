@@ -180,12 +180,21 @@ and event = {
   starts_at : timestamp option;
   ends_at : timestamp option;
   all_day : bool option;
+  timezone : string option;
+  recurrence_rule : string option;
   recurrence_freq : recurrence_freq option;
   recurrence_interval : int64 option;
   recurrence_by_weekday : int64 list option;
   recurrence_by_setpos : int64 option;
   next_recurrence_at : timestamp option;
   recurrence_root_event_id : event_id option;
+  calendar_state : string option;
+  revision : int64 option;
+  proposed_by_member_id : member_id option;
+  publication_error : string option;
+  edit_pending_member_id : member_id option;
+  calendar_unbound : bool option;
+  edit_scope : string option;
   created_at : timestamp;
   updated_at : timestamp;
 }
@@ -540,6 +549,43 @@ and calendar_view = {
   house_id : house_id;
   viewer_member_id : member_id;
   subscriptions : calendar_subscription list option;
+}
+
+and event_decision = { event_id : event_id; revision : int64 }
+
+and calendar_status = {
+  house_id : house_id;
+  available : bool;
+  enabled : bool;
+  ready : bool;
+  connected : bool;
+  last_error : string option;
+  sync_pending_since : timestamp option;
+}
+
+and configure_calendar_request = { house_id : house_id; enabled : bool }
+and calendar_connect_response = { url : string }
+
+and complete_calendar_connect_request = {
+  house_id : house_id;
+  grant_id : string;
+  nonce : string;
+}
+
+and calendar_trash_entry = {
+  trash_id : string;
+  event : event;
+  deleted_at : timestamp;
+  expires_at : timestamp;
+}
+
+and restore_calendar_event_request = { house_id : house_id; trash_id : string }
+
+and calendar_migration_row = {
+  event_id : event_id;
+  title : string;
+  disposition : string;
+  reason : string;
 }
 
 and audit_id = string

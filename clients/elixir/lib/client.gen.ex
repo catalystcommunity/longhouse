@@ -1526,6 +1526,58 @@ defmodule Csilgen.Generated.EventClient do
     Csilgen.Generated.CalendarView.from_cbor(resp)
   end
 
+  @spec accept_event(t(), Csilgen.Generated.EventDecision.t()) :: Csilgen.Generated.Event.t()
+  def accept_event(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "EventService",
+        "accept-event",
+        Csilgen.Generated.EventDecision.to_cbor(req)
+      )
+
+    Csilgen.Generated.Event.from_cbor(resp)
+  end
+
+  @spec recover_edit(t(), Csilgen.Generated.EventID.t()) :: Csilgen.Generated.Event.t()
+  def recover_edit(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "EventService",
+        "recover-edit",
+        encode_recover_edit_request(req)
+      )
+
+    Csilgen.Generated.Event.from_cbor(resp)
+  end
+
+  @spec decline_event(t(), Csilgen.Generated.EventDecision.t()) :: Csilgen.Generated.Event.t()
+  def decline_event(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "EventService",
+        "decline-event",
+        Csilgen.Generated.EventDecision.to_cbor(req)
+      )
+
+    Csilgen.Generated.Event.from_cbor(resp)
+  end
+
+  @spec list_local_events(t(), Csilgen.Generated.HouseID.t()) :: [Csilgen.Generated.Event.t()]
+  def list_local_events(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "EventService",
+        "list-local-events",
+        encode_list_local_events_request(req)
+      )
+
+    decode_list_local_events_response(resp)
+  end
+
   defp encode_get_event_request(req) do
     Csilgen.Generated.Cbor.encode({:text, req})
   end
@@ -1548,6 +1600,186 @@ defmodule Csilgen.Generated.EventClient do
   end
 
   defp encode_get_calendar_view_request(req) do
+    Csilgen.Generated.Cbor.encode({:text, req})
+  end
+
+  defp encode_recover_edit_request(req) do
+    Csilgen.Generated.Cbor.encode({:text, req})
+  end
+
+  defp decode_list_local_events_response(csil_bytes) do
+    csil_root = Csilgen.Generated.Cbor.decode(csil_bytes)
+
+    case csil_root do
+      {:array, csil_xs} ->
+        Enum.map(csil_xs, fn csil_e -> Csilgen.Generated.Event.from_cbor_value(csil_e) end)
+    end
+  end
+
+  defp encode_list_local_events_request(req) do
+    Csilgen.Generated.Cbor.encode({:text, req})
+  end
+end
+
+defmodule Csilgen.Generated.CalendarClient do
+  @moduledoc "Typed client for the CalendarService service. The client owns (de)serialization via the codec; the transport only moves bytes."
+
+  @enforce_keys [:transport]
+  defstruct [:transport]
+  @type t :: %__MODULE__{transport: Csilgen.Generated.Transport.t()}
+
+  @spec new(Csilgen.Generated.Transport.t()) :: t()
+  def new(transport), do: %__MODULE__{transport: transport}
+
+  @spec get_status(t(), Csilgen.Generated.HouseID.t()) :: Csilgen.Generated.CalendarStatus.t()
+  def get_status(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "CalendarService",
+        "get-status",
+        encode_get_status_request(req)
+      )
+
+    Csilgen.Generated.CalendarStatus.from_cbor(resp)
+  end
+
+  @spec configure_calendar(t(), Csilgen.Generated.ConfigureCalendarRequest.t()) ::
+          Csilgen.Generated.CalendarStatus.t()
+  def configure_calendar(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "CalendarService",
+        "configure-calendar",
+        Csilgen.Generated.ConfigureCalendarRequest.to_cbor(req)
+      )
+
+    Csilgen.Generated.CalendarStatus.from_cbor(resp)
+  end
+
+  @spec begin_connect(t(), Csilgen.Generated.HouseID.t()) ::
+          Csilgen.Generated.CalendarConnectResponse.t()
+  def begin_connect(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "CalendarService",
+        "begin-connect",
+        encode_begin_connect_request(req)
+      )
+
+    Csilgen.Generated.CalendarConnectResponse.from_cbor(resp)
+  end
+
+  @spec complete_connect(t(), Csilgen.Generated.CompleteCalendarConnectRequest.t()) ::
+          Csilgen.Generated.CalendarStatus.t()
+  def complete_connect(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "CalendarService",
+        "complete-connect",
+        Csilgen.Generated.CompleteCalendarConnectRequest.to_cbor(req)
+      )
+
+    Csilgen.Generated.CalendarStatus.from_cbor(resp)
+  end
+
+  @spec disconnect(t(), Csilgen.Generated.HouseID.t()) :: Csilgen.Generated.EmptyResponse.t()
+  def disconnect(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "CalendarService",
+        "disconnect",
+        encode_disconnect_request(req)
+      )
+
+    Csilgen.Generated.EmptyResponse.from_cbor(resp)
+  end
+
+  @spec preview_migration(t(), Csilgen.Generated.HouseID.t()) ::
+          [Csilgen.Generated.CalendarMigrationRow.t()]
+  def preview_migration(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "CalendarService",
+        "preview-migration",
+        encode_preview_migration_request(req)
+      )
+
+    decode_preview_migration_response(resp)
+  end
+
+  @spec list_trash(t(), Csilgen.Generated.HouseID.t()) ::
+          [Csilgen.Generated.CalendarTrashEntry.t()]
+  def list_trash(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "CalendarService",
+        "list-trash",
+        encode_list_trash_request(req)
+      )
+
+    decode_list_trash_response(resp)
+  end
+
+  @spec restore_event(t(), Csilgen.Generated.RestoreCalendarEventRequest.t()) ::
+          Csilgen.Generated.Event.t()
+  def restore_event(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "CalendarService",
+        "restore-event",
+        Csilgen.Generated.RestoreCalendarEventRequest.to_cbor(req)
+      )
+
+    Csilgen.Generated.Event.from_cbor(resp)
+  end
+
+  defp encode_get_status_request(req) do
+    Csilgen.Generated.Cbor.encode({:text, req})
+  end
+
+  defp encode_begin_connect_request(req) do
+    Csilgen.Generated.Cbor.encode({:text, req})
+  end
+
+  defp encode_disconnect_request(req) do
+    Csilgen.Generated.Cbor.encode({:text, req})
+  end
+
+  defp decode_preview_migration_response(csil_bytes) do
+    csil_root = Csilgen.Generated.Cbor.decode(csil_bytes)
+
+    case csil_root do
+      {:array, csil_xs} ->
+        Enum.map(csil_xs, fn csil_e ->
+          Csilgen.Generated.CalendarMigrationRow.from_cbor_value(csil_e)
+        end)
+    end
+  end
+
+  defp encode_preview_migration_request(req) do
+    Csilgen.Generated.Cbor.encode({:text, req})
+  end
+
+  defp decode_list_trash_response(csil_bytes) do
+    csil_root = Csilgen.Generated.Cbor.decode(csil_bytes)
+
+    case csil_root do
+      {:array, csil_xs} ->
+        Enum.map(csil_xs, fn csil_e ->
+          Csilgen.Generated.CalendarTrashEntry.from_cbor_value(csil_e)
+        end)
+    end
+  end
+
+  defp encode_list_trash_request(req) do
     Csilgen.Generated.Cbor.encode({:text, req})
   end
 end

@@ -4,11 +4,12 @@ import { ChevronLeft, ChevronRight, People, Plus } from "~/components/Icons";
 import { AuthGate } from "~/components/AuthGate";
 import { DateTimePicker } from "~/components/DateTimePicker";
 import { RecurrenceFields, recurrenceLabel, toRecurrence, type RecurrenceFreq } from "~/components/RecurrenceFields";
-import { eventClient, memberClient } from "~/data/clients";
+import { calendarClient, eventClient, memberClient } from "~/data/clients";
+import { CalendarConnection } from "~/components/CalendarConnection";
 import { displayName, eventTone, timeLabel, ymdLocal } from "~/lib/derive";
 import { normalizeEventCreate } from "~/lib/taskCreate";
 import { loadEvents, startOfRange, viewRange, VIEW_DAYS, type CalendarViewMode as ViewMode } from "~/lib/events";
-import { currentMemberId, useCurrentHouseId } from "~/stores/auth";
+import { currentMemberId, hasRole, useCurrentHouseId } from "~/stores/auth";
 import { buildCells, groupSingleByDate, placeSpans } from "~/lib/month";
 import type { CalendarSubscription, Event as ApiEvent } from "@longhouse/client";
 
@@ -28,6 +29,9 @@ const HOUR_HEIGHT = 44; // px per hour row
 
 export const CalendarPage = () => {
   const houseId = useCurrentHouseId();
+  const [calendarEnabled, setCalendarEnabled] = createSignal(false);
+  const [localRefresh, setLocalRefresh] = createSignal(0);
+  const [connectionError, setConnectionError] = createSignal("");
   const [view, setView] = createSignal<ViewMode>("month");
   const [anchor, setAnchor] = createSignal(new Date());
   const [allEvents, { refetch: refetchEvents }] = createResource(
@@ -111,7 +115,27 @@ export const CalendarPage = () => {
     view?: string;
     date?: string;
     event?: string;
+    act_as_grant_id?: string;
+    nonce?: string;
   }>();
+  let completingConnection = false;
+  const [linkedEvent] = createResource(() => {
+    const id = searchParams.event;
+    if (!id || allEvents.loading || allEvents.error || (allEvents() ?? []).some(event => event.eventId === id)) return null;
+    return id;
+  }, id => eventClient.getEvent(id));
+  createEffect(() => {
+    const grantId = searchParams.act_as_grant_id, nonce = searchParams.nonce;
+    if (!houseId() || !grantId || !nonce || completingConnection) return;
+    completingConnection = true;
+    const connectHouse = sessionStorage.getItem("calendar-connect-house");
+    if (!connectHouse) { setConnectionError("Calendar connection expired. Start again."); return; }
+    void calendarClient.completeConnect({ houseId: connectHouse, grantId, nonce }).then(() => {
+      sessionStorage.removeItem("calendar-connect-house");
+      setSearchParams({ act_as_grant_id: undefined, nonce: undefined }, { replace: true });
+      setLocalRefresh(n => n + 1);
+    }).catch(e => setConnectionError(String(e)));
+  });
   createEffect(() => {
     const v = searchParams.view;
     const d = searchParams.date;
@@ -126,8 +150,13 @@ export const CalendarPage = () => {
   createEffect(() => {
     const evId = searchParams.event;
     if (evId) {
-      const match = (allEvents() ?? []).find((e) => e.eventId === evId);
+      const match = (allEvents() ?? []).find((e) => e.eventId === evId) ?? (!linkedEvent.error ? linkedEvent() : undefined);
       if (match) {
+        if (match.startsAt) {
+          const date = new Date(match.startsAt);
+          const range = viewRange(view(), anchor());
+          if (date < range.start || date >= range.end) setAnchor(date);
+        }
         setComposer({ mode: "edit", event: match });
         setSearchParams({ view: undefined, date: undefined, event: undefined }, { replace: true });
       }
@@ -160,13 +189,21 @@ export const CalendarPage = () => {
         </p>
       </div>
 
-      <Show when={composer()}>
+      <Show when={connectionError()}><p role="alert">{connectionError()}</p></Show>
+      <Show when={linkedEvent.error}><p role="alert">Could not open the linked event: {String(linkedEvent.error)}</p></Show>
+      <Show when={houseId()}>{id => <CalendarConnection houseId={id()} refresh={localRefresh()}
+        onEdit={event => setComposer({ mode: "edit", event })} onEnabled={setCalendarEnabled} />}</Show>
+
+      <Show when={composer()} keyed>
         {(state) => (
           <EventComposer
             houseId={houseId()!}
-            state={state()}
+            state={state}
+            calendarEnabled={calendarEnabled()}
+            members={members() ?? []}
             onClose={() => setComposer(null)}
-            onSaved={async () => { setComposer(null); await refetchEvents(); }}
+            onOpen={event => setComposer({ mode: "edit", event })}
+            onSaved={async () => { setComposer(null); setLocalRefresh(n => n + 1); await refetchEvents(); }}
           />
         )}
       </Show>
@@ -742,14 +779,26 @@ const TimeGridView = (props: {
 
 const EventComposer = (props: {
   houseId: string;
+  calendarEnabled: boolean;
+  members: Awaited<ReturnType<typeof memberClient.listMembers>>;
   state:
     | { mode: "create"; start?: string; end?: string; allDay?: boolean }
     | { mode: "edit"; event: ApiEvent };
   onClose: () => void;
   onSaved: () => Promise<void> | void;
+  onOpen: (event: ApiEvent) => void;
 }) => {
   const editing = () => props.state.mode === "edit";
   const initial = () => (props.state.mode === "edit" ? props.state.event : null);
+  const [owner, setOwner] = createSignal(initial()?.ownerMemberId ?? "");
+  const [dirty, setDirty] = createSignal(false);
+  const [rule, setRule] = createSignal(initial()?.recurrenceRule ?? "");
+  const [scope, setScope] = createSignal(initial()?.recurrenceRootEventId ? "this" : "all");
+  const frozen = () => initial()?.calendarState === "publishing" || Boolean(initial()?.editPendingMemberId) || Boolean(initial()?.calendarUnbound);
+  const canRecover = () => initial()?.calendarState === "publishing" && initial()?.ownerMemberId === currentMemberId();
+  const canRecoverEdit = () => initial()?.editPendingMemberId === currentMemberId();
+  const canAccept = () => initial()?.ownerMemberId === currentMemberId() &&
+    (initial()?.calendarState === "pending" || (props.calendarEnabled && ["legacy", "local"].includes(initial()?.calendarState ?? "")));
 
   // Seed defaults: edit mode reads the event row; create mode prefers the
   // start/end the caller passed (drag-select or cell-click), else tomorrow
@@ -799,23 +848,26 @@ const EventComposer = (props: {
 
   const submit = async (e: SubmitEvent) => {
     e.preventDefault();
-    if (!title().trim() || busy()) return;
+    if (!title().trim() || busy() || frozen()) return;
     setBusy(true);
     setErr(null);
     try {
       const body: any = {
         houseId: props.houseId,
-        ownerMemberId: editing() ? (props.state as { event: ApiEvent }).event.ownerMemberId : "",
+        ownerMemberId: owner(),
         title: title().trim(),
         description: description().trim() || undefined,
         location: location().trim() || undefined,
         startsAt: startsAt() || undefined,
         endsAt:   endsAt()   || undefined,
         allDay: allDay(),
+        timezone: initial()?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+        editScope: scope(),
       };
       // Recurrence: send the freq + interval + by_weekday/by_setpos.
       // Empty freq = clear an existing recurrence on update.
       body.recurrenceFreq = recFreq() || "";
+      if (initial()?.calendarState === "remote") { body.recurrenceRule = rule(); }
       if (recFreq()) {
         body.recurrenceInterval = recInterval();
         if (recByWeekday().length > 0) {
@@ -842,13 +894,30 @@ const EventComposer = (props: {
       await props.onSaved();
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : String(e2));
+      if (initial()?.calendarState === "remote") {
+        try {
+          const current = await eventClient.getEvent(initial()!.eventId);
+          if (current.editPendingMemberId) props.onOpen(current);
+        } catch { /* Keep the save error if the recovery status cannot be read. */ }
+      }
     } finally {
       setBusy(false);
     }
   };
 
+  const decide = async (accept: boolean) => {
+    const event = initial(); if (!event?.revision || busy() || (dirty() && !canRecover())) return;
+    setBusy(true); setErr(null);
+    try {
+      const request = { eventId: event.eventId, revision: event.revision };
+      if (accept) await eventClient.acceptEvent(request); else await eventClient.declineEvent(request);
+      await props.onSaved();
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(false); }
+  };
+
   const remove = async (andFuture: boolean) => {
-    if (props.state.mode !== "edit" || busy()) return;
+    if (props.state.mode !== "edit" || busy() || frozen()) return;
     const t = props.state.event.title;
     const msg = andFuture
       ? `Delete "${t}" and every later occurrence in this series?`
@@ -873,6 +942,7 @@ const EventComposer = (props: {
   return (
     <form
       onSubmit={submit}
+      onInput={() => setDirty(true)}
       style="margin:0 0 16px;padding:18px 20px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-low)"
     >
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -883,6 +953,16 @@ const EventComposer = (props: {
           Cancel
         </button>
       </div>
+
+      <Show when={initial()?.publicationError}><p role="alert">{initial()?.publicationError}</p></Show>
+      <Show when={initial()?.calendarState === "publishing"}><p>Publication is not confirmed. This revision is locked. Retry publication to recover the saved request.</p></Show>
+      <Show when={canAccept()}><p>Review the saved details before accepting. {props.calendarEnabled ? "Acceptance puts this event in catalystcal using your calendar connection." : "Acceptance adds this event to your Longhouse calendar."}</p></Show>
+      <Show when={!editing() && hasRole("admin")}>
+        <label>Assign to <select value={owner()} onChange={e => setOwner(e.currentTarget.value)}>
+          <option value="">Me</option><For each={props.members.filter(m => !m.deactivatedAt && m.memberId !== currentMemberId())}>{member => <option value={member.memberId}>{displayName(member)}</option>}</For>
+        </select></label>
+        <Show when={owner()}><p>The assigned member must accept this event. It stays in Longhouse until then.</p></Show>
+      </Show>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <label style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1">
@@ -918,11 +998,19 @@ const EventComposer = (props: {
         <label style="display:flex;gap:8px;align-items:center;grid-column:1/-1">
           <input
             type="checkbox" checked={allDay()}
-            onChange={(e) => setAllDay(e.currentTarget.checked)}
+            onChange={(e) => {
+              setAllDay(e.currentTarget.checked);
+              if (e.currentTarget.checked) {
+                const start = new Date(startsAt()); start.setHours(0, 0, 0, 0);
+                const end = new Date(start); end.setDate(end.getDate() + 1);
+                setStartsAt(start.toISOString()); setEndsAt(end.toISOString());
+              }
+            }}
           />
           <span style="font-size:14px">All day</span>
         </label>
         <div style="grid-column:1/-1">
+          <Show when={initial()?.calendarState === "remote"} fallback={
           <RecurrenceFields
             freq={recFreq}
             setFreq={setRecFreq}
@@ -935,6 +1023,18 @@ const EventComposer = (props: {
             bySetpos={recBySetpos}
             setBySetpos={setRecBySetpos}
           />
+          }><label>Recurrence rule <input value={rule()} onInput={e => setRule(e.currentTarget.value)} placeholder="No recurrence" /></label></Show>
+          <Show when={initial()?.calendarState === "remote" && initial()?.recurrenceRootEventId}>
+            <label>Apply changes to <select value={scope()} disabled={busy() || frozen()} onChange={e => setScope(e.currentTarget.value)}>
+              <option value="this">This occurrence</option>
+              <option value="this_and_future">This and future occurrences</option>
+            </select></label>
+            <button type="button" class="btn btn-ghost" disabled={busy()} onClick={async () => {
+              setBusy(true); setErr(null);
+              try { props.onOpen(await eventClient.getEvent(initial()!.recurrenceRootEventId!)); }
+              catch (e) { setErr(String(e)); } finally { setBusy(false); }
+            }}>Open whole series</button>
+          </Show>
         </div>
       </div>
 
@@ -945,12 +1045,12 @@ const EventComposer = (props: {
       <div style="display:flex;justify-content:space-between;gap:10px;margin-top:14px;flex-wrap:wrap">
         <Show when={editing()}>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button type="button" class="btn btn-ghost" onClick={() => remove(false)} disabled={busy()} style="color:var(--rust)">
+            <button type="button" class="btn btn-ghost" onClick={() => remove(false)} disabled={busy() || frozen()} style="color:var(--rust)">
               Delete
             </button>
             <Show when={isRecurring(initial())}>
               <button
-                type="button" class="btn btn-ghost" onClick={() => remove(true)} disabled={busy()}
+                type="button" class="btn btn-ghost" onClick={() => remove(true)} disabled={busy() || frozen()}
                 style="color:var(--rust);border:1px dashed var(--rust)"
                 title="Drop this occurrence and every later one. Clears the series's recurrence so the spawner stops respawning."
               >
@@ -960,7 +1060,22 @@ const EventComposer = (props: {
           </div>
         </Show>
         <div style="display:flex;gap:10px;margin-left:auto">
-          <button class="btn btn-primary" disabled={busy() || !title().trim()} type="submit">
+          <Show when={canRecoverEdit()}>
+            <button type="button" class="btn btn-primary" disabled={busy()} onClick={async () => {
+              setBusy(true); setErr(null);
+              try { await eventClient.recoverEdit(initial()!.eventId); await props.onSaved(); }
+              catch (e) { setErr(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }
+            }}>Retry saved edit</button>
+          </Show>
+          <Show when={canRecover()}>
+            <button type="button" class="btn btn-primary" disabled={busy()} onClick={() => decide(true)}>Retry publication</button>
+          </Show>
+          <Show when={canAccept()}>
+            <button type="button" class="btn btn-ghost" disabled={busy() || dirty()} onClick={() => decide(false)}>Decline</button>
+            <button type="button" class="btn btn-primary" disabled={busy() || dirty()} onClick={() => decide(true)}>Accept event</button>
+            <Show when={dirty()}><span>Save changes before accepting.</span></Show>
+          </Show>
+          <button class="btn btn-primary" disabled={busy() || frozen() || !title().trim()} type="submit">
             {busy() ? "Saving…" : editing() ? "Save changes" : "Create event"}
           </button>
         </div>

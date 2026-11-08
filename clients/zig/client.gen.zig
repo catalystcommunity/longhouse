@@ -1070,6 +1070,147 @@ pub const EventClient = struct {
         defer alloc.free(csil_respb);
         try codec.decode_CalendarView(alloc, csil_respb, out);
     }
+
+    /// Invoke EventService/accept-event with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn accept_event(self: EventClient, alloc: std.mem.Allocator, req: *const types.EventDecision, out: *types.Event) anyerror!void {
+        const csil_reqb = try codec.encode_EventDecision(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "accept-event", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_Event(alloc, csil_respb, out);
+    }
+
+    /// Invoke EventService/recover-edit with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn recover_edit(self: EventClient, alloc: std.mem.Allocator, req: *const types.EventID, out: *types.Event) anyerror!void {
+        const csil_reqb = try codec.encode_EventID(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "recover-edit", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_Event(alloc, csil_respb, out);
+    }
+
+    /// Invoke EventService/decline-event with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn decline_event(self: EventClient, alloc: std.mem.Allocator, req: *const types.EventDecision, out: *types.Event) anyerror!void {
+        const csil_reqb = try codec.encode_EventDecision(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "decline-event", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_Event(alloc, csil_respb, out);
+    }
+
+    /// Invoke EventService/list-local-events with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn list_local_events(self: EventClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *[]types.Event) anyerror!void {
+        const csil_reqb = try codec.encode_HouseID(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "EventService", "list-local-events", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_void(alloc, csil_respb, out);
+    }
+};
+
+/// CalendarClient is a typed client for the CalendarService service over a CsilgenTransport.
+pub const CalendarClient = struct {
+    transport: CsilgenTransport,
+
+    pub fn init(transport: CsilgenTransport) CalendarClient {
+        return .{ .transport = transport };
+    }
+
+    /// Invoke CalendarService/get-status with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn get_status(self: CalendarClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *types.CalendarStatus) anyerror!void {
+        const csil_reqb = try codec.encode_HouseID(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CalendarService", "get-status", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_CalendarStatus(alloc, csil_respb, out);
+    }
+
+    /// Invoke CalendarService/configure-calendar with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn configure_calendar(self: CalendarClient, alloc: std.mem.Allocator, req: *const types.ConfigureCalendarRequest, out: *types.CalendarStatus) anyerror!void {
+        const csil_reqb = try codec.encode_ConfigureCalendarRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CalendarService", "configure-calendar", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_CalendarStatus(alloc, csil_respb, out);
+    }
+
+    /// Invoke CalendarService/begin-connect with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn begin_connect(self: CalendarClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *types.CalendarConnectResponse) anyerror!void {
+        const csil_reqb = try codec.encode_HouseID(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CalendarService", "begin-connect", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_CalendarConnectResponse(alloc, csil_respb, out);
+    }
+
+    /// Invoke CalendarService/complete-connect with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn complete_connect(self: CalendarClient, alloc: std.mem.Allocator, req: *const types.CompleteCalendarConnectRequest, out: *types.CalendarStatus) anyerror!void {
+        const csil_reqb = try codec.encode_CompleteCalendarConnectRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CalendarService", "complete-connect", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_CalendarStatus(alloc, csil_respb, out);
+    }
+
+    /// Invoke CalendarService/disconnect with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn disconnect(self: CalendarClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *types.EmptyResponse) anyerror!void {
+        const csil_reqb = try codec.encode_HouseID(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CalendarService", "disconnect", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_EmptyResponse(alloc, csil_respb, out);
+    }
+
+    /// Invoke CalendarService/preview-migration with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn preview_migration(self: CalendarClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *[]types.CalendarMigrationRow) anyerror!void {
+        const csil_reqb = try codec.encode_HouseID(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CalendarService", "preview-migration", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_void(alloc, csil_respb, out);
+    }
+
+    /// Invoke CalendarService/list-trash with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn list_trash(self: CalendarClient, alloc: std.mem.Allocator, req: *const types.HouseID, out: *[]types.CalendarTrashEntry) anyerror!void {
+        const csil_reqb = try codec.encode_HouseID(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CalendarService", "list-trash", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_void(alloc, csil_respb, out);
+    }
+
+    /// Invoke CalendarService/restore-event with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn restore_event(self: CalendarClient, alloc: std.mem.Allocator, req: *const types.RestoreCalendarEventRequest, out: *types.Event) anyerror!void {
+        const csil_reqb = try codec.encode_RestoreCalendarEventRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CalendarService", "restore-event", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_Event(alloc, csil_respb, out);
+    }
 };
 
 /// TaskClient is a typed client for the TaskService service over a CsilgenTransport.

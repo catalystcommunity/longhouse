@@ -441,6 +441,14 @@ public static class Codec
         ServiceError csilTyped => ServiceErrorToCborValue(csilTyped),
         CalendarSubscription csilTyped => CalendarSubscriptionToCborValue(csilTyped),
         CalendarView csilTyped => CalendarViewToCborValue(csilTyped),
+        EventDecision csilTyped => EventDecisionToCborValue(csilTyped),
+        CalendarStatus csilTyped => CalendarStatusToCborValue(csilTyped),
+        ConfigureCalendarRequest csilTyped => ConfigureCalendarRequestToCborValue(csilTyped),
+        CalendarConnectResponse csilTyped => CalendarConnectResponseToCborValue(csilTyped),
+        CompleteCalendarConnectRequest csilTyped => CompleteCalendarConnectRequestToCborValue(csilTyped),
+        CalendarTrashEntry csilTyped => CalendarTrashEntryToCborValue(csilTyped),
+        RestoreCalendarEventRequest csilTyped => RestoreCalendarEventRequestToCborValue(csilTyped),
+        CalendarMigrationRow csilTyped => CalendarMigrationRowToCborValue(csilTyped),
         AuditEntry csilTyped => AuditEntryToCborValue(csilTyped),
         AuditQuery csilTyped => AuditQueryToCborValue(csilTyped),
         AuditPage csilTyped => AuditPageToCborValue(csilTyped),
@@ -549,6 +557,14 @@ public static class Codec
         if (csilType == typeof(ServiceError)) return ServiceErrorFromCborValue(value);
         if (csilType == typeof(CalendarSubscription)) return CalendarSubscriptionFromCborValue(value);
         if (csilType == typeof(CalendarView)) return CalendarViewFromCborValue(value);
+        if (csilType == typeof(EventDecision)) return EventDecisionFromCborValue(value);
+        if (csilType == typeof(CalendarStatus)) return CalendarStatusFromCborValue(value);
+        if (csilType == typeof(ConfigureCalendarRequest)) return ConfigureCalendarRequestFromCborValue(value);
+        if (csilType == typeof(CalendarConnectResponse)) return CalendarConnectResponseFromCborValue(value);
+        if (csilType == typeof(CompleteCalendarConnectRequest)) return CompleteCalendarConnectRequestFromCborValue(value);
+        if (csilType == typeof(CalendarTrashEntry)) return CalendarTrashEntryFromCborValue(value);
+        if (csilType == typeof(RestoreCalendarEventRequest)) return RestoreCalendarEventRequestFromCborValue(value);
+        if (csilType == typeof(CalendarMigrationRow)) return CalendarMigrationRowFromCborValue(value);
         if (csilType == typeof(AuditEntry)) return AuditEntryFromCborValue(value);
         if (csilType == typeof(AuditQuery)) return AuditQueryFromCborValue(value);
         if (csilType == typeof(AuditPage)) return AuditPageFromCborValue(value);
@@ -1369,40 +1385,76 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("location"), new CborValue.Text(csilV5)));
         }
-        if (value.StartsAt is { } csilV6)
+        if (value.Revision is { } csilV6)
         {
-            csilEntries.Add((new CborValue.Text("starts_at"), new CborValue.Text(csilV6)));
+            csilEntries.Add((new CborValue.Text("revision"), new CborValue.Uint(csilV6)));
+        }
+        if (value.Timezone is { } csilV7)
+        {
+            csilEntries.Add((new CborValue.Text("timezone"), new CborValue.Text(csilV7)));
+        }
+        if (value.StartsAt is { } csilV8)
+        {
+            csilEntries.Add((new CborValue.Text("starts_at"), new CborValue.Text(csilV8)));
         }
         csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
-        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
-        if (value.Description is { } csilV9)
+        if (value.EditScope is { } csilV10)
         {
-            csilEntries.Add((new CborValue.Text("description"), new CborValue.Text(csilV9)));
+            csilEntries.Add((new CborValue.Text("edit_scope"), new CborValue.Text(csilV10)));
+        }
+        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
+        if (value.Description is { } csilV12)
+        {
+            csilEntries.Add((new CborValue.Text("description"), new CborValue.Text(csilV12)));
+        }
+        if (value.CalendarState is { } csilV13)
+        {
+            csilEntries.Add((new CborValue.Text("calendar_state"), new CborValue.Text(csilV13)));
         }
         csilEntries.Add((new CborValue.Text("owner_member_id"), new CborValue.Text(value.OwnerMemberId)));
-        if (value.RecurrenceFreq is { } csilV11)
+        if (value.RecurrenceFreq is { } csilV15)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_freq"), RecurrenceFreqToCborValue(csilV11)));
+            csilEntries.Add((new CborValue.Text("recurrence_freq"), RecurrenceFreqToCborValue(csilV15)));
         }
-        if (value.NextRecurrenceAt is { } csilV12)
+        if (value.RecurrenceRule is { } csilV16)
         {
-            csilEntries.Add((new CborValue.Text("next_recurrence_at"), new CborValue.Text(csilV12)));
+            csilEntries.Add((new CborValue.Text("recurrence_rule"), new CborValue.Text(csilV16)));
         }
-        if (value.RecurrenceInterval is { } csilV13)
+        if (value.CalendarUnbound is { } csilV17)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_interval"), new CborValue.Int(csilV13)));
+            csilEntries.Add((new CborValue.Text("calendar_unbound"), new CborValue.Bool(csilV17)));
         }
-        if (value.RecurrenceBySetpos is { } csilV14)
+        if (value.PublicationError is { } csilV18)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_by_setpos"), new CborValue.Int(csilV14)));
+            csilEntries.Add((new CborValue.Text("publication_error"), new CborValue.Text(csilV18)));
         }
-        if (value.RecurrenceByWeekday is { } csilV15)
+        if (value.NextRecurrenceAt is { } csilV19)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_by_weekday"), new CborValue.Array(csilV15.Select(csilElem => (CborValue)new CborValue.Int(csilElem)).ToList())));
+            csilEntries.Add((new CborValue.Text("next_recurrence_at"), new CborValue.Text(csilV19)));
         }
-        if (value.RecurrenceRootEventId is { } csilV16)
+        if (value.RecurrenceInterval is { } csilV20)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_root_event_id"), new CborValue.Text(csilV16)));
+            csilEntries.Add((new CborValue.Text("recurrence_interval"), new CborValue.Int(csilV20)));
+        }
+        if (value.RecurrenceBySetpos is { } csilV21)
+        {
+            csilEntries.Add((new CborValue.Text("recurrence_by_setpos"), new CborValue.Int(csilV21)));
+        }
+        if (value.ProposedByMemberId is { } csilV22)
+        {
+            csilEntries.Add((new CborValue.Text("proposed_by_member_id"), new CborValue.Text(csilV22)));
+        }
+        if (value.RecurrenceByWeekday is { } csilV23)
+        {
+            csilEntries.Add((new CborValue.Text("recurrence_by_weekday"), new CborValue.Array(csilV23.Select(csilElem => (CborValue)new CborValue.Int(csilElem)).ToList())));
+        }
+        if (value.EditPendingMemberId is { } csilV24)
+        {
+            csilEntries.Add((new CborValue.Text("edit_pending_member_id"), new CborValue.Text(csilV24)));
+        }
+        if (value.RecurrenceRootEventId is { } csilV25)
+        {
+            csilEntries.Add((new CborValue.Text("recurrence_root_event_id"), new CborValue.Text(csilV25)));
         }
         return new CborValue.Map(csilEntries);
     }
@@ -1419,14 +1471,23 @@ public static class Codec
         Timestamp? csilField6 = Cbor.MapGet(value, "starts_at") is { } csilRaw6 ? Cbor.AsText(csilRaw6) : null;
         Timestamp? csilField7 = Cbor.MapGet(value, "ends_at") is { } csilRaw7 ? Cbor.AsText(csilRaw7) : null;
         bool? csilField8 = Cbor.MapGet(value, "all_day") is { } csilRaw8 ? Cbor.AsBool(csilRaw8) : null;
-        RecurrenceFreq? csilField9 = Cbor.MapGet(value, "recurrence_freq") is { } csilRaw9 ? RecurrenceFreqFromCborValue(csilRaw9) : null;
-        long? csilField10 = Cbor.MapGet(value, "recurrence_interval") is { } csilRaw10 ? Cbor.AsI64(csilRaw10) : null;
-        System.Collections.Generic.List<long>? csilField11 = Cbor.MapGet(value, "recurrence_by_weekday") is { } csilRaw11 ? Cbor.AsArray(csilRaw11).Select(csilElem => Cbor.AsI64(csilElem)).ToList() : null;
-        long? csilField12 = Cbor.MapGet(value, "recurrence_by_setpos") is { } csilRaw12 ? Cbor.AsI64(csilRaw12) : null;
-        Timestamp? csilField13 = Cbor.MapGet(value, "next_recurrence_at") is { } csilRaw13 ? Cbor.AsText(csilRaw13) : null;
-        EventID? csilField14 = Cbor.MapGet(value, "recurrence_root_event_id") is { } csilRaw14 ? Cbor.AsText(csilRaw14) : null;
-        var csilField15 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField16 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        string? csilField9 = Cbor.MapGet(value, "timezone") is { } csilRaw9 ? Cbor.AsText(csilRaw9) : null;
+        string? csilField10 = Cbor.MapGet(value, "recurrence_rule") is { } csilRaw10 ? Cbor.AsText(csilRaw10) : null;
+        RecurrenceFreq? csilField11 = Cbor.MapGet(value, "recurrence_freq") is { } csilRaw11 ? RecurrenceFreqFromCborValue(csilRaw11) : null;
+        long? csilField12 = Cbor.MapGet(value, "recurrence_interval") is { } csilRaw12 ? Cbor.AsI64(csilRaw12) : null;
+        System.Collections.Generic.List<long>? csilField13 = Cbor.MapGet(value, "recurrence_by_weekday") is { } csilRaw13 ? Cbor.AsArray(csilRaw13).Select(csilElem => Cbor.AsI64(csilElem)).ToList() : null;
+        long? csilField14 = Cbor.MapGet(value, "recurrence_by_setpos") is { } csilRaw14 ? Cbor.AsI64(csilRaw14) : null;
+        Timestamp? csilField15 = Cbor.MapGet(value, "next_recurrence_at") is { } csilRaw15 ? Cbor.AsText(csilRaw15) : null;
+        EventID? csilField16 = Cbor.MapGet(value, "recurrence_root_event_id") is { } csilRaw16 ? Cbor.AsText(csilRaw16) : null;
+        string? csilField17 = Cbor.MapGet(value, "calendar_state") is { } csilRaw17 ? Cbor.AsText(csilRaw17) : null;
+        ulong? csilField18 = Cbor.MapGet(value, "revision") is { } csilRaw18 ? Cbor.AsU64(csilRaw18) : null;
+        MemberID? csilField19 = Cbor.MapGet(value, "proposed_by_member_id") is { } csilRaw19 ? Cbor.AsText(csilRaw19) : null;
+        string? csilField20 = Cbor.MapGet(value, "publication_error") is { } csilRaw20 ? Cbor.AsText(csilRaw20) : null;
+        MemberID? csilField21 = Cbor.MapGet(value, "edit_pending_member_id") is { } csilRaw21 ? Cbor.AsText(csilRaw21) : null;
+        bool? csilField22 = Cbor.MapGet(value, "calendar_unbound") is { } csilRaw22 ? Cbor.AsBool(csilRaw22) : null;
+        string? csilField23 = Cbor.MapGet(value, "edit_scope") is { } csilRaw23 ? Cbor.AsText(csilRaw23) : null;
+        var csilField24 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField25 = Cbor.AsText(Cbor.Require(value, "updated_at"));
         return new Event
         {
             EventId = csilField0,
@@ -1438,14 +1499,23 @@ public static class Codec
             StartsAt = csilField6,
             EndsAt = csilField7,
             AllDay = csilField8,
-            RecurrenceFreq = csilField9,
-            RecurrenceInterval = csilField10,
-            RecurrenceByWeekday = csilField11,
-            RecurrenceBySetpos = csilField12,
-            NextRecurrenceAt = csilField13,
-            RecurrenceRootEventId = csilField14,
-            CreatedAt = csilField15,
-            UpdatedAt = csilField16,
+            Timezone = csilField9,
+            RecurrenceRule = csilField10,
+            RecurrenceFreq = csilField11,
+            RecurrenceInterval = csilField12,
+            RecurrenceByWeekday = csilField13,
+            RecurrenceBySetpos = csilField14,
+            NextRecurrenceAt = csilField15,
+            RecurrenceRootEventId = csilField16,
+            CalendarState = csilField17,
+            Revision = csilField18,
+            ProposedByMemberId = csilField19,
+            PublicationError = csilField20,
+            EditPendingMemberId = csilField21,
+            CalendarUnbound = csilField22,
+            EditScope = csilField23,
+            CreatedAt = csilField24,
+            UpdatedAt = csilField25,
         };
     }
 
@@ -3366,6 +3436,207 @@ public static class Codec
         };
     }
 
+    /// <summary>The canonical CBOR value tree for a EventDecision.</summary>
+    public static CborValue EventDecisionToCborValue(EventDecision value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("event_id"), new CborValue.Text(value.EventId)));
+        csilEntries.Add((new CborValue.Text("revision"), new CborValue.Uint(value.Revision)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a EventDecision from a decoded CBOR value tree.</summary>
+    public static EventDecision EventDecisionFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "event_id"));
+        var csilField1 = Cbor.AsU64(Cbor.Require(value, "revision"));
+        return new EventDecision
+        {
+            EventId = csilField0,
+            Revision = csilField1,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a CalendarStatus.</summary>
+    public static CborValue CalendarStatusToCborValue(CalendarStatus value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("ready"), new CborValue.Bool(value.Ready)));
+        csilEntries.Add((new CborValue.Text("enabled"), new CborValue.Bool(value.Enabled)));
+        csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
+        csilEntries.Add((new CborValue.Text("available"), new CborValue.Bool(value.Available)));
+        csilEntries.Add((new CborValue.Text("connected"), new CborValue.Bool(value.Connected)));
+        if (value.LastError is { } csilV5)
+        {
+            csilEntries.Add((new CborValue.Text("last_error"), new CborValue.Text(csilV5)));
+        }
+        if (value.SyncPendingSince is { } csilV6)
+        {
+            csilEntries.Add((new CborValue.Text("sync_pending_since"), new CborValue.Text(csilV6)));
+        }
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a CalendarStatus from a decoded CBOR value tree.</summary>
+    public static CalendarStatus CalendarStatusFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "house_id"));
+        var csilField1 = Cbor.AsBool(Cbor.Require(value, "available"));
+        var csilField2 = Cbor.AsBool(Cbor.Require(value, "enabled"));
+        var csilField3 = Cbor.AsBool(Cbor.Require(value, "ready"));
+        var csilField4 = Cbor.AsBool(Cbor.Require(value, "connected"));
+        string? csilField5 = Cbor.MapGet(value, "last_error") is { } csilRaw5 ? Cbor.AsText(csilRaw5) : null;
+        Timestamp? csilField6 = Cbor.MapGet(value, "sync_pending_since") is { } csilRaw6 ? Cbor.AsText(csilRaw6) : null;
+        return new CalendarStatus
+        {
+            HouseId = csilField0,
+            Available = csilField1,
+            Enabled = csilField2,
+            Ready = csilField3,
+            Connected = csilField4,
+            LastError = csilField5,
+            SyncPendingSince = csilField6,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a ConfigureCalendarRequest.</summary>
+    public static CborValue ConfigureCalendarRequestToCborValue(ConfigureCalendarRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("enabled"), new CborValue.Bool(value.Enabled)));
+        csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ConfigureCalendarRequest from a decoded CBOR value tree.</summary>
+    public static ConfigureCalendarRequest ConfigureCalendarRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "house_id"));
+        var csilField1 = Cbor.AsBool(Cbor.Require(value, "enabled"));
+        return new ConfigureCalendarRequest
+        {
+            HouseId = csilField0,
+            Enabled = csilField1,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a CalendarConnectResponse.</summary>
+    public static CborValue CalendarConnectResponseToCborValue(CalendarConnectResponse value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("url"), new CborValue.Text(value.Url)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a CalendarConnectResponse from a decoded CBOR value tree.</summary>
+    public static CalendarConnectResponse CalendarConnectResponseFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "url"));
+        return new CalendarConnectResponse
+        {
+            Url = csilField0,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a CompleteCalendarConnectRequest.</summary>
+    public static CborValue CompleteCalendarConnectRequestToCborValue(CompleteCalendarConnectRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("nonce"), new CborValue.Text(value.Nonce)));
+        csilEntries.Add((new CborValue.Text("grant_id"), new CborValue.Text(value.GrantId)));
+        csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a CompleteCalendarConnectRequest from a decoded CBOR value tree.</summary>
+    public static CompleteCalendarConnectRequest CompleteCalendarConnectRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "house_id"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "grant_id"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "nonce"));
+        return new CompleteCalendarConnectRequest
+        {
+            HouseId = csilField0,
+            GrantId = csilField1,
+            Nonce = csilField2,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a CalendarTrashEntry.</summary>
+    public static CborValue CalendarTrashEntryToCborValue(CalendarTrashEntry value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("event"), EventToCborValue(value.Event)));
+        csilEntries.Add((new CborValue.Text("trash_id"), new CborValue.Text(value.TrashId)));
+        csilEntries.Add((new CborValue.Text("deleted_at"), new CborValue.Text(value.DeletedAt)));
+        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a CalendarTrashEntry from a decoded CBOR value tree.</summary>
+    public static CalendarTrashEntry CalendarTrashEntryFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "trash_id"));
+        var csilField1 = EventFromCborValue(Cbor.Require(value, "event"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "deleted_at"));
+        var csilField3 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        return new CalendarTrashEntry
+        {
+            TrashId = csilField0,
+            Event = csilField1,
+            DeletedAt = csilField2,
+            ExpiresAt = csilField3,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a RestoreCalendarEventRequest.</summary>
+    public static CborValue RestoreCalendarEventRequestToCborValue(RestoreCalendarEventRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
+        csilEntries.Add((new CborValue.Text("trash_id"), new CborValue.Text(value.TrashId)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a RestoreCalendarEventRequest from a decoded CBOR value tree.</summary>
+    public static RestoreCalendarEventRequest RestoreCalendarEventRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "house_id"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "trash_id"));
+        return new RestoreCalendarEventRequest
+        {
+            HouseId = csilField0,
+            TrashId = csilField1,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a CalendarMigrationRow.</summary>
+    public static CborValue CalendarMigrationRowToCborValue(CalendarMigrationRow value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("title"), new CborValue.Text(value.Title)));
+        csilEntries.Add((new CborValue.Text("reason"), new CborValue.Text(value.Reason)));
+        csilEntries.Add((new CborValue.Text("event_id"), new CborValue.Text(value.EventId)));
+        csilEntries.Add((new CborValue.Text("disposition"), new CborValue.Text(value.Disposition)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a CalendarMigrationRow from a decoded CBOR value tree.</summary>
+    public static CalendarMigrationRow CalendarMigrationRowFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "event_id"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "title"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "disposition"));
+        var csilField3 = Cbor.AsText(Cbor.Require(value, "reason"));
+        return new CalendarMigrationRow
+        {
+            EventId = csilField0,
+            Title = csilField1,
+            Disposition = csilField2,
+            Reason = csilField3,
+        };
+    }
+
     /// <summary>The canonical CBOR value tree for a AuditEntry.</summary>
     public static CborValue AuditEntryToCborValue(AuditEntry value)
     {
@@ -3878,6 +4149,66 @@ public static class Codec
 
     /// <summary>Decode canonical CSIL CBOR bytes into the EventGetCalendarViewRequest op-boundary payload.</summary>
     public static HouseID DecodeEventGetCalendarViewRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
+
+    /// <summary>Encode the EventRecoverEditRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
+    public static byte[] EncodeEventRecoverEditRequest(EventID value) => Cbor.Encode(new CborValue.Text(value));
+
+    /// <summary>Decode canonical CSIL CBOR bytes into the EventRecoverEditRequest op-boundary payload.</summary>
+    public static EventID DecodeEventRecoverEditRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
+
+    /// <summary>Encode the EventListLocalEventsRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
+    public static byte[] EncodeEventListLocalEventsRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
+
+    /// <summary>Decode canonical CSIL CBOR bytes into the EventListLocalEventsRequest op-boundary payload.</summary>
+    public static HouseID DecodeEventListLocalEventsRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
+
+    /// <summary>Encode the EventListLocalEventsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
+    public static byte[] EncodeEventListLocalEventsResponse(System.Collections.Generic.List<Event> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)EventToCborValue(csilElem)).ToList()));
+
+    /// <summary>Decode canonical CSIL CBOR bytes into the EventListLocalEventsResponse op-boundary payload.</summary>
+    public static System.Collections.Generic.List<Event> DecodeEventListLocalEventsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => EventFromCborValue(csilElem)).ToList();
+
+    /// <summary>Encode the CalendarGetStatusRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
+    public static byte[] EncodeCalendarGetStatusRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
+
+    /// <summary>Decode canonical CSIL CBOR bytes into the CalendarGetStatusRequest op-boundary payload.</summary>
+    public static HouseID DecodeCalendarGetStatusRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
+
+    /// <summary>Encode the CalendarBeginConnectRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
+    public static byte[] EncodeCalendarBeginConnectRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
+
+    /// <summary>Decode canonical CSIL CBOR bytes into the CalendarBeginConnectRequest op-boundary payload.</summary>
+    public static HouseID DecodeCalendarBeginConnectRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
+
+    /// <summary>Encode the CalendarDisconnectRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
+    public static byte[] EncodeCalendarDisconnectRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
+
+    /// <summary>Decode canonical CSIL CBOR bytes into the CalendarDisconnectRequest op-boundary payload.</summary>
+    public static HouseID DecodeCalendarDisconnectRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
+
+    /// <summary>Encode the CalendarPreviewMigrationRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
+    public static byte[] EncodeCalendarPreviewMigrationRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
+
+    /// <summary>Decode canonical CSIL CBOR bytes into the CalendarPreviewMigrationRequest op-boundary payload.</summary>
+    public static HouseID DecodeCalendarPreviewMigrationRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
+
+    /// <summary>Encode the CalendarPreviewMigrationResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
+    public static byte[] EncodeCalendarPreviewMigrationResponse(System.Collections.Generic.List<CalendarMigrationRow> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)CalendarMigrationRowToCborValue(csilElem)).ToList()));
+
+    /// <summary>Decode canonical CSIL CBOR bytes into the CalendarPreviewMigrationResponse op-boundary payload.</summary>
+    public static System.Collections.Generic.List<CalendarMigrationRow> DecodeCalendarPreviewMigrationResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => CalendarMigrationRowFromCborValue(csilElem)).ToList();
+
+    /// <summary>Encode the CalendarListTrashRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
+    public static byte[] EncodeCalendarListTrashRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
+
+    /// <summary>Decode canonical CSIL CBOR bytes into the CalendarListTrashRequest op-boundary payload.</summary>
+    public static HouseID DecodeCalendarListTrashRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
+
+    /// <summary>Encode the CalendarListTrashResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
+    public static byte[] EncodeCalendarListTrashResponse(System.Collections.Generic.List<CalendarTrashEntry> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)CalendarTrashEntryToCborValue(csilElem)).ToList()));
+
+    /// <summary>Decode canonical CSIL CBOR bytes into the CalendarListTrashResponse op-boundary payload.</summary>
+    public static System.Collections.Generic.List<CalendarTrashEntry> DecodeCalendarListTrashResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => CalendarTrashEntryFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the TaskGetTaskRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeTaskGetTaskRequest(TaskID value) => Cbor.Encode(new CborValue.Text(value));

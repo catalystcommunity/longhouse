@@ -261,16 +261,25 @@ end
 # starts_at [Timestamp]
 # ends_at [Timestamp]
 # all_day [Boolean]
+# timezone [String]
+# recurrence_rule [String]
 # recurrence_freq [RecurrenceFreq]
 # recurrence_interval [Integer]
 # recurrence_by_weekday [Array<Integer>]
 # recurrence_by_setpos [Integer]
 # next_recurrence_at [Timestamp]
 # recurrence_root_event_id [EventId]
+# calendar_state [String]
+# revision [Integer]
+# proposed_by_member_id [MemberId]
+# publication_error [String]
+# edit_pending_member_id [MemberId]
+# calendar_unbound [Boolean]
+# edit_scope [String]
 # created_at [Timestamp]
 # updated_at [Timestamp]
-Event = Data.define(:event_id, :house_id, :owner_member_id, :title, :description, :location, :starts_at, :ends_at, :all_day, :recurrence_freq, :recurrence_interval, :recurrence_by_weekday, :recurrence_by_setpos, :next_recurrence_at, :recurrence_root_event_id, :created_at, :updated_at) do
-  def initialize(event_id:, house_id:, owner_member_id:, title:, created_at:, updated_at:, description: nil, location: nil, starts_at: nil, ends_at: nil, all_day: false, recurrence_freq: nil, recurrence_interval: 1, recurrence_by_weekday: nil, recurrence_by_setpos: nil, next_recurrence_at: nil, recurrence_root_event_id: nil)
+Event = Data.define(:event_id, :house_id, :owner_member_id, :title, :description, :location, :starts_at, :ends_at, :all_day, :timezone, :recurrence_rule, :recurrence_freq, :recurrence_interval, :recurrence_by_weekday, :recurrence_by_setpos, :next_recurrence_at, :recurrence_root_event_id, :calendar_state, :revision, :proposed_by_member_id, :publication_error, :edit_pending_member_id, :calendar_unbound, :edit_scope, :created_at, :updated_at) do
+  def initialize(event_id:, house_id:, owner_member_id:, title:, created_at:, updated_at:, description: nil, location: nil, starts_at: nil, ends_at: nil, all_day: false, timezone: nil, recurrence_rule: nil, recurrence_freq: nil, recurrence_interval: 1, recurrence_by_weekday: nil, recurrence_by_setpos: nil, next_recurrence_at: nil, recurrence_root_event_id: nil, calendar_state: nil, revision: nil, proposed_by_member_id: nil, publication_error: nil, edit_pending_member_id: nil, calendar_unbound: nil, edit_scope: nil)
     super
   end
 
@@ -771,6 +780,51 @@ CalendarView = Data.define(:house_id, :viewer_member_id, :subscriptions) do
     super
   end
 end
+
+# event_id [EventId]
+# revision [Integer]
+EventDecision = Data.define(:event_id, :revision)
+
+# house_id [HouseId]
+# available [Boolean]
+# enabled [Boolean]
+# ready [Boolean]
+# connected [Boolean]
+# last_error [String]
+# sync_pending_since [Timestamp]
+CalendarStatus = Data.define(:house_id, :available, :enabled, :ready, :connected, :last_error, :sync_pending_since) do
+  def initialize(house_id:, available:, enabled:, ready:, connected:, last_error: nil, sync_pending_since: nil)
+    super
+  end
+end
+
+# house_id [HouseId]
+# enabled [Boolean]
+ConfigureCalendarRequest = Data.define(:house_id, :enabled)
+
+# url [String]
+CalendarConnectResponse = Data.define(:url)
+
+# house_id [HouseId]
+# grant_id [String]
+# nonce [String]
+CompleteCalendarConnectRequest = Data.define(:house_id, :grant_id, :nonce)
+
+# trash_id [String]
+# event [Event]
+# deleted_at [Timestamp]
+# expires_at [Timestamp]
+CalendarTrashEntry = Data.define(:trash_id, :event, :deleted_at, :expires_at)
+
+# house_id [HouseId]
+# trash_id [String]
+RestoreCalendarEventRequest = Data.define(:house_id, :trash_id)
+
+# event_id [EventId]
+# title [String]
+# disposition [String]
+# reason [String]
+CalendarMigrationRow = Data.define(:event_id, :title, :disposition, :reason)
 
 # AuditId is an alias for String.
 

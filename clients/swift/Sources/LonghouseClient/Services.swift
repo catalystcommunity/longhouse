@@ -134,6 +134,22 @@ public protocol EventService {
     func listEvents(_ request: EventListRequest) throws -> [Event]
     func getCalendarView(_ request: HouseId) throws -> CalendarView
     func setCalendarView(_ request: CalendarView) throws -> CalendarView
+    func acceptEvent(_ request: EventDecision) throws -> Event
+    func recoverEdit(_ request: EventId) throws -> Event
+    func declineEvent(_ request: EventDecision) throws -> Event
+    func listLocalEvents(_ request: HouseId) throws -> [Event]
+}
+
+/// CalendarService is the server-side handler seam.
+public protocol CalendarService {
+    func getStatus(_ request: HouseId) throws -> CalendarStatus
+    func configureCalendar(_ request: ConfigureCalendarRequest) throws -> CalendarStatus
+    func beginConnect(_ request: HouseId) throws -> CalendarConnectResponse
+    func completeConnect(_ request: CompleteCalendarConnectRequest) throws -> CalendarStatus
+    func disconnect(_ request: HouseId) throws -> EmptyResponse
+    func previewMigration(_ request: HouseId) throws -> [CalendarMigrationRow]
+    func listTrash(_ request: HouseId) throws -> [CalendarTrashEntry]
+    func restoreEvent(_ request: RestoreCalendarEventRequest) throws -> Event
 }
 
 /// TaskService is the server-side handler seam.

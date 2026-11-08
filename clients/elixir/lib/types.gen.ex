@@ -1406,11 +1406,20 @@ defmodule Csilgen.Generated.Event do
     :location,
     :starts_at,
     :ends_at,
+    :timezone,
+    :recurrence_rule,
     :recurrence_freq,
     :recurrence_by_weekday,
     :recurrence_by_setpos,
     :next_recurrence_at,
     :recurrence_root_event_id,
+    :calendar_state,
+    :revision,
+    :proposed_by_member_id,
+    :publication_error,
+    :edit_pending_member_id,
+    :calendar_unbound,
+    :edit_scope,
     :created_at,
     :updated_at,
     all_day: false,
@@ -1427,12 +1436,21 @@ defmodule Csilgen.Generated.Event do
           starts_at: Csilgen.Generated.Timestamp.t() | nil,
           ends_at: Csilgen.Generated.Timestamp.t() | nil,
           all_day: boolean() | nil,
+          timezone: String.t() | nil,
+          recurrence_rule: String.t() | nil,
           recurrence_freq: Csilgen.Generated.RecurrenceFreq.t() | nil,
           recurrence_interval: integer() | nil,
           recurrence_by_weekday: [integer()] | nil,
           recurrence_by_setpos: integer() | nil,
           next_recurrence_at: Csilgen.Generated.Timestamp.t() | nil,
           recurrence_root_event_id: Csilgen.Generated.EventID.t() | nil,
+          calendar_state: String.t() | nil,
+          revision: integer() | nil,
+          proposed_by_member_id: Csilgen.Generated.MemberID.t() | nil,
+          publication_error: String.t() | nil,
+          edit_pending_member_id: Csilgen.Generated.MemberID.t() | nil,
+          calendar_unbound: boolean() | nil,
+          edit_scope: String.t() | nil,
           created_at: Csilgen.Generated.Timestamp.t(),
           updated_at: Csilgen.Generated.Timestamp.t()
         }
@@ -1447,12 +1465,21 @@ defmodule Csilgen.Generated.Event do
     starts_at: "starts_at",
     ends_at: "ends_at",
     all_day: "all_day",
+    timezone: "timezone",
+    recurrence_rule: "recurrence_rule",
     recurrence_freq: "recurrence_freq",
     recurrence_interval: "recurrence_interval",
     recurrence_by_weekday: "recurrence_by_weekday",
     recurrence_by_setpos: "recurrence_by_setpos",
     next_recurrence_at: "next_recurrence_at",
     recurrence_root_event_id: "recurrence_root_event_id",
+    calendar_state: "calendar_state",
+    revision: "revision",
+    proposed_by_member_id: "proposed_by_member_id",
+    publication_error: "publication_error",
+    edit_pending_member_id: "edit_pending_member_id",
+    calendar_unbound: "calendar_unbound",
+    edit_scope: "edit_scope",
     created_at: "created_at",
     updated_at: "updated_at"
   ]
@@ -1472,17 +1499,36 @@ defmodule Csilgen.Generated.Event do
          {{:text, "event_id"}, {:text, v.event_id}},
          {{:text, "house_id"}, {:text, v.house_id}},
          if(is_nil(v.location), do: nil, else: {{:text, "location"}, {:text, v.location}}),
+         if(is_nil(v.revision), do: nil, else: {{:text, "revision"}, {:int, v.revision}}),
+         if(is_nil(v.timezone), do: nil, else: {{:text, "timezone"}, {:text, v.timezone}}),
          if(is_nil(v.starts_at), do: nil, else: {{:text, "starts_at"}, {:text, v.starts_at}}),
          {{:text, "created_at"}, {:text, v.created_at}},
+         if(is_nil(v.edit_scope), do: nil, else: {{:text, "edit_scope"}, {:text, v.edit_scope}}),
          {{:text, "updated_at"}, {:text, v.updated_at}},
          if(is_nil(v.description),
            do: nil,
            else: {{:text, "description"}, {:text, v.description}}
          ),
+         if(is_nil(v.calendar_state),
+           do: nil,
+           else: {{:text, "calendar_state"}, {:text, v.calendar_state}}
+         ),
          {{:text, "owner_member_id"}, {:text, v.owner_member_id}},
          if(is_nil(v.recurrence_freq),
            do: nil,
            else: {{:text, "recurrence_freq"}, {:text, v.recurrence_freq}}
+         ),
+         if(is_nil(v.recurrence_rule),
+           do: nil,
+           else: {{:text, "recurrence_rule"}, {:text, v.recurrence_rule}}
+         ),
+         if(is_nil(v.calendar_unbound),
+           do: nil,
+           else: {{:text, "calendar_unbound"}, {:bool, v.calendar_unbound}}
+         ),
+         if(is_nil(v.publication_error),
+           do: nil,
+           else: {{:text, "publication_error"}, {:text, v.publication_error}}
          ),
          if(is_nil(v.next_recurrence_at),
            do: nil,
@@ -1496,11 +1542,19 @@ defmodule Csilgen.Generated.Event do
            do: nil,
            else: {{:text, "recurrence_by_setpos"}, {:int, v.recurrence_by_setpos}}
          ),
+         if(is_nil(v.proposed_by_member_id),
+           do: nil,
+           else: {{:text, "proposed_by_member_id"}, {:text, v.proposed_by_member_id}}
+         ),
          if(is_nil(v.recurrence_by_weekday),
            do: nil,
            else:
              {{:text, "recurrence_by_weekday"},
               {:array, Enum.map(v.recurrence_by_weekday, fn csil_e -> {:int, csil_e} end)}}
+         ),
+         if(is_nil(v.edit_pending_member_id),
+           do: nil,
+           else: {{:text, "edit_pending_member_id"}, {:text, v.edit_pending_member_id}}
          ),
          if(is_nil(v.recurrence_root_event_id),
            do: nil,
@@ -1535,15 +1589,35 @@ defmodule Csilgen.Generated.Event do
           nil -> nil
           csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
         end,
+      revision:
+        case Map.get(csil_fields, {:text, "revision"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_int(csil_v)
+        end,
+      timezone:
+        case Map.get(csil_fields, {:text, "timezone"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end,
       starts_at:
         case Map.get(csil_fields, {:text, "starts_at"}) do
           nil -> nil
           csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
         end,
       created_at: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "created_at"})),
+      edit_scope:
+        case Map.get(csil_fields, {:text, "edit_scope"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end,
       updated_at: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "updated_at"})),
       description:
         case Map.get(csil_fields, {:text, "description"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end,
+      calendar_state:
+        case Map.get(csil_fields, {:text, "calendar_state"}) do
           nil -> nil
           csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
         end,
@@ -1578,6 +1652,21 @@ defmodule Csilgen.Generated.Event do
                 raise("csilgen: unknown RecurrenceFreq literal #{inspect(csil_other)}")
             end
         end,
+      recurrence_rule:
+        case Map.get(csil_fields, {:text, "recurrence_rule"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end,
+      calendar_unbound:
+        case Map.get(csil_fields, {:text, "calendar_unbound"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_bool(csil_v)
+        end,
+      publication_error:
+        case Map.get(csil_fields, {:text, "publication_error"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end,
       next_recurrence_at:
         case Map.get(csil_fields, {:text, "next_recurrence_at"}) do
           nil -> nil
@@ -1593,6 +1682,11 @@ defmodule Csilgen.Generated.Event do
           nil -> nil
           csil_v -> Csilgen.Generated.Cbor.to_int(csil_v)
         end,
+      proposed_by_member_id:
+        case Map.get(csil_fields, {:text, "proposed_by_member_id"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end,
       recurrence_by_weekday:
         case Map.get(csil_fields, {:text, "recurrence_by_weekday"}) do
           nil ->
@@ -1603,6 +1697,11 @@ defmodule Csilgen.Generated.Event do
               {:array, csil_xs} ->
                 Enum.map(csil_xs, fn csil_e -> Csilgen.Generated.Cbor.to_int(csil_e) end)
             end
+        end,
+      edit_pending_member_id:
+        case Map.get(csil_fields, {:text, "edit_pending_member_id"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
         end,
       recurrence_root_event_id:
         case Map.get(csil_fields, {:text, "recurrence_root_event_id"}) do
@@ -6233,6 +6332,457 @@ defmodule Csilgen.Generated.CalendarView do
         end,
       viewer_member_id:
         Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "viewer_member_id"}))
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
+defmodule Csilgen.Generated.EventDecision do
+  @moduledoc "Generated struct for the EventDecision type."
+
+  @enforce_keys [:event_id, :revision]
+  defstruct [:event_id, :revision]
+
+  @type t :: %__MODULE__{
+          event_id: Csilgen.Generated.EventID.t(),
+          revision: integer()
+        }
+
+  @wire_keys [event_id: "event_id", revision: "revision"]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         {{:text, "event_id"}, {:text, v.event_id}},
+         {{:text, "revision"}, {:int, v.revision}}
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+
+    %__MODULE__{
+      event_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "event_id"})),
+      revision: Csilgen.Generated.Cbor.to_int(Map.fetch!(csil_fields, {:text, "revision"}))
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
+defmodule Csilgen.Generated.CalendarStatus do
+  @moduledoc "Generated struct for the CalendarStatus type."
+
+  @enforce_keys [:house_id, :available, :enabled, :ready, :connected]
+  defstruct [
+    :house_id,
+    :available,
+    :enabled,
+    :ready,
+    :connected,
+    :last_error,
+    :sync_pending_since
+  ]
+
+  @type t :: %__MODULE__{
+          house_id: Csilgen.Generated.HouseID.t(),
+          available: boolean(),
+          enabled: boolean(),
+          ready: boolean(),
+          connected: boolean(),
+          last_error: String.t() | nil,
+          sync_pending_since: Csilgen.Generated.Timestamp.t() | nil
+        }
+
+  @wire_keys [
+    house_id: "house_id",
+    available: "available",
+    enabled: "enabled",
+    ready: "ready",
+    connected: "connected",
+    last_error: "last_error",
+    sync_pending_since: "sync_pending_since"
+  ]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         {{:text, "ready"}, {:bool, v.ready}},
+         {{:text, "enabled"}, {:bool, v.enabled}},
+         {{:text, "house_id"}, {:text, v.house_id}},
+         {{:text, "available"}, {:bool, v.available}},
+         {{:text, "connected"}, {:bool, v.connected}},
+         if(is_nil(v.last_error), do: nil, else: {{:text, "last_error"}, {:text, v.last_error}}),
+         if(is_nil(v.sync_pending_since),
+           do: nil,
+           else: {{:text, "sync_pending_since"}, {:text, v.sync_pending_since}}
+         )
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+
+    %__MODULE__{
+      ready: Csilgen.Generated.Cbor.to_bool(Map.fetch!(csil_fields, {:text, "ready"})),
+      enabled: Csilgen.Generated.Cbor.to_bool(Map.fetch!(csil_fields, {:text, "enabled"})),
+      house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
+      available: Csilgen.Generated.Cbor.to_bool(Map.fetch!(csil_fields, {:text, "available"})),
+      connected: Csilgen.Generated.Cbor.to_bool(Map.fetch!(csil_fields, {:text, "connected"})),
+      last_error:
+        case Map.get(csil_fields, {:text, "last_error"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end,
+      sync_pending_since:
+        case Map.get(csil_fields, {:text, "sync_pending_since"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
+        end
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
+defmodule Csilgen.Generated.ConfigureCalendarRequest do
+  @moduledoc "Generated struct for the ConfigureCalendarRequest type."
+
+  @enforce_keys [:house_id, :enabled]
+  defstruct [:house_id, :enabled]
+
+  @type t :: %__MODULE__{
+          house_id: Csilgen.Generated.HouseID.t(),
+          enabled: boolean()
+        }
+
+  @wire_keys [house_id: "house_id", enabled: "enabled"]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         {{:text, "enabled"}, {:bool, v.enabled}},
+         {{:text, "house_id"}, {:text, v.house_id}}
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+
+    %__MODULE__{
+      enabled: Csilgen.Generated.Cbor.to_bool(Map.fetch!(csil_fields, {:text, "enabled"})),
+      house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"}))
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
+defmodule Csilgen.Generated.CalendarConnectResponse do
+  @moduledoc "Generated struct for the CalendarConnectResponse type."
+
+  @enforce_keys [:url]
+  defstruct [:url]
+
+  @type t :: %__MODULE__{
+          url: String.t()
+        }
+
+  @wire_keys [url: "url"]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         {{:text, "url"}, {:text, v.url}}
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+
+    %__MODULE__{
+      url: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "url"}))
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
+defmodule Csilgen.Generated.CompleteCalendarConnectRequest do
+  @moduledoc "Generated struct for the CompleteCalendarConnectRequest type."
+
+  @enforce_keys [:house_id, :grant_id, :nonce]
+  defstruct [:house_id, :grant_id, :nonce]
+
+  @type t :: %__MODULE__{
+          house_id: Csilgen.Generated.HouseID.t(),
+          grant_id: String.t(),
+          nonce: String.t()
+        }
+
+  @wire_keys [house_id: "house_id", grant_id: "grant_id", nonce: "nonce"]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         {{:text, "nonce"}, {:text, v.nonce}},
+         {{:text, "grant_id"}, {:text, v.grant_id}},
+         {{:text, "house_id"}, {:text, v.house_id}}
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+
+    %__MODULE__{
+      nonce: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "nonce"})),
+      grant_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "grant_id"})),
+      house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"}))
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
+defmodule Csilgen.Generated.CalendarTrashEntry do
+  @moduledoc "Generated struct for the CalendarTrashEntry type."
+
+  @enforce_keys [:trash_id, :event, :deleted_at, :expires_at]
+  defstruct [:trash_id, :event, :deleted_at, :expires_at]
+
+  @type t :: %__MODULE__{
+          trash_id: String.t(),
+          event: Csilgen.Generated.Event.t(),
+          deleted_at: Csilgen.Generated.Timestamp.t(),
+          expires_at: Csilgen.Generated.Timestamp.t()
+        }
+
+  @wire_keys [
+    trash_id: "trash_id",
+    event: "event",
+    deleted_at: "deleted_at",
+    expires_at: "expires_at"
+  ]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         {{:text, "event"}, Csilgen.Generated.Event.to_cbor_value(v.event)},
+         {{:text, "trash_id"}, {:text, v.trash_id}},
+         {{:text, "deleted_at"}, {:text, v.deleted_at}},
+         {{:text, "expires_at"}, {:text, v.expires_at}}
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+
+    %__MODULE__{
+      event: Csilgen.Generated.Event.from_cbor_value(Map.fetch!(csil_fields, {:text, "event"})),
+      trash_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "trash_id"})),
+      deleted_at: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "deleted_at"})),
+      expires_at: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "expires_at"}))
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
+defmodule Csilgen.Generated.RestoreCalendarEventRequest do
+  @moduledoc "Generated struct for the RestoreCalendarEventRequest type."
+
+  @enforce_keys [:house_id, :trash_id]
+  defstruct [:house_id, :trash_id]
+
+  @type t :: %__MODULE__{
+          house_id: Csilgen.Generated.HouseID.t(),
+          trash_id: String.t()
+        }
+
+  @wire_keys [house_id: "house_id", trash_id: "trash_id"]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         {{:text, "house_id"}, {:text, v.house_id}},
+         {{:text, "trash_id"}, {:text, v.trash_id}}
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+
+    %__MODULE__{
+      house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
+      trash_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "trash_id"}))
+    }
+  end
+
+  @doc "Encodes this struct to canonical CBOR bytes."
+  @spec to_cbor(t()) :: binary()
+  def to_cbor(v), do: Csilgen.Generated.Cbor.encode(to_cbor_value(v))
+
+  @doc "Decodes canonical CBOR bytes into this struct."
+  @spec from_cbor(binary()) :: t()
+  def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
+defmodule Csilgen.Generated.CalendarMigrationRow do
+  @moduledoc "Generated struct for the CalendarMigrationRow type."
+
+  @enforce_keys [:event_id, :title, :disposition, :reason]
+  defstruct [:event_id, :title, :disposition, :reason]
+
+  @type t :: %__MODULE__{
+          event_id: Csilgen.Generated.EventID.t(),
+          title: String.t(),
+          disposition: String.t(),
+          reason: String.t()
+        }
+
+  @wire_keys [event_id: "event_id", title: "title", disposition: "disposition", reason: "reason"]
+  @doc "Maps struct field atoms to their verbatim CBOR wire keys."
+  @spec wire_keys() :: keyword()
+  def wire_keys, do: @wire_keys
+
+  @doc "Builds the canonical CBOR value tree for this struct."
+  @spec to_cbor_value(t()) :: Csilgen.Generated.Cbor.value()
+  def to_cbor_value(%__MODULE__{} = v) do
+    {:map,
+     Enum.reject(
+       [
+         {{:text, "title"}, {:text, v.title}},
+         {{:text, "reason"}, {:text, v.reason}},
+         {{:text, "event_id"}, {:text, v.event_id}},
+         {{:text, "disposition"}, {:text, v.disposition}}
+       ],
+       &is_nil/1
+     )}
+  end
+
+  @doc "Reconstructs this struct from a decoded CBOR value tree."
+  @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:map, csil_kvs}) do
+    csil_fields = Map.new(csil_kvs)
+
+    %__MODULE__{
+      title: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "title"})),
+      reason: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "reason"})),
+      event_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "event_id"})),
+      disposition: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "disposition"}))
     }
   end
 

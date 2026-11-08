@@ -999,16 +999,25 @@ public extension Event {
         csilEntries.append((.text("event_id"), .text(self.eventId)))
         csilEntries.append((.text("house_id"), .text(self.houseId)))
         if let csilV = self.location { csilEntries.append((.text("location"), .text(csilV))) }
+        if let csilV = self.revision { csilEntries.append((.text("revision"), .uint(csilV))) }
+        if let csilV = self.timezone { csilEntries.append((.text("timezone"), .text(csilV))) }
         if let csilV = self.startsAt { csilEntries.append((.text("starts_at"), .text(csilV))) }
         csilEntries.append((.text("created_at"), .text(self.createdAt)))
+        if let csilV = self.editScope { csilEntries.append((.text("edit_scope"), .text(csilV))) }
         csilEntries.append((.text("updated_at"), .text(self.updatedAt)))
         if let csilV = self.description { csilEntries.append((.text("description"), .text(csilV))) }
+        if let csilV = self.calendarState { csilEntries.append((.text("calendar_state"), .text(csilV))) }
         csilEntries.append((.text("owner_member_id"), .text(self.ownerMemberId)))
         if let csilV = self.recurrenceFreq { csilEntries.append((.text("recurrence_freq"), csilV.toCborValue())) }
+        if let csilV = self.recurrenceRule { csilEntries.append((.text("recurrence_rule"), .text(csilV))) }
+        if let csilV = self.calendarUnbound { csilEntries.append((.text("calendar_unbound"), .bool(csilV))) }
+        if let csilV = self.publicationError { csilEntries.append((.text("publication_error"), .text(csilV))) }
         if let csilV = self.nextRecurrenceAt { csilEntries.append((.text("next_recurrence_at"), .text(csilV))) }
         if let csilV = self.recurrenceInterval { csilEntries.append((.text("recurrence_interval"), .int(csilV))) }
         if let csilV = self.recurrenceBySetpos { csilEntries.append((.text("recurrence_by_setpos"), .int(csilV))) }
+        if let csilV = self.proposedByMemberId { csilEntries.append((.text("proposed_by_member_id"), .text(csilV))) }
         if let csilV = self.recurrenceByWeekday { csilEntries.append((.text("recurrence_by_weekday"), CsilCborValue.array(csilV.map { .int($0) }))) }
+        if let csilV = self.editPendingMemberId { csilEntries.append((.text("edit_pending_member_id"), .text(csilV))) }
         if let csilV = self.recurrenceRootEventId { csilEntries.append((.text("recurrence_root_event_id"), .text(csilV))) }
         return .map(csilEntries)
     }
@@ -1024,15 +1033,24 @@ public extension Event {
         let startsAt: Timestamp? = if let csilV = CsilCbor.mapGet(cborValue, "starts_at") { try CsilCbor.asText(csilV) } else { nil }
         let endsAt: Timestamp? = if let csilV = CsilCbor.mapGet(cborValue, "ends_at") { try CsilCbor.asText(csilV) } else { nil }
         let allDay: Bool? = if let csilV = CsilCbor.mapGet(cborValue, "all_day") { try CsilCbor.asBool(csilV) } else { nil }
+        let timezone: String? = if let csilV = CsilCbor.mapGet(cborValue, "timezone") { try CsilCbor.asText(csilV) } else { nil }
+        let recurrenceRule: String? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_rule") { try CsilCbor.asText(csilV) } else { nil }
         let recurrenceFreq: RecurrenceFreq? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_freq") { try RecurrenceFreq(cborValue: csilV) } else { nil }
         let recurrenceInterval: Int64? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_interval") { try CsilCbor.asI64(csilV) } else { nil }
         let recurrenceByWeekday: [Int64]? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_by_weekday") { try CsilCbor.asArray(csilV).map { try CsilCbor.asI64($0) } } else { nil }
         let recurrenceBySetpos: Int64? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_by_setpos") { try CsilCbor.asI64(csilV) } else { nil }
         let nextRecurrenceAt: Timestamp? = if let csilV = CsilCbor.mapGet(cborValue, "next_recurrence_at") { try CsilCbor.asText(csilV) } else { nil }
         let recurrenceRootEventId: EventId? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_root_event_id") { try CsilCbor.asText(csilV) } else { nil }
+        let calendarState: String? = if let csilV = CsilCbor.mapGet(cborValue, "calendar_state") { try CsilCbor.asText(csilV) } else { nil }
+        let revision: UInt64? = if let csilV = CsilCbor.mapGet(cborValue, "revision") { try CsilCbor.asU64(csilV) } else { nil }
+        let proposedByMemberId: MemberId? = if let csilV = CsilCbor.mapGet(cborValue, "proposed_by_member_id") { try CsilCbor.asText(csilV) } else { nil }
+        let publicationError: String? = if let csilV = CsilCbor.mapGet(cborValue, "publication_error") { try CsilCbor.asText(csilV) } else { nil }
+        let editPendingMemberId: MemberId? = if let csilV = CsilCbor.mapGet(cborValue, "edit_pending_member_id") { try CsilCbor.asText(csilV) } else { nil }
+        let calendarUnbound: Bool? = if let csilV = CsilCbor.mapGet(cborValue, "calendar_unbound") { try CsilCbor.asBool(csilV) } else { nil }
+        let editScope: String? = if let csilV = CsilCbor.mapGet(cborValue, "edit_scope") { try CsilCbor.asText(csilV) } else { nil }
         let createdAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "created_at")))
         let updatedAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "updated_at")))
-        self.init(eventId: eventId, houseId: houseId, ownerMemberId: ownerMemberId, title: title, description: description, location: location, startsAt: startsAt, endsAt: endsAt, allDay: allDay, recurrenceFreq: recurrenceFreq, recurrenceInterval: recurrenceInterval, recurrenceByWeekday: recurrenceByWeekday, recurrenceBySetpos: recurrenceBySetpos, nextRecurrenceAt: nextRecurrenceAt, recurrenceRootEventId: recurrenceRootEventId, createdAt: createdAt, updatedAt: updatedAt)
+        self.init(eventId: eventId, houseId: houseId, ownerMemberId: ownerMemberId, title: title, description: description, location: location, startsAt: startsAt, endsAt: endsAt, allDay: allDay, timezone: timezone, recurrenceRule: recurrenceRule, recurrenceFreq: recurrenceFreq, recurrenceInterval: recurrenceInterval, recurrenceByWeekday: recurrenceByWeekday, recurrenceBySetpos: recurrenceBySetpos, nextRecurrenceAt: nextRecurrenceAt, recurrenceRootEventId: recurrenceRootEventId, calendarState: calendarState, revision: revision, proposedByMemberId: proposedByMemberId, publicationError: publicationError, editPendingMemberId: editPendingMemberId, calendarUnbound: calendarUnbound, editScope: editScope, createdAt: createdAt, updatedAt: updatedAt)
     }
 
     /// Encode this record to canonical CSIL CBOR bytes.
@@ -2787,6 +2805,208 @@ public extension CalendarView {
     static func fromCbor(_ bytes: [UInt8]) throws -> CalendarView { try CalendarView(cborValue: CsilCbor.decode(bytes)) }
 }
 
+public extension EventDecision {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("event_id"), .text(self.eventId)))
+        csilEntries.append((.text("revision"), .uint(self.revision)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let eventId = try CsilCbor.asText((try CsilCbor.require(cborValue, "event_id")))
+        let revision = try CsilCbor.asU64((try CsilCbor.require(cborValue, "revision")))
+        self.init(eventId: eventId, revision: revision)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> EventDecision { try EventDecision(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension CalendarStatus {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("ready"), .bool(self.ready)))
+        csilEntries.append((.text("enabled"), .bool(self.enabled)))
+        csilEntries.append((.text("house_id"), .text(self.houseId)))
+        csilEntries.append((.text("available"), .bool(self.available)))
+        csilEntries.append((.text("connected"), .bool(self.connected)))
+        if let csilV = self.lastError { csilEntries.append((.text("last_error"), .text(csilV))) }
+        if let csilV = self.syncPendingSince { csilEntries.append((.text("sync_pending_since"), .text(csilV))) }
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let houseId = try CsilCbor.asText((try CsilCbor.require(cborValue, "house_id")))
+        let available = try CsilCbor.asBool((try CsilCbor.require(cborValue, "available")))
+        let enabled = try CsilCbor.asBool((try CsilCbor.require(cborValue, "enabled")))
+        let ready = try CsilCbor.asBool((try CsilCbor.require(cborValue, "ready")))
+        let connected = try CsilCbor.asBool((try CsilCbor.require(cborValue, "connected")))
+        let lastError: String? = if let csilV = CsilCbor.mapGet(cborValue, "last_error") { try CsilCbor.asText(csilV) } else { nil }
+        let syncPendingSince: Timestamp? = if let csilV = CsilCbor.mapGet(cborValue, "sync_pending_since") { try CsilCbor.asText(csilV) } else { nil }
+        self.init(houseId: houseId, available: available, enabled: enabled, ready: ready, connected: connected, lastError: lastError, syncPendingSince: syncPendingSince)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> CalendarStatus { try CalendarStatus(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension ConfigureCalendarRequest {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("enabled"), .bool(self.enabled)))
+        csilEntries.append((.text("house_id"), .text(self.houseId)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let houseId = try CsilCbor.asText((try CsilCbor.require(cborValue, "house_id")))
+        let enabled = try CsilCbor.asBool((try CsilCbor.require(cborValue, "enabled")))
+        self.init(houseId: houseId, enabled: enabled)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> ConfigureCalendarRequest { try ConfigureCalendarRequest(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension CalendarConnectResponse {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("url"), .text(self.url)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let url = try CsilCbor.asText((try CsilCbor.require(cborValue, "url")))
+        self.init(url: url)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> CalendarConnectResponse { try CalendarConnectResponse(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension CompleteCalendarConnectRequest {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("nonce"), .text(self.nonce)))
+        csilEntries.append((.text("grant_id"), .text(self.grantId)))
+        csilEntries.append((.text("house_id"), .text(self.houseId)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let houseId = try CsilCbor.asText((try CsilCbor.require(cborValue, "house_id")))
+        let grantId = try CsilCbor.asText((try CsilCbor.require(cborValue, "grant_id")))
+        let nonce = try CsilCbor.asText((try CsilCbor.require(cborValue, "nonce")))
+        self.init(houseId: houseId, grantId: grantId, nonce: nonce)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> CompleteCalendarConnectRequest { try CompleteCalendarConnectRequest(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension CalendarTrashEntry {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("event"), self.event.toCborValue()))
+        csilEntries.append((.text("trash_id"), .text(self.trashId)))
+        csilEntries.append((.text("deleted_at"), .text(self.deletedAt)))
+        csilEntries.append((.text("expires_at"), .text(self.expiresAt)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let trashId = try CsilCbor.asText((try CsilCbor.require(cborValue, "trash_id")))
+        let event = try Event(cborValue: (try CsilCbor.require(cborValue, "event")))
+        let deletedAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "deleted_at")))
+        let expiresAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "expires_at")))
+        self.init(trashId: trashId, event: event, deletedAt: deletedAt, expiresAt: expiresAt)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> CalendarTrashEntry { try CalendarTrashEntry(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension RestoreCalendarEventRequest {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("house_id"), .text(self.houseId)))
+        csilEntries.append((.text("trash_id"), .text(self.trashId)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let houseId = try CsilCbor.asText((try CsilCbor.require(cborValue, "house_id")))
+        let trashId = try CsilCbor.asText((try CsilCbor.require(cborValue, "trash_id")))
+        self.init(houseId: houseId, trashId: trashId)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> RestoreCalendarEventRequest { try RestoreCalendarEventRequest(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension CalendarMigrationRow {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("title"), .text(self.title)))
+        csilEntries.append((.text("reason"), .text(self.reason)))
+        csilEntries.append((.text("event_id"), .text(self.eventId)))
+        csilEntries.append((.text("disposition"), .text(self.disposition)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let eventId = try CsilCbor.asText((try CsilCbor.require(cborValue, "event_id")))
+        let title = try CsilCbor.asText((try CsilCbor.require(cborValue, "title")))
+        let disposition = try CsilCbor.asText((try CsilCbor.require(cborValue, "disposition")))
+        let reason = try CsilCbor.asText((try CsilCbor.require(cborValue, "reason")))
+        self.init(eventId: eventId, title: title, disposition: disposition, reason: reason)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> CalendarMigrationRow { try CalendarMigrationRow(cborValue: CsilCbor.decode(bytes)) }
+}
+
 public extension AuditEntry {
     /// The CBOR value tree for this record (deep, canonical key order).
     func toCborValue() -> CsilCborValue {
@@ -3407,6 +3627,116 @@ public func encodeEventGetCalendarViewRequest(_ value: HouseId) -> [UInt8] {
 public func decodeEventGetCalendarViewRequest(_ bytes: [UInt8]) throws -> HouseId {
     let csilRoot = try CsilCbor.decode(bytes)
     return try CsilCbor.asText(csilRoot)
+}
+
+/// Encode the EventRecoverEditRequest payload to canonical CSIL CBOR bytes.
+public func encodeEventRecoverEditRequest(_ value: EventId) -> [UInt8] {
+    CsilCbor.encode(.text(value))
+}
+
+/// Decode canonical CSIL CBOR bytes into the EventRecoverEditRequest payload.
+public func decodeEventRecoverEditRequest(_ bytes: [UInt8]) throws -> EventId {
+    let csilRoot = try CsilCbor.decode(bytes)
+    return try CsilCbor.asText(csilRoot)
+}
+
+/// Encode the EventListLocalEventsRequest payload to canonical CSIL CBOR bytes.
+public func encodeEventListLocalEventsRequest(_ value: HouseId) -> [UInt8] {
+    CsilCbor.encode(.text(value))
+}
+
+/// Decode canonical CSIL CBOR bytes into the EventListLocalEventsRequest payload.
+public func decodeEventListLocalEventsRequest(_ bytes: [UInt8]) throws -> HouseId {
+    let csilRoot = try CsilCbor.decode(bytes)
+    return try CsilCbor.asText(csilRoot)
+}
+
+/// Encode the EventListLocalEventsResponse payload to canonical CSIL CBOR bytes.
+public func encodeEventListLocalEventsResponse(_ value: [Event]) -> [UInt8] {
+    CsilCbor.encode(CsilCborValue.array(value.map { $0.toCborValue() }))
+}
+
+/// Decode canonical CSIL CBOR bytes into the EventListLocalEventsResponse payload.
+public func decodeEventListLocalEventsResponse(_ bytes: [UInt8]) throws -> [Event] {
+    let csilRoot = try CsilCbor.decode(bytes)
+    return try CsilCbor.asArray(csilRoot).map { try Event(cborValue: $0) }
+}
+
+/// Encode the CalendarGetStatusRequest payload to canonical CSIL CBOR bytes.
+public func encodeCalendarGetStatusRequest(_ value: HouseId) -> [UInt8] {
+    CsilCbor.encode(.text(value))
+}
+
+/// Decode canonical CSIL CBOR bytes into the CalendarGetStatusRequest payload.
+public func decodeCalendarGetStatusRequest(_ bytes: [UInt8]) throws -> HouseId {
+    let csilRoot = try CsilCbor.decode(bytes)
+    return try CsilCbor.asText(csilRoot)
+}
+
+/// Encode the CalendarBeginConnectRequest payload to canonical CSIL CBOR bytes.
+public func encodeCalendarBeginConnectRequest(_ value: HouseId) -> [UInt8] {
+    CsilCbor.encode(.text(value))
+}
+
+/// Decode canonical CSIL CBOR bytes into the CalendarBeginConnectRequest payload.
+public func decodeCalendarBeginConnectRequest(_ bytes: [UInt8]) throws -> HouseId {
+    let csilRoot = try CsilCbor.decode(bytes)
+    return try CsilCbor.asText(csilRoot)
+}
+
+/// Encode the CalendarDisconnectRequest payload to canonical CSIL CBOR bytes.
+public func encodeCalendarDisconnectRequest(_ value: HouseId) -> [UInt8] {
+    CsilCbor.encode(.text(value))
+}
+
+/// Decode canonical CSIL CBOR bytes into the CalendarDisconnectRequest payload.
+public func decodeCalendarDisconnectRequest(_ bytes: [UInt8]) throws -> HouseId {
+    let csilRoot = try CsilCbor.decode(bytes)
+    return try CsilCbor.asText(csilRoot)
+}
+
+/// Encode the CalendarPreviewMigrationRequest payload to canonical CSIL CBOR bytes.
+public func encodeCalendarPreviewMigrationRequest(_ value: HouseId) -> [UInt8] {
+    CsilCbor.encode(.text(value))
+}
+
+/// Decode canonical CSIL CBOR bytes into the CalendarPreviewMigrationRequest payload.
+public func decodeCalendarPreviewMigrationRequest(_ bytes: [UInt8]) throws -> HouseId {
+    let csilRoot = try CsilCbor.decode(bytes)
+    return try CsilCbor.asText(csilRoot)
+}
+
+/// Encode the CalendarPreviewMigrationResponse payload to canonical CSIL CBOR bytes.
+public func encodeCalendarPreviewMigrationResponse(_ value: [CalendarMigrationRow]) -> [UInt8] {
+    CsilCbor.encode(CsilCborValue.array(value.map { $0.toCborValue() }))
+}
+
+/// Decode canonical CSIL CBOR bytes into the CalendarPreviewMigrationResponse payload.
+public func decodeCalendarPreviewMigrationResponse(_ bytes: [UInt8]) throws -> [CalendarMigrationRow] {
+    let csilRoot = try CsilCbor.decode(bytes)
+    return try CsilCbor.asArray(csilRoot).map { try CalendarMigrationRow(cborValue: $0) }
+}
+
+/// Encode the CalendarListTrashRequest payload to canonical CSIL CBOR bytes.
+public func encodeCalendarListTrashRequest(_ value: HouseId) -> [UInt8] {
+    CsilCbor.encode(.text(value))
+}
+
+/// Decode canonical CSIL CBOR bytes into the CalendarListTrashRequest payload.
+public func decodeCalendarListTrashRequest(_ bytes: [UInt8]) throws -> HouseId {
+    let csilRoot = try CsilCbor.decode(bytes)
+    return try CsilCbor.asText(csilRoot)
+}
+
+/// Encode the CalendarListTrashResponse payload to canonical CSIL CBOR bytes.
+public func encodeCalendarListTrashResponse(_ value: [CalendarTrashEntry]) -> [UInt8] {
+    CsilCbor.encode(CsilCborValue.array(value.map { $0.toCborValue() }))
+}
+
+/// Decode canonical CSIL CBOR bytes into the CalendarListTrashResponse payload.
+public func decodeCalendarListTrashResponse(_ bytes: [UInt8]) throws -> [CalendarTrashEntry] {
+    let csilRoot = try CsilCbor.decode(bytes)
+    return try CsilCbor.asArray(csilRoot).map { try CalendarTrashEntry(cborValue: $0) }
 }
 
 /// Encode the TaskGetTaskRequest payload to canonical CSIL CBOR bytes.

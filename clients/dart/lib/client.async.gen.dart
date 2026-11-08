@@ -930,6 +930,134 @@ final class EventAsyncClient {
     );
     return CalendarView.fromCborValue(CsilCbor.decode(csilResp));
   }
+
+  Future<Event> acceptEvent(EventDecision request) async {
+    final csilResp = await transport.call(
+      'EventService',
+      'accept-event',
+      request.toCbor(),
+    );
+    return Event.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<Event> recoverEdit(EventId request) async {
+    final csilResp = await transport.call(
+      'EventService',
+      'recover-edit',
+      CsilCbor.encodeValue(request),
+    );
+    return Event.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<Event> declineEvent(EventDecision request) async {
+    final csilResp = await transport.call(
+      'EventService',
+      'decline-event',
+      request.toCbor(),
+    );
+    return Event.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<List<Event>> listLocalEvents(HouseId request) async {
+    final csilResp = await transport.call(
+      'EventService',
+      'list-local-events',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => Event.fromCborValue(csilE))
+        .cast<Event>()
+        .toList();
+  }
+}
+
+/// A typed, transport-agnostic client for the CalendarService service. The client owns
+/// (de)serialization; the carrier only moves bytes.
+final class CalendarAsyncClient {
+  final AsyncCsilTransport transport;
+  const CalendarAsyncClient(this.transport);
+
+  Future<CalendarStatus> getStatus(HouseId request) async {
+    final csilResp = await transport.call(
+      'CalendarService',
+      'get-status',
+      CsilCbor.encodeValue(request),
+    );
+    return CalendarStatus.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<CalendarStatus> configureCalendar(
+    ConfigureCalendarRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'CalendarService',
+      'configure-calendar',
+      request.toCbor(),
+    );
+    return CalendarStatus.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<CalendarConnectResponse> beginConnect(HouseId request) async {
+    final csilResp = await transport.call(
+      'CalendarService',
+      'begin-connect',
+      CsilCbor.encodeValue(request),
+    );
+    return CalendarConnectResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<CalendarStatus> completeConnect(
+    CompleteCalendarConnectRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'CalendarService',
+      'complete-connect',
+      request.toCbor(),
+    );
+    return CalendarStatus.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<EmptyResponse> disconnect(HouseId request) async {
+    final csilResp = await transport.call(
+      'CalendarService',
+      'disconnect',
+      CsilCbor.encodeValue(request),
+    );
+    return EmptyResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<List<CalendarMigrationRow>> previewMigration(HouseId request) async {
+    final csilResp = await transport.call(
+      'CalendarService',
+      'preview-migration',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => CalendarMigrationRow.fromCborValue(csilE))
+        .cast<CalendarMigrationRow>()
+        .toList();
+  }
+
+  Future<List<CalendarTrashEntry>> listTrash(HouseId request) async {
+    final csilResp = await transport.call(
+      'CalendarService',
+      'list-trash',
+      CsilCbor.encodeValue(request),
+    );
+    return (CsilCbor.decode(csilResp) as List)
+        .map((csilE) => CalendarTrashEntry.fromCborValue(csilE))
+        .cast<CalendarTrashEntry>()
+        .toList();
+  }
+
+  Future<Event> restoreEvent(RestoreCalendarEventRequest request) async {
+    final csilResp = await transport.call(
+      'CalendarService',
+      'restore-event',
+      request.toCbor(),
+    );
+    return Event.fromCborValue(CsilCbor.decode(csilResp));
+  }
 }
 
 /// A typed, transport-agnostic client for the TaskService service. The client owns

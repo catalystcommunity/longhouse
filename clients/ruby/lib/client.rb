@@ -517,6 +517,73 @@ class EventClient
   def set_calendar_view(req)
     CalendarView.from_cbor(@transport.call("EventService", "set-calendar-view", req.to_cbor))
   end
+
+  # accept-event: -> Event
+  def accept_event(req)
+    Event.from_cbor(@transport.call("EventService", "accept-event", req.to_cbor))
+  end
+
+  # recover-edit: -> Event
+  def recover_edit(req)
+    Event.from_cbor(@transport.call("EventService", "recover-edit", req.to_cbor))
+  end
+
+  # decline-event: -> Event
+  def decline_event(req)
+    Event.from_cbor(@transport.call("EventService", "decline-event", req.to_cbor))
+  end
+
+  # list-local-events: -> Array<Event>
+  def list_local_events(req)
+    @transport.call("EventService", "list-local-events", req.to_cbor)
+  end
+end
+
+# Typed client for the CalendarService service.
+class CalendarClient
+  def initialize(transport)
+    @transport = transport
+  end
+
+  # get-status: -> CalendarStatus
+  def get_status(req)
+    CalendarStatus.from_cbor(@transport.call("CalendarService", "get-status", req.to_cbor))
+  end
+
+  # configure-calendar: -> CalendarStatus
+  def configure_calendar(req)
+    CalendarStatus.from_cbor(@transport.call("CalendarService", "configure-calendar", req.to_cbor))
+  end
+
+  # begin-connect: -> CalendarConnectResponse
+  def begin_connect(req)
+    CalendarConnectResponse.from_cbor(@transport.call("CalendarService", "begin-connect", req.to_cbor))
+  end
+
+  # complete-connect: -> CalendarStatus
+  def complete_connect(req)
+    CalendarStatus.from_cbor(@transport.call("CalendarService", "complete-connect", req.to_cbor))
+  end
+
+  # disconnect: -> EmptyResponse
+  def disconnect(req)
+    EmptyResponse.from_cbor(@transport.call("CalendarService", "disconnect", req.to_cbor))
+  end
+
+  # preview-migration: -> Array<CalendarMigrationRow>
+  def preview_migration(req)
+    @transport.call("CalendarService", "preview-migration", req.to_cbor)
+  end
+
+  # list-trash: -> Array<CalendarTrashEntry>
+  def list_trash(req)
+    @transport.call("CalendarService", "list-trash", req.to_cbor)
+  end
+
+  # restore-event: -> Event
+  def restore_event(req)
+    Event.from_cbor(@transport.call("CalendarService", "restore-event", req.to_cbor))
+  end
 end
 
 # Typed client for the TaskService service.

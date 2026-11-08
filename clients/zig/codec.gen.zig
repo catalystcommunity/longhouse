@@ -1439,13 +1439,22 @@ fn enc_Event(out: *std.ArrayList(u8), v: *const types.Event) CodecError!void {
     if (v.all_day != null) csil_n += 1;
     if (v.ends_at != null) csil_n += 1;
     if (v.location != null) csil_n += 1;
+    if (v.revision != null) csil_n += 1;
+    if (v.timezone != null) csil_n += 1;
     if (v.starts_at != null) csil_n += 1;
+    if (v.edit_scope != null) csil_n += 1;
     if (v.description != null) csil_n += 1;
+    if (v.calendar_state != null) csil_n += 1;
     if (v.recurrence_freq != null) csil_n += 1;
+    if (v.recurrence_rule != null) csil_n += 1;
+    if (v.calendar_unbound != null) csil_n += 1;
+    if (v.publication_error != null) csil_n += 1;
     if (v.next_recurrence_at != null) csil_n += 1;
     if (v.recurrence_interval != null) csil_n += 1;
     if (v.recurrence_by_setpos != null) csil_n += 1;
+    if (v.proposed_by_member_id != null) csil_n += 1;
     if (v.recurrence_by_weekday != null) csil_n += 1;
+    if (v.edit_pending_member_id != null) csil_n += 1;
     if (v.recurrence_root_event_id != null) csil_n += 1;
     try w_map_head(out, csil_n);
     try w_text(out, "title");
@@ -1466,16 +1475,32 @@ fn enc_Event(out: *std.ArrayList(u8), v: *const types.Event) CodecError!void {
         try w_text(out, "location");
         try w_text(out, csil_x);
     }
+    if (v.revision) |csil_x| {
+        try w_text(out, "revision");
+        try w_uint(out, csil_x);
+    }
+    if (v.timezone) |csil_x| {
+        try w_text(out, "timezone");
+        try w_text(out, csil_x);
+    }
     if (v.starts_at) |csil_x| {
         try w_text(out, "starts_at");
         try w_text(out, csil_x);
     }
     try w_text(out, "created_at");
     try w_text(out, v.created_at);
+    if (v.edit_scope) |csil_x| {
+        try w_text(out, "edit_scope");
+        try w_text(out, csil_x);
+    }
     try w_text(out, "updated_at");
     try w_text(out, v.updated_at);
     if (v.description) |csil_x| {
         try w_text(out, "description");
+        try w_text(out, csil_x);
+    }
+    if (v.calendar_state) |csil_x| {
+        try w_text(out, "calendar_state");
         try w_text(out, csil_x);
     }
     try w_text(out, "owner_member_id");
@@ -1483,6 +1508,18 @@ fn enc_Event(out: *std.ArrayList(u8), v: *const types.Event) CodecError!void {
     if (v.recurrence_freq) |csil_x| {
         try w_text(out, "recurrence_freq");
         try enc_RecurrenceFreq(out, &(csil_x));
+    }
+    if (v.recurrence_rule) |csil_x| {
+        try w_text(out, "recurrence_rule");
+        try w_text(out, csil_x);
+    }
+    if (v.calendar_unbound) |csil_x| {
+        try w_text(out, "calendar_unbound");
+        try w_bool(out, csil_x);
+    }
+    if (v.publication_error) |csil_x| {
+        try w_text(out, "publication_error");
+        try w_text(out, csil_x);
     }
     if (v.next_recurrence_at) |csil_x| {
         try w_text(out, "next_recurrence_at");
@@ -1496,12 +1533,20 @@ fn enc_Event(out: *std.ArrayList(u8), v: *const types.Event) CodecError!void {
         try w_text(out, "recurrence_by_setpos");
         try w_int(out, csil_x);
     }
+    if (v.proposed_by_member_id) |csil_x| {
+        try w_text(out, "proposed_by_member_id");
+        try w_text(out, csil_x);
+    }
     if (v.recurrence_by_weekday) |csil_arr| {
         try w_text(out, "recurrence_by_weekday");
         try w_array_head(out, csil_arr.len);
         for (csil_arr) |csil_it| {
             try w_int(out, csil_it);
         }
+    }
+    if (v.edit_pending_member_id) |csil_x| {
+        try w_text(out, "edit_pending_member_id");
+        try w_text(out, csil_x);
     }
     if (v.recurrence_root_event_id) |csil_x| {
         try w_text(out, "recurrence_root_event_id");
@@ -1545,6 +1590,20 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
         }
     }
     {
+        if (mget(m, "revision")) |csil_fv| {
+            out.revision = try as_u64(csil_fv);
+        } else {
+            out.revision = null;
+        }
+    }
+    {
+        if (mget(m, "timezone")) |csil_fv| {
+            out.timezone = try as_text(csil_fv);
+        } else {
+            out.timezone = null;
+        }
+    }
+    {
         if (mget(m, "starts_at")) |csil_fv| {
             out.starts_at = try as_text(csil_fv);
         } else {
@@ -1554,6 +1613,13 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
     {
         const csil_fv = try req(m, "created_at");
         out.created_at = try as_text(csil_fv);
+    }
+    {
+        if (mget(m, "edit_scope")) |csil_fv| {
+            out.edit_scope = try as_text(csil_fv);
+        } else {
+            out.edit_scope = null;
+        }
     }
     {
         const csil_fv = try req(m, "updated_at");
@@ -1567,6 +1633,13 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
         }
     }
     {
+        if (mget(m, "calendar_state")) |csil_fv| {
+            out.calendar_state = try as_text(csil_fv);
+        } else {
+            out.calendar_state = null;
+        }
+    }
+    {
         const csil_fv = try req(m, "owner_member_id");
         out.owner_member_id = try as_text(csil_fv);
     }
@@ -1577,6 +1650,27 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
             out.recurrence_freq = csil_tmp;
         } else {
             out.recurrence_freq = null;
+        }
+    }
+    {
+        if (mget(m, "recurrence_rule")) |csil_fv| {
+            out.recurrence_rule = try as_text(csil_fv);
+        } else {
+            out.recurrence_rule = null;
+        }
+    }
+    {
+        if (mget(m, "calendar_unbound")) |csil_fv| {
+            out.calendar_unbound = try as_bool(csil_fv);
+        } else {
+            out.calendar_unbound = null;
+        }
+    }
+    {
+        if (mget(m, "publication_error")) |csil_fv| {
+            out.publication_error = try as_text(csil_fv);
+        } else {
+            out.publication_error = null;
         }
     }
     {
@@ -1601,6 +1695,13 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
         }
     }
     {
+        if (mget(m, "proposed_by_member_id")) |csil_fv| {
+            out.proposed_by_member_id = try as_text(csil_fv);
+        } else {
+            out.proposed_by_member_id = null;
+        }
+    }
+    {
         if (mget(m, "recurrence_by_weekday")) |csil_fv| {
             if (csil_fv != .array) return error.WrongType;
             const csil_tmp = try alloc.alloc(i64, csil_fv.array.len);
@@ -1610,6 +1711,13 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
             out.recurrence_by_weekday = csil_tmp;
         } else {
             out.recurrence_by_weekday = null;
+        }
+    }
+    {
+        if (mget(m, "edit_pending_member_id")) |csil_fv| {
+            out.edit_pending_member_id = try as_text(csil_fv);
+        } else {
+            out.edit_pending_member_id = null;
         }
     }
     {
@@ -4177,6 +4285,240 @@ fn dec_CalendarView(alloc: std.mem.Allocator, m: Value, out: *types.CalendarView
     }
 }
 
+fn enc_EventDecision(out: *std.ArrayList(u8), v: *const types.EventDecision) CodecError!void {
+    try w_map_head(out, 2);
+    try w_text(out, "event_id");
+    try w_text(out, v.event_id);
+    try w_text(out, "revision");
+    try w_uint(out, v.revision);
+}
+
+fn dec_EventDecision(alloc: std.mem.Allocator, m: Value, out: *types.EventDecision) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "event_id");
+        out.event_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "revision");
+        out.revision = try as_u64(csil_fv);
+    }
+}
+
+fn enc_CalendarStatus(out: *std.ArrayList(u8), v: *const types.CalendarStatus) CodecError!void {
+    var csil_n: usize = 5;
+    if (v.last_error != null) csil_n += 1;
+    if (v.sync_pending_since != null) csil_n += 1;
+    try w_map_head(out, csil_n);
+    try w_text(out, "ready");
+    try w_bool(out, v.ready);
+    try w_text(out, "enabled");
+    try w_bool(out, v.enabled);
+    try w_text(out, "house_id");
+    try w_text(out, v.house_id);
+    try w_text(out, "available");
+    try w_bool(out, v.available);
+    try w_text(out, "connected");
+    try w_bool(out, v.connected);
+    if (v.last_error) |csil_x| {
+        try w_text(out, "last_error");
+        try w_text(out, csil_x);
+    }
+    if (v.sync_pending_since) |csil_x| {
+        try w_text(out, "sync_pending_since");
+        try w_text(out, csil_x);
+    }
+}
+
+fn dec_CalendarStatus(alloc: std.mem.Allocator, m: Value, out: *types.CalendarStatus) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "ready");
+        out.ready = try as_bool(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "enabled");
+        out.enabled = try as_bool(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "house_id");
+        out.house_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "available");
+        out.available = try as_bool(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "connected");
+        out.connected = try as_bool(csil_fv);
+    }
+    {
+        if (mget(m, "last_error")) |csil_fv| {
+            out.last_error = try as_text(csil_fv);
+        } else {
+            out.last_error = null;
+        }
+    }
+    {
+        if (mget(m, "sync_pending_since")) |csil_fv| {
+            out.sync_pending_since = try as_text(csil_fv);
+        } else {
+            out.sync_pending_since = null;
+        }
+    }
+}
+
+fn enc_ConfigureCalendarRequest(out: *std.ArrayList(u8), v: *const types.ConfigureCalendarRequest) CodecError!void {
+    try w_map_head(out, 2);
+    try w_text(out, "enabled");
+    try w_bool(out, v.enabled);
+    try w_text(out, "house_id");
+    try w_text(out, v.house_id);
+}
+
+fn dec_ConfigureCalendarRequest(alloc: std.mem.Allocator, m: Value, out: *types.ConfigureCalendarRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "enabled");
+        out.enabled = try as_bool(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "house_id");
+        out.house_id = try as_text(csil_fv);
+    }
+}
+
+fn enc_CalendarConnectResponse(out: *std.ArrayList(u8), v: *const types.CalendarConnectResponse) CodecError!void {
+    try w_map_head(out, 1);
+    try w_text(out, "url");
+    try w_text(out, v.url);
+}
+
+fn dec_CalendarConnectResponse(alloc: std.mem.Allocator, m: Value, out: *types.CalendarConnectResponse) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "url");
+        out.url = try as_text(csil_fv);
+    }
+}
+
+fn enc_CompleteCalendarConnectRequest(out: *std.ArrayList(u8), v: *const types.CompleteCalendarConnectRequest) CodecError!void {
+    try w_map_head(out, 3);
+    try w_text(out, "nonce");
+    try w_text(out, v.nonce);
+    try w_text(out, "grant_id");
+    try w_text(out, v.grant_id);
+    try w_text(out, "house_id");
+    try w_text(out, v.house_id);
+}
+
+fn dec_CompleteCalendarConnectRequest(alloc: std.mem.Allocator, m: Value, out: *types.CompleteCalendarConnectRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "nonce");
+        out.nonce = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "grant_id");
+        out.grant_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "house_id");
+        out.house_id = try as_text(csil_fv);
+    }
+}
+
+fn enc_CalendarTrashEntry(out: *std.ArrayList(u8), v: *const types.CalendarTrashEntry) CodecError!void {
+    try w_map_head(out, 4);
+    try w_text(out, "event");
+    try enc_Event(out, &(v.event));
+    try w_text(out, "trash_id");
+    try w_text(out, v.trash_id);
+    try w_text(out, "deleted_at");
+    try w_text(out, v.deleted_at);
+    try w_text(out, "expires_at");
+    try w_text(out, v.expires_at);
+}
+
+fn dec_CalendarTrashEntry(alloc: std.mem.Allocator, m: Value, out: *types.CalendarTrashEntry) CodecError!void {
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "event");
+        try dec_Event(alloc, csil_fv, &(out.event));
+    }
+    {
+        const csil_fv = try req(m, "trash_id");
+        out.trash_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "deleted_at");
+        out.deleted_at = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "expires_at");
+        out.expires_at = try as_text(csil_fv);
+    }
+}
+
+fn enc_RestoreCalendarEventRequest(out: *std.ArrayList(u8), v: *const types.RestoreCalendarEventRequest) CodecError!void {
+    try w_map_head(out, 2);
+    try w_text(out, "house_id");
+    try w_text(out, v.house_id);
+    try w_text(out, "trash_id");
+    try w_text(out, v.trash_id);
+}
+
+fn dec_RestoreCalendarEventRequest(alloc: std.mem.Allocator, m: Value, out: *types.RestoreCalendarEventRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "house_id");
+        out.house_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "trash_id");
+        out.trash_id = try as_text(csil_fv);
+    }
+}
+
+fn enc_CalendarMigrationRow(out: *std.ArrayList(u8), v: *const types.CalendarMigrationRow) CodecError!void {
+    try w_map_head(out, 4);
+    try w_text(out, "title");
+    try w_text(out, v.title);
+    try w_text(out, "reason");
+    try w_text(out, v.reason);
+    try w_text(out, "event_id");
+    try w_text(out, v.event_id);
+    try w_text(out, "disposition");
+    try w_text(out, v.disposition);
+}
+
+fn dec_CalendarMigrationRow(alloc: std.mem.Allocator, m: Value, out: *types.CalendarMigrationRow) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "title");
+        out.title = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "reason");
+        out.reason = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "event_id");
+        out.event_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "disposition");
+        out.disposition = try as_text(csil_fv);
+    }
+}
+
 fn enc_AuditEntry(out: *std.ArrayList(u8), v: *const types.AuditEntry) CodecError!void {
     var csil_n: usize = 8;
     if (v.after != null) csil_n += 1;
@@ -6164,6 +6506,134 @@ pub fn encode_CalendarView(alloc: std.mem.Allocator, v: *const types.CalendarVie
 pub fn decode_CalendarView(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CalendarView) CodecError!void {
     const root = try decode(alloc, bytes);
     try dec_CalendarView(alloc, root, out);
+}
+
+/// Encode a EventDecision to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_EventDecision(alloc: std.mem.Allocator, v: *const types.EventDecision) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_EventDecision(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a EventDecision. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_EventDecision(alloc: std.mem.Allocator, bytes: []const u8, out: *types.EventDecision) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_EventDecision(alloc, root, out);
+}
+
+/// Encode a CalendarStatus to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CalendarStatus(alloc: std.mem.Allocator, v: *const types.CalendarStatus) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CalendarStatus(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CalendarStatus. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CalendarStatus(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CalendarStatus) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CalendarStatus(alloc, root, out);
+}
+
+/// Encode a ConfigureCalendarRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ConfigureCalendarRequest(alloc: std.mem.Allocator, v: *const types.ConfigureCalendarRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ConfigureCalendarRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ConfigureCalendarRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ConfigureCalendarRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ConfigureCalendarRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ConfigureCalendarRequest(alloc, root, out);
+}
+
+/// Encode a CalendarConnectResponse to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CalendarConnectResponse(alloc: std.mem.Allocator, v: *const types.CalendarConnectResponse) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CalendarConnectResponse(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CalendarConnectResponse. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CalendarConnectResponse(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CalendarConnectResponse) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CalendarConnectResponse(alloc, root, out);
+}
+
+/// Encode a CompleteCalendarConnectRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CompleteCalendarConnectRequest(alloc: std.mem.Allocator, v: *const types.CompleteCalendarConnectRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CompleteCalendarConnectRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CompleteCalendarConnectRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CompleteCalendarConnectRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CompleteCalendarConnectRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CompleteCalendarConnectRequest(alloc, root, out);
+}
+
+/// Encode a CalendarTrashEntry to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CalendarTrashEntry(alloc: std.mem.Allocator, v: *const types.CalendarTrashEntry) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CalendarTrashEntry(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CalendarTrashEntry. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CalendarTrashEntry(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CalendarTrashEntry) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CalendarTrashEntry(alloc, root, out);
+}
+
+/// Encode a RestoreCalendarEventRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_RestoreCalendarEventRequest(alloc: std.mem.Allocator, v: *const types.RestoreCalendarEventRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_RestoreCalendarEventRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a RestoreCalendarEventRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_RestoreCalendarEventRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.RestoreCalendarEventRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_RestoreCalendarEventRequest(alloc, root, out);
+}
+
+/// Encode a CalendarMigrationRow to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_CalendarMigrationRow(alloc: std.mem.Allocator, v: *const types.CalendarMigrationRow) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_CalendarMigrationRow(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a CalendarMigrationRow. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_CalendarMigrationRow(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CalendarMigrationRow) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_CalendarMigrationRow(alloc, root, out);
 }
 
 /// Encode a AuditEntry to CBOR. The returned slice is owned by the caller

@@ -728,16 +728,25 @@ class Event
     csil_map["event_id"] = event_id
     csil_map["house_id"] = house_id
     csil_map["location"] = location unless location.nil?
+    csil_map["revision"] = revision unless revision.nil?
+    csil_map["timezone"] = timezone unless timezone.nil?
     csil_map["starts_at"] = starts_at unless starts_at.nil?
     csil_map["created_at"] = created_at
+    csil_map["edit_scope"] = edit_scope unless edit_scope.nil?
     csil_map["updated_at"] = updated_at
     csil_map["description"] = description unless description.nil?
+    csil_map["calendar_state"] = calendar_state unless calendar_state.nil?
     csil_map["owner_member_id"] = owner_member_id
     csil_map["recurrence_freq"] = (recurrence_freq) unless recurrence_freq.nil?
+    csil_map["recurrence_rule"] = recurrence_rule unless recurrence_rule.nil?
+    csil_map["calendar_unbound"] = calendar_unbound unless calendar_unbound.nil?
+    csil_map["publication_error"] = publication_error unless publication_error.nil?
     csil_map["next_recurrence_at"] = next_recurrence_at unless next_recurrence_at.nil?
     csil_map["recurrence_interval"] = recurrence_interval unless recurrence_interval.nil?
     csil_map["recurrence_by_setpos"] = recurrence_by_setpos unless recurrence_by_setpos.nil?
+    csil_map["proposed_by_member_id"] = proposed_by_member_id unless proposed_by_member_id.nil?
     csil_map["recurrence_by_weekday"] = (recurrence_by_weekday).map { |csil_e| csil_e } unless recurrence_by_weekday.nil?
+    csil_map["edit_pending_member_id"] = edit_pending_member_id unless edit_pending_member_id.nil?
     csil_map["recurrence_root_event_id"] = recurrence_root_event_id unless recurrence_root_event_id.nil?
     csil_map
   end
@@ -757,6 +766,8 @@ class Event
       starts_at: (node.key?("starts_at") ? node["starts_at"] : nil),
       ends_at: (node.key?("ends_at") ? node["ends_at"] : nil),
       all_day: (node.key?("all_day") ? node["all_day"] : nil),
+      timezone: (node.key?("timezone") ? node["timezone"] : nil),
+      recurrence_rule: (node.key?("recurrence_rule") ? node["recurrence_rule"] : nil),
       recurrence_freq: (node.key?("recurrence_freq") ? (case (node["recurrence_freq"])
 when "hourly" then "hourly"
 when "daily" then "daily"
@@ -772,6 +783,13 @@ end) : nil),
       recurrence_by_setpos: (node.key?("recurrence_by_setpos") ? node["recurrence_by_setpos"] : nil),
       next_recurrence_at: (node.key?("next_recurrence_at") ? node["next_recurrence_at"] : nil),
       recurrence_root_event_id: (node.key?("recurrence_root_event_id") ? node["recurrence_root_event_id"] : nil),
+      calendar_state: (node.key?("calendar_state") ? node["calendar_state"] : nil),
+      revision: (node.key?("revision") ? node["revision"] : nil),
+      proposed_by_member_id: (node.key?("proposed_by_member_id") ? node["proposed_by_member_id"] : nil),
+      publication_error: (node.key?("publication_error") ? node["publication_error"] : nil),
+      edit_pending_member_id: (node.key?("edit_pending_member_id") ? node["edit_pending_member_id"] : nil),
+      calendar_unbound: (node.key?("calendar_unbound") ? node["calendar_unbound"] : nil),
+      edit_scope: (node.key?("edit_scope") ? node["edit_scope"] : nil),
       created_at: node["created_at"],
       updated_at: node["updated_at"]
     )
@@ -2887,6 +2905,232 @@ class CalendarView
       house_id: node["house_id"],
       viewer_member_id: node["viewer_member_id"],
       subscriptions: (node.key?("subscriptions") ? (node["subscriptions"]).map { |csil_e| CalendarSubscription.csil_from_tree(csil_e) } : nil)
+    )
+  end
+end
+
+# CBOR codec for EventDecision: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class EventDecision
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["event_id"] = event_id
+    csil_map["revision"] = revision
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      event_id: node["event_id"],
+      revision: node["revision"]
+    )
+  end
+end
+
+# CBOR codec for CalendarStatus: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class CalendarStatus
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["ready"] = ready
+    csil_map["enabled"] = enabled
+    csil_map["house_id"] = house_id
+    csil_map["available"] = available
+    csil_map["connected"] = connected
+    csil_map["last_error"] = last_error unless last_error.nil?
+    csil_map["sync_pending_since"] = sync_pending_since unless sync_pending_since.nil?
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      house_id: node["house_id"],
+      available: node["available"],
+      enabled: node["enabled"],
+      ready: node["ready"],
+      connected: node["connected"],
+      last_error: (node.key?("last_error") ? node["last_error"] : nil),
+      sync_pending_since: (node.key?("sync_pending_since") ? node["sync_pending_since"] : nil)
+    )
+  end
+end
+
+# CBOR codec for ConfigureCalendarRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ConfigureCalendarRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["enabled"] = enabled
+    csil_map["house_id"] = house_id
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      house_id: node["house_id"],
+      enabled: node["enabled"]
+    )
+  end
+end
+
+# CBOR codec for CalendarConnectResponse: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class CalendarConnectResponse
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["url"] = url
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      url: node["url"]
+    )
+  end
+end
+
+# CBOR codec for CompleteCalendarConnectRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class CompleteCalendarConnectRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["nonce"] = nonce
+    csil_map["grant_id"] = grant_id
+    csil_map["house_id"] = house_id
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      house_id: node["house_id"],
+      grant_id: node["grant_id"],
+      nonce: node["nonce"]
+    )
+  end
+end
+
+# CBOR codec for CalendarTrashEntry: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class CalendarTrashEntry
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["event"] = (event).csil_to_tree
+    csil_map["trash_id"] = trash_id
+    csil_map["deleted_at"] = deleted_at
+    csil_map["expires_at"] = expires_at
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      trash_id: node["trash_id"],
+      event: Event.csil_from_tree(node["event"]),
+      deleted_at: node["deleted_at"],
+      expires_at: node["expires_at"]
+    )
+  end
+end
+
+# CBOR codec for RestoreCalendarEventRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class RestoreCalendarEventRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["house_id"] = house_id
+    csil_map["trash_id"] = trash_id
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      house_id: node["house_id"],
+      trash_id: node["trash_id"]
+    )
+  end
+end
+
+# CBOR codec for CalendarMigrationRow: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class CalendarMigrationRow
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["title"] = title
+    csil_map["reason"] = reason
+    csil_map["event_id"] = event_id
+    csil_map["disposition"] = disposition
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      event_id: node["event_id"],
+      title: node["title"],
+      disposition: node["disposition"],
+      reason: node["reason"]
     )
   end
 end

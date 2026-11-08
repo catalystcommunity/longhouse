@@ -823,6 +823,22 @@ static inline int csilc_enc_CalendarSubscription(csilc_buf *b, const CalendarSub
 static inline int csilc_dec_CalendarSubscription(const csilc_value *m, CsilCodecArena *a, CalendarSubscription *out);
 static inline int csilc_enc_CalendarView(csilc_buf *b, const CalendarView *v);
 static inline int csilc_dec_CalendarView(const csilc_value *m, CsilCodecArena *a, CalendarView *out);
+static inline int csilc_enc_EventDecision(csilc_buf *b, const EventDecision *v);
+static inline int csilc_dec_EventDecision(const csilc_value *m, CsilCodecArena *a, EventDecision *out);
+static inline int csilc_enc_CalendarStatus(csilc_buf *b, const CalendarStatus *v);
+static inline int csilc_dec_CalendarStatus(const csilc_value *m, CsilCodecArena *a, CalendarStatus *out);
+static inline int csilc_enc_ConfigureCalendarRequest(csilc_buf *b, const ConfigureCalendarRequest *v);
+static inline int csilc_dec_ConfigureCalendarRequest(const csilc_value *m, CsilCodecArena *a, ConfigureCalendarRequest *out);
+static inline int csilc_enc_CalendarConnectResponse(csilc_buf *b, const CalendarConnectResponse *v);
+static inline int csilc_dec_CalendarConnectResponse(const csilc_value *m, CsilCodecArena *a, CalendarConnectResponse *out);
+static inline int csilc_enc_CompleteCalendarConnectRequest(csilc_buf *b, const CompleteCalendarConnectRequest *v);
+static inline int csilc_dec_CompleteCalendarConnectRequest(const csilc_value *m, CsilCodecArena *a, CompleteCalendarConnectRequest *out);
+static inline int csilc_enc_CalendarTrashEntry(csilc_buf *b, const CalendarTrashEntry *v);
+static inline int csilc_dec_CalendarTrashEntry(const csilc_value *m, CsilCodecArena *a, CalendarTrashEntry *out);
+static inline int csilc_enc_RestoreCalendarEventRequest(csilc_buf *b, const RestoreCalendarEventRequest *v);
+static inline int csilc_dec_RestoreCalendarEventRequest(const csilc_value *m, CsilCodecArena *a, RestoreCalendarEventRequest *out);
+static inline int csilc_enc_CalendarMigrationRow(csilc_buf *b, const CalendarMigrationRow *v);
+static inline int csilc_dec_CalendarMigrationRow(const csilc_value *m, CsilCodecArena *a, CalendarMigrationRow *out);
 static inline int csilc_enc_AuditEntry(csilc_buf *b, const AuditEntry *v);
 static inline int csilc_dec_AuditEntry(const csilc_value *m, CsilCodecArena *a, AuditEntry *out);
 static inline int csilc_enc_AuditQuery(csilc_buf *b, const AuditQuery *v);
@@ -1856,13 +1872,22 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
     if (v->all_day) csilc_n++;
     if (v->ends_at) csilc_n++;
     if (v->location) csilc_n++;
+    if (v->revision) csilc_n++;
+    if (v->timezone) csilc_n++;
     if (v->starts_at) csilc_n++;
+    if (v->edit_scope) csilc_n++;
     if (v->description) csilc_n++;
+    if (v->calendar_state) csilc_n++;
     if (v->recurrence_freq) csilc_n++;
+    if (v->recurrence_rule) csilc_n++;
+    if (v->calendar_unbound) csilc_n++;
+    if (v->publication_error) csilc_n++;
     if (v->next_recurrence_at) csilc_n++;
     if (v->recurrence_interval) csilc_n++;
     if (v->recurrence_by_setpos) csilc_n++;
+    if (v->proposed_by_member_id) csilc_n++;
     if (v->recurrence_by_weekday_count) csilc_n++;
+    if (v->edit_pending_member_id) csilc_n++;
     if (v->recurrence_root_event_id) csilc_n++;
     if (csilc_w_map_head(b, csilc_n)) return -1;
     if (csilc_w_text(b, "title", 5)) return -1;
@@ -1883,23 +1908,51 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
         if (csilc_w_text(b, "location", 8)) return -1;
         if (csilc_w_text(b, (v->location), (v->location) ? strlen(v->location) : 0)) return -1;
     }
+    if (v->revision) {
+        if (csilc_w_text(b, "revision", 8)) return -1;
+        if (csilc_w_uint(b, (uint64_t)((*v->revision)))) return -1;
+    }
+    if (v->timezone) {
+        if (csilc_w_text(b, "timezone", 8)) return -1;
+        if (csilc_w_text(b, (v->timezone), (v->timezone) ? strlen(v->timezone) : 0)) return -1;
+    }
     if (v->starts_at) {
         if (csilc_w_text(b, "starts_at", 9)) return -1;
         if (csilc_w_text(b, ((*v->starts_at)), ((*v->starts_at)) ? strlen((*v->starts_at)) : 0)) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
     if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (v->edit_scope) {
+        if (csilc_w_text(b, "edit_scope", 10)) return -1;
+        if (csilc_w_text(b, (v->edit_scope), (v->edit_scope) ? strlen(v->edit_scope) : 0)) return -1;
+    }
     if (csilc_w_text(b, "updated_at", 10)) return -1;
     if (csilc_w_text(b, (v->updated_at), (v->updated_at) ? strlen(v->updated_at) : 0)) return -1;
     if (v->description) {
         if (csilc_w_text(b, "description", 11)) return -1;
         if (csilc_w_text(b, (v->description), (v->description) ? strlen(v->description) : 0)) return -1;
     }
+    if (v->calendar_state) {
+        if (csilc_w_text(b, "calendar_state", 14)) return -1;
+        if (csilc_w_text(b, (v->calendar_state), (v->calendar_state) ? strlen(v->calendar_state) : 0)) return -1;
+    }
     if (csilc_w_text(b, "owner_member_id", 15)) return -1;
     if (csilc_w_text(b, (v->owner_member_id), (v->owner_member_id) ? strlen(v->owner_member_id) : 0)) return -1;
     if (v->recurrence_freq) {
         if (csilc_w_text(b, "recurrence_freq", 15)) return -1;
         if (csilc_enc_RecurrenceFreq(b, &((*v->recurrence_freq)))) return -1;
+    }
+    if (v->recurrence_rule) {
+        if (csilc_w_text(b, "recurrence_rule", 15)) return -1;
+        if (csilc_w_text(b, (v->recurrence_rule), (v->recurrence_rule) ? strlen(v->recurrence_rule) : 0)) return -1;
+    }
+    if (v->calendar_unbound) {
+        if (csilc_w_text(b, "calendar_unbound", 16)) return -1;
+        if (csilc_w_bool(b, ((*v->calendar_unbound)))) return -1;
+    }
+    if (v->publication_error) {
+        if (csilc_w_text(b, "publication_error", 17)) return -1;
+        if (csilc_w_text(b, (v->publication_error), (v->publication_error) ? strlen(v->publication_error) : 0)) return -1;
     }
     if (v->next_recurrence_at) {
         if (csilc_w_text(b, "next_recurrence_at", 18)) return -1;
@@ -1913,12 +1966,20 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
         if (csilc_w_text(b, "recurrence_by_setpos", 20)) return -1;
         if (csilc_w_int(b, (int64_t)((*v->recurrence_by_setpos)))) return -1;
     }
+    if (v->proposed_by_member_id) {
+        if (csilc_w_text(b, "proposed_by_member_id", 21)) return -1;
+        if (csilc_w_text(b, ((*v->proposed_by_member_id)), ((*v->proposed_by_member_id)) ? strlen((*v->proposed_by_member_id)) : 0)) return -1;
+    }
     if (v->recurrence_by_weekday_count) {
         if (csilc_w_text(b, "recurrence_by_weekday", 21)) return -1;
         if (csilc_w_array_head(b, v->recurrence_by_weekday_count)) return -1;
         for (size_t csilc_i = 0; csilc_i < v->recurrence_by_weekday_count; csilc_i++) {
             if (csilc_w_int(b, (int64_t)(v->recurrence_by_weekday[csilc_i]))) return -1;
         }
+    }
+    if (v->edit_pending_member_id) {
+        if (csilc_w_text(b, "edit_pending_member_id", 22)) return -1;
+        if (csilc_w_text(b, ((*v->edit_pending_member_id)), ((*v->edit_pending_member_id)) ? strlen((*v->edit_pending_member_id)) : 0)) return -1;
     }
     if (v->recurrence_root_event_id) {
         if (csilc_w_text(b, "recurrence_root_event_id", 24)) return -1;
@@ -1956,6 +2017,16 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "location");
     out->location = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
+    csilc_f = csilc_map_get(m, "revision");
+    out->revision = NULL;
+    if (csilc_f) {
+        uint64_t *csilc_p = (uint64_t *)csilc_arena_alloc(a, sizeof(uint64_t));
+        if (!csilc_p) return -1;
+        if (!csilc_as_u64(csilc_f, &((*csilc_p)))) return -1;
+        out->revision = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "timezone");
+    out->timezone = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "starts_at");
     out->starts_at = NULL;
     if (csilc_f) {
@@ -1966,10 +2037,14 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
     }
     csilc_f = csilc_map_get(m, "created_at");
     if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    csilc_f = csilc_map_get(m, "edit_scope");
+    out->edit_scope = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "updated_at");
     if (!csilc_get_text(csilc_f, &(out->updated_at))) return -1;
     csilc_f = csilc_map_get(m, "description");
     out->description = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
+    csilc_f = csilc_map_get(m, "calendar_state");
+    out->calendar_state = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "owner_member_id");
     if (!csilc_get_text(csilc_f, &(out->owner_member_id))) return -1;
     csilc_f = csilc_map_get(m, "recurrence_freq");
@@ -1980,6 +2055,18 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
         if (csilc_dec_RecurrenceFreq(csilc_f, a, &((*csilc_p)))) return -1;
         out->recurrence_freq = csilc_p;
     }
+    csilc_f = csilc_map_get(m, "recurrence_rule");
+    out->recurrence_rule = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
+    csilc_f = csilc_map_get(m, "calendar_unbound");
+    out->calendar_unbound = NULL;
+    if (csilc_f) {
+        bool *csilc_p = (bool *)csilc_arena_alloc(a, sizeof(bool));
+        if (!csilc_p) return -1;
+        if (!csilc_as_bool(csilc_f, &((*csilc_p)))) return -1;
+        out->calendar_unbound = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "publication_error");
+    out->publication_error = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "next_recurrence_at");
     out->next_recurrence_at = NULL;
     if (csilc_f) {
@@ -2004,6 +2091,14 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
         if (!csilc_as_i64(csilc_f, &((*csilc_p)))) return -1;
         out->recurrence_by_setpos = csilc_p;
     }
+    csilc_f = csilc_map_get(m, "proposed_by_member_id");
+    out->proposed_by_member_id = NULL;
+    if (csilc_f) {
+        MemberID *csilc_p = (MemberID *)csilc_arena_alloc(a, sizeof(MemberID));
+        if (!csilc_p) return -1;
+        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        out->proposed_by_member_id = csilc_p;
+    }
     csilc_f = csilc_map_get(m, "recurrence_by_weekday");
     if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
     out->recurrence_by_weekday_count = csilc_f->as.array.count;
@@ -2014,6 +2109,14 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
         for (size_t csilc_i = 0; csilc_i < out->recurrence_by_weekday_count; csilc_i++) {
             if (!csilc_as_i64(&csilc_f->as.array.items[csilc_i], &(out->recurrence_by_weekday[csilc_i]))) return -1;
         }
+    }
+    csilc_f = csilc_map_get(m, "edit_pending_member_id");
+    out->edit_pending_member_id = NULL;
+    if (csilc_f) {
+        MemberID *csilc_p = (MemberID *)csilc_arena_alloc(a, sizeof(MemberID));
+        if (!csilc_p) return -1;
+        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        out->edit_pending_member_id = csilc_p;
     }
     csilc_f = csilc_map_get(m, "recurrence_root_event_id");
     out->recurrence_root_event_id = NULL;
@@ -4673,6 +4776,238 @@ static inline int csilc_dec_CalendarView(const csilc_value *m, CsilCodecArena *a
     return 0;
 }
 
+/* csilc_enc_EventDecision writes EventDecision as a canonical CBOR map. */
+static inline int csilc_enc_EventDecision(csilc_buf *b, const EventDecision *v) {
+    size_t csilc_n = 2;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "event_id", 8)) return -1;
+    if (csilc_w_text(b, (v->event_id), (v->event_id) ? strlen(v->event_id) : 0)) return -1;
+    if (csilc_w_text(b, "revision", 8)) return -1;
+    if (csilc_w_uint(b, (uint64_t)(v->revision))) return -1;
+    return 0;
+}
+
+/* csilc_dec_EventDecision reads EventDecision from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_EventDecision(const csilc_value *m, CsilCodecArena *a, EventDecision *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "event_id");
+    if (!csilc_get_text(csilc_f, &(out->event_id))) return -1;
+    csilc_f = csilc_map_get(m, "revision");
+    if (!csilc_as_u64(csilc_f, &(out->revision))) return -1;
+    return 0;
+}
+
+/* csilc_enc_CalendarStatus writes CalendarStatus as a canonical CBOR map. */
+static inline int csilc_enc_CalendarStatus(csilc_buf *b, const CalendarStatus *v) {
+    size_t csilc_n = 5;
+    if (v->last_error) csilc_n++;
+    if (v->sync_pending_since) csilc_n++;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "ready", 5)) return -1;
+    if (csilc_w_bool(b, (v->ready))) return -1;
+    if (csilc_w_text(b, "enabled", 7)) return -1;
+    if (csilc_w_bool(b, (v->enabled))) return -1;
+    if (csilc_w_text(b, "house_id", 8)) return -1;
+    if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
+    if (csilc_w_text(b, "available", 9)) return -1;
+    if (csilc_w_bool(b, (v->available))) return -1;
+    if (csilc_w_text(b, "connected", 9)) return -1;
+    if (csilc_w_bool(b, (v->connected))) return -1;
+    if (v->last_error) {
+        if (csilc_w_text(b, "last_error", 10)) return -1;
+        if (csilc_w_text(b, (v->last_error), (v->last_error) ? strlen(v->last_error) : 0)) return -1;
+    }
+    if (v->sync_pending_since) {
+        if (csilc_w_text(b, "sync_pending_since", 18)) return -1;
+        if (csilc_w_text(b, ((*v->sync_pending_since)), ((*v->sync_pending_since)) ? strlen((*v->sync_pending_since)) : 0)) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_CalendarStatus reads CalendarStatus from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_CalendarStatus(const csilc_value *m, CsilCodecArena *a, CalendarStatus *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "ready");
+    if (!csilc_as_bool(csilc_f, &(out->ready))) return -1;
+    csilc_f = csilc_map_get(m, "enabled");
+    if (!csilc_as_bool(csilc_f, &(out->enabled))) return -1;
+    csilc_f = csilc_map_get(m, "house_id");
+    if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
+    csilc_f = csilc_map_get(m, "available");
+    if (!csilc_as_bool(csilc_f, &(out->available))) return -1;
+    csilc_f = csilc_map_get(m, "connected");
+    if (!csilc_as_bool(csilc_f, &(out->connected))) return -1;
+    csilc_f = csilc_map_get(m, "last_error");
+    out->last_error = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
+    csilc_f = csilc_map_get(m, "sync_pending_since");
+    out->sync_pending_since = NULL;
+    if (csilc_f) {
+        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        if (!csilc_p) return -1;
+        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        out->sync_pending_since = csilc_p;
+    }
+    return 0;
+}
+
+/* csilc_enc_ConfigureCalendarRequest writes ConfigureCalendarRequest as a canonical CBOR map. */
+static inline int csilc_enc_ConfigureCalendarRequest(csilc_buf *b, const ConfigureCalendarRequest *v) {
+    size_t csilc_n = 2;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "enabled", 7)) return -1;
+    if (csilc_w_bool(b, (v->enabled))) return -1;
+    if (csilc_w_text(b, "house_id", 8)) return -1;
+    if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_ConfigureCalendarRequest reads ConfigureCalendarRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_ConfigureCalendarRequest(const csilc_value *m, CsilCodecArena *a, ConfigureCalendarRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "enabled");
+    if (!csilc_as_bool(csilc_f, &(out->enabled))) return -1;
+    csilc_f = csilc_map_get(m, "house_id");
+    if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
+    return 0;
+}
+
+/* csilc_enc_CalendarConnectResponse writes CalendarConnectResponse as a canonical CBOR map. */
+static inline int csilc_enc_CalendarConnectResponse(csilc_buf *b, const CalendarConnectResponse *v) {
+    size_t csilc_n = 1;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "url", 3)) return -1;
+    if (csilc_w_text(b, (v->url), (v->url) ? strlen(v->url) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_CalendarConnectResponse reads CalendarConnectResponse from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_CalendarConnectResponse(const csilc_value *m, CsilCodecArena *a, CalendarConnectResponse *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "url");
+    if (!csilc_get_text(csilc_f, &(out->url))) return -1;
+    return 0;
+}
+
+/* csilc_enc_CompleteCalendarConnectRequest writes CompleteCalendarConnectRequest as a canonical CBOR map. */
+static inline int csilc_enc_CompleteCalendarConnectRequest(csilc_buf *b, const CompleteCalendarConnectRequest *v) {
+    size_t csilc_n = 3;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "nonce", 5)) return -1;
+    if (csilc_w_text(b, (v->nonce), (v->nonce) ? strlen(v->nonce) : 0)) return -1;
+    if (csilc_w_text(b, "grant_id", 8)) return -1;
+    if (csilc_w_text(b, (v->grant_id), (v->grant_id) ? strlen(v->grant_id) : 0)) return -1;
+    if (csilc_w_text(b, "house_id", 8)) return -1;
+    if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_CompleteCalendarConnectRequest reads CompleteCalendarConnectRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_CompleteCalendarConnectRequest(const csilc_value *m, CsilCodecArena *a, CompleteCalendarConnectRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "nonce");
+    if (!csilc_get_text(csilc_f, &(out->nonce))) return -1;
+    csilc_f = csilc_map_get(m, "grant_id");
+    if (!csilc_get_text(csilc_f, &(out->grant_id))) return -1;
+    csilc_f = csilc_map_get(m, "house_id");
+    if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
+    return 0;
+}
+
+/* csilc_enc_CalendarTrashEntry writes CalendarTrashEntry as a canonical CBOR map. */
+static inline int csilc_enc_CalendarTrashEntry(csilc_buf *b, const CalendarTrashEntry *v) {
+    size_t csilc_n = 4;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "event", 5)) return -1;
+    if (csilc_enc_Event(b, &(v->event))) return -1;
+    if (csilc_w_text(b, "trash_id", 8)) return -1;
+    if (csilc_w_text(b, (v->trash_id), (v->trash_id) ? strlen(v->trash_id) : 0)) return -1;
+    if (csilc_w_text(b, "deleted_at", 10)) return -1;
+    if (csilc_w_text(b, (v->deleted_at), (v->deleted_at) ? strlen(v->deleted_at) : 0)) return -1;
+    if (csilc_w_text(b, "expires_at", 10)) return -1;
+    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_CalendarTrashEntry reads CalendarTrashEntry from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_CalendarTrashEntry(const csilc_value *m, CsilCodecArena *a, CalendarTrashEntry *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "event");
+    if (csilc_dec_Event(csilc_f, a, &(out->event))) return -1;
+    csilc_f = csilc_map_get(m, "trash_id");
+    if (!csilc_get_text(csilc_f, &(out->trash_id))) return -1;
+    csilc_f = csilc_map_get(m, "deleted_at");
+    if (!csilc_get_text(csilc_f, &(out->deleted_at))) return -1;
+    csilc_f = csilc_map_get(m, "expires_at");
+    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    return 0;
+}
+
+/* csilc_enc_RestoreCalendarEventRequest writes RestoreCalendarEventRequest as a canonical CBOR map. */
+static inline int csilc_enc_RestoreCalendarEventRequest(csilc_buf *b, const RestoreCalendarEventRequest *v) {
+    size_t csilc_n = 2;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "house_id", 8)) return -1;
+    if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
+    if (csilc_w_text(b, "trash_id", 8)) return -1;
+    if (csilc_w_text(b, (v->trash_id), (v->trash_id) ? strlen(v->trash_id) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_RestoreCalendarEventRequest reads RestoreCalendarEventRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_RestoreCalendarEventRequest(const csilc_value *m, CsilCodecArena *a, RestoreCalendarEventRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "house_id");
+    if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
+    csilc_f = csilc_map_get(m, "trash_id");
+    if (!csilc_get_text(csilc_f, &(out->trash_id))) return -1;
+    return 0;
+}
+
+/* csilc_enc_CalendarMigrationRow writes CalendarMigrationRow as a canonical CBOR map. */
+static inline int csilc_enc_CalendarMigrationRow(csilc_buf *b, const CalendarMigrationRow *v) {
+    size_t csilc_n = 4;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "title", 5)) return -1;
+    if (csilc_w_text(b, (v->title), (v->title) ? strlen(v->title) : 0)) return -1;
+    if (csilc_w_text(b, "reason", 6)) return -1;
+    if (csilc_w_text(b, (v->reason), (v->reason) ? strlen(v->reason) : 0)) return -1;
+    if (csilc_w_text(b, "event_id", 8)) return -1;
+    if (csilc_w_text(b, (v->event_id), (v->event_id) ? strlen(v->event_id) : 0)) return -1;
+    if (csilc_w_text(b, "disposition", 11)) return -1;
+    if (csilc_w_text(b, (v->disposition), (v->disposition) ? strlen(v->disposition) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_CalendarMigrationRow reads CalendarMigrationRow from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_CalendarMigrationRow(const csilc_value *m, CsilCodecArena *a, CalendarMigrationRow *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "title");
+    if (!csilc_get_text(csilc_f, &(out->title))) return -1;
+    csilc_f = csilc_map_get(m, "reason");
+    if (!csilc_get_text(csilc_f, &(out->reason))) return -1;
+    csilc_f = csilc_map_get(m, "event_id");
+    if (!csilc_get_text(csilc_f, &(out->event_id))) return -1;
+    csilc_f = csilc_map_get(m, "disposition");
+    if (!csilc_get_text(csilc_f, &(out->disposition))) return -1;
+    return 0;
+}
+
 /* csilc_enc_AuditEntry writes AuditEntry as a canonical CBOR map. */
 static inline int csilc_enc_AuditEntry(csilc_buf *b, const AuditEntry *v) {
     size_t csilc_n = 8;
@@ -5125,6 +5460,18 @@ typedef struct CsilEventList {
     size_t count;
 } CsilEventList;
 
+/* CsilCalendarMigrationRowList is a named list alias. */
+typedef struct CsilCalendarMigrationRowList {
+    CalendarMigrationRow *items;
+    size_t count;
+} CsilCalendarMigrationRowList;
+
+/* CsilCalendarTrashEntryList is a named list alias. */
+typedef struct CsilCalendarTrashEntryList {
+    CalendarTrashEntry *items;
+    size_t count;
+} CsilCalendarTrashEntryList;
+
 /* CsilCommentList is a named list alias. */
 typedef struct CsilCommentList {
     Comment *items;
@@ -5477,6 +5824,54 @@ static inline int csilc_dec_CsilEventList(const csilc_value *m, CsilCodecArena *
         if (!out->items) return -1;
         for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
             if (csilc_dec_Event(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_CsilCalendarMigrationRowList writes CsilCalendarMigrationRowList as a CBOR array of encoded elements. */
+static inline int csilc_enc_CsilCalendarMigrationRowList(csilc_buf *b, const CsilCalendarMigrationRowList *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_CalendarMigrationRow(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_CsilCalendarMigrationRowList reads CsilCalendarMigrationRowList from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_CsilCalendarMigrationRowList(const csilc_value *m, CsilCodecArena *a, CsilCalendarMigrationRowList *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (CalendarMigrationRow *)csilc_arena_alloc(a, out->count * sizeof(CalendarMigrationRow));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_CalendarMigrationRow(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_CsilCalendarTrashEntryList writes CsilCalendarTrashEntryList as a CBOR array of encoded elements. */
+static inline int csilc_enc_CsilCalendarTrashEntryList(csilc_buf *b, const CsilCalendarTrashEntryList *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_CalendarTrashEntry(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_CsilCalendarTrashEntryList reads CsilCalendarTrashEntryList from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_CsilCalendarTrashEntryList(const csilc_value *m, CsilCodecArena *a, CsilCalendarTrashEntryList *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (CalendarTrashEntry *)csilc_arena_alloc(a, out->count * sizeof(CalendarTrashEntry));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_CalendarTrashEntry(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
         }
     }
     return 0;
@@ -7838,6 +8233,190 @@ static inline int csil_decode_CalendarView(const uint8_t *in, size_t len, Calend
     return 0;
 }
 
+/* Encode a EventDecision to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_EventDecision(const EventDecision *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_EventDecision(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a EventDecision. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_EventDecision(const uint8_t *in, size_t len, EventDecision *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_EventDecision(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CalendarStatus to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CalendarStatus(const CalendarStatus *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CalendarStatus(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CalendarStatus. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CalendarStatus(const uint8_t *in, size_t len, CalendarStatus *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CalendarStatus(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a ConfigureCalendarRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_ConfigureCalendarRequest(const ConfigureCalendarRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_ConfigureCalendarRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a ConfigureCalendarRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_ConfigureCalendarRequest(const uint8_t *in, size_t len, ConfigureCalendarRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_ConfigureCalendarRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CalendarConnectResponse to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CalendarConnectResponse(const CalendarConnectResponse *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CalendarConnectResponse(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CalendarConnectResponse. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CalendarConnectResponse(const uint8_t *in, size_t len, CalendarConnectResponse *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CalendarConnectResponse(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CompleteCalendarConnectRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CompleteCalendarConnectRequest(const CompleteCalendarConnectRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CompleteCalendarConnectRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CompleteCalendarConnectRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CompleteCalendarConnectRequest(const uint8_t *in, size_t len, CompleteCalendarConnectRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CompleteCalendarConnectRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CalendarTrashEntry to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CalendarTrashEntry(const CalendarTrashEntry *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CalendarTrashEntry(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CalendarTrashEntry. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CalendarTrashEntry(const uint8_t *in, size_t len, CalendarTrashEntry *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CalendarTrashEntry(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a RestoreCalendarEventRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_RestoreCalendarEventRequest(const RestoreCalendarEventRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_RestoreCalendarEventRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a RestoreCalendarEventRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_RestoreCalendarEventRequest(const uint8_t *in, size_t len, RestoreCalendarEventRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_RestoreCalendarEventRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CalendarMigrationRow to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CalendarMigrationRow(const CalendarMigrationRow *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CalendarMigrationRow(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CalendarMigrationRow. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CalendarMigrationRow(const uint8_t *in, size_t len, CalendarMigrationRow *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CalendarMigrationRow(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
 /* Encode a AuditEntry to CBOR. On success *out is a malloc'd buffer of
  * *out_len bytes the caller frees with free(); returns non-zero on failure. */
 static inline int csil_encode_AuditEntry(const AuditEntry *v, uint8_t **out, size_t *out_len) {
@@ -8409,6 +8988,52 @@ static inline int csil_decode_CsilEventList(const uint8_t *in, size_t len, CsilE
     const csilc_value *root;
     if (csilc_decode(in, len, &a, &root)) return -1;
     if (csilc_dec_CsilEventList(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CsilCalendarMigrationRowList to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CsilCalendarMigrationRowList(const CsilCalendarMigrationRowList *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CsilCalendarMigrationRowList(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CsilCalendarMigrationRowList. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CsilCalendarMigrationRowList(const uint8_t *in, size_t len, CsilCalendarMigrationRowList *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CsilCalendarMigrationRowList(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CsilCalendarTrashEntryList to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CsilCalendarTrashEntryList(const CsilCalendarTrashEntryList *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CsilCalendarTrashEntryList(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CsilCalendarTrashEntryList. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CsilCalendarTrashEntryList(const uint8_t *in, size_t len, CsilCalendarTrashEntryList *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CsilCalendarTrashEntryList(root, a, out)) { csil_codec_arena_free(a); return -1; }
     *owner = a;
     return 0;
 }

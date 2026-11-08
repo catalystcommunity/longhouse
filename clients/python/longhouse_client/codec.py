@@ -924,18 +924,39 @@ def _encode_event_value(v: "Event") -> Dict[Any, Any]:
     csil_x = v.location
     if csil_x is not None:
         csil_m["location"] = csil_x
+    csil_x = v.revision
+    if csil_x is not None:
+        csil_m["revision"] = csil_x
+    csil_x = v.timezone
+    if csil_x is not None:
+        csil_m["timezone"] = csil_x
     csil_x = v.starts_at
     if csil_x is not None:
         csil_m["starts_at"] = csil_x
     csil_m["created_at"] = v.created_at
+    csil_x = v.edit_scope
+    if csil_x is not None:
+        csil_m["edit_scope"] = csil_x
     csil_m["updated_at"] = v.updated_at
     csil_x = v.description
     if csil_x is not None:
         csil_m["description"] = csil_x
+    csil_x = v.calendar_state
+    if csil_x is not None:
+        csil_m["calendar_state"] = csil_x
     csil_m["owner_member_id"] = v.owner_member_id
     csil_x = v.recurrence_freq
     if csil_x is not None:
         csil_m["recurrence_freq"] = csil_x
+    csil_x = v.recurrence_rule
+    if csil_x is not None:
+        csil_m["recurrence_rule"] = csil_x
+    csil_x = v.calendar_unbound
+    if csil_x is not None:
+        csil_m["calendar_unbound"] = csil_x
+    csil_x = v.publication_error
+    if csil_x is not None:
+        csil_m["publication_error"] = csil_x
     csil_x = v.next_recurrence_at
     if csil_x is not None:
         csil_m["next_recurrence_at"] = csil_x
@@ -945,9 +966,15 @@ def _encode_event_value(v: "Event") -> Dict[Any, Any]:
     csil_x = v.recurrence_by_setpos
     if csil_x is not None:
         csil_m["recurrence_by_setpos"] = csil_x
+    csil_x = v.proposed_by_member_id
+    if csil_x is not None:
+        csil_m["proposed_by_member_id"] = csil_x
     csil_x = v.recurrence_by_weekday
     if csil_x is not None:
         csil_m["recurrence_by_weekday"] = csil_x
+    csil_x = v.edit_pending_member_id
+    if csil_x is not None:
+        csil_m["edit_pending_member_id"] = csil_x
     csil_x = v.recurrence_root_event_id
     if csil_x is not None:
         csil_m["recurrence_root_event_id"] = csil_x
@@ -965,12 +992,21 @@ def _decode_event_value(tree: Any) -> "Event":
         starts_at=(None if tree.get("starts_at") is None else _csil_expect_text(tree["starts_at"])),
         ends_at=(None if tree.get("ends_at") is None else _csil_expect_text(tree["ends_at"])),
         all_day=(None if tree.get("all_day") is None else _csil_expect_bool(tree["all_day"])),
+        timezone=(None if tree.get("timezone") is None else _csil_expect_text(tree["timezone"])),
+        recurrence_rule=(None if tree.get("recurrence_rule") is None else _csil_expect_text(tree["recurrence_rule"])),
         recurrence_freq=(None if tree.get("recurrence_freq") is None else _decode_recurrence_freq_value(tree["recurrence_freq"])),
         recurrence_interval=(None if tree.get("recurrence_interval") is None else _csil_expect_int(tree["recurrence_interval"])),
         recurrence_by_weekday=(None if tree.get("recurrence_by_weekday") is None else [_csil_expect_int(csil_e) for csil_e in _csil_expect_array(tree["recurrence_by_weekday"])]),
         recurrence_by_setpos=(None if tree.get("recurrence_by_setpos") is None else _csil_expect_int(tree["recurrence_by_setpos"])),
         next_recurrence_at=(None if tree.get("next_recurrence_at") is None else _csil_expect_text(tree["next_recurrence_at"])),
         recurrence_root_event_id=(None if tree.get("recurrence_root_event_id") is None else _csil_expect_text(tree["recurrence_root_event_id"])),
+        calendar_state=(None if tree.get("calendar_state") is None else _csil_expect_text(tree["calendar_state"])),
+        revision=(None if tree.get("revision") is None else _csil_expect_uint(tree["revision"])),
+        proposed_by_member_id=(None if tree.get("proposed_by_member_id") is None else _csil_expect_text(tree["proposed_by_member_id"])),
+        publication_error=(None if tree.get("publication_error") is None else _csil_expect_text(tree["publication_error"])),
+        edit_pending_member_id=(None if tree.get("edit_pending_member_id") is None else _csil_expect_text(tree["edit_pending_member_id"])),
+        calendar_unbound=(None if tree.get("calendar_unbound") is None else _csil_expect_bool(tree["calendar_unbound"])),
+        edit_scope=(None if tree.get("edit_scope") is None else _csil_expect_text(tree["edit_scope"])),
         created_at=_csil_expect_text(tree["created_at"]),
         updated_at=_csil_expect_text(tree["updated_at"]),
     )
@@ -3000,6 +3036,228 @@ def _calendar_view_from_cbor(data: bytes) -> "CalendarView":
 CalendarView.to_cbor = _calendar_view_to_cbor
 CalendarView.from_cbor = staticmethod(_calendar_view_from_cbor)
 
+def _encode_event_decision_value(v: "EventDecision") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["event_id"] = v.event_id
+    csil_m["revision"] = v.revision
+    return csil_m
+
+def _decode_event_decision_value(tree: Any) -> "EventDecision":
+    tree = _csil_expect_map(tree)
+    return EventDecision(
+        event_id=_csil_expect_text(tree["event_id"]),
+        revision=_csil_expect_uint(tree["revision"]),
+    )
+
+
+def _event_decision_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_event_decision_value(self))
+
+
+def _event_decision_from_cbor(data: bytes) -> "EventDecision":
+    return _decode_event_decision_value(cbor_decode(data))
+
+
+EventDecision.to_cbor = _event_decision_to_cbor
+EventDecision.from_cbor = staticmethod(_event_decision_from_cbor)
+
+def _encode_calendar_status_value(v: "CalendarStatus") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["ready"] = v.ready
+    csil_m["enabled"] = v.enabled
+    csil_m["house_id"] = v.house_id
+    csil_m["available"] = v.available
+    csil_m["connected"] = v.connected
+    csil_x = v.last_error
+    if csil_x is not None:
+        csil_m["last_error"] = csil_x
+    csil_x = v.sync_pending_since
+    if csil_x is not None:
+        csil_m["sync_pending_since"] = csil_x
+    return csil_m
+
+def _decode_calendar_status_value(tree: Any) -> "CalendarStatus":
+    tree = _csil_expect_map(tree)
+    return CalendarStatus(
+        house_id=_csil_expect_text(tree["house_id"]),
+        available=_csil_expect_bool(tree["available"]),
+        enabled=_csil_expect_bool(tree["enabled"]),
+        ready=_csil_expect_bool(tree["ready"]),
+        connected=_csil_expect_bool(tree["connected"]),
+        last_error=(None if tree.get("last_error") is None else _csil_expect_text(tree["last_error"])),
+        sync_pending_since=(None if tree.get("sync_pending_since") is None else _csil_expect_text(tree["sync_pending_since"])),
+    )
+
+
+def _calendar_status_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_calendar_status_value(self))
+
+
+def _calendar_status_from_cbor(data: bytes) -> "CalendarStatus":
+    return _decode_calendar_status_value(cbor_decode(data))
+
+
+CalendarStatus.to_cbor = _calendar_status_to_cbor
+CalendarStatus.from_cbor = staticmethod(_calendar_status_from_cbor)
+
+def _encode_configure_calendar_request_value(v: "ConfigureCalendarRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["enabled"] = v.enabled
+    csil_m["house_id"] = v.house_id
+    return csil_m
+
+def _decode_configure_calendar_request_value(tree: Any) -> "ConfigureCalendarRequest":
+    tree = _csil_expect_map(tree)
+    return ConfigureCalendarRequest(
+        house_id=_csil_expect_text(tree["house_id"]),
+        enabled=_csil_expect_bool(tree["enabled"]),
+    )
+
+
+def _configure_calendar_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_configure_calendar_request_value(self))
+
+
+def _configure_calendar_request_from_cbor(data: bytes) -> "ConfigureCalendarRequest":
+    return _decode_configure_calendar_request_value(cbor_decode(data))
+
+
+ConfigureCalendarRequest.to_cbor = _configure_calendar_request_to_cbor
+ConfigureCalendarRequest.from_cbor = staticmethod(_configure_calendar_request_from_cbor)
+
+def _encode_calendar_connect_response_value(v: "CalendarConnectResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["url"] = v.url
+    return csil_m
+
+def _decode_calendar_connect_response_value(tree: Any) -> "CalendarConnectResponse":
+    tree = _csil_expect_map(tree)
+    return CalendarConnectResponse(
+        url=_csil_expect_text(tree["url"]),
+    )
+
+
+def _calendar_connect_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_calendar_connect_response_value(self))
+
+
+def _calendar_connect_response_from_cbor(data: bytes) -> "CalendarConnectResponse":
+    return _decode_calendar_connect_response_value(cbor_decode(data))
+
+
+CalendarConnectResponse.to_cbor = _calendar_connect_response_to_cbor
+CalendarConnectResponse.from_cbor = staticmethod(_calendar_connect_response_from_cbor)
+
+def _encode_complete_calendar_connect_request_value(v: "CompleteCalendarConnectRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["nonce"] = v.nonce
+    csil_m["grant_id"] = v.grant_id
+    csil_m["house_id"] = v.house_id
+    return csil_m
+
+def _decode_complete_calendar_connect_request_value(tree: Any) -> "CompleteCalendarConnectRequest":
+    tree = _csil_expect_map(tree)
+    return CompleteCalendarConnectRequest(
+        house_id=_csil_expect_text(tree["house_id"]),
+        grant_id=_csil_expect_text(tree["grant_id"]),
+        nonce=_csil_expect_text(tree["nonce"]),
+    )
+
+
+def _complete_calendar_connect_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_complete_calendar_connect_request_value(self))
+
+
+def _complete_calendar_connect_request_from_cbor(data: bytes) -> "CompleteCalendarConnectRequest":
+    return _decode_complete_calendar_connect_request_value(cbor_decode(data))
+
+
+CompleteCalendarConnectRequest.to_cbor = _complete_calendar_connect_request_to_cbor
+CompleteCalendarConnectRequest.from_cbor = staticmethod(_complete_calendar_connect_request_from_cbor)
+
+def _encode_calendar_trash_entry_value(v: "CalendarTrashEntry") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["event"] = _encode_event_value(v.event)
+    csil_m["trash_id"] = v.trash_id
+    csil_m["deleted_at"] = v.deleted_at
+    csil_m["expires_at"] = v.expires_at
+    return csil_m
+
+def _decode_calendar_trash_entry_value(tree: Any) -> "CalendarTrashEntry":
+    tree = _csil_expect_map(tree)
+    return CalendarTrashEntry(
+        trash_id=_csil_expect_text(tree["trash_id"]),
+        event=_decode_event_value(tree["event"]),
+        deleted_at=_csil_expect_text(tree["deleted_at"]),
+        expires_at=_csil_expect_text(tree["expires_at"]),
+    )
+
+
+def _calendar_trash_entry_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_calendar_trash_entry_value(self))
+
+
+def _calendar_trash_entry_from_cbor(data: bytes) -> "CalendarTrashEntry":
+    return _decode_calendar_trash_entry_value(cbor_decode(data))
+
+
+CalendarTrashEntry.to_cbor = _calendar_trash_entry_to_cbor
+CalendarTrashEntry.from_cbor = staticmethod(_calendar_trash_entry_from_cbor)
+
+def _encode_restore_calendar_event_request_value(v: "RestoreCalendarEventRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["house_id"] = v.house_id
+    csil_m["trash_id"] = v.trash_id
+    return csil_m
+
+def _decode_restore_calendar_event_request_value(tree: Any) -> "RestoreCalendarEventRequest":
+    tree = _csil_expect_map(tree)
+    return RestoreCalendarEventRequest(
+        house_id=_csil_expect_text(tree["house_id"]),
+        trash_id=_csil_expect_text(tree["trash_id"]),
+    )
+
+
+def _restore_calendar_event_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_restore_calendar_event_request_value(self))
+
+
+def _restore_calendar_event_request_from_cbor(data: bytes) -> "RestoreCalendarEventRequest":
+    return _decode_restore_calendar_event_request_value(cbor_decode(data))
+
+
+RestoreCalendarEventRequest.to_cbor = _restore_calendar_event_request_to_cbor
+RestoreCalendarEventRequest.from_cbor = staticmethod(_restore_calendar_event_request_from_cbor)
+
+def _encode_calendar_migration_row_value(v: "CalendarMigrationRow") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["title"] = v.title
+    csil_m["reason"] = v.reason
+    csil_m["event_id"] = v.event_id
+    csil_m["disposition"] = v.disposition
+    return csil_m
+
+def _decode_calendar_migration_row_value(tree: Any) -> "CalendarMigrationRow":
+    tree = _csil_expect_map(tree)
+    return CalendarMigrationRow(
+        event_id=_csil_expect_text(tree["event_id"]),
+        title=_csil_expect_text(tree["title"]),
+        disposition=_csil_expect_text(tree["disposition"]),
+        reason=_csil_expect_text(tree["reason"]),
+    )
+
+
+def _calendar_migration_row_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_calendar_migration_row_value(self))
+
+
+def _calendar_migration_row_from_cbor(data: bytes) -> "CalendarMigrationRow":
+    return _decode_calendar_migration_row_value(cbor_decode(data))
+
+
+CalendarMigrationRow.to_cbor = _calendar_migration_row_to_cbor
+CalendarMigrationRow.from_cbor = staticmethod(_calendar_migration_row_from_cbor)
+
 def _encode_audit_entry_value(v: "AuditEntry") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_x = v.after
@@ -3686,6 +3944,96 @@ def encode_event_get_calendar_view_request(csil_value) -> bytes:
 def decode_event_get_calendar_view_request(data: bytes):
     csil_tree = cbor_decode(data)
     return _csil_expect_text(csil_tree)
+
+
+def encode_event_recover_edit_request(csil_value) -> bytes:
+    return cbor_encode(csil_value)
+
+
+def decode_event_recover_edit_request(data: bytes):
+    csil_tree = cbor_decode(data)
+    return _csil_expect_text(csil_tree)
+
+
+def encode_event_list_local_events_request(csil_value) -> bytes:
+    return cbor_encode(csil_value)
+
+
+def decode_event_list_local_events_request(data: bytes):
+    csil_tree = cbor_decode(data)
+    return _csil_expect_text(csil_tree)
+
+
+def encode_event_list_local_events_response(csil_value) -> bytes:
+    return cbor_encode([_encode_event_value(csil_e) for csil_e in csil_value])
+
+
+def decode_event_list_local_events_response(data: bytes):
+    csil_tree = cbor_decode(data)
+    return [_decode_event_value(csil_e) for csil_e in _csil_expect_array(csil_tree)]
+
+
+def encode_calendar_get_status_request(csil_value) -> bytes:
+    return cbor_encode(csil_value)
+
+
+def decode_calendar_get_status_request(data: bytes):
+    csil_tree = cbor_decode(data)
+    return _csil_expect_text(csil_tree)
+
+
+def encode_calendar_begin_connect_request(csil_value) -> bytes:
+    return cbor_encode(csil_value)
+
+
+def decode_calendar_begin_connect_request(data: bytes):
+    csil_tree = cbor_decode(data)
+    return _csil_expect_text(csil_tree)
+
+
+def encode_calendar_disconnect_request(csil_value) -> bytes:
+    return cbor_encode(csil_value)
+
+
+def decode_calendar_disconnect_request(data: bytes):
+    csil_tree = cbor_decode(data)
+    return _csil_expect_text(csil_tree)
+
+
+def encode_calendar_preview_migration_request(csil_value) -> bytes:
+    return cbor_encode(csil_value)
+
+
+def decode_calendar_preview_migration_request(data: bytes):
+    csil_tree = cbor_decode(data)
+    return _csil_expect_text(csil_tree)
+
+
+def encode_calendar_preview_migration_response(csil_value) -> bytes:
+    return cbor_encode([_encode_calendar_migration_row_value(csil_e) for csil_e in csil_value])
+
+
+def decode_calendar_preview_migration_response(data: bytes):
+    csil_tree = cbor_decode(data)
+    return [_decode_calendar_migration_row_value(csil_e) for csil_e in _csil_expect_array(csil_tree)]
+
+
+def encode_calendar_list_trash_request(csil_value) -> bytes:
+    return cbor_encode(csil_value)
+
+
+def decode_calendar_list_trash_request(data: bytes):
+    csil_tree = cbor_decode(data)
+    return _csil_expect_text(csil_tree)
+
+
+def encode_calendar_list_trash_response(csil_value) -> bytes:
+    return cbor_encode([_encode_calendar_trash_entry_value(csil_e) for csil_e in csil_value])
+
+
+def decode_calendar_list_trash_response(data: bytes):
+    csil_tree = cbor_decode(data)
+    return [_decode_calendar_trash_entry_value(csil_e) for csil_e in _csil_expect_array(csil_tree)]
 
 
 def encode_task_get_task_request(csil_value) -> bytes:

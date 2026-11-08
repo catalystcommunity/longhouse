@@ -4,6 +4,8 @@ go 1.26.4
 
 require (
 	charm.land/huh/v2 v2.0.3
+	github.com/catalystcommunity/catalystcal/clients/go v0.3.0
+	github.com/catalystcommunity/linkkeys/sdks/regular-rp/go v0.0.0-20261012235123-03fcbd8e7007
 	github.com/catalystcommunity/longhouse/clients/go v0.0.0-00010101000000-000000000000
 	github.com/catalystcommunity/longhouse/coredb v0.0.0-00010101000000-000000000000
 	github.com/fxamacker/cbor/v2 v2.9.2
@@ -20,6 +22,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.2 // indirect
 	charm.land/lipgloss/v2 v2.0.1 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
+	github.com/catalystcommunity/csilgen/transports/go v0.0.0-20260713013116-a661c8727022 // indirect
 	github.com/catppuccin/go v0.2.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.2 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260205113103-524a6607adb8 // indirect
@@ -55,10 +58,10 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
-	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 )
 
 replace github.com/catalystcommunity/longhouse/coredb => ../coredb

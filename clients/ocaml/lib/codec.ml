@@ -256,16 +256,25 @@ and encode_event (v : event) : Cbor.t =
          Some (Cbor.Text "event_id", (Cbor.Text v.event_id));
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
          (match v.location with Some csil_x -> Some (Cbor.Text "location", (Cbor.Text csil_x)) | None -> None);
+         (match v.revision with Some csil_x -> Some (Cbor.Text "revision", (Cbor.int64 csil_x)) | None -> None);
+         (match v.timezone with Some csil_x -> Some (Cbor.Text "timezone", (Cbor.Text csil_x)) | None -> None);
          (match v.starts_at with Some csil_x -> Some (Cbor.Text "starts_at", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "created_at", (Cbor.Text v.created_at));
+         (match v.edit_scope with Some csil_x -> Some (Cbor.Text "edit_scope", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "updated_at", (Cbor.Text v.updated_at));
          (match v.description with Some csil_x -> Some (Cbor.Text "description", (Cbor.Text csil_x)) | None -> None);
+         (match v.calendar_state with Some csil_x -> Some (Cbor.Text "calendar_state", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "owner_member_id", (Cbor.Text v.owner_member_id));
          (match v.recurrence_freq with Some csil_x -> Some (Cbor.Text "recurrence_freq", (encode_recurrence_freq csil_x)) | None -> None);
+         (match v.recurrence_rule with Some csil_x -> Some (Cbor.Text "recurrence_rule", (Cbor.Text csil_x)) | None -> None);
+         (match v.calendar_unbound with Some csil_x -> Some (Cbor.Text "calendar_unbound", (Cbor.Bool csil_x)) | None -> None);
+         (match v.publication_error with Some csil_x -> Some (Cbor.Text "publication_error", (Cbor.Text csil_x)) | None -> None);
          (match v.next_recurrence_at with Some csil_x -> Some (Cbor.Text "next_recurrence_at", (Cbor.Text csil_x)) | None -> None);
          (match v.recurrence_interval with Some csil_x -> Some (Cbor.Text "recurrence_interval", (Cbor.int64 csil_x)) | None -> None);
          (match v.recurrence_by_setpos with Some csil_x -> Some (Cbor.Text "recurrence_by_setpos", (Cbor.int64 csil_x)) | None -> None);
+         (match v.proposed_by_member_id with Some csil_x -> Some (Cbor.Text "proposed_by_member_id", (Cbor.Text csil_x)) | None -> None);
          (match v.recurrence_by_weekday with Some csil_x -> Some (Cbor.Text "recurrence_by_weekday", (Cbor.Array (List.map (fun csil_e -> (Cbor.int64 csil_e)) csil_x))) | None -> None);
+         (match v.edit_pending_member_id with Some csil_x -> Some (Cbor.Text "edit_pending_member_id", (Cbor.Text csil_x)) | None -> None);
          (match v.recurrence_root_event_id with Some csil_x -> Some (Cbor.Text "recurrence_root_event_id", (Cbor.Text csil_x)) | None -> None);
        ])
 
@@ -964,6 +973,87 @@ and encode_calendar_view (v : calendar_view) : Cbor.t =
          Some (Cbor.Text "viewer_member_id", (Cbor.Text v.viewer_member_id));
        ])
 
+and encode_event_decision (v : event_decision) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "event_id", (Cbor.Text v.event_id));
+         Some (Cbor.Text "revision", (Cbor.int64 v.revision));
+       ])
+
+and encode_calendar_status (v : calendar_status) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "ready", (Cbor.Bool v.ready));
+         Some (Cbor.Text "enabled", (Cbor.Bool v.enabled));
+         Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
+         Some (Cbor.Text "available", (Cbor.Bool v.available));
+         Some (Cbor.Text "connected", (Cbor.Bool v.connected));
+         (match v.last_error with Some csil_x -> Some (Cbor.Text "last_error", (Cbor.Text csil_x)) | None -> None);
+         (match v.sync_pending_since with Some csil_x -> Some (Cbor.Text "sync_pending_since", (Cbor.Text csil_x)) | None -> None);
+       ])
+
+and encode_configure_calendar_request (v : configure_calendar_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "enabled", (Cbor.Bool v.enabled));
+         Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
+       ])
+
+and encode_calendar_connect_response (v : calendar_connect_response) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "url", (Cbor.Text v.url));
+       ])
+
+and encode_complete_calendar_connect_request (v : complete_calendar_connect_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "nonce", (Cbor.Text v.nonce));
+         Some (Cbor.Text "grant_id", (Cbor.Text v.grant_id));
+         Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
+       ])
+
+and encode_calendar_trash_entry (v : calendar_trash_entry) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "event", (encode_event v.event));
+         Some (Cbor.Text "trash_id", (Cbor.Text v.trash_id));
+         Some (Cbor.Text "deleted_at", (Cbor.Text v.deleted_at));
+         Some (Cbor.Text "expires_at", (Cbor.Text v.expires_at));
+       ])
+
+and encode_restore_calendar_event_request (v : restore_calendar_event_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
+         Some (Cbor.Text "trash_id", (Cbor.Text v.trash_id));
+       ])
+
+and encode_calendar_migration_row (v : calendar_migration_row) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "title", (Cbor.Text v.title));
+         Some (Cbor.Text "reason", (Cbor.Text v.reason));
+         Some (Cbor.Text "event_id", (Cbor.Text v.event_id));
+         Some (Cbor.Text "disposition", (Cbor.Text v.disposition));
+       ])
+
 and encode_audit_entry (v : audit_entry) : Cbor.t =
   Cbor.Map
     (List.filter_map
@@ -1387,16 +1477,25 @@ and decode_event (csil_c : Cbor.t) : event =
         event_id = (Cbor.to_text (csil_req "event_id"));
         house_id = (Cbor.to_text (csil_req "house_id"));
         location = (match csil_field "location" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        revision = (match csil_field "revision" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
+        timezone = (match csil_field "timezone" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         starts_at = (match csil_field "starts_at" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         created_at = (Cbor.to_text (csil_req "created_at"));
+        edit_scope = (match csil_field "edit_scope" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         updated_at = (Cbor.to_text (csil_req "updated_at"));
         description = (match csil_field "description" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        calendar_state = (match csil_field "calendar_state" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         owner_member_id = (Cbor.to_text (csil_req "owner_member_id"));
         recurrence_freq = (match csil_field "recurrence_freq" with Some csil_v -> Some (decode_recurrence_freq csil_v) | None -> None);
+        recurrence_rule = (match csil_field "recurrence_rule" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        calendar_unbound = (match csil_field "calendar_unbound" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
+        publication_error = (match csil_field "publication_error" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         next_recurrence_at = (match csil_field "next_recurrence_at" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         recurrence_interval = (match csil_field "recurrence_interval" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
         recurrence_by_setpos = (match csil_field "recurrence_by_setpos" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
+        proposed_by_member_id = (match csil_field "proposed_by_member_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         recurrence_by_weekday = (match csil_field "recurrence_by_weekday" with Some csil_v -> Some (match csil_v with Cbor.Array csil_xs -> List.map (fun csil_e -> (Cbor.to_i64 csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | None -> None);
+        edit_pending_member_id = (match csil_field "edit_pending_member_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         recurrence_root_event_id = (match csil_field "recurrence_root_event_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
       }
   | _ -> failwith "csilgen: expected map for event"
@@ -2423,6 +2522,127 @@ and decode_calendar_view (csil_c : Cbor.t) : calendar_view =
       }
   | _ -> failwith "csilgen: expected map for calendar_view"
 
+and decode_event_decision (csil_c : Cbor.t) : event_decision =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        event_id = (Cbor.to_text (csil_req "event_id"));
+        revision = (Cbor.to_i64 (csil_req "revision"));
+      }
+  | _ -> failwith "csilgen: expected map for event_decision"
+
+and decode_calendar_status (csil_c : Cbor.t) : calendar_status =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        ready = (Cbor.to_bool (csil_req "ready"));
+        enabled = (Cbor.to_bool (csil_req "enabled"));
+        house_id = (Cbor.to_text (csil_req "house_id"));
+        available = (Cbor.to_bool (csil_req "available"));
+        connected = (Cbor.to_bool (csil_req "connected"));
+        last_error = (match csil_field "last_error" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        sync_pending_since = (match csil_field "sync_pending_since" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+      }
+  | _ -> failwith "csilgen: expected map for calendar_status"
+
+and decode_configure_calendar_request (csil_c : Cbor.t) : configure_calendar_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        enabled = (Cbor.to_bool (csil_req "enabled"));
+        house_id = (Cbor.to_text (csil_req "house_id"));
+      }
+  | _ -> failwith "csilgen: expected map for configure_calendar_request"
+
+and decode_calendar_connect_response (csil_c : Cbor.t) : calendar_connect_response =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        url = (Cbor.to_text (csil_req "url"));
+      }
+  | _ -> failwith "csilgen: expected map for calendar_connect_response"
+
+and decode_complete_calendar_connect_request (csil_c : Cbor.t) : complete_calendar_connect_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        nonce = (Cbor.to_text (csil_req "nonce"));
+        grant_id = (Cbor.to_text (csil_req "grant_id"));
+        house_id = (Cbor.to_text (csil_req "house_id"));
+      }
+  | _ -> failwith "csilgen: expected map for complete_calendar_connect_request"
+
+and decode_calendar_trash_entry (csil_c : Cbor.t) : calendar_trash_entry =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        event = (decode_event (csil_req "event"));
+        trash_id = (Cbor.to_text (csil_req "trash_id"));
+        deleted_at = (Cbor.to_text (csil_req "deleted_at"));
+        expires_at = (Cbor.to_text (csil_req "expires_at"));
+      }
+  | _ -> failwith "csilgen: expected map for calendar_trash_entry"
+
+and decode_restore_calendar_event_request (csil_c : Cbor.t) : restore_calendar_event_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        house_id = (Cbor.to_text (csil_req "house_id"));
+        trash_id = (Cbor.to_text (csil_req "trash_id"));
+      }
+  | _ -> failwith "csilgen: expected map for restore_calendar_event_request"
+
+and decode_calendar_migration_row (csil_c : Cbor.t) : calendar_migration_row =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        title = (Cbor.to_text (csil_req "title"));
+        reason = (Cbor.to_text (csil_req "reason"));
+        event_id = (Cbor.to_text (csil_req "event_id"));
+        disposition = (Cbor.to_text (csil_req "disposition"));
+      }
+  | _ -> failwith "csilgen: expected map for calendar_migration_row"
+
 and decode_audit_entry (csil_c : Cbor.t) : audit_entry =
   match csil_c with
   | Cbor.Map csil_kvs ->
@@ -2931,6 +3151,38 @@ let decode_calendar_subscription_bytes (b : bytes) : calendar_subscription =
 let encode_calendar_view_bytes (v : calendar_view) : bytes = Cbor.encode (encode_calendar_view v)
 let decode_calendar_view_bytes (b : bytes) : calendar_view =
   match Cbor.decode b with Ok c -> decode_calendar_view c | Error e -> failwith e
+
+let encode_event_decision_bytes (v : event_decision) : bytes = Cbor.encode (encode_event_decision v)
+let decode_event_decision_bytes (b : bytes) : event_decision =
+  match Cbor.decode b with Ok c -> decode_event_decision c | Error e -> failwith e
+
+let encode_calendar_status_bytes (v : calendar_status) : bytes = Cbor.encode (encode_calendar_status v)
+let decode_calendar_status_bytes (b : bytes) : calendar_status =
+  match Cbor.decode b with Ok c -> decode_calendar_status c | Error e -> failwith e
+
+let encode_configure_calendar_request_bytes (v : configure_calendar_request) : bytes = Cbor.encode (encode_configure_calendar_request v)
+let decode_configure_calendar_request_bytes (b : bytes) : configure_calendar_request =
+  match Cbor.decode b with Ok c -> decode_configure_calendar_request c | Error e -> failwith e
+
+let encode_calendar_connect_response_bytes (v : calendar_connect_response) : bytes = Cbor.encode (encode_calendar_connect_response v)
+let decode_calendar_connect_response_bytes (b : bytes) : calendar_connect_response =
+  match Cbor.decode b with Ok c -> decode_calendar_connect_response c | Error e -> failwith e
+
+let encode_complete_calendar_connect_request_bytes (v : complete_calendar_connect_request) : bytes = Cbor.encode (encode_complete_calendar_connect_request v)
+let decode_complete_calendar_connect_request_bytes (b : bytes) : complete_calendar_connect_request =
+  match Cbor.decode b with Ok c -> decode_complete_calendar_connect_request c | Error e -> failwith e
+
+let encode_calendar_trash_entry_bytes (v : calendar_trash_entry) : bytes = Cbor.encode (encode_calendar_trash_entry v)
+let decode_calendar_trash_entry_bytes (b : bytes) : calendar_trash_entry =
+  match Cbor.decode b with Ok c -> decode_calendar_trash_entry c | Error e -> failwith e
+
+let encode_restore_calendar_event_request_bytes (v : restore_calendar_event_request) : bytes = Cbor.encode (encode_restore_calendar_event_request v)
+let decode_restore_calendar_event_request_bytes (b : bytes) : restore_calendar_event_request =
+  match Cbor.decode b with Ok c -> decode_restore_calendar_event_request c | Error e -> failwith e
+
+let encode_calendar_migration_row_bytes (v : calendar_migration_row) : bytes = Cbor.encode (encode_calendar_migration_row v)
+let decode_calendar_migration_row_bytes (b : bytes) : calendar_migration_row =
+  match Cbor.decode b with Ok c -> decode_calendar_migration_row c | Error e -> failwith e
 
 let encode_audit_entry_bytes (v : audit_entry) : bytes = Cbor.encode (encode_audit_entry v)
 let decode_audit_entry_bytes (b : bytes) : audit_entry =

@@ -428,6 +428,59 @@ class EventAsyncClient:
         """set-calendar-view"""
         return CalendarView.from_cbor(await self._transport.call("EventService", "set-calendar-view", req.to_cbor()))
 
+    async def accept_event(self, req: EventDecision) -> Event:
+        """accept-event"""
+        return Event.from_cbor(await self._transport.call("EventService", "accept-event", req.to_cbor()))
+
+    async def recover_edit(self, req: EventId) -> Event:
+        """recover-edit"""
+        return Event.from_cbor(await self._transport.call("EventService", "recover-edit", encode_event_recover_edit_request(req)))
+
+    async def decline_event(self, req: EventDecision) -> Event:
+        """decline-event"""
+        return Event.from_cbor(await self._transport.call("EventService", "decline-event", req.to_cbor()))
+
+    async def list_local_events(self, req: HouseId) -> List[Event]:
+        """list-local-events"""
+        return decode_event_list_local_events_response(await self._transport.call("EventService", "list-local-events", encode_event_list_local_events_request(req)))
+
+class CalendarAsyncClient:
+    """Typed client for the CalendarService service."""
+    def __init__(self, transport: AsyncTransport):
+        self._transport = transport
+
+    async def get_status(self, req: HouseId) -> CalendarStatus:
+        """get-status"""
+        return CalendarStatus.from_cbor(await self._transport.call("CalendarService", "get-status", encode_calendar_get_status_request(req)))
+
+    async def configure_calendar(self, req: ConfigureCalendarRequest) -> CalendarStatus:
+        """configure-calendar"""
+        return CalendarStatus.from_cbor(await self._transport.call("CalendarService", "configure-calendar", req.to_cbor()))
+
+    async def begin_connect(self, req: HouseId) -> CalendarConnectResponse:
+        """begin-connect"""
+        return CalendarConnectResponse.from_cbor(await self._transport.call("CalendarService", "begin-connect", encode_calendar_begin_connect_request(req)))
+
+    async def complete_connect(self, req: CompleteCalendarConnectRequest) -> CalendarStatus:
+        """complete-connect"""
+        return CalendarStatus.from_cbor(await self._transport.call("CalendarService", "complete-connect", req.to_cbor()))
+
+    async def disconnect(self, req: HouseId) -> EmptyResponse:
+        """disconnect"""
+        return EmptyResponse.from_cbor(await self._transport.call("CalendarService", "disconnect", encode_calendar_disconnect_request(req)))
+
+    async def preview_migration(self, req: HouseId) -> List[CalendarMigrationRow]:
+        """preview-migration"""
+        return decode_calendar_preview_migration_response(await self._transport.call("CalendarService", "preview-migration", encode_calendar_preview_migration_request(req)))
+
+    async def list_trash(self, req: HouseId) -> List[CalendarTrashEntry]:
+        """list-trash"""
+        return decode_calendar_list_trash_response(await self._transport.call("CalendarService", "list-trash", encode_calendar_list_trash_request(req)))
+
+    async def restore_event(self, req: RestoreCalendarEventRequest) -> Event:
+        """restore-event"""
+        return Event.from_cbor(await self._transport.call("CalendarService", "restore-event", req.to_cbor()))
+
 class TaskAsyncClient:
     """Typed client for the TaskService service."""
     def __init__(self, transport: AsyncTransport):

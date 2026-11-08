@@ -348,6 +348,11 @@ pub const ServiceError = struct {
     message: []const u8,
 };
 
+/// CalendarConnectResponse is a structured data type.
+pub const CalendarConnectResponse = struct {
+    url: []const u8,
+};
+
 /// AuditPage is a structured data type.
 pub const AuditPage = struct {
     entries: []AuditEntry,
@@ -525,12 +530,21 @@ pub const Event = struct {
     starts_at: ?Timestamp = null,
     ends_at: ?Timestamp = null,
     all_day: ?bool = null,
+    timezone: ?[]const u8 = null,
+    recurrence_rule: ?[]const u8 = null,
     recurrence_freq: ?RecurrenceFreq = null,
     recurrence_interval: ?i64 = null,
     recurrence_by_weekday: ?[]i64 = null,
     recurrence_by_setpos: ?i64 = null,
     next_recurrence_at: ?Timestamp = null,
     recurrence_root_event_id: ?EventID = null,
+    calendar_state: ?[]const u8 = null,
+    revision: ?u64 = null,
+    proposed_by_member_id: ?MemberID = null,
+    publication_error: ?[]const u8 = null,
+    edit_pending_member_id: ?MemberID = null,
+    calendar_unbound: ?bool = null,
+    edit_scope: ?[]const u8 = null,
     created_at: Timestamp,
     updated_at: Timestamp,
 };
@@ -924,6 +938,58 @@ pub const CalendarView = struct {
     house_id: HouseID,
     viewer_member_id: MemberID,
     subscriptions: ?[]CalendarSubscription = null,
+};
+
+/// EventDecision is a structured data type.
+pub const EventDecision = struct {
+    event_id: EventID,
+    revision: u64,
+};
+
+/// CalendarStatus is a structured data type.
+pub const CalendarStatus = struct {
+    house_id: HouseID,
+    available: bool,
+    enabled: bool,
+    ready: bool,
+    connected: bool,
+    last_error: ?[]const u8 = null,
+    sync_pending_since: ?Timestamp = null,
+};
+
+/// ConfigureCalendarRequest is a structured data type.
+pub const ConfigureCalendarRequest = struct {
+    house_id: HouseID,
+    enabled: bool,
+};
+
+/// CompleteCalendarConnectRequest is a structured data type.
+pub const CompleteCalendarConnectRequest = struct {
+    house_id: HouseID,
+    grant_id: []const u8,
+    nonce: []const u8,
+};
+
+/// CalendarTrashEntry is a structured data type.
+pub const CalendarTrashEntry = struct {
+    trash_id: []const u8,
+    event: Event,
+    deleted_at: Timestamp,
+    expires_at: Timestamp,
+};
+
+/// RestoreCalendarEventRequest is a structured data type.
+pub const RestoreCalendarEventRequest = struct {
+    house_id: HouseID,
+    trash_id: []const u8,
+};
+
+/// CalendarMigrationRow is a structured data type.
+pub const CalendarMigrationRow = struct {
+    event_id: EventID,
+    title: []const u8,
+    disposition: []const u8,
+    reason: []const u8,
 };
 
 /// AuditEntry is a structured data type.
