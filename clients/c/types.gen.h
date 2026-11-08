@@ -420,6 +420,7 @@ typedef struct Event {
     char *timezone;
     char *recurrence_rule;
     RecurrenceFreq *recurrence_freq;
+    bool *clear_recurrence;
     int64_t *recurrence_interval;
     int64_t *recurrence_by_weekday;
     size_t recurrence_by_weekday_count;
@@ -454,6 +455,7 @@ typedef struct Task {
     char *tag;
     uint64_t *estimate_minutes;
     RecurrenceFreq *recurrence_freq;
+    bool *clear_recurrence;
     int64_t *recurrence_interval;
     int64_t *recurrence_by_weekday;
     size_t recurrence_by_weekday_count;

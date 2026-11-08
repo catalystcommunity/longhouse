@@ -1,6 +1,6 @@
 /**
- * Pure month-grid math for the calendar. No DOM, no Solid — just dates and
- * events in, grid structures out. Extracted from Calendar.tsx so it can be
+ * Pure month-grid math for the calendar. No DOM or view state — just dates and
+ * events in, grid structures out. Extracted from Calendar.ts so it can be
  * unit-tested directly.
  *
  * Events arrive in the CSIL shape (starts_at / ends_at as ISO timestamps).

@@ -334,10 +334,8 @@ func (s *TaskService) UpdateTask(ctx context.Context, in csil.Task) (csil.Task, 
 		existing.EstimateMinutes = &v
 	}
 	existing.DueAt = tsToTimePtr(in.DueAt)
-	// Recurrence edits mirror Event semantics: empty-string freq clears the
-	// schedule and wipes next/by_weekday/by_setpos; a non-empty freq toggles
-	// recurrence on (seeding next_recurrence_at from due_at when nothing
-	// else specifies it).
+	// A frequency starts recurrence. Use due_at as the initial anchor when
+	// no anchor is supplied. The clear_recurrence block below removes it.
 	wasRecurring := existing.RecurrenceFreq != nil
 	if in.RecurrenceFreq != nil {
 		f := string(*in.RecurrenceFreq)
@@ -378,6 +376,12 @@ func (s *TaskService) UpdateTask(ctx context.Context, in csil.Task) (csil.Task, 
 	}
 	if in.NextRecurrenceAt != nil {
 		existing.NextRecurrenceAt = tsToTimePtr(in.NextRecurrenceAt)
+	}
+	if in.ClearRecurrence != nil && *in.ClearRecurrence {
+		existing.RecurrenceFreq = nil
+		existing.NextRecurrenceAt = nil
+		existing.RecurrenceByWeekday = nil
+		existing.RecurrenceBySetpos = nil
 	}
 	if err := s.Store.UpdateTask(ctx, existing); err != nil {
 		return csil.Task{}, csilrpc.Internal("internal error")

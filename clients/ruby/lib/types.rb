@@ -264,6 +264,7 @@ end
 # timezone [String]
 # recurrence_rule [String]
 # recurrence_freq [RecurrenceFreq]
+# clear_recurrence [Boolean]
 # recurrence_interval [Integer]
 # recurrence_by_weekday [Array<Integer>]
 # recurrence_by_setpos [Integer]
@@ -278,8 +279,8 @@ end
 # edit_scope [String]
 # created_at [Timestamp]
 # updated_at [Timestamp]
-Event = Data.define(:event_id, :house_id, :owner_member_id, :title, :description, :location, :starts_at, :ends_at, :all_day, :timezone, :recurrence_rule, :recurrence_freq, :recurrence_interval, :recurrence_by_weekday, :recurrence_by_setpos, :next_recurrence_at, :recurrence_root_event_id, :calendar_state, :revision, :proposed_by_member_id, :publication_error, :edit_pending_member_id, :calendar_unbound, :edit_scope, :created_at, :updated_at) do
-  def initialize(event_id:, house_id:, owner_member_id:, title:, created_at:, updated_at:, description: nil, location: nil, starts_at: nil, ends_at: nil, all_day: false, timezone: nil, recurrence_rule: nil, recurrence_freq: nil, recurrence_interval: 1, recurrence_by_weekday: nil, recurrence_by_setpos: nil, next_recurrence_at: nil, recurrence_root_event_id: nil, calendar_state: nil, revision: nil, proposed_by_member_id: nil, publication_error: nil, edit_pending_member_id: nil, calendar_unbound: nil, edit_scope: nil)
+Event = Data.define(:event_id, :house_id, :owner_member_id, :title, :description, :location, :starts_at, :ends_at, :all_day, :timezone, :recurrence_rule, :recurrence_freq, :clear_recurrence, :recurrence_interval, :recurrence_by_weekday, :recurrence_by_setpos, :next_recurrence_at, :recurrence_root_event_id, :calendar_state, :revision, :proposed_by_member_id, :publication_error, :edit_pending_member_id, :calendar_unbound, :edit_scope, :created_at, :updated_at) do
+  def initialize(event_id:, house_id:, owner_member_id:, title:, created_at:, updated_at:, description: nil, location: nil, starts_at: nil, ends_at: nil, all_day: false, timezone: nil, recurrence_rule: nil, recurrence_freq: nil, clear_recurrence: nil, recurrence_interval: 1, recurrence_by_weekday: nil, recurrence_by_setpos: nil, next_recurrence_at: nil, recurrence_root_event_id: nil, calendar_state: nil, revision: nil, proposed_by_member_id: nil, publication_error: nil, edit_pending_member_id: nil, calendar_unbound: nil, edit_scope: nil)
     super
   end
 
@@ -305,6 +306,7 @@ end
 # tag [String]
 # estimate_minutes [Integer]
 # recurrence_freq [RecurrenceFreq]
+# clear_recurrence [Boolean]
 # recurrence_interval [Integer]
 # recurrence_by_weekday [Array<Integer>]
 # recurrence_by_setpos [Integer]
@@ -313,8 +315,8 @@ end
 # deleted_at [Timestamp]
 # created_at [Timestamp]
 # updated_at [Timestamp]
-Task = Data.define(:task_id, :house_id, :owner_member_id, :assignees, :assigned_to_skill_id, :parent_task_id, :visibility, :title, :description, :status, :due_at, :tag, :estimate_minutes, :recurrence_freq, :recurrence_interval, :recurrence_by_weekday, :recurrence_by_setpos, :next_recurrence_at, :recurrence_root_task_id, :deleted_at, :created_at, :updated_at) do
-  def initialize(task_id:, house_id:, owner_member_id:, title:, created_at:, updated_at:, assignees: nil, assigned_to_skill_id: nil, parent_task_id: nil, visibility: "read", description: nil, status: "open", due_at: nil, tag: nil, estimate_minutes: nil, recurrence_freq: nil, recurrence_interval: 1, recurrence_by_weekday: nil, recurrence_by_setpos: nil, next_recurrence_at: nil, recurrence_root_task_id: nil, deleted_at: nil)
+Task = Data.define(:task_id, :house_id, :owner_member_id, :assignees, :assigned_to_skill_id, :parent_task_id, :visibility, :title, :description, :status, :due_at, :tag, :estimate_minutes, :recurrence_freq, :clear_recurrence, :recurrence_interval, :recurrence_by_weekday, :recurrence_by_setpos, :next_recurrence_at, :recurrence_root_task_id, :deleted_at, :created_at, :updated_at) do
+  def initialize(task_id:, house_id:, owner_member_id:, title:, created_at:, updated_at:, assignees: nil, assigned_to_skill_id: nil, parent_task_id: nil, visibility: "read", description: nil, status: "open", due_at: nil, tag: nil, estimate_minutes: nil, recurrence_freq: nil, clear_recurrence: nil, recurrence_interval: 1, recurrence_by_weekday: nil, recurrence_by_setpos: nil, next_recurrence_at: nil, recurrence_root_task_id: nil, deleted_at: nil)
     super
   end
 

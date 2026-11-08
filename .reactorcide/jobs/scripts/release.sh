@@ -102,7 +102,7 @@ fi
 # -------------------------------------------------------------------
 # 4. Build the release binaries
 # -------------------------------------------------------------------
-# Only the API ships as a binary. The web tier is the SolidJS SPA (webapp/),
+# Only the API ships as a binary. The web tier is the Zest SPA (webapp/),
 # released as a container image by the web-build-and-deploy job, not a tarball.
 echo "=== Building longhouse binaries ==="
 

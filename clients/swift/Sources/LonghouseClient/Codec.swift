@@ -1011,6 +1011,7 @@ public extension Event {
         if let csilV = self.recurrenceFreq { csilEntries.append((.text("recurrence_freq"), csilV.toCborValue())) }
         if let csilV = self.recurrenceRule { csilEntries.append((.text("recurrence_rule"), .text(csilV))) }
         if let csilV = self.calendarUnbound { csilEntries.append((.text("calendar_unbound"), .bool(csilV))) }
+        if let csilV = self.clearRecurrence { csilEntries.append((.text("clear_recurrence"), .bool(csilV))) }
         if let csilV = self.publicationError { csilEntries.append((.text("publication_error"), .text(csilV))) }
         if let csilV = self.nextRecurrenceAt { csilEntries.append((.text("next_recurrence_at"), .text(csilV))) }
         if let csilV = self.recurrenceInterval { csilEntries.append((.text("recurrence_interval"), .int(csilV))) }
@@ -1036,6 +1037,7 @@ public extension Event {
         let timezone: String? = if let csilV = CsilCbor.mapGet(cborValue, "timezone") { try CsilCbor.asText(csilV) } else { nil }
         let recurrenceRule: String? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_rule") { try CsilCbor.asText(csilV) } else { nil }
         let recurrenceFreq: RecurrenceFreq? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_freq") { try RecurrenceFreq(cborValue: csilV) } else { nil }
+        let clearRecurrence: Bool? = if let csilV = CsilCbor.mapGet(cborValue, "clear_recurrence") { try CsilCbor.asBool(csilV) } else { nil }
         let recurrenceInterval: Int64? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_interval") { try CsilCbor.asI64(csilV) } else { nil }
         let recurrenceByWeekday: [Int64]? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_by_weekday") { try CsilCbor.asArray(csilV).map { try CsilCbor.asI64($0) } } else { nil }
         let recurrenceBySetpos: Int64? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_by_setpos") { try CsilCbor.asI64(csilV) } else { nil }
@@ -1050,7 +1052,7 @@ public extension Event {
         let editScope: String? = if let csilV = CsilCbor.mapGet(cborValue, "edit_scope") { try CsilCbor.asText(csilV) } else { nil }
         let createdAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "created_at")))
         let updatedAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "updated_at")))
-        self.init(eventId: eventId, houseId: houseId, ownerMemberId: ownerMemberId, title: title, description: description, location: location, startsAt: startsAt, endsAt: endsAt, allDay: allDay, timezone: timezone, recurrenceRule: recurrenceRule, recurrenceFreq: recurrenceFreq, recurrenceInterval: recurrenceInterval, recurrenceByWeekday: recurrenceByWeekday, recurrenceBySetpos: recurrenceBySetpos, nextRecurrenceAt: nextRecurrenceAt, recurrenceRootEventId: recurrenceRootEventId, calendarState: calendarState, revision: revision, proposedByMemberId: proposedByMemberId, publicationError: publicationError, editPendingMemberId: editPendingMemberId, calendarUnbound: calendarUnbound, editScope: editScope, createdAt: createdAt, updatedAt: updatedAt)
+        self.init(eventId: eventId, houseId: houseId, ownerMemberId: ownerMemberId, title: title, description: description, location: location, startsAt: startsAt, endsAt: endsAt, allDay: allDay, timezone: timezone, recurrenceRule: recurrenceRule, recurrenceFreq: recurrenceFreq, clearRecurrence: clearRecurrence, recurrenceInterval: recurrenceInterval, recurrenceByWeekday: recurrenceByWeekday, recurrenceBySetpos: recurrenceBySetpos, nextRecurrenceAt: nextRecurrenceAt, recurrenceRootEventId: recurrenceRootEventId, calendarState: calendarState, revision: revision, proposedByMemberId: proposedByMemberId, publicationError: publicationError, editPendingMemberId: editPendingMemberId, calendarUnbound: calendarUnbound, editScope: editScope, createdAt: createdAt, updatedAt: updatedAt)
     }
 
     /// Encode this record to canonical CSIL CBOR bytes.
@@ -1079,6 +1081,7 @@ public extension Task {
         if let csilV = self.parentTaskId { csilEntries.append((.text("parent_task_id"), .text(csilV))) }
         csilEntries.append((.text("owner_member_id"), .text(self.ownerMemberId)))
         if let csilV = self.recurrenceFreq { csilEntries.append((.text("recurrence_freq"), csilV.toCborValue())) }
+        if let csilV = self.clearRecurrence { csilEntries.append((.text("clear_recurrence"), .bool(csilV))) }
         if let csilV = self.estimateMinutes { csilEntries.append((.text("estimate_minutes"), .uint(csilV))) }
         if let csilV = self.nextRecurrenceAt { csilEntries.append((.text("next_recurrence_at"), .text(csilV))) }
         if let csilV = self.recurrenceInterval { csilEntries.append((.text("recurrence_interval"), .int(csilV))) }
@@ -1105,6 +1108,7 @@ public extension Task {
         let tag: String? = if let csilV = CsilCbor.mapGet(cborValue, "tag") { try CsilCbor.asText(csilV) } else { nil }
         let estimateMinutes: UInt64? = if let csilV = CsilCbor.mapGet(cborValue, "estimate_minutes") { try CsilCbor.asU64(csilV) } else { nil }
         let recurrenceFreq: RecurrenceFreq? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_freq") { try RecurrenceFreq(cborValue: csilV) } else { nil }
+        let clearRecurrence: Bool? = if let csilV = CsilCbor.mapGet(cborValue, "clear_recurrence") { try CsilCbor.asBool(csilV) } else { nil }
         let recurrenceInterval: Int64? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_interval") { try CsilCbor.asI64(csilV) } else { nil }
         let recurrenceByWeekday: [Int64]? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_by_weekday") { try CsilCbor.asArray(csilV).map { try CsilCbor.asI64($0) } } else { nil }
         let recurrenceBySetpos: Int64? = if let csilV = CsilCbor.mapGet(cborValue, "recurrence_by_setpos") { try CsilCbor.asI64(csilV) } else { nil }
@@ -1113,7 +1117,7 @@ public extension Task {
         let deletedAt: Timestamp? = if let csilV = CsilCbor.mapGet(cborValue, "deleted_at") { try CsilCbor.asText(csilV) } else { nil }
         let createdAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "created_at")))
         let updatedAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "updated_at")))
-        self.init(taskId: taskId, houseId: houseId, ownerMemberId: ownerMemberId, assignees: assignees, assignedToSkillId: assignedToSkillId, parentTaskId: parentTaskId, visibility: visibility, title: title, description: description, status: status, dueAt: dueAt, tag: tag, estimateMinutes: estimateMinutes, recurrenceFreq: recurrenceFreq, recurrenceInterval: recurrenceInterval, recurrenceByWeekday: recurrenceByWeekday, recurrenceBySetpos: recurrenceBySetpos, nextRecurrenceAt: nextRecurrenceAt, recurrenceRootTaskId: recurrenceRootTaskId, deletedAt: deletedAt, createdAt: createdAt, updatedAt: updatedAt)
+        self.init(taskId: taskId, houseId: houseId, ownerMemberId: ownerMemberId, assignees: assignees, assignedToSkillId: assignedToSkillId, parentTaskId: parentTaskId, visibility: visibility, title: title, description: description, status: status, dueAt: dueAt, tag: tag, estimateMinutes: estimateMinutes, recurrenceFreq: recurrenceFreq, clearRecurrence: clearRecurrence, recurrenceInterval: recurrenceInterval, recurrenceByWeekday: recurrenceByWeekday, recurrenceBySetpos: recurrenceBySetpos, nextRecurrenceAt: nextRecurrenceAt, recurrenceRootTaskId: recurrenceRootTaskId, deletedAt: deletedAt, createdAt: createdAt, updatedAt: updatedAt)
     }
 
     /// Encode this record to canonical CSIL CBOR bytes.

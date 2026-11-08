@@ -721,6 +721,8 @@ public struct Event: Equatable, Sendable {
     public let recurrenceRule: String?
     /// wire key: recurrence_freq
     public let recurrenceFreq: RecurrenceFreq?
+    /// wire key: clear_recurrence
+    public let clearRecurrence: Bool?
     /// wire key: recurrence_interval
     public let recurrenceInterval: Int64?
     /// wire key: recurrence_by_weekday
@@ -749,7 +751,7 @@ public struct Event: Equatable, Sendable {
     /// wire key: updated_at
     public let updatedAt: Timestamp
 
-    public init(eventId: EventId, houseId: HouseId, ownerMemberId: MemberId, title: String, description: String? = nil, location: String? = nil, startsAt: Timestamp? = nil, endsAt: Timestamp? = nil, allDay: Bool? = false, timezone: String? = nil, recurrenceRule: String? = nil, recurrenceFreq: RecurrenceFreq? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: Timestamp? = nil, recurrenceRootEventId: EventId? = nil, calendarState: String? = nil, revision: UInt64? = nil, proposedByMemberId: MemberId? = nil, publicationError: String? = nil, editPendingMemberId: MemberId? = nil, calendarUnbound: Bool? = nil, editScope: String? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(eventId: EventId, houseId: HouseId, ownerMemberId: MemberId, title: String, description: String? = nil, location: String? = nil, startsAt: Timestamp? = nil, endsAt: Timestamp? = nil, allDay: Bool? = false, timezone: String? = nil, recurrenceRule: String? = nil, recurrenceFreq: RecurrenceFreq? = nil, clearRecurrence: Bool? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: Timestamp? = nil, recurrenceRootEventId: EventId? = nil, calendarState: String? = nil, revision: UInt64? = nil, proposedByMemberId: MemberId? = nil, publicationError: String? = nil, editPendingMemberId: MemberId? = nil, calendarUnbound: Bool? = nil, editScope: String? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
         self.eventId = eventId
         self.houseId = houseId
         self.ownerMemberId = ownerMemberId
@@ -762,6 +764,7 @@ public struct Event: Equatable, Sendable {
         self.timezone = timezone
         self.recurrenceRule = recurrenceRule
         self.recurrenceFreq = recurrenceFreq
+        self.clearRecurrence = clearRecurrence
         self.recurrenceInterval = recurrenceInterval
         self.recurrenceByWeekday = recurrenceByWeekday
         self.recurrenceBySetpos = recurrenceBySetpos
@@ -802,6 +805,7 @@ public struct Event: Equatable, Sendable {
         "timezone": "timezone",
         "recurrenceRule": "recurrence_rule",
         "recurrenceFreq": "recurrence_freq",
+        "clearRecurrence": "clear_recurrence",
         "recurrenceInterval": "recurrence_interval",
         "recurrenceByWeekday": "recurrence_by_weekday",
         "recurrenceBySetpos": "recurrence_by_setpos",
@@ -843,6 +847,8 @@ public struct Task: Equatable, Sendable {
     public let estimateMinutes: UInt64?
     /// wire key: recurrence_freq
     public let recurrenceFreq: RecurrenceFreq?
+    /// wire key: clear_recurrence
+    public let clearRecurrence: Bool?
     /// wire key: recurrence_interval
     public let recurrenceInterval: Int64?
     /// wire key: recurrence_by_weekday
@@ -860,7 +866,7 @@ public struct Task: Equatable, Sendable {
     /// wire key: updated_at
     public let updatedAt: Timestamp
 
-    public init(taskId: TaskId, houseId: HouseId, ownerMemberId: MemberId, assignees: [MemberId]? = nil, assignedToSkillId: SkillId? = nil, parentTaskId: TaskId? = nil, visibility: AccessLevel? = .read, title: String, description: String? = nil, status: TaskStatus? = .`open`, dueAt: Timestamp? = nil, tag: String? = nil, estimateMinutes: UInt64? = nil, recurrenceFreq: RecurrenceFreq? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: Timestamp? = nil, recurrenceRootTaskId: TaskId? = nil, deletedAt: Timestamp? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(taskId: TaskId, houseId: HouseId, ownerMemberId: MemberId, assignees: [MemberId]? = nil, assignedToSkillId: SkillId? = nil, parentTaskId: TaskId? = nil, visibility: AccessLevel? = .read, title: String, description: String? = nil, status: TaskStatus? = .`open`, dueAt: Timestamp? = nil, tag: String? = nil, estimateMinutes: UInt64? = nil, recurrenceFreq: RecurrenceFreq? = nil, clearRecurrence: Bool? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: Timestamp? = nil, recurrenceRootTaskId: TaskId? = nil, deletedAt: Timestamp? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
         self.taskId = taskId
         self.houseId = houseId
         self.ownerMemberId = ownerMemberId
@@ -875,6 +881,7 @@ public struct Task: Equatable, Sendable {
         self.tag = tag
         self.estimateMinutes = estimateMinutes
         self.recurrenceFreq = recurrenceFreq
+        self.clearRecurrence = clearRecurrence
         self.recurrenceInterval = recurrenceInterval
         self.recurrenceByWeekday = recurrenceByWeekday
         self.recurrenceBySetpos = recurrenceBySetpos
@@ -911,6 +918,7 @@ public struct Task: Equatable, Sendable {
         "tag": "tag",
         "estimateMinutes": "estimate_minutes",
         "recurrenceFreq": "recurrence_freq",
+        "clearRecurrence": "clear_recurrence",
         "recurrenceInterval": "recurrence_interval",
         "recurrenceByWeekday": "recurrence_by_weekday",
         "recurrenceBySetpos": "recurrence_by_setpos",

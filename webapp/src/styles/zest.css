@@ -1,0 +1,44 @@
+/* Longhouse colors on the public Zest roles. Custom controls use the same palette. */
+:root, [data-theme] {
+  --zest-color-window: var(--surface);
+  --zest-color-window-text: var(--ink);
+  --zest-color-face: var(--paper-2);
+  --zest-color-face-text: var(--ink);
+  --zest-color-field: var(--paper);
+  --zest-color-field-text: var(--ink);
+  --zest-color-highlight: var(--accent);
+  --zest-color-highlight-text: var(--on-accent);
+  --zest-color-secondary-text: var(--ink-soft);
+  --zest-color-disabled-text: var(--ink-mute);
+  --zest-color-border: var(--ink-mute);
+  --zest-color-focus: var(--accent-hi);
+  --zest-color-invalid: var(--berry);
+  --zest-font-family: var(--sans);
+}
+longhouse-view, [data-longhouse-view] { display: contents; }
+longhouse-date-field {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  font: inherit;
+  width: 13em;
+  --zest-control-border: var(--line);
+  --zest-control-radius: var(--r-md);
+}
+longhouse-date-field .dtp { display: block; width: 100%; }
+.lh-date-time {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+.lh-date-time longhouse-date-field { flex: 1 1 10em; }
+.lh-form-grid > *, form input, form select, form textarea { min-width: 0; max-width: 100%; }
+@media (max-width: 720px) {
+  /* These views also specify desktop columns in their layout properties. */
+  .lh-form-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .lh-form-grid > * { grid-column: 1 / -1 !important; }
+}

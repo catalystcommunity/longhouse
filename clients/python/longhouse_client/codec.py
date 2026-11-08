@@ -954,6 +954,9 @@ def _encode_event_value(v: "Event") -> Dict[Any, Any]:
     csil_x = v.calendar_unbound
     if csil_x is not None:
         csil_m["calendar_unbound"] = csil_x
+    csil_x = v.clear_recurrence
+    if csil_x is not None:
+        csil_m["clear_recurrence"] = csil_x
     csil_x = v.publication_error
     if csil_x is not None:
         csil_m["publication_error"] = csil_x
@@ -995,6 +998,7 @@ def _decode_event_value(tree: Any) -> "Event":
         timezone=(None if tree.get("timezone") is None else _csil_expect_text(tree["timezone"])),
         recurrence_rule=(None if tree.get("recurrence_rule") is None else _csil_expect_text(tree["recurrence_rule"])),
         recurrence_freq=(None if tree.get("recurrence_freq") is None else _decode_recurrence_freq_value(tree["recurrence_freq"])),
+        clear_recurrence=(None if tree.get("clear_recurrence") is None else _csil_expect_bool(tree["clear_recurrence"])),
         recurrence_interval=(None if tree.get("recurrence_interval") is None else _csil_expect_int(tree["recurrence_interval"])),
         recurrence_by_weekday=(None if tree.get("recurrence_by_weekday") is None else [_csil_expect_int(csil_e) for csil_e in _csil_expect_array(tree["recurrence_by_weekday"])]),
         recurrence_by_setpos=(None if tree.get("recurrence_by_setpos") is None else _csil_expect_int(tree["recurrence_by_setpos"])),
@@ -1058,6 +1062,9 @@ def _encode_task_value(v: "Task") -> Dict[Any, Any]:
     csil_x = v.recurrence_freq
     if csil_x is not None:
         csil_m["recurrence_freq"] = csil_x
+    csil_x = v.clear_recurrence
+    if csil_x is not None:
+        csil_m["clear_recurrence"] = csil_x
     csil_x = v.estimate_minutes
     if csil_x is not None:
         csil_m["estimate_minutes"] = csil_x
@@ -1098,6 +1105,7 @@ def _decode_task_value(tree: Any) -> "Task":
         tag=(None if tree.get("tag") is None else _csil_expect_text(tree["tag"])),
         estimate_minutes=(None if tree.get("estimate_minutes") is None else _csil_expect_uint(tree["estimate_minutes"])),
         recurrence_freq=(None if tree.get("recurrence_freq") is None else _decode_recurrence_freq_value(tree["recurrence_freq"])),
+        clear_recurrence=(None if tree.get("clear_recurrence") is None else _csil_expect_bool(tree["clear_recurrence"])),
         recurrence_interval=(None if tree.get("recurrence_interval") is None else _csil_expect_int(tree["recurrence_interval"])),
         recurrence_by_weekday=(None if tree.get("recurrence_by_weekday") is None else [_csil_expect_int(csil_e) for csil_e in _csil_expect_array(tree["recurrence_by_weekday"])]),
         recurrence_by_setpos=(None if tree.get("recurrence_by_setpos") is None else _csil_expect_int(tree["recurrence_by_setpos"])),

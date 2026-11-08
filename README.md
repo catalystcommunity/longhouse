@@ -37,12 +37,46 @@ Tear down with:
 ## Layout
 
 - `api/` — Go API server (single CSIL-RPC endpoint, no REST)
-- `webapp/` — SolidJS + Vite SPA
+- `webapp/` — Zest + TypeScript + Vite SPA
 - `clients/` — generated CSIL client libraries, one package per language
 - `csil/` — CSIL service/type definitions (source of truth for server + clients)
 - `coredb/` — SQL migrations (goose)
 - `helm_chart/` — Kubernetes Helm chart
 - `deploy/` — per-environment Helm values
+
+## Web components
+
+The web app uses Zest and native DOM elements. It has no JSX compiler or
+application framework. The component library has two parts:
+
+- `webapp/src/ui/` supplies view lifetimes, DOM bindings, state, routing,
+  and the Zest date field.
+- `webapp/src/components/` supplies Longhouse controls. These include the
+  task feed, editors, calendar controls, comments, and dependency controls.
+
+`LonghouseView` extends Zest `BaseComponent`. Each page owns its subscriptions
+and cleanup functions. State uses Zest `BasicDataService`. Navigation uses
+Zest `SimpleRouter`. The date field extends Zest `DateTimePicker`.
+`webapp/src/styles/zest.css` maps Zest color roles to the Longhouse palette.
+Keep the explicit Vite CSS targets: they preserve `light-dark()` in the build.
+
+To add a view, use `el` for DOM elements and `live` for values that change.
+Use property getters for attributes that read state. Use `When` for conditional
+content and `Repeat` for lists. `Repeat` keeps rows with the same object identity.
+Keep row objects stable when a page of results arrives, or an open editor can
+lose its draft. Use `query` for requests. It ignores responses after a source
+change or page removal. Register timers and external listeners with `cleanup`.
+Use `defineView` when a component needs its own Zest element and lifetime.
+
+Use the generated client in `data/clients.ts` for API calls. Never send an empty
+`recurrenceFreq`: the wire enum rejects it. On updates, use `clearRecurrence`
+to remove a task or event schedule. Remote calendar edits also send the RRULE.
+Deploy the API and web images together when introducing this field.
+
+Run `npm test` and `npm run build` in `webapp/`. The tests include view cleanup,
+request ordering, routing, task paging, and calendar acceptance and recovery.
+Check native form behavior, focus, scrolling, and narrow layouts in a browser.
+For a separate local API, set `LONGHOUSE_DEV_API_TARGET` before `npm run dev`.
 
 ## Auth
 

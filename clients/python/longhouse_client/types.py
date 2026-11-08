@@ -698,6 +698,7 @@ class Event:
     timezone: Optional[str] = None
     recurrence_rule: Optional[str] = None
     recurrence_freq: Optional[RecurrenceFreq] = None
+    clear_recurrence: Optional[bool] = None
     recurrence_interval: Optional[int] = 1
     recurrence_by_weekday: Optional[List[int]] = None
     recurrence_by_setpos: Optional[int] = None
@@ -735,6 +736,8 @@ class Event:
             result['recurrence_rule'] = self.recurrence_rule
         if hasattr(self, 'recurrence_freq') and self.recurrence_freq is not None:
             result['recurrence_freq'] = self.recurrence_freq
+        if hasattr(self, 'clear_recurrence') and self.clear_recurrence is not None:
+            result['clear_recurrence'] = self.clear_recurrence
         if hasattr(self, 'recurrence_interval') and self.recurrence_interval is not None:
             result['recurrence_interval'] = self.recurrence_interval
         if hasattr(self, 'recurrence_by_weekday') and self.recurrence_by_weekday is not None:
@@ -754,7 +757,7 @@ class Event:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Event':
         """Create instance from dictionary."""
-        return cls(event_id=data.get('event_id'), house_id=data.get('house_id'), owner_member_id=data.get('owner_member_id'), title=data.get('title'), description=data.get('description'), location=data.get('location'), starts_at=data.get('starts_at'), ends_at=data.get('ends_at'), all_day=data.get('all_day'), timezone=data.get('timezone'), recurrence_rule=data.get('recurrence_rule'), recurrence_freq=data.get('recurrence_freq'), recurrence_interval=data.get('recurrence_interval'), recurrence_by_weekday=data.get('recurrence_by_weekday'), recurrence_by_setpos=data.get('recurrence_by_setpos'), next_recurrence_at=data.get('next_recurrence_at'), recurrence_root_event_id=data.get('recurrence_root_event_id'), calendar_state=data.get('calendar_state'), revision=data.get('revision'), proposed_by_member_id=data.get('proposed_by_member_id'), publication_error=data.get('publication_error'), edit_pending_member_id=data.get('edit_pending_member_id'), calendar_unbound=data.get('calendar_unbound'), edit_scope=data.get('edit_scope'), created_at=data.get('created_at'), updated_at=data.get('updated_at'))
+        return cls(event_id=data.get('event_id'), house_id=data.get('house_id'), owner_member_id=data.get('owner_member_id'), title=data.get('title'), description=data.get('description'), location=data.get('location'), starts_at=data.get('starts_at'), ends_at=data.get('ends_at'), all_day=data.get('all_day'), timezone=data.get('timezone'), recurrence_rule=data.get('recurrence_rule'), recurrence_freq=data.get('recurrence_freq'), clear_recurrence=data.get('clear_recurrence'), recurrence_interval=data.get('recurrence_interval'), recurrence_by_weekday=data.get('recurrence_by_weekday'), recurrence_by_setpos=data.get('recurrence_by_setpos'), next_recurrence_at=data.get('next_recurrence_at'), recurrence_root_event_id=data.get('recurrence_root_event_id'), calendar_state=data.get('calendar_state'), revision=data.get('revision'), proposed_by_member_id=data.get('proposed_by_member_id'), publication_error=data.get('publication_error'), edit_pending_member_id=data.get('edit_pending_member_id'), calendar_unbound=data.get('calendar_unbound'), edit_scope=data.get('edit_scope'), created_at=data.get('created_at'), updated_at=data.get('updated_at'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -796,6 +799,7 @@ class Task:
     tag: Optional[str] = None
     estimate_minutes: Optional[int] = None
     recurrence_freq: Optional[RecurrenceFreq] = None
+    clear_recurrence: Optional[bool] = None
     recurrence_interval: Optional[int] = 1
     recurrence_by_weekday: Optional[List[int]] = None
     recurrence_by_setpos: Optional[int] = None
@@ -831,6 +835,8 @@ class Task:
             result['estimate_minutes'] = self.estimate_minutes
         if hasattr(self, 'recurrence_freq') and self.recurrence_freq is not None:
             result['recurrence_freq'] = self.recurrence_freq
+        if hasattr(self, 'clear_recurrence') and self.clear_recurrence is not None:
+            result['clear_recurrence'] = self.clear_recurrence
         if hasattr(self, 'recurrence_interval') and self.recurrence_interval is not None:
             result['recurrence_interval'] = self.recurrence_interval
         if hasattr(self, 'recurrence_by_weekday') and self.recurrence_by_weekday is not None:
@@ -848,7 +854,7 @@ class Task:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Task':
         """Create instance from dictionary."""
-        return cls(task_id=data.get('task_id'), house_id=data.get('house_id'), owner_member_id=data.get('owner_member_id'), assignees=data.get('assignees'), assigned_to_skill_id=data.get('assigned_to_skill_id'), parent_task_id=data.get('parent_task_id'), visibility=data.get('visibility'), title=data.get('title'), description=data.get('description'), status=data.get('status'), due_at=data.get('due_at'), tag=data.get('tag'), estimate_minutes=data.get('estimate_minutes'), recurrence_freq=data.get('recurrence_freq'), recurrence_interval=data.get('recurrence_interval'), recurrence_by_weekday=data.get('recurrence_by_weekday'), recurrence_by_setpos=data.get('recurrence_by_setpos'), next_recurrence_at=data.get('next_recurrence_at'), recurrence_root_task_id=data.get('recurrence_root_task_id'), deleted_at=data.get('deleted_at'), created_at=data.get('created_at'), updated_at=data.get('updated_at'))
+        return cls(task_id=data.get('task_id'), house_id=data.get('house_id'), owner_member_id=data.get('owner_member_id'), assignees=data.get('assignees'), assigned_to_skill_id=data.get('assigned_to_skill_id'), parent_task_id=data.get('parent_task_id'), visibility=data.get('visibility'), title=data.get('title'), description=data.get('description'), status=data.get('status'), due_at=data.get('due_at'), tag=data.get('tag'), estimate_minutes=data.get('estimate_minutes'), recurrence_freq=data.get('recurrence_freq'), clear_recurrence=data.get('clear_recurrence'), recurrence_interval=data.get('recurrence_interval'), recurrence_by_weekday=data.get('recurrence_by_weekday'), recurrence_by_setpos=data.get('recurrence_by_setpos'), next_recurrence_at=data.get('next_recurrence_at'), recurrence_root_task_id=data.get('recurrence_root_task_id'), deleted_at=data.get('deleted_at'), created_at=data.get('created_at'), updated_at=data.get('updated_at'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""

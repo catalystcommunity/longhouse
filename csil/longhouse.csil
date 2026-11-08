@@ -352,6 +352,8 @@ Event = {
     ;; just that row, and a "delete this and future" flow clears the
     ;; root's recurrence so the spawner stops respawning.
     ? recurrence_freq: RecurrenceFreq,
+    ;; Clear the recurrence on update. Do not send an empty enum value.
+    ? clear_recurrence: bool,
     ? recurrence_interval: int .default 1,
     ;; ISO weekday filter (0 = Sunday … 6 = Saturday). For `weekly`, the
     ;; worker spawns a child on the next matching weekday within each
@@ -427,6 +429,8 @@ Task = {
     ? estimate_minutes: uint,
 
     ? recurrence_freq: RecurrenceFreq,
+    ;; Clear the recurrence on update. Do not send an empty enum value.
+    ? clear_recurrence: bool,
     ? recurrence_interval: int .default 1,
     ? recurrence_by_weekday: [* int],
     ;; Ordinal position inside the period for monthly/quarterly/yearly

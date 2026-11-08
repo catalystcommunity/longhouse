@@ -1409,6 +1409,7 @@ defmodule Csilgen.Generated.Event do
     :timezone,
     :recurrence_rule,
     :recurrence_freq,
+    :clear_recurrence,
     :recurrence_by_weekday,
     :recurrence_by_setpos,
     :next_recurrence_at,
@@ -1439,6 +1440,7 @@ defmodule Csilgen.Generated.Event do
           timezone: String.t() | nil,
           recurrence_rule: String.t() | nil,
           recurrence_freq: Csilgen.Generated.RecurrenceFreq.t() | nil,
+          clear_recurrence: boolean() | nil,
           recurrence_interval: integer() | nil,
           recurrence_by_weekday: [integer()] | nil,
           recurrence_by_setpos: integer() | nil,
@@ -1468,6 +1470,7 @@ defmodule Csilgen.Generated.Event do
     timezone: "timezone",
     recurrence_rule: "recurrence_rule",
     recurrence_freq: "recurrence_freq",
+    clear_recurrence: "clear_recurrence",
     recurrence_interval: "recurrence_interval",
     recurrence_by_weekday: "recurrence_by_weekday",
     recurrence_by_setpos: "recurrence_by_setpos",
@@ -1525,6 +1528,10 @@ defmodule Csilgen.Generated.Event do
          if(is_nil(v.calendar_unbound),
            do: nil,
            else: {{:text, "calendar_unbound"}, {:bool, v.calendar_unbound}}
+         ),
+         if(is_nil(v.clear_recurrence),
+           do: nil,
+           else: {{:text, "clear_recurrence"}, {:bool, v.clear_recurrence}}
          ),
          if(is_nil(v.publication_error),
            do: nil,
@@ -1662,6 +1669,11 @@ defmodule Csilgen.Generated.Event do
           nil -> nil
           csil_v -> Csilgen.Generated.Cbor.to_bool(csil_v)
         end,
+      clear_recurrence:
+        case Map.get(csil_fields, {:text, "clear_recurrence"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_bool(csil_v)
+        end,
       publication_error:
         case Map.get(csil_fields, {:text, "publication_error"}) do
           nil -> nil
@@ -1737,6 +1749,7 @@ defmodule Csilgen.Generated.Task do
     :tag,
     :estimate_minutes,
     :recurrence_freq,
+    :clear_recurrence,
     :recurrence_by_weekday,
     :recurrence_by_setpos,
     :next_recurrence_at,
@@ -1764,6 +1777,7 @@ defmodule Csilgen.Generated.Task do
           tag: String.t() | nil,
           estimate_minutes: integer() | nil,
           recurrence_freq: Csilgen.Generated.RecurrenceFreq.t() | nil,
+          clear_recurrence: boolean() | nil,
           recurrence_interval: integer() | nil,
           recurrence_by_weekday: [integer()] | nil,
           recurrence_by_setpos: integer() | nil,
@@ -1789,6 +1803,7 @@ defmodule Csilgen.Generated.Task do
     tag: "tag",
     estimate_minutes: "estimate_minutes",
     recurrence_freq: "recurrence_freq",
+    clear_recurrence: "clear_recurrence",
     recurrence_interval: "recurrence_interval",
     recurrence_by_weekday: "recurrence_by_weekday",
     recurrence_by_setpos: "recurrence_by_setpos",
@@ -1836,6 +1851,10 @@ defmodule Csilgen.Generated.Task do
          if(is_nil(v.recurrence_freq),
            do: nil,
            else: {{:text, "recurrence_freq"}, {:text, v.recurrence_freq}}
+         ),
+         if(is_nil(v.clear_recurrence),
+           do: nil,
+           else: {{:text, "clear_recurrence"}, {:bool, v.clear_recurrence}}
          ),
          if(is_nil(v.estimate_minutes),
            do: nil,
@@ -1977,6 +1996,11 @@ defmodule Csilgen.Generated.Task do
               csil_other ->
                 raise("csilgen: unknown RecurrenceFreq literal #{inspect(csil_other)}")
             end
+        end,
+      clear_recurrence:
+        case Map.get(csil_fields, {:text, "clear_recurrence"}) do
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.to_bool(csil_v)
         end,
       estimate_minutes:
         case Map.get(csil_fields, {:text, "estimate_minutes"}) do

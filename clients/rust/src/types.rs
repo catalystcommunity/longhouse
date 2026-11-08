@@ -427,6 +427,7 @@ pub struct Event {
     pub timezone: Option<String>,
     pub recurrence_rule: Option<String>,
     pub recurrence_freq: Option<RecurrenceFreq>,
+    pub clear_recurrence: Option<bool>,
     /// default: 1
     pub recurrence_interval: Option<i64>,
     pub recurrence_by_weekday: Option<Vec<i64>>,
@@ -479,6 +480,7 @@ pub struct Task {
     pub tag: Option<String>,
     pub estimate_minutes: Option<u64>,
     pub recurrence_freq: Option<RecurrenceFreq>,
+    pub clear_recurrence: Option<bool>,
     /// default: 1
     pub recurrence_interval: Option<i64>,
     pub recurrence_by_weekday: Option<Vec<i64>>,

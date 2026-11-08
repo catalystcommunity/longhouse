@@ -2190,7 +2190,7 @@ func DecodeMilestone(csilData []byte) (Milestone, error) {
 
 // csilEncEvent builds the canonical CBOR value tree for a Event.
 func csilEncEvent(csilV Event) cborValue {
-	csilEntries := make(cborMap, 0, 26)
+	csilEntries := make(cborMap, 0, 27)
 	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
 	if csilV.AllDay != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("all_day"), cborBool((*csilV.AllDay))})
@@ -2232,6 +2232,9 @@ func csilEncEvent(csilV Event) cborValue {
 	}
 	if csilV.CalendarUnbound != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("calendar_unbound"), cborBool((*csilV.CalendarUnbound))})
+	}
+	if csilV.ClearRecurrence != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("clear_recurrence"), cborBool((*csilV.ClearRecurrence))})
 	}
 	if csilV.PublicationError != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("publication_error"), cborText((*csilV.PublicationError))})
@@ -2392,6 +2395,13 @@ func csilDecEvent(csilRoot cborValue) (Event, error) {
 		}
 		csilOut.RecurrenceFreq = &csilVal
 	}
+	if csilField, csilOk := cborMapGet(csilRoot, "clear_recurrence"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ClearRecurrence = &csilVal
+	}
 	if csilField, csilOk := cborMapGet(csilRoot, "recurrence_interval"); csilOk {
 		csilVal, csilErr := (cborAsI64)(csilField)
 		if csilErr != nil {
@@ -2536,7 +2546,7 @@ func DecodeEvent(csilData []byte) (Event, error) {
 
 // csilEncTask builds the canonical CBOR value tree for a Task.
 func csilEncTask(csilV Task) cborValue {
-	csilEntries := make(cborMap, 0, 22)
+	csilEntries := make(cborMap, 0, 23)
 	if csilV.Tag != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("tag"), cborText((*csilV.Tag))})
 	}
@@ -2569,6 +2579,9 @@ func csilEncTask(csilV Task) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("owner_member_id"), cborText(csilV.OwnerMemberId)})
 	if csilV.RecurrenceFreq != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("recurrence_freq"), cborText((*csilV.RecurrenceFreq))})
+	}
+	if csilV.ClearRecurrence != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("clear_recurrence"), cborBool((*csilV.ClearRecurrence))})
 	}
 	if csilV.EstimateMinutes != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("estimate_minutes"), cborUint((*csilV.EstimateMinutes))})
@@ -2775,6 +2788,13 @@ func csilDecTask(csilRoot cborValue) (Task, error) {
 			return csilOut, csilErr
 		}
 		csilOut.RecurrenceFreq = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "clear_recurrence"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ClearRecurrence = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "recurrence_interval"); csilOk {
 		csilVal, csilErr := (cborAsI64)(csilField)

@@ -1514,7 +1514,7 @@ pub fn decode_milestone(csil_data: &[u8]) -> Result<Milestone, CsilCborError> {
 
 /// Build the canonical CBOR value tree for a Event.
 fn csil_enc_event(csil_v: &Event) -> CsilCborValue {
-    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(26);
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(27);
     csil_entries.push((cbor_text("title"), cbor_text(&csil_v.title)));
     if let Some(csil_inner) = &csil_v.all_day {
         csil_entries.push((cbor_text("all_day"), cbor_bool(*csil_inner)));
@@ -1562,6 +1562,9 @@ fn csil_enc_event(csil_v: &Event) -> CsilCborValue {
     }
     if let Some(csil_inner) = &csil_v.calendar_unbound {
         csil_entries.push((cbor_text("calendar_unbound"), cbor_bool(*csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.clear_recurrence {
+        csil_entries.push((cbor_text("clear_recurrence"), cbor_bool(*csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.publication_error {
         csil_entries.push((cbor_text("publication_error"), cbor_text(csil_inner)));
@@ -1667,6 +1670,13 @@ fn csil_dec_event(csil_root: &CsilCborValue) -> Result<Event, CsilCborError> {
     let recurrence_freq = match cbor_map_get(csil_root, "recurrence_freq") {
         Some(csil_field) => {
             let csil_decode = csil_dec_recurrence_freq;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let clear_recurrence = match cbor_map_get(csil_root, "clear_recurrence") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_bool;
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -1778,6 +1788,7 @@ fn csil_dec_event(csil_root: &CsilCborValue) -> Result<Event, CsilCborError> {
         timezone,
         recurrence_rule,
         recurrence_freq,
+        clear_recurrence,
         recurrence_interval,
         recurrence_by_weekday,
         recurrence_by_setpos,
@@ -1808,7 +1819,7 @@ pub fn decode_event(csil_data: &[u8]) -> Result<Event, CsilCborError> {
 
 /// Build the canonical CBOR value tree for a Task.
 fn csil_enc_task(csil_v: &Task) -> CsilCborValue {
-    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(22);
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(23);
     if let Some(csil_inner) = &csil_v.tag {
         csil_entries.push((cbor_text("tag"), cbor_text(csil_inner)));
     }
@@ -1850,6 +1861,9 @@ fn csil_enc_task(csil_v: &Task) -> CsilCborValue {
             cbor_text("recurrence_freq"),
             csil_enc_recurrence_freq(csil_inner),
         ));
+    }
+    if let Some(csil_inner) = &csil_v.clear_recurrence {
+        csil_entries.push((cbor_text("clear_recurrence"), cbor_bool(*csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.estimate_minutes {
         csil_entries.push((cbor_text("estimate_minutes"), cbor_uint(*csil_inner)));
@@ -1970,6 +1984,13 @@ fn csil_dec_task(csil_root: &CsilCborValue) -> Result<Task, CsilCborError> {
         }
         None => None,
     };
+    let clear_recurrence = match cbor_map_get(csil_root, "clear_recurrence") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_bool;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
     let recurrence_interval = match cbor_map_get(csil_root, "recurrence_interval") {
         Some(csil_field) => {
             let csil_decode = cbor_as_i64;
@@ -2037,6 +2058,7 @@ fn csil_dec_task(csil_root: &CsilCborValue) -> Result<Task, CsilCborError> {
         tag,
         estimate_minutes,
         recurrence_freq,
+        clear_recurrence,
         recurrence_interval,
         recurrence_by_weekday,
         recurrence_by_setpos,

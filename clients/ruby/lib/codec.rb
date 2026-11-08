@@ -740,6 +740,7 @@ class Event
     csil_map["recurrence_freq"] = (recurrence_freq) unless recurrence_freq.nil?
     csil_map["recurrence_rule"] = recurrence_rule unless recurrence_rule.nil?
     csil_map["calendar_unbound"] = calendar_unbound unless calendar_unbound.nil?
+    csil_map["clear_recurrence"] = clear_recurrence unless clear_recurrence.nil?
     csil_map["publication_error"] = publication_error unless publication_error.nil?
     csil_map["next_recurrence_at"] = next_recurrence_at unless next_recurrence_at.nil?
     csil_map["recurrence_interval"] = recurrence_interval unless recurrence_interval.nil?
@@ -778,6 +779,7 @@ when "yearly" then "yearly"
 else
   raise ArgumentError, "csilgen: unknown inline literal #{(node["recurrence_freq"]).inspect}"
 end) : nil),
+      clear_recurrence: (node.key?("clear_recurrence") ? node["clear_recurrence"] : nil),
       recurrence_interval: (node.key?("recurrence_interval") ? node["recurrence_interval"] : nil),
       recurrence_by_weekday: (node.key?("recurrence_by_weekday") ? (node["recurrence_by_weekday"]).map { |csil_e| csil_e } : nil),
       recurrence_by_setpos: (node.key?("recurrence_by_setpos") ? node["recurrence_by_setpos"] : nil),
@@ -820,6 +822,7 @@ class Task
     csil_map["parent_task_id"] = parent_task_id unless parent_task_id.nil?
     csil_map["owner_member_id"] = owner_member_id
     csil_map["recurrence_freq"] = (recurrence_freq) unless recurrence_freq.nil?
+    csil_map["clear_recurrence"] = clear_recurrence unless clear_recurrence.nil?
     csil_map["estimate_minutes"] = estimate_minutes unless estimate_minutes.nil?
     csil_map["next_recurrence_at"] = next_recurrence_at unless next_recurrence_at.nil?
     csil_map["recurrence_interval"] = recurrence_interval unless recurrence_interval.nil?
@@ -873,6 +876,7 @@ when "yearly" then "yearly"
 else
   raise ArgumentError, "csilgen: unknown inline literal #{(node["recurrence_freq"]).inspect}"
 end) : nil),
+      clear_recurrence: (node.key?("clear_recurrence") ? node["clear_recurrence"] : nil),
       recurrence_interval: (node.key?("recurrence_interval") ? node["recurrence_interval"] : nil),
       recurrence_by_weekday: (node.key?("recurrence_by_weekday") ? (node["recurrence_by_weekday"]).map { |csil_e| csil_e } : nil),
       recurrence_by_setpos: (node.key?("recurrence_by_setpos") ? node["recurrence_by_setpos"] : nil),

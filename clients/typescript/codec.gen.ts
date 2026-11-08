@@ -828,6 +828,7 @@ export function toEventCborValue(v: Event): CborValue {
   if (v.recurrenceFreq !== undefined) csilMap.set("recurrence_freq", v.recurrenceFreq);
   if (v.recurrenceRule !== undefined) csilMap.set("recurrence_rule", v.recurrenceRule);
   if (v.calendarUnbound !== undefined) csilMap.set("calendar_unbound", v.calendarUnbound);
+  if (v.clearRecurrence !== undefined) csilMap.set("clear_recurrence", v.clearRecurrence);
   if (v.publicationError !== undefined) csilMap.set("publication_error", v.publicationError);
   if (v.nextRecurrenceAt !== undefined) csilMap.set("next_recurrence_at", v.nextRecurrenceAt);
   if (v.recurrenceInterval !== undefined) csilMap.set("recurrence_interval", v.recurrenceInterval);
@@ -853,6 +854,7 @@ export function fromEventCborValue(value: CborValue): Event {
     timezone: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "timezone")),
     recurrenceRule: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "recurrence_rule")),
     recurrenceFreq: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["hourly", "daily", "weekly", "monthly", "quarterly", "yearly"]) as "hourly" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly"))(mapGet(value, "recurrence_freq")),
+    clearRecurrence: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "clear_recurrence")),
     recurrenceInterval: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_interval")),
     recurrenceByWeekday: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asNumber(csilE)))(mapGet(value, "recurrence_by_weekday")),
     recurrenceBySetpos: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_by_setpos")),
@@ -895,6 +897,7 @@ export function toTaskCborValue(v: Task): CborValue {
   if (v.parentTaskId !== undefined) csilMap.set("parent_task_id", v.parentTaskId);
   csilMap.set("owner_member_id", v.ownerMemberId);
   if (v.recurrenceFreq !== undefined) csilMap.set("recurrence_freq", v.recurrenceFreq);
+  if (v.clearRecurrence !== undefined) csilMap.set("clear_recurrence", v.clearRecurrence);
   if (v.estimateMinutes !== undefined) csilMap.set("estimate_minutes", v.estimateMinutes);
   if (v.nextRecurrenceAt !== undefined) csilMap.set("next_recurrence_at", v.nextRecurrenceAt);
   if (v.recurrenceInterval !== undefined) csilMap.set("recurrence_interval", v.recurrenceInterval);
@@ -921,6 +924,7 @@ export function fromTaskCborValue(value: CborValue): Task {
     tag: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "tag")),
     estimateMinutes: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "estimate_minutes")),
     recurrenceFreq: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["hourly", "daily", "weekly", "monthly", "quarterly", "yearly"]) as "hourly" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly"))(mapGet(value, "recurrence_freq")),
+    clearRecurrence: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "clear_recurrence")),
     recurrenceInterval: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_interval")),
     recurrenceByWeekday: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asNumber(csilE)))(mapGet(value, "recurrence_by_weekday")),
     recurrenceBySetpos: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_by_setpos")),

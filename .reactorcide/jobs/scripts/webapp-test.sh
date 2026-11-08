@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Type-check + unit-test the SolidJS SPA (webapp/). No Docker, no DB — just
+# Type-check + unit-test the Zest SPA (webapp/). No Docker, no DB — just
 # Node + the project's npm scripts. Mirrors the developer's local
 # `npm run typecheck && npm test` flow so CI catches what they'd catch.
 set -euo pipefail
