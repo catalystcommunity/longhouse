@@ -14,6 +14,7 @@ import {
   AuditAsyncClient,
   AuthAsyncClient,
   BugAsyncClient,
+  CalendarAsyncClient,
   CommentAsyncClient,
   DependencyAsyncClient,
   DevAuthAsyncClient,
@@ -39,6 +40,7 @@ export const devAuthClient = new DevAuthAsyncClient(cborTransport);
 export const memberClient = new MemberAsyncClient(cborTransport);
 export const taskClient = new TaskAsyncClient(cborTransport);
 export const eventClient = new EventAsyncClient(cborTransport);
+export const calendarClient = new CalendarAsyncClient(cborTransport);
 export const projectClient = new ProjectAsyncClient(cborTransport);
 export const dependencyClient = new DependencyAsyncClient(cborTransport);
 export const houseClient = new HouseAsyncClient(cborTransport);

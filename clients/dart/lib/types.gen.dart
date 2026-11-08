@@ -1508,12 +1508,21 @@ final class Event {
   final Timestamp? startsAt;
   final Timestamp? endsAt;
   final bool? allDay;
+  final String? timezone;
+  final String? recurrenceRule;
   final RecurrenceFreq? recurrenceFreq;
   final int? recurrenceInterval;
   final List<int>? recurrenceByWeekday;
   final int? recurrenceBySetpos;
   final Timestamp? nextRecurrenceAt;
   final EventId? recurrenceRootEventId;
+  final String? calendarState;
+  final int? revision;
+  final MemberId? proposedByMemberId;
+  final String? publicationError;
+  final MemberId? editPendingMemberId;
+  final bool? calendarUnbound;
+  final String? editScope;
   final Timestamp createdAt;
   final Timestamp updatedAt;
 
@@ -1527,12 +1536,21 @@ final class Event {
     this.startsAt,
     this.endsAt,
     this.allDay,
+    this.timezone,
+    this.recurrenceRule,
     this.recurrenceFreq,
     this.recurrenceInterval,
     this.recurrenceByWeekday,
     this.recurrenceBySetpos,
     this.nextRecurrenceAt,
     this.recurrenceRootEventId,
+    this.calendarState,
+    this.revision,
+    this.proposedByMemberId,
+    this.publicationError,
+    this.editPendingMemberId,
+    this.calendarUnbound,
+    this.editScope,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -1547,6 +1565,8 @@ final class Event {
     if (startsAt != null) map['starts_at'] = startsAt;
     if (endsAt != null) map['ends_at'] = endsAt;
     if (allDay != null) map['all_day'] = allDay;
+    if (timezone != null) map['timezone'] = timezone;
+    if (recurrenceRule != null) map['recurrence_rule'] = recurrenceRule;
     if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq;
     if (recurrenceInterval != null)
       map['recurrence_interval'] = recurrenceInterval;
@@ -1557,6 +1577,8 @@ final class Event {
     if (nextRecurrenceAt != null) map['next_recurrence_at'] = nextRecurrenceAt;
     if (recurrenceRootEventId != null)
       map['recurrence_root_event_id'] = recurrenceRootEventId;
+    if (revision != null) map['revision'] = revision;
+    if (editScope != null) map['edit_scope'] = editScope;
     return map;
   }
 
@@ -1571,12 +1593,21 @@ final class Event {
       startsAt: map['starts_at'] as Timestamp?,
       endsAt: map['ends_at'] as Timestamp?,
       allDay: map['all_day'] as bool?,
+      timezone: map['timezone'] as String?,
+      recurrenceRule: map['recurrence_rule'] as String?,
       recurrenceFreq: map['recurrence_freq'] as RecurrenceFreq?,
       recurrenceInterval: map['recurrence_interval'] as int?,
       recurrenceByWeekday: map['recurrence_by_weekday'] as List<int>?,
       recurrenceBySetpos: map['recurrence_by_setpos'] as int?,
       nextRecurrenceAt: map['next_recurrence_at'] as Timestamp?,
       recurrenceRootEventId: map['recurrence_root_event_id'] as EventId?,
+      calendarState: map['calendar_state'] as String?,
+      revision: map['revision'] as int?,
+      proposedByMemberId: map['proposed_by_member_id'] as MemberId?,
+      publicationError: map['publication_error'] as String?,
+      editPendingMemberId: map['edit_pending_member_id'] as MemberId?,
+      calendarUnbound: map['calendar_unbound'] as bool?,
+      editScope: map['edit_scope'] as String?,
       createdAt: map['created_at'] as Timestamp,
       updatedAt: map['updated_at'] as Timestamp,
     );
@@ -1604,12 +1635,21 @@ final class Event {
         startsAt == other.startsAt &&
         endsAt == other.endsAt &&
         allDay == other.allDay &&
+        timezone == other.timezone &&
+        recurrenceRule == other.recurrenceRule &&
         recurrenceFreq == other.recurrenceFreq &&
         recurrenceInterval == other.recurrenceInterval &&
         recurrenceByWeekday == other.recurrenceByWeekday &&
         recurrenceBySetpos == other.recurrenceBySetpos &&
         nextRecurrenceAt == other.nextRecurrenceAt &&
         recurrenceRootEventId == other.recurrenceRootEventId &&
+        calendarState == other.calendarState &&
+        revision == other.revision &&
+        proposedByMemberId == other.proposedByMemberId &&
+        publicationError == other.publicationError &&
+        editPendingMemberId == other.editPendingMemberId &&
+        calendarUnbound == other.calendarUnbound &&
+        editScope == other.editScope &&
         createdAt == other.createdAt &&
         updatedAt == other.updatedAt;
   }
@@ -1625,12 +1665,21 @@ final class Event {
     startsAt,
     endsAt,
     allDay,
+    timezone,
+    recurrenceRule,
     recurrenceFreq,
     recurrenceInterval,
     recurrenceByWeekday,
     recurrenceBySetpos,
     nextRecurrenceAt,
     recurrenceRootEventId,
+    calendarState,
+    revision,
+    proposedByMemberId,
+    publicationError,
+    editPendingMemberId,
+    calendarUnbound,
+    editScope,
     createdAt,
     updatedAt,
   ]);
@@ -1646,6 +1695,8 @@ final class Event {
     if (startsAt != null) map['starts_at'] = startsAt!;
     if (endsAt != null) map['ends_at'] = endsAt!;
     if (allDay != null) map['all_day'] = allDay!;
+    if (timezone != null) map['timezone'] = timezone!;
+    if (recurrenceRule != null) map['recurrence_rule'] = recurrenceRule!;
     if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq!;
     if (recurrenceInterval != null)
       map['recurrence_interval'] = recurrenceInterval!;
@@ -1656,6 +1707,8 @@ final class Event {
     if (nextRecurrenceAt != null) map['next_recurrence_at'] = nextRecurrenceAt!;
     if (recurrenceRootEventId != null)
       map['recurrence_root_event_id'] = recurrenceRootEventId!;
+    if (revision != null) map['revision'] = revision!;
+    if (editScope != null) map['edit_scope'] = editScope!;
     return map;
   }
 
@@ -1674,6 +1727,10 @@ final class Event {
       startsAt: map['starts_at'] == null ? null : map['starts_at'] as String,
       endsAt: map['ends_at'] == null ? null : map['ends_at'] as String,
       allDay: map['all_day'] == null ? null : map['all_day'] as bool,
+      timezone: map['timezone'] == null ? null : map['timezone'] as String,
+      recurrenceRule: map['recurrence_rule'] == null
+          ? null
+          : map['recurrence_rule'] as String,
       recurrenceFreq: map['recurrence_freq'] == null
           ? null
           : CsilCbor.expectOneOf<String>(map['recurrence_freq'], const [
@@ -1702,6 +1759,23 @@ final class Event {
       recurrenceRootEventId: map['recurrence_root_event_id'] == null
           ? null
           : map['recurrence_root_event_id'] as String,
+      calendarState: map['calendar_state'] == null
+          ? null
+          : map['calendar_state'] as String,
+      revision: map['revision'] == null ? null : map['revision'] as int,
+      proposedByMemberId: map['proposed_by_member_id'] == null
+          ? null
+          : map['proposed_by_member_id'] as String,
+      publicationError: map['publication_error'] == null
+          ? null
+          : map['publication_error'] as String,
+      editPendingMemberId: map['edit_pending_member_id'] == null
+          ? null
+          : map['edit_pending_member_id'] as String,
+      calendarUnbound: map['calendar_unbound'] == null
+          ? null
+          : map['calendar_unbound'] as bool,
+      editScope: map['edit_scope'] == null ? null : map['edit_scope'] as String,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,
     );
@@ -6563,6 +6637,531 @@ final class CalendarView {
   /// Decode a CSIL CBOR byte payload into this record.
   factory CalendarView.fromCbor(List<int> bytes) =>
       CalendarView.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class EventDecision {
+  final EventId eventId;
+  final int revision;
+
+  const EventDecision({required this.eventId, required this.revision});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['event_id'] = eventId;
+    map['revision'] = revision;
+    return map;
+  }
+
+  factory EventDecision.fromMap(Map<String, Object?> map) {
+    return EventDecision(
+      eventId: map['event_id'] as EventId,
+      revision: map['revision'] as int,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! EventDecision) return false;
+    return eventId == other.eventId && revision == other.revision;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([eventId, revision]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['event_id'] = eventId;
+    map['revision'] = revision;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory EventDecision.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return EventDecision(
+      eventId: map['event_id'] as String,
+      revision: map['revision'] as int,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory EventDecision.fromCbor(List<int> bytes) =>
+      EventDecision.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class CalendarStatus {
+  final HouseId houseId;
+  final bool available;
+  final bool enabled;
+  final bool ready;
+  final bool connected;
+  final String? lastError;
+  final Timestamp? syncPendingSince;
+
+  const CalendarStatus({
+    required this.houseId,
+    required this.available,
+    required this.enabled,
+    required this.ready,
+    required this.connected,
+    this.lastError,
+    this.syncPendingSince,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    map['available'] = available;
+    map['enabled'] = enabled;
+    map['ready'] = ready;
+    map['connected'] = connected;
+    if (lastError != null) map['last_error'] = lastError;
+    if (syncPendingSince != null) map['sync_pending_since'] = syncPendingSince;
+    return map;
+  }
+
+  factory CalendarStatus.fromMap(Map<String, Object?> map) {
+    return CalendarStatus(
+      houseId: map['house_id'] as HouseId,
+      available: map['available'] as bool,
+      enabled: map['enabled'] as bool,
+      ready: map['ready'] as bool,
+      connected: map['connected'] as bool,
+      lastError: map['last_error'] as String?,
+      syncPendingSince: map['sync_pending_since'] as Timestamp?,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CalendarStatus) return false;
+    return houseId == other.houseId &&
+        available == other.available &&
+        enabled == other.enabled &&
+        ready == other.ready &&
+        connected == other.connected &&
+        lastError == other.lastError &&
+        syncPendingSince == other.syncPendingSince;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    houseId,
+    available,
+    enabled,
+    ready,
+    connected,
+    lastError,
+    syncPendingSince,
+  ]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    map['available'] = available;
+    map['enabled'] = enabled;
+    map['ready'] = ready;
+    map['connected'] = connected;
+    if (lastError != null) map['last_error'] = lastError!;
+    if (syncPendingSince != null) map['sync_pending_since'] = syncPendingSince!;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory CalendarStatus.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return CalendarStatus(
+      houseId: map['house_id'] as String,
+      available: map['available'] as bool,
+      enabled: map['enabled'] as bool,
+      ready: map['ready'] as bool,
+      connected: map['connected'] as bool,
+      lastError: map['last_error'] == null ? null : map['last_error'] as String,
+      syncPendingSince: map['sync_pending_since'] == null
+          ? null
+          : map['sync_pending_since'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory CalendarStatus.fromCbor(List<int> bytes) =>
+      CalendarStatus.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class ConfigureCalendarRequest {
+  final HouseId houseId;
+  final bool enabled;
+
+  const ConfigureCalendarRequest({
+    required this.houseId,
+    required this.enabled,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    map['enabled'] = enabled;
+    return map;
+  }
+
+  factory ConfigureCalendarRequest.fromMap(Map<String, Object?> map) {
+    return ConfigureCalendarRequest(
+      houseId: map['house_id'] as HouseId,
+      enabled: map['enabled'] as bool,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ConfigureCalendarRequest) return false;
+    return houseId == other.houseId && enabled == other.enabled;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([houseId, enabled]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    map['enabled'] = enabled;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ConfigureCalendarRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ConfigureCalendarRequest(
+      houseId: map['house_id'] as String,
+      enabled: map['enabled'] as bool,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ConfigureCalendarRequest.fromCbor(List<int> bytes) =>
+      ConfigureCalendarRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class CalendarConnectResponse {
+  final String url;
+
+  const CalendarConnectResponse({required this.url});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['url'] = url;
+    return map;
+  }
+
+  factory CalendarConnectResponse.fromMap(Map<String, Object?> map) {
+    return CalendarConnectResponse(url: map['url'] as String);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CalendarConnectResponse) return false;
+    return url == other.url;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([url]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['url'] = url;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory CalendarConnectResponse.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return CalendarConnectResponse(url: map['url'] as String);
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory CalendarConnectResponse.fromCbor(List<int> bytes) =>
+      CalendarConnectResponse.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class CompleteCalendarConnectRequest {
+  final HouseId houseId;
+  final String grantId;
+  final String nonce;
+
+  const CompleteCalendarConnectRequest({
+    required this.houseId,
+    required this.grantId,
+    required this.nonce,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    map['grant_id'] = grantId;
+    map['nonce'] = nonce;
+    return map;
+  }
+
+  factory CompleteCalendarConnectRequest.fromMap(Map<String, Object?> map) {
+    return CompleteCalendarConnectRequest(
+      houseId: map['house_id'] as HouseId,
+      grantId: map['grant_id'] as String,
+      nonce: map['nonce'] as String,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CompleteCalendarConnectRequest) return false;
+    return houseId == other.houseId &&
+        grantId == other.grantId &&
+        nonce == other.nonce;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([houseId, grantId, nonce]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    map['grant_id'] = grantId;
+    map['nonce'] = nonce;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory CompleteCalendarConnectRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return CompleteCalendarConnectRequest(
+      houseId: map['house_id'] as String,
+      grantId: map['grant_id'] as String,
+      nonce: map['nonce'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory CompleteCalendarConnectRequest.fromCbor(List<int> bytes) =>
+      CompleteCalendarConnectRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class CalendarTrashEntry {
+  final String trashId;
+  final Event event;
+  final Timestamp deletedAt;
+  final Timestamp expiresAt;
+
+  const CalendarTrashEntry({
+    required this.trashId,
+    required this.event,
+    required this.deletedAt,
+    required this.expiresAt,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['trash_id'] = trashId;
+    map['event'] = event;
+    map['deleted_at'] = deletedAt;
+    map['expires_at'] = expiresAt;
+    return map;
+  }
+
+  factory CalendarTrashEntry.fromMap(Map<String, Object?> map) {
+    return CalendarTrashEntry(
+      trashId: map['trash_id'] as String,
+      event: map['event'] as Event,
+      deletedAt: map['deleted_at'] as Timestamp,
+      expiresAt: map['expires_at'] as Timestamp,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CalendarTrashEntry) return false;
+    return trashId == other.trashId &&
+        event == other.event &&
+        deletedAt == other.deletedAt &&
+        expiresAt == other.expiresAt;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([trashId, event, deletedAt, expiresAt]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['trash_id'] = trashId;
+    map['event'] = event.toCborValue();
+    map['deleted_at'] = deletedAt;
+    map['expires_at'] = expiresAt;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory CalendarTrashEntry.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return CalendarTrashEntry(
+      trashId: map['trash_id'] as String,
+      event: Event.fromCborValue(map['event']),
+      deletedAt: map['deleted_at'] as String,
+      expiresAt: map['expires_at'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory CalendarTrashEntry.fromCbor(List<int> bytes) =>
+      CalendarTrashEntry.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class RestoreCalendarEventRequest {
+  final HouseId houseId;
+  final String trashId;
+
+  const RestoreCalendarEventRequest({
+    required this.houseId,
+    required this.trashId,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    map['trash_id'] = trashId;
+    return map;
+  }
+
+  factory RestoreCalendarEventRequest.fromMap(Map<String, Object?> map) {
+    return RestoreCalendarEventRequest(
+      houseId: map['house_id'] as HouseId,
+      trashId: map['trash_id'] as String,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! RestoreCalendarEventRequest) return false;
+    return houseId == other.houseId && trashId == other.trashId;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([houseId, trashId]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['house_id'] = houseId;
+    map['trash_id'] = trashId;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory RestoreCalendarEventRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return RestoreCalendarEventRequest(
+      houseId: map['house_id'] as String,
+      trashId: map['trash_id'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory RestoreCalendarEventRequest.fromCbor(List<int> bytes) =>
+      RestoreCalendarEventRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class CalendarMigrationRow {
+  final EventId eventId;
+  final String title;
+  final String disposition;
+  final String reason;
+
+  const CalendarMigrationRow({
+    required this.eventId,
+    required this.title,
+    required this.disposition,
+    required this.reason,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['event_id'] = eventId;
+    map['title'] = title;
+    map['disposition'] = disposition;
+    map['reason'] = reason;
+    return map;
+  }
+
+  factory CalendarMigrationRow.fromMap(Map<String, Object?> map) {
+    return CalendarMigrationRow(
+      eventId: map['event_id'] as EventId,
+      title: map['title'] as String,
+      disposition: map['disposition'] as String,
+      reason: map['reason'] as String,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CalendarMigrationRow) return false;
+    return eventId == other.eventId &&
+        title == other.title &&
+        disposition == other.disposition &&
+        reason == other.reason;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([eventId, title, disposition, reason]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['event_id'] = eventId;
+    map['title'] = title;
+    map['disposition'] = disposition;
+    map['reason'] = reason;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory CalendarMigrationRow.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return CalendarMigrationRow(
+      eventId: map['event_id'] as String,
+      title: map['title'] as String,
+      disposition: map['disposition'] as String,
+      reason: map['reason'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory CalendarMigrationRow.fromCbor(List<int> bytes) =>
+      CalendarMigrationRow.fromCborValue(CsilCbor.decode(bytes));
 }
 
 typedef AuditId = String;

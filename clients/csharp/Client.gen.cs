@@ -259,6 +259,36 @@ public sealed class EventClient(ICsilTransport transport)
         Codec.Decode<CalendarView>(transport.Call("EventService", "get-calendar-view", Codec.EncodeEventGetCalendarViewRequest(houseID)));
     public CalendarView SetCalendarView(CalendarView calendarView) =>
         Codec.Decode<CalendarView>(transport.Call("EventService", "set-calendar-view", Codec.Encode(calendarView)));
+    public Event AcceptEvent(EventDecision eventDecision) =>
+        Codec.Decode<Event>(transport.Call("EventService", "accept-event", Codec.Encode(eventDecision)));
+    public Event RecoverEdit(EventID eventID) =>
+        Codec.Decode<Event>(transport.Call("EventService", "recover-edit", Codec.EncodeEventRecoverEditRequest(eventID)));
+    public Event DeclineEvent(EventDecision eventDecision) =>
+        Codec.Decode<Event>(transport.Call("EventService", "decline-event", Codec.Encode(eventDecision)));
+    public System.Collections.Generic.List<Event> ListLocalEvents(HouseID houseID) =>
+        Codec.DecodeEventListLocalEventsResponse(transport.Call("EventService", "list-local-events", Codec.EncodeEventListLocalEventsRequest(houseID)));
+}
+
+/// <summary>Typed RPC client for the CalendarService service. The client owns
+/// (de)serialization via the generated codec; the transport only moves bytes.</summary>
+public sealed class CalendarClient(ICsilTransport transport)
+{
+    public CalendarStatus GetStatus(HouseID houseID) =>
+        Codec.Decode<CalendarStatus>(transport.Call("CalendarService", "get-status", Codec.EncodeCalendarGetStatusRequest(houseID)));
+    public CalendarStatus ConfigureCalendar(ConfigureCalendarRequest configureCalendarRequest) =>
+        Codec.Decode<CalendarStatus>(transport.Call("CalendarService", "configure-calendar", Codec.Encode(configureCalendarRequest)));
+    public CalendarConnectResponse BeginConnect(HouseID houseID) =>
+        Codec.Decode<CalendarConnectResponse>(transport.Call("CalendarService", "begin-connect", Codec.EncodeCalendarBeginConnectRequest(houseID)));
+    public CalendarStatus CompleteConnect(CompleteCalendarConnectRequest completeCalendarConnectRequest) =>
+        Codec.Decode<CalendarStatus>(transport.Call("CalendarService", "complete-connect", Codec.Encode(completeCalendarConnectRequest)));
+    public EmptyResponse Disconnect(HouseID houseID) =>
+        Codec.Decode<EmptyResponse>(transport.Call("CalendarService", "disconnect", Codec.EncodeCalendarDisconnectRequest(houseID)));
+    public System.Collections.Generic.List<CalendarMigrationRow> PreviewMigration(HouseID houseID) =>
+        Codec.DecodeCalendarPreviewMigrationResponse(transport.Call("CalendarService", "preview-migration", Codec.EncodeCalendarPreviewMigrationRequest(houseID)));
+    public System.Collections.Generic.List<CalendarTrashEntry> ListTrash(HouseID houseID) =>
+        Codec.DecodeCalendarListTrashResponse(transport.Call("CalendarService", "list-trash", Codec.EncodeCalendarListTrashRequest(houseID)));
+    public Event RestoreEvent(RestoreCalendarEventRequest restoreCalendarEventRequest) =>
+        Codec.Decode<Event>(transport.Call("CalendarService", "restore-event", Codec.Encode(restoreCalendarEventRequest)));
 }
 
 /// <summary>Typed RPC client for the TaskService service. The client owns

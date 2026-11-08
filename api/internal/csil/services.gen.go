@@ -133,6 +133,22 @@ type EventService interface {
 	ListEvents(ctx context.Context, req EventListRequest) ([]Event, error)
 	GetCalendarView(ctx context.Context, req HouseID) (CalendarView, error)
 	SetCalendarView(ctx context.Context, req CalendarView) (CalendarView, error)
+	AcceptEvent(ctx context.Context, req EventDecision) (Event, error)
+	RecoverEdit(ctx context.Context, req EventID) (Event, error)
+	DeclineEvent(ctx context.Context, req EventDecision) (Event, error)
+	ListLocalEvents(ctx context.Context, req HouseID) ([]Event, error)
+}
+
+// CalendarService defines the service interface
+type CalendarService interface {
+	GetStatus(ctx context.Context, req HouseID) (CalendarStatus, error)
+	ConfigureCalendar(ctx context.Context, req ConfigureCalendarRequest) (CalendarStatus, error)
+	BeginConnect(ctx context.Context, req HouseID) (CalendarConnectResponse, error)
+	CompleteConnect(ctx context.Context, req CompleteCalendarConnectRequest) (CalendarStatus, error)
+	Disconnect(ctx context.Context, req HouseID) (EmptyResponse, error)
+	PreviewMigration(ctx context.Context, req HouseID) ([]CalendarMigrationRow, error)
+	ListTrash(ctx context.Context, req HouseID) ([]CalendarTrashEntry, error)
+	RestoreEvent(ctx context.Context, req RestoreCalendarEventRequest) (Event, error)
 }
 
 // TaskService defines the service interface

@@ -42,6 +42,12 @@ spec:
           image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.api.pullPolicy }}
           args: ["serve"]
+          {{- if .Values.catalystcal.enabled }}
+          volumeMounts:
+            - name: calendar-keys
+              mountPath: /var/run/longhouse-calendar
+              readOnly: true
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.server.apiPort }}
@@ -82,6 +88,16 @@ spec:
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.catalystcal.enabled }}
+      volumes:
+        - name: calendar-keys
+          secret:
+            secretName: {{ required "catalystcal.existingSecret is required" .Values.catalystcal.existingSecret }}
+            defaultMode: 0440
+            items:
+              - key: {{ .Values.catalystcal.keysKey }}
+                path: keys.json
       {{- end }}
       {{- with .Values.affinity }}
       affinity:

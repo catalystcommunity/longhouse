@@ -15,7 +15,10 @@ import (
 // EventService implements calendaring on top of the new dispatcher. Owner +
 // admin can mutate; any house member can read/create. Single-id methods
 // look up the resource's house before checking the caller.
-type EventService struct{ Store store.Store }
+type EventService struct {
+	Store    store.Store
+	Calendar *CalendarService
+}
 
 func (s *EventService) Register(d *csilrpc.Dispatcher) {
 	d.RegisterTyped("event", "ListEvents", csilrpc.Route(s.ListEvents, csil.DecodeEventListRequest, csil.EncodeEventListEventsResponse))
@@ -26,11 +29,22 @@ func (s *EventService) Register(d *csilrpc.Dispatcher) {
 	d.RegisterTyped("event", "DeleteEventAndFuture", csilrpc.Route(s.DeleteEventAndFuture, csil.DecodeEventDeleteEventAndFutureRequest, csil.EncodeEmptyResponse))
 	d.RegisterTyped("event", "GetCalendarView", csilrpc.Route(s.GetCalendarView, csil.DecodeEventGetCalendarViewRequest, csil.EncodeCalendarView))
 	d.RegisterTyped("event", "SetCalendarView", csilrpc.Route(s.SetCalendarView, csil.DecodeCalendarView, csil.EncodeCalendarView))
+	if s.Calendar != nil {
+		d.RegisterTyped("event", "RecoverEdit", csilrpc.Route(s.Calendar.RecoverEdit, csil.DecodeEventRecoverEditRequest, csil.EncodeEvent))
+		d.RegisterTyped("event", "AcceptEvent", csilrpc.Route(s.Calendar.AcceptEvent, csil.DecodeEventDecision, csil.EncodeEvent))
+		d.RegisterTyped("event", "DeclineEvent", csilrpc.Route(s.Calendar.DeclineEvent, csil.DecodeEventDecision, csil.EncodeEvent))
+		d.RegisterTyped("event", "ListLocalEvents", csilrpc.Route(s.Calendar.ListLocalEvents, csil.DecodeEventListLocalEventsRequest, csil.EncodeEventListLocalEventsResponse))
+	}
 }
 
 // GetCalendarView returns the caller's saved calendar view for a house (which
 // other members' calendars they've added + enabled). Empty when never set.
 func (s *EventService) GetCalendarView(ctx context.Context, houseID csil.HouseID) (csil.CalendarView, error) {
+	if s.Calendar != nil {
+		if _, err := s.Calendar.member(ctx, string(houseID), false); err != nil {
+			return csil.CalendarView{}, err
+		}
+	}
 	_, viewerMemberID, err := requireMemberForHouse(ctx, string(houseID))
 	if err != nil {
 		return csil.CalendarView{}, err
@@ -48,6 +62,11 @@ func (s *EventService) GetCalendarView(ctx context.Context, houseID csil.HouseID
 // preference, not an access grant, so no per-subject read check is needed
 // (events are already house-readable).
 func (s *EventService) SetCalendarView(ctx context.Context, in csil.CalendarView) (csil.CalendarView, error) {
+	if s.Calendar != nil {
+		if _, err := s.Calendar.member(ctx, string(in.HouseId), false); err != nil {
+			return csil.CalendarView{}, err
+		}
+	}
 	if in.HouseId == "" {
 		return csil.CalendarView{}, csilrpc.BadRequest("house_id is required")
 	}
@@ -84,6 +103,9 @@ func (s *EventService) SetCalendarView(ctx context.Context, in csil.CalendarView
 }
 
 func (s *EventService) ListEvents(ctx context.Context, req csil.EventListRequest) ([]csil.Event, error) {
+	if s.Calendar != nil {
+		return s.Calendar.ListEvents(ctx, req)
+	}
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}
@@ -106,6 +128,9 @@ func (s *EventService) ListEvents(ctx context.Context, req csil.EventListRequest
 }
 
 func (s *EventService) GetEvent(ctx context.Context, id csil.EventID) (csil.Event, error) {
+	if s.Calendar != nil {
+		return s.Calendar.GetEvent(ctx, id)
+	}
 	e, err := s.Store.GetEventByID(ctx, string(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -123,6 +148,13 @@ func (s *EventService) GetEvent(ctx context.Context, id csil.EventID) (csil.Even
 }
 
 func (s *EventService) CreateEvent(ctx context.Context, in csil.Event) (csil.Event, error) {
+	if s.Calendar != nil {
+		return s.Calendar.CreateEvent(ctx, in)
+	}
+	return s.createLocalEvent(ctx, in, "")
+}
+
+func (s *EventService) createLocalEvent(ctx context.Context, in csil.Event, state string) (csil.Event, error) {
 	if in.HouseId == "" || in.Title == "" {
 		return csil.Event{}, csilrpc.BadRequest("house_id and title are required")
 	}
@@ -131,6 +163,9 @@ func (s *EventService) CreateEvent(ctx context.Context, in csil.Event) (csil.Eve
 		return csil.Event{}, err
 	}
 	owner := callerMemberID
+	if state == "" {
+		state = "local"
+	}
 	if in.OwnerMemberId != "" && string(in.OwnerMemberId) != callerMemberID {
 		if _, err := requireRole(ident, string(in.HouseId), "admin"); err != nil {
 			return csil.Event{}, csilrpc.Forbidden("only a house admin may create an event for another member")
@@ -146,8 +181,14 @@ func (s *EventService) CreateEvent(ctx context.Context, in csil.Event) (csil.Eve
 			return csil.Event{}, csilrpc.BadRequest("owner must be an active member of this house")
 		}
 		owner = string(in.OwnerMemberId)
+		state = "pending"
 	}
 	e := &models.Event{
+		Timezone:           derefStr(in.Timezone),
+		RecurrenceRule:     derefStr(in.RecurrenceRule),
+		CalendarState:      state,
+		Revision:           1,
+		ProposedByMemberID: &callerMemberID,
 		HouseID:            string(in.HouseId),
 		OwnerMemberID:      owner,
 		Title:              in.Title,
@@ -180,23 +221,32 @@ func (s *EventService) CreateEvent(ctx context.Context, in csil.Event) (csil.Eve
 	// Seed next_recurrence_at so the worker spawns occurrences from the
 	// root's starts_at. The root row itself stays at its own time; the
 	// worker creates children at the next interval and bumps this forward.
-	if e.RecurrenceFreq != nil && e.StartsAt != nil {
+	if e.CalendarState == "local" && e.RecurrenceFreq != nil && e.StartsAt != nil {
 		t := *e.StartsAt
 		e.NextRecurrenceAt = &t
 	}
 	if err := s.Store.CreateEvent(ctx, e); err != nil {
 		return csil.Event{}, csilrpc.Internal("internal error")
 	}
+	if e.CalendarState == "pending" {
+		annotateAudit(ctx, e.HouseID, models.AuditActionCreate, "event", e.EventID, map[string]any{"assignment": "proposed", "owner_member_id": e.OwnerMemberID, "revision": e.Revision})
+	}
 	return eventToCSIL(e), nil
 }
 
 func (s *EventService) UpdateEvent(ctx context.Context, in csil.Event) (csil.Event, error) {
+	if s.Calendar != nil {
+		return s.Calendar.UpdateEvent(ctx, in)
+	}
 	if in.EventId == "" {
 		return csil.Event{}, csilrpc.BadRequest("event_id is required")
 	}
 	existing, err := s.Store.GetEventByID(ctx, string(in.EventId))
 	if err != nil {
 		return csil.Event{}, csilrpc.NotFound("event not found")
+	}
+	if in.Revision != nil && *in.Revision != existing.Revision {
+		return csil.Event{}, csilrpc.Conflict("event changed; reload before saving")
 	}
 	id, callerMemberID, err := requireMemberForHouse(ctx, existing.HouseID)
 	if err != nil {
@@ -215,6 +265,15 @@ func (s *EventService) UpdateEvent(ctx context.Context, in csil.Event) (csil.Eve
 	}
 	if in.Location != nil {
 		existing.Location = *in.Location
+	}
+	if in.Timezone != nil {
+		existing.Timezone = *in.Timezone
+	}
+	if in.RecurrenceRule != nil {
+		existing.RecurrenceRule = *in.RecurrenceRule
+	}
+	if existing.CalendarState == "declined" {
+		existing.CalendarState = "pending"
 	}
 	existing.StartsAt = tsToTimePtr(in.StartsAt)
 	existing.EndsAt = tsToTimePtr(in.EndsAt)
@@ -265,6 +324,9 @@ func (s *EventService) UpdateEvent(ctx context.Context, in csil.Event) (csil.Eve
 			existing.RecurrenceBySetpos = &v
 		}
 	}
+	if existing.CalendarState == "pending" {
+		existing.NextRecurrenceAt = nil
+	}
 	if err := s.Store.UpdateEvent(ctx, existing); err != nil {
 		return csil.Event{}, csilrpc.Internal("internal error")
 	}
@@ -272,6 +334,9 @@ func (s *EventService) UpdateEvent(ctx context.Context, in csil.Event) (csil.Eve
 }
 
 func (s *EventService) DeleteEvent(ctx context.Context, id csil.EventID) (csil.EmptyResponse, error) {
+	if s.Calendar != nil {
+		return s.Calendar.DeleteEvent(ctx, id, false)
+	}
 	existing, err := s.Store.GetEventByID(ctx, string(id))
 	if err != nil || existing.DeletedAt != nil {
 		return csil.EmptyResponse{}, csilrpc.NotFound("event not found")
@@ -304,6 +369,9 @@ func (s *EventService) DeleteEvent(ctx context.Context, id csil.EventID) (csil.E
 //     child and every later child (starts_at >=), then strip recurrence
 //     from the root so the spawner won't repopulate them.
 func (s *EventService) DeleteEventAndFuture(ctx context.Context, id csil.EventID) (csil.EmptyResponse, error) {
+	if s.Calendar != nil {
+		return s.Calendar.DeleteEvent(ctx, id, true)
+	}
 	existing, err := s.Store.GetEventByID(ctx, string(id))
 	if err != nil || existing.DeletedAt != nil {
 		return csil.EmptyResponse{}, csilrpc.NotFound("event not found")

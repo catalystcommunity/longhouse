@@ -1514,7 +1514,7 @@ pub fn decode_milestone(csil_data: &[u8]) -> Result<Milestone, CsilCborError> {
 
 /// Build the canonical CBOR value tree for a Event.
 fn csil_enc_event(csil_v: &Event) -> CsilCborValue {
-    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(17);
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(26);
     csil_entries.push((cbor_text("title"), cbor_text(&csil_v.title)));
     if let Some(csil_inner) = &csil_v.all_day {
         csil_entries.push((cbor_text("all_day"), cbor_bool(*csil_inner)));
@@ -1527,13 +1527,25 @@ fn csil_enc_event(csil_v: &Event) -> CsilCborValue {
     if let Some(csil_inner) = &csil_v.location {
         csil_entries.push((cbor_text("location"), cbor_text(csil_inner)));
     }
+    if let Some(csil_inner) = &csil_v.revision {
+        csil_entries.push((cbor_text("revision"), cbor_uint(*csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.timezone {
+        csil_entries.push((cbor_text("timezone"), cbor_text(csil_inner)));
+    }
     if let Some(csil_inner) = &csil_v.starts_at {
         csil_entries.push((cbor_text("starts_at"), cbor_text(csil_inner)));
     }
     csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    if let Some(csil_inner) = &csil_v.edit_scope {
+        csil_entries.push((cbor_text("edit_scope"), cbor_text(csil_inner)));
+    }
     csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
     if let Some(csil_inner) = &csil_v.description {
         csil_entries.push((cbor_text("description"), cbor_text(csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.calendar_state {
+        csil_entries.push((cbor_text("calendar_state"), cbor_text(csil_inner)));
     }
     csil_entries.push((
         cbor_text("owner_member_id"),
@@ -1545,6 +1557,15 @@ fn csil_enc_event(csil_v: &Event) -> CsilCborValue {
             csil_enc_recurrence_freq(csil_inner),
         ));
     }
+    if let Some(csil_inner) = &csil_v.recurrence_rule {
+        csil_entries.push((cbor_text("recurrence_rule"), cbor_text(csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.calendar_unbound {
+        csil_entries.push((cbor_text("calendar_unbound"), cbor_bool(*csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.publication_error {
+        csil_entries.push((cbor_text("publication_error"), cbor_text(csil_inner)));
+    }
     if let Some(csil_inner) = &csil_v.next_recurrence_at {
         csil_entries.push((cbor_text("next_recurrence_at"), cbor_text(csil_inner)));
     }
@@ -1554,11 +1575,17 @@ fn csil_enc_event(csil_v: &Event) -> CsilCborValue {
     if let Some(csil_inner) = &csil_v.recurrence_by_setpos {
         csil_entries.push((cbor_text("recurrence_by_setpos"), cbor_int(*csil_inner)));
     }
+    if let Some(csil_inner) = &csil_v.proposed_by_member_id {
+        csil_entries.push((cbor_text("proposed_by_member_id"), cbor_text(csil_inner)));
+    }
     if let Some(csil_inner) = &csil_v.recurrence_by_weekday {
         csil_entries.push((
             cbor_text("recurrence_by_weekday"),
             cbor_enc_array(csil_inner, |csil_elem| cbor_int(*csil_elem)),
         ));
+    }
+    if let Some(csil_inner) = &csil_v.edit_pending_member_id {
+        csil_entries.push((cbor_text("edit_pending_member_id"), cbor_text(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.recurrence_root_event_id {
         csil_entries.push((cbor_text("recurrence_root_event_id"), cbor_text(csil_inner)));
@@ -1623,6 +1650,20 @@ fn csil_dec_event(csil_root: &CsilCborValue) -> Result<Event, CsilCborError> {
         }
         None => None,
     };
+    let timezone = match cbor_map_get(csil_root, "timezone") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let recurrence_rule = match cbor_map_get(csil_root, "recurrence_rule") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
     let recurrence_freq = match cbor_map_get(csil_root, "recurrence_freq") {
         Some(csil_field) => {
             let csil_decode = csil_dec_recurrence_freq;
@@ -1665,6 +1706,55 @@ fn csil_dec_event(csil_root: &CsilCborValue) -> Result<Event, CsilCborError> {
         }
         None => None,
     };
+    let calendar_state = match cbor_map_get(csil_root, "calendar_state") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let revision = match cbor_map_get(csil_root, "revision") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_u64;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let proposed_by_member_id = match cbor_map_get(csil_root, "proposed_by_member_id") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let publication_error = match cbor_map_get(csil_root, "publication_error") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let edit_pending_member_id = match cbor_map_get(csil_root, "edit_pending_member_id") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let calendar_unbound = match cbor_map_get(csil_root, "calendar_unbound") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_bool;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let edit_scope = match cbor_map_get(csil_root, "edit_scope") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
         let csil_decode = cbor_as_text;
@@ -1685,12 +1775,21 @@ fn csil_dec_event(csil_root: &CsilCborValue) -> Result<Event, CsilCborError> {
         starts_at,
         ends_at,
         all_day,
+        timezone,
+        recurrence_rule,
         recurrence_freq,
         recurrence_interval,
         recurrence_by_weekday,
         recurrence_by_setpos,
         next_recurrence_at,
         recurrence_root_event_id,
+        calendar_state,
+        revision,
+        proposed_by_member_id,
+        publication_error,
+        edit_pending_member_id,
+        calendar_unbound,
+        edit_scope,
         created_at,
         updated_at,
     })
@@ -5390,6 +5489,388 @@ pub fn decode_calendar_view(csil_data: &[u8]) -> Result<CalendarView, CsilCborEr
     csil_dec_calendar_view(&csil_root)
 }
 
+/// Build the canonical CBOR value tree for a EventDecision.
+fn csil_enc_event_decision(csil_v: &EventDecision) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(2);
+    csil_entries.push((cbor_text("event_id"), cbor_text(&csil_v.event_id)));
+    csil_entries.push((cbor_text("revision"), cbor_uint(csil_v.revision)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a EventDecision from a decoded CBOR value tree.
+fn csil_dec_event_decision(csil_root: &CsilCborValue) -> Result<EventDecision, CsilCborError> {
+    let event_id = {
+        let csil_field = cbor_require(csil_root, "event_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let revision = {
+        let csil_field = cbor_require(csil_root, "revision")?;
+        let csil_decode = cbor_as_u64;
+        csil_decode(csil_field)?
+    };
+    Ok(EventDecision { event_id, revision })
+}
+
+/// Encode a EventDecision to canonical CSIL CBOR bytes.
+pub fn encode_event_decision(csil_v: &EventDecision) -> Vec<u8> {
+    cbor_encode(&csil_enc_event_decision(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a EventDecision.
+pub fn decode_event_decision(csil_data: &[u8]) -> Result<EventDecision, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_event_decision(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a CalendarStatus.
+fn csil_enc_calendar_status(csil_v: &CalendarStatus) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(7);
+    csil_entries.push((cbor_text("ready"), cbor_bool(csil_v.ready)));
+    csil_entries.push((cbor_text("enabled"), cbor_bool(csil_v.enabled)));
+    csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
+    csil_entries.push((cbor_text("available"), cbor_bool(csil_v.available)));
+    csil_entries.push((cbor_text("connected"), cbor_bool(csil_v.connected)));
+    if let Some(csil_inner) = &csil_v.last_error {
+        csil_entries.push((cbor_text("last_error"), cbor_text(csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.sync_pending_since {
+        csil_entries.push((cbor_text("sync_pending_since"), cbor_text(csil_inner)));
+    }
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a CalendarStatus from a decoded CBOR value tree.
+fn csil_dec_calendar_status(csil_root: &CsilCborValue) -> Result<CalendarStatus, CsilCborError> {
+    let house_id = {
+        let csil_field = cbor_require(csil_root, "house_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let available = {
+        let csil_field = cbor_require(csil_root, "available")?;
+        let csil_decode = cbor_as_bool;
+        csil_decode(csil_field)?
+    };
+    let enabled = {
+        let csil_field = cbor_require(csil_root, "enabled")?;
+        let csil_decode = cbor_as_bool;
+        csil_decode(csil_field)?
+    };
+    let ready = {
+        let csil_field = cbor_require(csil_root, "ready")?;
+        let csil_decode = cbor_as_bool;
+        csil_decode(csil_field)?
+    };
+    let connected = {
+        let csil_field = cbor_require(csil_root, "connected")?;
+        let csil_decode = cbor_as_bool;
+        csil_decode(csil_field)?
+    };
+    let last_error = match cbor_map_get(csil_root, "last_error") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let sync_pending_since = match cbor_map_get(csil_root, "sync_pending_since") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    Ok(CalendarStatus {
+        house_id,
+        available,
+        enabled,
+        ready,
+        connected,
+        last_error,
+        sync_pending_since,
+    })
+}
+
+/// Encode a CalendarStatus to canonical CSIL CBOR bytes.
+pub fn encode_calendar_status(csil_v: &CalendarStatus) -> Vec<u8> {
+    cbor_encode(&csil_enc_calendar_status(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a CalendarStatus.
+pub fn decode_calendar_status(csil_data: &[u8]) -> Result<CalendarStatus, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_calendar_status(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a ConfigureCalendarRequest.
+fn csil_enc_configure_calendar_request(csil_v: &ConfigureCalendarRequest) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(2);
+    csil_entries.push((cbor_text("enabled"), cbor_bool(csil_v.enabled)));
+    csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a ConfigureCalendarRequest from a decoded CBOR value tree.
+fn csil_dec_configure_calendar_request(
+    csil_root: &CsilCborValue,
+) -> Result<ConfigureCalendarRequest, CsilCborError> {
+    let house_id = {
+        let csil_field = cbor_require(csil_root, "house_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let enabled = {
+        let csil_field = cbor_require(csil_root, "enabled")?;
+        let csil_decode = cbor_as_bool;
+        csil_decode(csil_field)?
+    };
+    Ok(ConfigureCalendarRequest { house_id, enabled })
+}
+
+/// Encode a ConfigureCalendarRequest to canonical CSIL CBOR bytes.
+pub fn encode_configure_calendar_request(csil_v: &ConfigureCalendarRequest) -> Vec<u8> {
+    cbor_encode(&csil_enc_configure_calendar_request(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a ConfigureCalendarRequest.
+pub fn decode_configure_calendar_request(
+    csil_data: &[u8],
+) -> Result<ConfigureCalendarRequest, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_configure_calendar_request(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a CalendarConnectResponse.
+fn csil_enc_calendar_connect_response(csil_v: &CalendarConnectResponse) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
+    csil_entries.push((cbor_text("url"), cbor_text(&csil_v.url)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a CalendarConnectResponse from a decoded CBOR value tree.
+fn csil_dec_calendar_connect_response(
+    csil_root: &CsilCborValue,
+) -> Result<CalendarConnectResponse, CsilCborError> {
+    let url = {
+        let csil_field = cbor_require(csil_root, "url")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    Ok(CalendarConnectResponse { url })
+}
+
+/// Encode a CalendarConnectResponse to canonical CSIL CBOR bytes.
+pub fn encode_calendar_connect_response(csil_v: &CalendarConnectResponse) -> Vec<u8> {
+    cbor_encode(&csil_enc_calendar_connect_response(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a CalendarConnectResponse.
+pub fn decode_calendar_connect_response(
+    csil_data: &[u8],
+) -> Result<CalendarConnectResponse, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_calendar_connect_response(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a CompleteCalendarConnectRequest.
+fn csil_enc_complete_calendar_connect_request(
+    csil_v: &CompleteCalendarConnectRequest,
+) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
+    csil_entries.push((cbor_text("nonce"), cbor_text(&csil_v.nonce)));
+    csil_entries.push((cbor_text("grant_id"), cbor_text(&csil_v.grant_id)));
+    csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a CompleteCalendarConnectRequest from a decoded CBOR value tree.
+fn csil_dec_complete_calendar_connect_request(
+    csil_root: &CsilCborValue,
+) -> Result<CompleteCalendarConnectRequest, CsilCborError> {
+    let house_id = {
+        let csil_field = cbor_require(csil_root, "house_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let grant_id = {
+        let csil_field = cbor_require(csil_root, "grant_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let nonce = {
+        let csil_field = cbor_require(csil_root, "nonce")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    Ok(CompleteCalendarConnectRequest {
+        house_id,
+        grant_id,
+        nonce,
+    })
+}
+
+/// Encode a CompleteCalendarConnectRequest to canonical CSIL CBOR bytes.
+pub fn encode_complete_calendar_connect_request(
+    csil_v: &CompleteCalendarConnectRequest,
+) -> Vec<u8> {
+    cbor_encode(&csil_enc_complete_calendar_connect_request(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a CompleteCalendarConnectRequest.
+pub fn decode_complete_calendar_connect_request(
+    csil_data: &[u8],
+) -> Result<CompleteCalendarConnectRequest, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_complete_calendar_connect_request(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a CalendarTrashEntry.
+fn csil_enc_calendar_trash_entry(csil_v: &CalendarTrashEntry) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(4);
+    csil_entries.push((cbor_text("event"), csil_enc_event(&csil_v.event)));
+    csil_entries.push((cbor_text("trash_id"), cbor_text(&csil_v.trash_id)));
+    csil_entries.push((cbor_text("deleted_at"), cbor_text(&csil_v.deleted_at)));
+    csil_entries.push((cbor_text("expires_at"), cbor_text(&csil_v.expires_at)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a CalendarTrashEntry from a decoded CBOR value tree.
+fn csil_dec_calendar_trash_entry(
+    csil_root: &CsilCborValue,
+) -> Result<CalendarTrashEntry, CsilCborError> {
+    let trash_id = {
+        let csil_field = cbor_require(csil_root, "trash_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let event = {
+        let csil_field = cbor_require(csil_root, "event")?;
+        let csil_decode = csil_dec_event;
+        csil_decode(csil_field)?
+    };
+    let deleted_at = {
+        let csil_field = cbor_require(csil_root, "deleted_at")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let expires_at = {
+        let csil_field = cbor_require(csil_root, "expires_at")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    Ok(CalendarTrashEntry {
+        trash_id,
+        event,
+        deleted_at,
+        expires_at,
+    })
+}
+
+/// Encode a CalendarTrashEntry to canonical CSIL CBOR bytes.
+pub fn encode_calendar_trash_entry(csil_v: &CalendarTrashEntry) -> Vec<u8> {
+    cbor_encode(&csil_enc_calendar_trash_entry(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a CalendarTrashEntry.
+pub fn decode_calendar_trash_entry(csil_data: &[u8]) -> Result<CalendarTrashEntry, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_calendar_trash_entry(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a RestoreCalendarEventRequest.
+fn csil_enc_restore_calendar_event_request(csil_v: &RestoreCalendarEventRequest) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(2);
+    csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
+    csil_entries.push((cbor_text("trash_id"), cbor_text(&csil_v.trash_id)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a RestoreCalendarEventRequest from a decoded CBOR value tree.
+fn csil_dec_restore_calendar_event_request(
+    csil_root: &CsilCborValue,
+) -> Result<RestoreCalendarEventRequest, CsilCborError> {
+    let house_id = {
+        let csil_field = cbor_require(csil_root, "house_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let trash_id = {
+        let csil_field = cbor_require(csil_root, "trash_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    Ok(RestoreCalendarEventRequest { house_id, trash_id })
+}
+
+/// Encode a RestoreCalendarEventRequest to canonical CSIL CBOR bytes.
+pub fn encode_restore_calendar_event_request(csil_v: &RestoreCalendarEventRequest) -> Vec<u8> {
+    cbor_encode(&csil_enc_restore_calendar_event_request(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a RestoreCalendarEventRequest.
+pub fn decode_restore_calendar_event_request(
+    csil_data: &[u8],
+) -> Result<RestoreCalendarEventRequest, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_restore_calendar_event_request(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a CalendarMigrationRow.
+fn csil_enc_calendar_migration_row(csil_v: &CalendarMigrationRow) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(4);
+    csil_entries.push((cbor_text("title"), cbor_text(&csil_v.title)));
+    csil_entries.push((cbor_text("reason"), cbor_text(&csil_v.reason)));
+    csil_entries.push((cbor_text("event_id"), cbor_text(&csil_v.event_id)));
+    csil_entries.push((cbor_text("disposition"), cbor_text(&csil_v.disposition)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a CalendarMigrationRow from a decoded CBOR value tree.
+fn csil_dec_calendar_migration_row(
+    csil_root: &CsilCborValue,
+) -> Result<CalendarMigrationRow, CsilCborError> {
+    let event_id = {
+        let csil_field = cbor_require(csil_root, "event_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let title = {
+        let csil_field = cbor_require(csil_root, "title")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let disposition = {
+        let csil_field = cbor_require(csil_root, "disposition")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let reason = {
+        let csil_field = cbor_require(csil_root, "reason")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    Ok(CalendarMigrationRow {
+        event_id,
+        title,
+        disposition,
+        reason,
+    })
+}
+
+/// Encode a CalendarMigrationRow to canonical CSIL CBOR bytes.
+pub fn encode_calendar_migration_row(csil_v: &CalendarMigrationRow) -> Vec<u8> {
+    cbor_encode(&csil_enc_calendar_migration_row(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a CalendarMigrationRow.
+pub fn decode_calendar_migration_row(
+    csil_data: &[u8],
+) -> Result<CalendarMigrationRow, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_calendar_migration_row(&csil_root)
+}
+
 /// Build the canonical CBOR value tree for a AuditEntry.
 fn csil_enc_audit_entry(csil_v: &AuditEntry) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(15);
@@ -6672,6 +7153,134 @@ pub fn encode_event_get_calendar_view_request(csil_v: &HouseID) -> Vec<u8> {
 pub fn decode_event_get_calendar_view_request(csil_data: &[u8]) -> Result<HouseID, CsilCborError> {
     let csil_root = cbor_decode(csil_data)?;
     let csil_decode = cbor_as_text;
+    csil_decode(&csil_root)
+}
+
+/// Encode the event_recover_edit_request payload to canonical CSIL CBOR bytes.
+pub fn encode_event_recover_edit_request(csil_v: &EventID) -> Vec<u8> {
+    cbor_encode(&cbor_text(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into the event_recover_edit_request payload.
+pub fn decode_event_recover_edit_request(csil_data: &[u8]) -> Result<EventID, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    let csil_decode = cbor_as_text;
+    csil_decode(&csil_root)
+}
+
+/// Encode the event_list_local_events_request payload to canonical CSIL CBOR bytes.
+pub fn encode_event_list_local_events_request(csil_v: &HouseID) -> Vec<u8> {
+    cbor_encode(&cbor_text(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into the event_list_local_events_request payload.
+pub fn decode_event_list_local_events_request(csil_data: &[u8]) -> Result<HouseID, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    let csil_decode = cbor_as_text;
+    csil_decode(&csil_root)
+}
+
+/// Encode the event_list_local_events_response payload to canonical CSIL CBOR bytes.
+pub fn encode_event_list_local_events_response(csil_v: &Vec<Event>) -> Vec<u8> {
+    cbor_encode(&cbor_enc_array(csil_v, csil_enc_event))
+}
+
+/// Decode canonical CSIL CBOR bytes into the event_list_local_events_response payload.
+pub fn decode_event_list_local_events_response(
+    csil_data: &[u8],
+) -> Result<Vec<Event>, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    let csil_decode = |csil_v| cbor_dec_array(csil_v, csil_dec_event);
+    csil_decode(&csil_root)
+}
+
+/// Encode the calendar_get_status_request payload to canonical CSIL CBOR bytes.
+pub fn encode_calendar_get_status_request(csil_v: &HouseID) -> Vec<u8> {
+    cbor_encode(&cbor_text(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into the calendar_get_status_request payload.
+pub fn decode_calendar_get_status_request(csil_data: &[u8]) -> Result<HouseID, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    let csil_decode = cbor_as_text;
+    csil_decode(&csil_root)
+}
+
+/// Encode the calendar_begin_connect_request payload to canonical CSIL CBOR bytes.
+pub fn encode_calendar_begin_connect_request(csil_v: &HouseID) -> Vec<u8> {
+    cbor_encode(&cbor_text(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into the calendar_begin_connect_request payload.
+pub fn decode_calendar_begin_connect_request(csil_data: &[u8]) -> Result<HouseID, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    let csil_decode = cbor_as_text;
+    csil_decode(&csil_root)
+}
+
+/// Encode the calendar_disconnect_request payload to canonical CSIL CBOR bytes.
+pub fn encode_calendar_disconnect_request(csil_v: &HouseID) -> Vec<u8> {
+    cbor_encode(&cbor_text(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into the calendar_disconnect_request payload.
+pub fn decode_calendar_disconnect_request(csil_data: &[u8]) -> Result<HouseID, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    let csil_decode = cbor_as_text;
+    csil_decode(&csil_root)
+}
+
+/// Encode the calendar_preview_migration_request payload to canonical CSIL CBOR bytes.
+pub fn encode_calendar_preview_migration_request(csil_v: &HouseID) -> Vec<u8> {
+    cbor_encode(&cbor_text(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into the calendar_preview_migration_request payload.
+pub fn decode_calendar_preview_migration_request(
+    csil_data: &[u8],
+) -> Result<HouseID, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    let csil_decode = cbor_as_text;
+    csil_decode(&csil_root)
+}
+
+/// Encode the calendar_preview_migration_response payload to canonical CSIL CBOR bytes.
+pub fn encode_calendar_preview_migration_response(csil_v: &Vec<CalendarMigrationRow>) -> Vec<u8> {
+    cbor_encode(&cbor_enc_array(csil_v, csil_enc_calendar_migration_row))
+}
+
+/// Decode canonical CSIL CBOR bytes into the calendar_preview_migration_response payload.
+pub fn decode_calendar_preview_migration_response(
+    csil_data: &[u8],
+) -> Result<Vec<CalendarMigrationRow>, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    let csil_decode = |csil_v| cbor_dec_array(csil_v, csil_dec_calendar_migration_row);
+    csil_decode(&csil_root)
+}
+
+/// Encode the calendar_list_trash_request payload to canonical CSIL CBOR bytes.
+pub fn encode_calendar_list_trash_request(csil_v: &HouseID) -> Vec<u8> {
+    cbor_encode(&cbor_text(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into the calendar_list_trash_request payload.
+pub fn decode_calendar_list_trash_request(csil_data: &[u8]) -> Result<HouseID, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    let csil_decode = cbor_as_text;
+    csil_decode(&csil_root)
+}
+
+/// Encode the calendar_list_trash_response payload to canonical CSIL CBOR bytes.
+pub fn encode_calendar_list_trash_response(csil_v: &Vec<CalendarTrashEntry>) -> Vec<u8> {
+    cbor_encode(&cbor_enc_array(csil_v, csil_enc_calendar_trash_entry))
+}
+
+/// Decode canonical CSIL CBOR bytes into the calendar_list_trash_response payload.
+pub fn decode_calendar_list_trash_response(
+    csil_data: &[u8],
+) -> Result<Vec<CalendarTrashEntry>, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    let csil_decode = |csil_v| cbor_dec_array(csil_v, csil_dec_calendar_trash_entry);
     csil_decode(&csil_root)
 }
 

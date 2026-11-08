@@ -1302,6 +1302,189 @@ impl<T: AsyncTransport> EventAsyncClient<T> {
             .await?;
         decode_calendar_view(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
     }
+
+    /// accept-event (request/response).
+    pub async fn accept_event(&self, req: EventDecision) -> Result<Event, ClientError> {
+        let csil_resp = self
+            .transport
+            .call("EventService", "accept-event", &encode_event_decision(&req))
+            .await?;
+        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// recover-edit (request/response).
+    pub async fn recover_edit(&self, req: EventID) -> Result<Event, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "EventService",
+                "recover-edit",
+                &encode_event_recover_edit_request(&req),
+            )
+            .await?;
+        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// decline-event (request/response).
+    pub async fn decline_event(&self, req: EventDecision) -> Result<Event, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "EventService",
+                "decline-event",
+                &encode_event_decision(&req),
+            )
+            .await?;
+        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// list-local-events (request/response).
+    pub async fn list_local_events(&self, req: HouseID) -> Result<Vec<Event>, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "EventService",
+                "list-local-events",
+                &encode_event_list_local_events_request(&req),
+            )
+            .await?;
+        decode_event_list_local_events_response(&csil_resp)
+            .map_err(|e| ClientError::Transport(e.to_string()))
+    }
+}
+
+/// Typed client for the CalendarService service.
+pub struct CalendarAsyncClient<T: AsyncTransport> {
+    #[allow(dead_code)]
+    transport: T,
+}
+
+impl<T: AsyncTransport> CalendarAsyncClient<T> {
+    pub fn new(transport: T) -> Self {
+        Self { transport }
+    }
+
+    /// get-status (request/response).
+    pub async fn get_status(&self, req: HouseID) -> Result<CalendarStatus, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "CalendarService",
+                "get-status",
+                &encode_calendar_get_status_request(&req),
+            )
+            .await?;
+        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// configure-calendar (request/response).
+    pub async fn configure_calendar(
+        &self,
+        req: ConfigureCalendarRequest,
+    ) -> Result<CalendarStatus, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "CalendarService",
+                "configure-calendar",
+                &encode_configure_calendar_request(&req),
+            )
+            .await?;
+        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// begin-connect (request/response).
+    pub async fn begin_connect(
+        &self,
+        req: HouseID,
+    ) -> Result<CalendarConnectResponse, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "CalendarService",
+                "begin-connect",
+                &encode_calendar_begin_connect_request(&req),
+            )
+            .await?;
+        decode_calendar_connect_response(&csil_resp)
+            .map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// complete-connect (request/response).
+    pub async fn complete_connect(
+        &self,
+        req: CompleteCalendarConnectRequest,
+    ) -> Result<CalendarStatus, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "CalendarService",
+                "complete-connect",
+                &encode_complete_calendar_connect_request(&req),
+            )
+            .await?;
+        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// disconnect (request/response).
+    pub async fn disconnect(&self, req: HouseID) -> Result<EmptyResponse, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "CalendarService",
+                "disconnect",
+                &encode_calendar_disconnect_request(&req),
+            )
+            .await?;
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// preview-migration (request/response).
+    pub async fn preview_migration(
+        &self,
+        req: HouseID,
+    ) -> Result<Vec<CalendarMigrationRow>, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "CalendarService",
+                "preview-migration",
+                &encode_calendar_preview_migration_request(&req),
+            )
+            .await?;
+        decode_calendar_preview_migration_response(&csil_resp)
+            .map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// list-trash (request/response).
+    pub async fn list_trash(&self, req: HouseID) -> Result<Vec<CalendarTrashEntry>, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "CalendarService",
+                "list-trash",
+                &encode_calendar_list_trash_request(&req),
+            )
+            .await?;
+        decode_calendar_list_trash_response(&csil_resp)
+            .map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// restore-event (request/response).
+    pub async fn restore_event(
+        &self,
+        req: RestoreCalendarEventRequest,
+    ) -> Result<Event, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "CalendarService",
+                "restore-event",
+                &encode_restore_calendar_event_request(&req),
+            )
+            .await?;
+        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
 }
 
 /// Typed client for the TaskService service.

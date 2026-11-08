@@ -13,7 +13,12 @@ const (
 )
 
 var (
-	DbUri = getEnvOrDefault("LONGHOUSE_DB_URI", "postgresql://longhouse:devpass123@localhost:5432/longhouse_db?sslmode=disable")
+	CatalystcalURL           = getEnvOrDefault("LONGHOUSE_CATALYSTCAL_URL", "")
+	CatalystcalKeysFile      = getEnvOrDefault("LONGHOUSE_CATALYSTCAL_KEYS_FILE", "")
+	CatalystcalCallbackURL   = getEnvOrDefault("LONGHOUSE_CATALYSTCAL_CALLBACK_URL", "")
+	CalendarHomeTCPAddr      = getEnvOrDefault("LONGHOUSE_CALENDAR_HOME_TCP_ADDR", "")
+	CalendarHomeFingerprints = getEnvOrDefault("LONGHOUSE_CALENDAR_HOME_FINGERPRINTS", "")
+	DbUri                    = getEnvOrDefault("LONGHOUSE_DB_URI", "postgresql://longhouse:devpass123@localhost:5432/longhouse_db?sslmode=disable")
 
 	APIPort = getEnvAsIntOrDefault("LONGHOUSE_API_PORT", 6080)
 

@@ -143,7 +143,23 @@ typedef struct EventHandlers {
     int (*list_events)(void *ctx, const EventListRequest *req, Event * *resp);
     int (*get_calendar_view)(void *ctx, const HouseID *req, CalendarView *resp);
     int (*set_calendar_view)(void *ctx, const CalendarView *req, CalendarView *resp);
+    int (*accept_event)(void *ctx, const EventDecision *req, Event *resp);
+    int (*recover_edit)(void *ctx, const EventID *req, Event *resp);
+    int (*decline_event)(void *ctx, const EventDecision *req, Event *resp);
+    int (*list_local_events)(void *ctx, const HouseID *req, Event * *resp);
 } EventHandlers;
+
+/* CalendarHandlers is the host's implementation of the CalendarService service. */
+typedef struct CalendarHandlers {
+    int (*get_status)(void *ctx, const HouseID *req, CalendarStatus *resp);
+    int (*configure_calendar)(void *ctx, const ConfigureCalendarRequest *req, CalendarStatus *resp);
+    int (*begin_connect)(void *ctx, const HouseID *req, CalendarConnectResponse *resp);
+    int (*complete_connect)(void *ctx, const CompleteCalendarConnectRequest *req, CalendarStatus *resp);
+    int (*disconnect)(void *ctx, const HouseID *req, EmptyResponse *resp);
+    int (*preview_migration)(void *ctx, const HouseID *req, CalendarMigrationRow * *resp);
+    int (*list_trash)(void *ctx, const HouseID *req, CalendarTrashEntry * *resp);
+    int (*restore_event)(void *ctx, const RestoreCalendarEventRequest *req, Event *resp);
+} CalendarHandlers;
 
 /* TaskHandlers is the host's implementation of the TaskService service. */
 typedef struct TaskHandlers {

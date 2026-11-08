@@ -538,6 +538,85 @@ module Event_service = struct
     match c.call ~service:"EventService" ~op:"set-calendar-view" ~payload:(Codec.encode_calendar_view_bytes req) with
     | Ok payload -> Ok (Codec.decode_calendar_view_bytes payload)
     | Error _ as e -> e
+
+  let accept_event (c : client) (req : event_decision) : (event, string) result =
+    match c.call ~service:"EventService" ~op:"accept-event" ~payload:(Codec.encode_event_decision_bytes req) with
+    | Ok payload -> Ok (Codec.decode_event_bytes payload)
+    | Error _ as e -> e
+
+  let recover_edit (c : client)
+      ~(encode_request : event_id -> bytes)
+      (req : event_id) : (event, string) result =
+    match c.call ~service:"EventService" ~op:"recover-edit" ~payload:(encode_request req) with
+    | Ok payload -> Ok (Codec.decode_event_bytes payload)
+    | Error _ as e -> e
+
+  let decline_event (c : client) (req : event_decision) : (event, string) result =
+    match c.call ~service:"EventService" ~op:"decline-event" ~payload:(Codec.encode_event_decision_bytes req) with
+    | Ok payload -> Ok (Codec.decode_event_bytes payload)
+    | Error _ as e -> e
+
+  let list_local_events (c : client)
+      ~(encode_request : house_id -> bytes)
+      ~(decode_response : bytes -> event list)
+      (req : house_id) : (event list, string) result =
+    match c.call ~service:"EventService" ~op:"list-local-events" ~payload:(encode_request req) with
+    | Ok payload -> Ok (decode_response payload)
+    | Error _ as e -> e
+end
+
+module Calendar_service = struct
+  let get_status (c : client)
+      ~(encode_request : house_id -> bytes)
+      (req : house_id) : (calendar_status, string) result =
+    match c.call ~service:"CalendarService" ~op:"get-status" ~payload:(encode_request req) with
+    | Ok payload -> Ok (Codec.decode_calendar_status_bytes payload)
+    | Error _ as e -> e
+
+  let configure_calendar (c : client) (req : configure_calendar_request) : (calendar_status, string) result =
+    match c.call ~service:"CalendarService" ~op:"configure-calendar" ~payload:(Codec.encode_configure_calendar_request_bytes req) with
+    | Ok payload -> Ok (Codec.decode_calendar_status_bytes payload)
+    | Error _ as e -> e
+
+  let begin_connect (c : client)
+      ~(encode_request : house_id -> bytes)
+      (req : house_id) : (calendar_connect_response, string) result =
+    match c.call ~service:"CalendarService" ~op:"begin-connect" ~payload:(encode_request req) with
+    | Ok payload -> Ok (Codec.decode_calendar_connect_response_bytes payload)
+    | Error _ as e -> e
+
+  let complete_connect (c : client) (req : complete_calendar_connect_request) : (calendar_status, string) result =
+    match c.call ~service:"CalendarService" ~op:"complete-connect" ~payload:(Codec.encode_complete_calendar_connect_request_bytes req) with
+    | Ok payload -> Ok (Codec.decode_calendar_status_bytes payload)
+    | Error _ as e -> e
+
+  let disconnect (c : client)
+      ~(encode_request : house_id -> bytes)
+      (req : house_id) : (empty_response, string) result =
+    match c.call ~service:"CalendarService" ~op:"disconnect" ~payload:(encode_request req) with
+    | Ok payload -> Ok (Codec.decode_empty_response_bytes payload)
+    | Error _ as e -> e
+
+  let preview_migration (c : client)
+      ~(encode_request : house_id -> bytes)
+      ~(decode_response : bytes -> calendar_migration_row list)
+      (req : house_id) : (calendar_migration_row list, string) result =
+    match c.call ~service:"CalendarService" ~op:"preview-migration" ~payload:(encode_request req) with
+    | Ok payload -> Ok (decode_response payload)
+    | Error _ as e -> e
+
+  let list_trash (c : client)
+      ~(encode_request : house_id -> bytes)
+      ~(decode_response : bytes -> calendar_trash_entry list)
+      (req : house_id) : (calendar_trash_entry list, string) result =
+    match c.call ~service:"CalendarService" ~op:"list-trash" ~payload:(encode_request req) with
+    | Ok payload -> Ok (decode_response payload)
+    | Error _ as e -> e
+
+  let restore_event (c : client) (req : restore_calendar_event_request) : (event, string) result =
+    match c.call ~service:"CalendarService" ~op:"restore-event" ~payload:(Codec.encode_restore_calendar_event_request_bytes req) with
+    | Ok payload -> Ok (Codec.decode_event_bytes payload)
+    | Error _ as e -> e
 end
 
 module Task_service = struct

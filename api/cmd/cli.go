@@ -85,6 +85,8 @@ func Run(args []string) error {
 	command := findCommand(args)
 
 	switch command {
+	case "calendar-keys":
+		return calendarKeys(flags)
 	case "serve":
 		if flags["help"] == "true" {
 			fmt.Print(usage)

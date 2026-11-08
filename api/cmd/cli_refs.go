@@ -302,8 +302,15 @@ func (resolver *cliReferenceResolver) resolveType(typeName, query string) (strin
 			client := longhouseclient.NewEventClient(resolver.runtime.transport)
 			limit, offset := uint64(500), uint64(0)
 			var events []longhouseclient.Event
+			listRequest := longhouseclient.EventListRequest{HouseId: request.HouseId, Limit: &limit, Offset: &offset}
+			status, statusErr := longhouseclient.NewCalendarClient(resolver.runtime.transport).GetStatus(ctx, request.HouseId)
+			if statusErr == nil && status.Enabled {
+				start, end := longhouseclient.Timestamp(time.Now().AddDate(-2, 0, 0).UTC().Format(time.RFC3339)), longhouseclient.Timestamp(time.Now().AddDate(2, 0, 0).UTC().Format(time.RFC3339))
+				listRequest.RangeStart = &start
+				listRequest.RangeEnd = &end
+			}
 			for {
-				values, err := client.ListEvents(ctx, longhouseclient.EventListRequest{HouseId: request.HouseId, Limit: &limit, Offset: &offset})
+				values, err := client.ListEvents(ctx, listRequest)
 				if err != nil {
 					return "", err
 				}
@@ -312,6 +319,21 @@ func (resolver *cliReferenceResolver) resolveType(typeName, query string) (strin
 					break
 				}
 				offset += limit
+			}
+			if statusErr == nil {
+				local, err := client.ListLocalEvents(ctx, request.HouseId)
+				if err != nil {
+					return "", err
+				}
+				seen := map[longhouseclient.EventID]bool{}
+				for _, e := range events {
+					seen[e.EventId] = true
+				}
+				for _, e := range local {
+					if !seen[e.EventId] {
+						events = append(events, e)
+					}
+				}
 			}
 			resolver.events = events
 		}

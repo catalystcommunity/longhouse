@@ -488,6 +488,10 @@ public sealed record Event
     public Timestamp? EndsAt { get; init; }
     // CBOR key: all_day
     public bool? AllDay { get; init; }
+    // CBOR key: timezone
+    public string? Timezone { get; init; }
+    // CBOR key: recurrence_rule
+    public string? RecurrenceRule { get; init; }
     // CBOR key: recurrence_freq
     public RecurrenceFreq? RecurrenceFreq { get; init; }
     // CBOR key: recurrence_interval
@@ -500,6 +504,20 @@ public sealed record Event
     public Timestamp? NextRecurrenceAt { get; init; }
     // CBOR key: recurrence_root_event_id
     public EventID? RecurrenceRootEventId { get; init; }
+    // CBOR key: calendar_state
+    public string? CalendarState { get; init; }
+    // CBOR key: revision
+    public ulong? Revision { get; init; }
+    // CBOR key: proposed_by_member_id
+    public MemberID? ProposedByMemberId { get; init; }
+    // CBOR key: publication_error
+    public string? PublicationError { get; init; }
+    // CBOR key: edit_pending_member_id
+    public MemberID? EditPendingMemberId { get; init; }
+    // CBOR key: calendar_unbound
+    public bool? CalendarUnbound { get; init; }
+    // CBOR key: edit_scope
+    public string? EditScope { get; init; }
     // CBOR key: created_at
     public required Timestamp CreatedAt { get; init; }
     // CBOR key: updated_at
@@ -1309,6 +1327,88 @@ public sealed record CalendarView
     public required MemberID ViewerMemberId { get; init; }
     // CBOR key: subscriptions
     public System.Collections.Generic.List<CalendarSubscription>? Subscriptions { get; init; }
+}
+
+public sealed record EventDecision
+{
+    // CBOR key: event_id
+    public required EventID EventId { get; init; }
+    // CBOR key: revision
+    public required ulong Revision { get; init; }
+}
+
+public sealed record CalendarStatus
+{
+    // CBOR key: house_id
+    public required HouseID HouseId { get; init; }
+    // CBOR key: available
+    public required bool Available { get; init; }
+    // CBOR key: enabled
+    public required bool Enabled { get; init; }
+    // CBOR key: ready
+    public required bool Ready { get; init; }
+    // CBOR key: connected
+    public required bool Connected { get; init; }
+    // CBOR key: last_error
+    public string? LastError { get; init; }
+    // CBOR key: sync_pending_since
+    public Timestamp? SyncPendingSince { get; init; }
+}
+
+public sealed record ConfigureCalendarRequest
+{
+    // CBOR key: house_id
+    public required HouseID HouseId { get; init; }
+    // CBOR key: enabled
+    public required bool Enabled { get; init; }
+}
+
+public sealed record CalendarConnectResponse
+{
+    // CBOR key: url
+    public required string Url { get; init; }
+}
+
+public sealed record CompleteCalendarConnectRequest
+{
+    // CBOR key: house_id
+    public required HouseID HouseId { get; init; }
+    // CBOR key: grant_id
+    public required string GrantId { get; init; }
+    // CBOR key: nonce
+    public required string Nonce { get; init; }
+}
+
+public sealed record CalendarTrashEntry
+{
+    // CBOR key: trash_id
+    public required string TrashId { get; init; }
+    // CBOR key: event
+    public required Event Event { get; init; }
+    // CBOR key: deleted_at
+    public required Timestamp DeletedAt { get; init; }
+    // CBOR key: expires_at
+    public required Timestamp ExpiresAt { get; init; }
+}
+
+public sealed record RestoreCalendarEventRequest
+{
+    // CBOR key: house_id
+    public required HouseID HouseId { get; init; }
+    // CBOR key: trash_id
+    public required string TrashId { get; init; }
+}
+
+public sealed record CalendarMigrationRow
+{
+    // CBOR key: event_id
+    public required EventID EventId { get; init; }
+    // CBOR key: title
+    public required string Title { get; init; }
+    // CBOR key: disposition
+    public required string Disposition { get; init; }
+    // CBOR key: reason
+    public required string Reason { get; init; }
 }
 
 public sealed record AuditEntry

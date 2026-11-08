@@ -424,6 +424,8 @@ pub struct Event {
     pub ends_at: Option<Timestamp>,
     /// default: false
     pub all_day: Option<bool>,
+    pub timezone: Option<String>,
+    pub recurrence_rule: Option<String>,
     pub recurrence_freq: Option<RecurrenceFreq>,
     /// default: 1
     pub recurrence_interval: Option<i64>,
@@ -431,6 +433,13 @@ pub struct Event {
     pub recurrence_by_setpos: Option<i64>,
     pub next_recurrence_at: Option<Timestamp>,
     pub recurrence_root_event_id: Option<EventID>,
+    pub calendar_state: Option<String>,
+    pub revision: Option<u64>,
+    pub proposed_by_member_id: Option<MemberID>,
+    pub publication_error: Option<String>,
+    pub edit_pending_member_id: Option<MemberID>,
+    pub calendar_unbound: Option<bool>,
+    pub edit_scope: Option<String>,
     pub created_at: Timestamp,
     pub updated_at: Timestamp,
 }
@@ -1043,6 +1052,63 @@ pub struct CalendarView {
     pub house_id: HouseID,
     pub viewer_member_id: MemberID,
     pub subscriptions: Option<Vec<CalendarSubscription>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EventDecision {
+    pub event_id: EventID,
+    pub revision: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CalendarStatus {
+    pub house_id: HouseID,
+    pub available: bool,
+    pub enabled: bool,
+    pub ready: bool,
+    pub connected: bool,
+    pub last_error: Option<String>,
+    pub sync_pending_since: Option<Timestamp>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConfigureCalendarRequest {
+    pub house_id: HouseID,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CalendarConnectResponse {
+    pub url: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CompleteCalendarConnectRequest {
+    pub house_id: HouseID,
+    pub grant_id: String,
+    pub nonce: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CalendarTrashEntry {
+    pub trash_id: String,
+    pub event: Event,
+    pub deleted_at: Timestamp,
+    pub expires_at: Timestamp,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RestoreCalendarEventRequest {
+    pub house_id: HouseID,
+    pub trash_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CalendarMigrationRow {
+    pub event_id: EventID,
+    pub title: String,
+    pub disposition: String,
+    pub reason: String,
 }
 
 pub type AuditID = String;

@@ -502,6 +502,79 @@ pub trait EventService {
         ctx: &Self::Context,
         input: CalendarView,
     ) -> Result<CalendarView, ServiceError>;
+    /// accept-event (request/response).
+    fn accept_event(
+        &self,
+        ctx: &Self::Context,
+        input: EventDecision,
+    ) -> Result<Event, ServiceError>;
+    /// recover-edit (request/response).
+    fn recover_edit(&self, ctx: &Self::Context, input: EventID) -> Result<Event, ServiceError>;
+    /// decline-event (request/response).
+    fn decline_event(
+        &self,
+        ctx: &Self::Context,
+        input: EventDecision,
+    ) -> Result<Event, ServiceError>;
+    /// list-local-events (request/response).
+    fn list_local_events(
+        &self,
+        ctx: &Self::Context,
+        input: HouseID,
+    ) -> Result<Vec<Event>, ServiceError>;
+}
+
+/// CalendarService service trait
+pub trait CalendarService {
+    type Context;
+    /// get-status (request/response).
+    fn get_status(
+        &self,
+        ctx: &Self::Context,
+        input: HouseID,
+    ) -> Result<CalendarStatus, ServiceError>;
+    /// configure-calendar (request/response).
+    fn configure_calendar(
+        &self,
+        ctx: &Self::Context,
+        input: ConfigureCalendarRequest,
+    ) -> Result<CalendarStatus, ServiceError>;
+    /// begin-connect (request/response).
+    fn begin_connect(
+        &self,
+        ctx: &Self::Context,
+        input: HouseID,
+    ) -> Result<CalendarConnectResponse, ServiceError>;
+    /// complete-connect (request/response).
+    fn complete_connect(
+        &self,
+        ctx: &Self::Context,
+        input: CompleteCalendarConnectRequest,
+    ) -> Result<CalendarStatus, ServiceError>;
+    /// disconnect (request/response).
+    fn disconnect(
+        &self,
+        ctx: &Self::Context,
+        input: HouseID,
+    ) -> Result<EmptyResponse, ServiceError>;
+    /// preview-migration (request/response).
+    fn preview_migration(
+        &self,
+        ctx: &Self::Context,
+        input: HouseID,
+    ) -> Result<Vec<CalendarMigrationRow>, ServiceError>;
+    /// list-trash (request/response).
+    fn list_trash(
+        &self,
+        ctx: &Self::Context,
+        input: HouseID,
+    ) -> Result<Vec<CalendarTrashEntry>, ServiceError>;
+    /// restore-event (request/response).
+    fn restore_event(
+        &self,
+        ctx: &Self::Context,
+        input: RestoreCalendarEventRequest,
+    ) -> Result<Event, ServiceError>;
 }
 
 /// TaskService service trait

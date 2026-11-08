@@ -547,6 +547,76 @@ public struct EventAsyncClient {
         return try CalendarView.fromCbor(csilResp)
     }
 
+    public func acceptEvent(_ request: EventDecision) async throws -> Event {
+        let csilResp = try await transport.call(service: "EventService", op: "accept-event", request: request.toCbor())
+        return try Event.fromCbor(csilResp)
+    }
+
+    public func recoverEdit(_ request: EventId) async throws -> Event {
+        let csilResp = try await transport.call(service: "EventService", op: "recover-edit", request: encodeEventRecoverEditRequest(request))
+        return try Event.fromCbor(csilResp)
+    }
+
+    public func declineEvent(_ request: EventDecision) async throws -> Event {
+        let csilResp = try await transport.call(service: "EventService", op: "decline-event", request: request.toCbor())
+        return try Event.fromCbor(csilResp)
+    }
+
+    public func listLocalEvents(_ request: HouseId) async throws -> [Event] {
+        let csilResp = try await transport.call(service: "EventService", op: "list-local-events", request: encodeEventListLocalEventsRequest(request))
+        return try decodeEventListLocalEventsResponse(csilResp)
+    }
+
+}
+
+/// CalendarAsyncClient is a typed client for the CalendarService service. The client owns
+/// (de)serialization; the carrier only moves bytes.
+public struct CalendarAsyncClient {
+    public let transport: AsyncCsilTransport
+    public init(transport: AsyncCsilTransport) {
+        self.transport = transport
+    }
+
+    public func getStatus(_ request: HouseId) async throws -> CalendarStatus {
+        let csilResp = try await transport.call(service: "CalendarService", op: "get-status", request: encodeCalendarGetStatusRequest(request))
+        return try CalendarStatus.fromCbor(csilResp)
+    }
+
+    public func configureCalendar(_ request: ConfigureCalendarRequest) async throws -> CalendarStatus {
+        let csilResp = try await transport.call(service: "CalendarService", op: "configure-calendar", request: request.toCbor())
+        return try CalendarStatus.fromCbor(csilResp)
+    }
+
+    public func beginConnect(_ request: HouseId) async throws -> CalendarConnectResponse {
+        let csilResp = try await transport.call(service: "CalendarService", op: "begin-connect", request: encodeCalendarBeginConnectRequest(request))
+        return try CalendarConnectResponse.fromCbor(csilResp)
+    }
+
+    public func completeConnect(_ request: CompleteCalendarConnectRequest) async throws -> CalendarStatus {
+        let csilResp = try await transport.call(service: "CalendarService", op: "complete-connect", request: request.toCbor())
+        return try CalendarStatus.fromCbor(csilResp)
+    }
+
+    public func disconnect(_ request: HouseId) async throws -> EmptyResponse {
+        let csilResp = try await transport.call(service: "CalendarService", op: "disconnect", request: encodeCalendarDisconnectRequest(request))
+        return try EmptyResponse.fromCbor(csilResp)
+    }
+
+    public func previewMigration(_ request: HouseId) async throws -> [CalendarMigrationRow] {
+        let csilResp = try await transport.call(service: "CalendarService", op: "preview-migration", request: encodeCalendarPreviewMigrationRequest(request))
+        return try decodeCalendarPreviewMigrationResponse(csilResp)
+    }
+
+    public func listTrash(_ request: HouseId) async throws -> [CalendarTrashEntry] {
+        let csilResp = try await transport.call(service: "CalendarService", op: "list-trash", request: encodeCalendarListTrashRequest(request))
+        return try decodeCalendarListTrashResponse(csilResp)
+    }
+
+    public func restoreEvent(_ request: RestoreCalendarEventRequest) async throws -> Event {
+        let csilResp = try await transport.call(service: "CalendarService", op: "restore-event", request: request.toCbor())
+        return try Event.fromCbor(csilResp)
+    }
+
 }
 
 /// TaskAsyncClient is a typed client for the TaskService service. The client owns

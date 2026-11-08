@@ -3,6 +3,16 @@ package models
 import "time"
 
 type Event struct {
+	EditPendingMemberID   *string
+	CalendarUnbound       bool
+	CalendarState         string `gorm:"column:calendar_state;default:legacy"`
+	Revision              uint64 `gorm:"column:revision;default:1"`
+	ProposedByMemberID    *string
+	AcceptedAt            *time.Time
+	AcceptedRevision      *uint64
+	PublicationError      string
+	Timezone              string `gorm:"default:UTC"`
+	RecurrenceRule        string
 	EventID               string     `gorm:"column:event_id;primaryKey;default:generate_ulid()" json:"event_id"`
 	HouseID               string     `gorm:"column:house_id;not null" json:"house_id"`
 	OwnerMemberID         string     `gorm:"column:owner_member_id;not null" json:"owner_member_id"`

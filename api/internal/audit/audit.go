@@ -126,7 +126,7 @@ func mutationAction(method string) string {
 	switch {
 	case method == "Me":
 		return ""
-	case strings.HasPrefix(method, "Get"), strings.HasPrefix(method, "List"), strings.HasPrefix(method, "Query"):
+	case strings.HasPrefix(method, "Get"), strings.HasPrefix(method, "List"), strings.HasPrefix(method, "Query"), strings.HasPrefix(method, "Preview"):
 		return ""
 	case strings.HasPrefix(method, "Create"):
 		return models.AuditActionCreate

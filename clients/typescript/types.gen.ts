@@ -208,12 +208,21 @@ export interface Event {
   startsAt?: Timestamp;
   endsAt?: Timestamp;
   allDay?: boolean;
+  timezone?: string;
+  recurrenceRule?: string;
   recurrenceFreq?: RecurrenceFreq;
   recurrenceInterval?: number;
   recurrenceByWeekday?: number[];
   recurrenceBySetpos?: number;
   nextRecurrenceAt?: Timestamp;
   recurrenceRootEventId?: EventID;
+  calendarState?: string;
+  revision?: number;
+  proposedByMemberId?: MemberID;
+  publicationError?: string;
+  editPendingMemberId?: MemberID;
+  calendarUnbound?: boolean;
+  editScope?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -653,6 +662,55 @@ export interface CalendarView {
   houseId: HouseID;
   viewerMemberId: MemberID;
   subscriptions?: CalendarSubscription[];
+}
+
+export interface EventDecision {
+  eventId: EventID;
+  revision: number;
+}
+
+export interface CalendarStatus {
+  houseId: HouseID;
+  available: boolean;
+  enabled: boolean;
+  ready: boolean;
+  connected: boolean;
+  lastError?: string;
+  syncPendingSince?: Timestamp;
+}
+
+export interface ConfigureCalendarRequest {
+  houseId: HouseID;
+  enabled: boolean;
+}
+
+export interface CalendarConnectResponse {
+  url: string;
+}
+
+export interface CompleteCalendarConnectRequest {
+  houseId: HouseID;
+  grantId: string;
+  nonce: string;
+}
+
+export interface CalendarTrashEntry {
+  trashId: string;
+  event: Event;
+  deletedAt: Timestamp;
+  expiresAt: Timestamp;
+}
+
+export interface RestoreCalendarEventRequest {
+  houseId: HouseID;
+  trashId: string;
+}
+
+export interface CalendarMigrationRow {
+  eventId: EventID;
+  title: string;
+  disposition: string;
+  reason: string;
 }
 
 export type AuditID = string;

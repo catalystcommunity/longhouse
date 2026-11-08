@@ -366,6 +366,14 @@ module Event_service = struct
     get_calendar_view : bytes -> outcome;
     (* request payload decodes to: calendar_view *)
     set_calendar_view : bytes -> outcome;
+    (* request payload decodes to: event_decision *)
+    accept_event : bytes -> outcome;
+    (* request payload decodes to: event_id *)
+    recover_edit : bytes -> outcome;
+    (* request payload decodes to: event_decision *)
+    decline_event : bytes -> outcome;
+    (* request payload decodes to: house_id *)
+    list_local_events : bytes -> outcome;
   }
 
   (* Verbose router: dispatch one request by operation name to its handler
@@ -380,6 +388,45 @@ module Event_service = struct
     | "list-events" -> h.list_events payload
     | "get-calendar-view" -> h.get_calendar_view payload
     | "set-calendar-view" -> h.set_calendar_view payload
+    | "accept-event" -> h.accept_event payload
+    | "recover-edit" -> h.recover_edit payload
+    | "decline-event" -> h.decline_event payload
+    | "list-local-events" -> h.list_local_events payload
+    | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
+end
+
+module Calendar_service = struct
+  type handler = {
+    (* request payload decodes to: house_id *)
+    get_status : bytes -> outcome;
+    (* request payload decodes to: configure_calendar_request *)
+    configure_calendar : bytes -> outcome;
+    (* request payload decodes to: house_id *)
+    begin_connect : bytes -> outcome;
+    (* request payload decodes to: complete_calendar_connect_request *)
+    complete_connect : bytes -> outcome;
+    (* request payload decodes to: house_id *)
+    disconnect : bytes -> outcome;
+    (* request payload decodes to: house_id *)
+    preview_migration : bytes -> outcome;
+    (* request payload decodes to: house_id *)
+    list_trash : bytes -> outcome;
+    (* request payload decodes to: restore_calendar_event_request *)
+    restore_event : bytes -> outcome;
+  }
+
+  (* Verbose router: dispatch one request by operation name to its handler
+     field, which decodes the opaque payload with the generated [Types]. *)
+  let route (h : handler) ~(op : string) ~(payload : bytes) =
+    match op with
+    | "get-status" -> h.get_status payload
+    | "configure-calendar" -> h.configure_calendar payload
+    | "begin-connect" -> h.begin_connect payload
+    | "complete-connect" -> h.complete_connect payload
+    | "disconnect" -> h.disconnect payload
+    | "preview-migration" -> h.preview_migration payload
+    | "list-trash" -> h.list_trash payload
+    | "restore-event" -> h.restore_event payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 

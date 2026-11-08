@@ -716,6 +716,9 @@ public struct Event: Equatable, Sendable {
     public let endsAt: Timestamp?
     /// wire key: all_day
     public let allDay: Bool?
+    public let timezone: String?
+    /// wire key: recurrence_rule
+    public let recurrenceRule: String?
     /// wire key: recurrence_freq
     public let recurrenceFreq: RecurrenceFreq?
     /// wire key: recurrence_interval
@@ -728,12 +731,25 @@ public struct Event: Equatable, Sendable {
     public let nextRecurrenceAt: Timestamp?
     /// wire key: recurrence_root_event_id
     public let recurrenceRootEventId: EventId?
+    /// wire key: calendar_state
+    public let calendarState: String?
+    public let revision: UInt64?
+    /// wire key: proposed_by_member_id
+    public let proposedByMemberId: MemberId?
+    /// wire key: publication_error
+    public let publicationError: String?
+    /// wire key: edit_pending_member_id
+    public let editPendingMemberId: MemberId?
+    /// wire key: calendar_unbound
+    public let calendarUnbound: Bool?
+    /// wire key: edit_scope
+    public let editScope: String?
     /// wire key: created_at
     public let createdAt: Timestamp
     /// wire key: updated_at
     public let updatedAt: Timestamp
 
-    public init(eventId: EventId, houseId: HouseId, ownerMemberId: MemberId, title: String, description: String? = nil, location: String? = nil, startsAt: Timestamp? = nil, endsAt: Timestamp? = nil, allDay: Bool? = false, recurrenceFreq: RecurrenceFreq? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: Timestamp? = nil, recurrenceRootEventId: EventId? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(eventId: EventId, houseId: HouseId, ownerMemberId: MemberId, title: String, description: String? = nil, location: String? = nil, startsAt: Timestamp? = nil, endsAt: Timestamp? = nil, allDay: Bool? = false, timezone: String? = nil, recurrenceRule: String? = nil, recurrenceFreq: RecurrenceFreq? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: Timestamp? = nil, recurrenceRootEventId: EventId? = nil, calendarState: String? = nil, revision: UInt64? = nil, proposedByMemberId: MemberId? = nil, publicationError: String? = nil, editPendingMemberId: MemberId? = nil, calendarUnbound: Bool? = nil, editScope: String? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
         self.eventId = eventId
         self.houseId = houseId
         self.ownerMemberId = ownerMemberId
@@ -743,12 +759,21 @@ public struct Event: Equatable, Sendable {
         self.startsAt = startsAt
         self.endsAt = endsAt
         self.allDay = allDay
+        self.timezone = timezone
+        self.recurrenceRule = recurrenceRule
         self.recurrenceFreq = recurrenceFreq
         self.recurrenceInterval = recurrenceInterval
         self.recurrenceByWeekday = recurrenceByWeekday
         self.recurrenceBySetpos = recurrenceBySetpos
         self.nextRecurrenceAt = nextRecurrenceAt
         self.recurrenceRootEventId = recurrenceRootEventId
+        self.calendarState = calendarState
+        self.revision = revision
+        self.proposedByMemberId = proposedByMemberId
+        self.publicationError = publicationError
+        self.editPendingMemberId = editPendingMemberId
+        self.calendarUnbound = calendarUnbound
+        self.editScope = editScope
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -774,12 +799,21 @@ public struct Event: Equatable, Sendable {
         "startsAt": "starts_at",
         "endsAt": "ends_at",
         "allDay": "all_day",
+        "timezone": "timezone",
+        "recurrenceRule": "recurrence_rule",
         "recurrenceFreq": "recurrence_freq",
         "recurrenceInterval": "recurrence_interval",
         "recurrenceByWeekday": "recurrence_by_weekday",
         "recurrenceBySetpos": "recurrence_by_setpos",
         "nextRecurrenceAt": "next_recurrence_at",
         "recurrenceRootEventId": "recurrence_root_event_id",
+        "calendarState": "calendar_state",
+        "revision": "revision",
+        "proposedByMemberId": "proposed_by_member_id",
+        "publicationError": "publication_error",
+        "editPendingMemberId": "edit_pending_member_id",
+        "calendarUnbound": "calendar_unbound",
+        "editScope": "edit_scope",
         "createdAt": "created_at",
         "updatedAt": "updated_at"
     ]
@@ -2420,6 +2454,182 @@ public struct CalendarView: Equatable, Sendable {
         "houseId": "house_id",
         "viewerMemberId": "viewer_member_id",
         "subscriptions": "subscriptions"
+    ]
+}
+
+/// EventDecision is a generated CSIL record type.
+public struct EventDecision: Equatable, Sendable {
+    /// wire key: event_id
+    public let eventId: EventId
+    public let revision: UInt64
+
+    public init(eventId: EventId, revision: UInt64) {
+        self.eventId = eventId
+        self.revision = revision
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "eventId": "event_id",
+        "revision": "revision"
+    ]
+}
+
+/// CalendarStatus is a generated CSIL record type.
+public struct CalendarStatus: Equatable, Sendable {
+    /// wire key: house_id
+    public let houseId: HouseId
+    public let available: Bool
+    public let enabled: Bool
+    public let ready: Bool
+    public let connected: Bool
+    /// wire key: last_error
+    public let lastError: String?
+    /// wire key: sync_pending_since
+    public let syncPendingSince: Timestamp?
+
+    public init(houseId: HouseId, available: Bool, enabled: Bool, ready: Bool, connected: Bool, lastError: String? = nil, syncPendingSince: Timestamp? = nil) {
+        self.houseId = houseId
+        self.available = available
+        self.enabled = enabled
+        self.ready = ready
+        self.connected = connected
+        self.lastError = lastError
+        self.syncPendingSince = syncPendingSince
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "houseId": "house_id",
+        "available": "available",
+        "enabled": "enabled",
+        "ready": "ready",
+        "connected": "connected",
+        "lastError": "last_error",
+        "syncPendingSince": "sync_pending_since"
+    ]
+}
+
+/// ConfigureCalendarRequest is a generated CSIL record type.
+public struct ConfigureCalendarRequest: Equatable, Sendable {
+    /// wire key: house_id
+    public let houseId: HouseId
+    public let enabled: Bool
+
+    public init(houseId: HouseId, enabled: Bool) {
+        self.houseId = houseId
+        self.enabled = enabled
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "houseId": "house_id",
+        "enabled": "enabled"
+    ]
+}
+
+/// CalendarConnectResponse is a generated CSIL record type.
+public struct CalendarConnectResponse: Equatable, Sendable {
+    public let url: String
+
+    public init(url: String) {
+        self.url = url
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "url": "url"
+    ]
+}
+
+/// CompleteCalendarConnectRequest is a generated CSIL record type.
+public struct CompleteCalendarConnectRequest: Equatable, Sendable {
+    /// wire key: house_id
+    public let houseId: HouseId
+    /// wire key: grant_id
+    public let grantId: String
+    public let nonce: String
+
+    public init(houseId: HouseId, grantId: String, nonce: String) {
+        self.houseId = houseId
+        self.grantId = grantId
+        self.nonce = nonce
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "houseId": "house_id",
+        "grantId": "grant_id",
+        "nonce": "nonce"
+    ]
+}
+
+/// CalendarTrashEntry is a generated CSIL record type.
+public struct CalendarTrashEntry: Equatable, Sendable {
+    /// wire key: trash_id
+    public let trashId: String
+    public let event: Event
+    /// wire key: deleted_at
+    public let deletedAt: Timestamp
+    /// wire key: expires_at
+    public let expiresAt: Timestamp
+
+    public init(trashId: String, event: Event, deletedAt: Timestamp, expiresAt: Timestamp) {
+        self.trashId = trashId
+        self.event = event
+        self.deletedAt = deletedAt
+        self.expiresAt = expiresAt
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "trashId": "trash_id",
+        "event": "event",
+        "deletedAt": "deleted_at",
+        "expiresAt": "expires_at"
+    ]
+}
+
+/// RestoreCalendarEventRequest is a generated CSIL record type.
+public struct RestoreCalendarEventRequest: Equatable, Sendable {
+    /// wire key: house_id
+    public let houseId: HouseId
+    /// wire key: trash_id
+    public let trashId: String
+
+    public init(houseId: HouseId, trashId: String) {
+        self.houseId = houseId
+        self.trashId = trashId
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "houseId": "house_id",
+        "trashId": "trash_id"
+    ]
+}
+
+/// CalendarMigrationRow is a generated CSIL record type.
+public struct CalendarMigrationRow: Equatable, Sendable {
+    /// wire key: event_id
+    public let eventId: EventId
+    public let title: String
+    public let disposition: String
+    public let reason: String
+
+    public init(eventId: EventId, title: String, disposition: String, reason: String) {
+        self.eventId = eventId
+        self.title = title
+        self.disposition = disposition
+        self.reason = reason
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "eventId": "event_id",
+        "title": "title",
+        "disposition": "disposition",
+        "reason": "reason"
     ]
 }
 

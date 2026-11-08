@@ -182,6 +182,17 @@ gateway:
 
 resources: {}
 
+# Optional calendar service. Keep disabled until application enrollment and
+# the required catalystcal API release are complete.
+catalystcal:
+  enabled: false
+  url: ""
+  callbackUrl: ""
+  existingSecret: ""
+  keysKey: keys.json
+  homeTcpAddr: ""
+  homeFingerprints: ""
+
 autoscaling:
   api:
     enabled: false

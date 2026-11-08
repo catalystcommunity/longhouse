@@ -141,6 +141,23 @@ public interface IEventService
     System.Collections.Generic.List<Event> ListEvents(EventListRequest eventListRequest);
     CalendarView GetCalendarView(HouseID houseID);
     CalendarView SetCalendarView(CalendarView calendarView);
+    Event AcceptEvent(EventDecision eventDecision);
+    Event RecoverEdit(EventID eventID);
+    Event DeclineEvent(EventDecision eventDecision);
+    System.Collections.Generic.List<Event> ListLocalEvents(HouseID houseID);
+}
+
+/// <summary>Server handler interface for the CalendarService service.</summary>
+public interface ICalendarService
+{
+    CalendarStatus GetStatus(HouseID houseID);
+    CalendarStatus ConfigureCalendar(ConfigureCalendarRequest configureCalendarRequest);
+    CalendarConnectResponse BeginConnect(HouseID houseID);
+    CalendarStatus CompleteConnect(CompleteCalendarConnectRequest completeCalendarConnectRequest);
+    EmptyResponse Disconnect(HouseID houseID);
+    System.Collections.Generic.List<CalendarMigrationRow> PreviewMigration(HouseID houseID);
+    System.Collections.Generic.List<CalendarTrashEntry> ListTrash(HouseID houseID);
+    Event RestoreEvent(RestoreCalendarEventRequest restoreCalendarEventRequest);
 }
 
 /// <summary>Server handler interface for the TaskService service.</summary>

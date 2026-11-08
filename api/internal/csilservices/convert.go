@@ -208,6 +208,23 @@ func eventToCSIL(e *models.Event) csil.Event {
 		CreatedAt:        ts(e.CreatedAt),
 		UpdatedAt:        ts(e.UpdatedAt),
 	}
+	out.CalendarState = strPtrCopy(e.CalendarState)
+	if e.CalendarState == "remote" && out.Title == "" {
+		out.Title = "Published event"
+	}
+	out.Timezone = strPtrCopy(e.Timezone)
+	out.RecurrenceRule = strPtrCopy(e.RecurrenceRule)
+	out.Revision = &e.Revision
+	out.PublicationError = strPtrCopy(e.PublicationError)
+	out.CalendarUnbound = boolPtr(e.CalendarUnbound)
+	if e.EditPendingMemberID != nil {
+		v := csil.MemberID(*e.EditPendingMemberID)
+		out.EditPendingMemberId = &v
+	}
+	if e.ProposedByMemberID != nil {
+		v := csil.MemberID(*e.ProposedByMemberID)
+		out.ProposedByMemberId = &v
+	}
 	if e.RecurrenceFreq != nil {
 		v := csil.RecurrenceFreq(*e.RecurrenceFreq)
 		out.RecurrenceFreq = &v

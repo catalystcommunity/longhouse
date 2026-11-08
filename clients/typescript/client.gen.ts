@@ -2,8 +2,8 @@
 // Source: <csil spec>
 // Target: typescript-client
 
-import type { ApproveCliLoginRequest, AuditPage, AuditQuery, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarView, CliLoginRequestInfo, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteRequest, DenyCliLoginRequest, DependencyGraph, DependencyRef, DependencyTarget, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventID, EventListRequest, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectGrantRef, ProjectID, ProjectList, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RefreshSessionRequest, ResourceRef, RestoreRequest, RevokeSessionRequest, Role, RoleID, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskGrantRef, TaskID, TaskList, TaskListRequest, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
-import { asArray, decode, encodeValue, fromAuditPageCbor, fromBeginCliLoginResponseCbor, fromBoolResponseCbor, fromCalendarViewCbor, fromCliLoginRequestInfoCbor, fromCliSessionsResponseCbor, fromCliTokenResponseCbor, fromCommentCbor, fromCommentCborValue, fromDependencyGraphCbor, fromDevUsersResponseCbor, fromEffectiveSettingsCbor, fromEmptyResponseCbor, fromEventCbor, fromEventCborValue, fromExchangeCliLoginResponseCbor, fromGrantCborValue, fromGroupCbor, fromGroupCborValue, fromHouseCbor, fromHouseCborValue, fromLoginResponseCbor, fromMeResponseCbor, fromMemberAuditCborValue, fromMemberCbor, fromMemberCborValue, fromMilestoneCbor, fromMilestoneCborValue, fromNotificationCbor, fromNotificationCborValue, fromNotificationUnreadCountCbor, fromProjectCbor, fromProjectListCbor, fromRoleCbor, fromRoleCborValue, fromShareCbor, fromShareCborValue, fromSkillCbor, fromSkillCborValue, fromTaskCbor, fromTaskListCbor, fromTrashPageCbor, fromTrustedDomainCbor, fromTrustedDomainCborValue, toApproveCliLoginRequestCbor, toAuditQueryCbor, toBeginCliLoginRequestCbor, toBugReportRequestCbor, toCalendarViewCbor, toCommentCbor, toCommentListRequestCbor, toCompleteRequestCbor, toDenyCliLoginRequestCbor, toDependencyRefCbor, toDependencyTargetCbor, toDevLoginRequestCbor, toEmptyRequestCbor, toEventCbor, toEventListRequestCbor, toExchangeCliLoginRequestCbor, toGroupCbor, toGroupMemberRefCbor, toGroupSkillRefCbor, toHouseCbor, toHouseListRequestCbor, toHouseScopedListRequestCbor, toLoginRequestCbor, toMemberCbor, toMemberRoleRefCbor, toMemberScopedListRequestCbor, toMemberSkillRefCbor, toMilestoneCbor, toNotificationListRequestCbor, toProjectCbor, toProjectGrantRefCbor, toProjectMemberRefCbor, toProjectOwnerRefCbor, toProjectScopedListRequestCbor, toProjectTaskOrderRequestCbor, toProjectTaskRefCbor, toPurgeRequestCbor, toPutProjectGrantRequestCbor, toPutTaskGrantRequestCbor, toRefreshSessionRequestCbor, toResourceRefCbor, toRestoreRequestCbor, toRevokeSessionRequestCbor, toRoleCbor, toSetProjectVisibilityRequestCbor, toSetTaskVisibilityRequestCbor, toShareAccessRequestCbor, toShareCbor, toSkillCbor, toTaskCbor, toTaskGrantRefCbor, toTaskListRequestCbor, toTrustedDomainCbor, toUpdateSettingsRequestCbor } from "./codec.gen";
+import type { ApproveCliLoginRequest, AuditPage, AuditQuery, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarConnectResponse, CalendarMigrationRow, CalendarStatus, CalendarTrashEntry, CalendarView, CliLoginRequestInfo, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteCalendarConnectRequest, CompleteRequest, ConfigureCalendarRequest, DenyCliLoginRequest, DependencyGraph, DependencyRef, DependencyTarget, DevLoginRequest, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventDecision, EventID, EventListRequest, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, Group, GroupID, GroupMemberRef, GroupSkillRef, House, HouseID, HouseListRequest, HouseScopedListRequest, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberID, MemberRoleRef, MemberScopedListRequest, MemberSkillRef, Milestone, MilestoneID, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectGrantRef, ProjectID, ProjectList, ProjectMemberRef, ProjectOwnerRef, ProjectScopedListRequest, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RefreshSessionRequest, ResourceRef, RestoreCalendarEventRequest, RestoreRequest, RevokeSessionRequest, Role, RoleID, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, Task, TaskGrantRef, TaskID, TaskList, TaskListRequest, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import { asArray, decode, encodeValue, fromAuditPageCbor, fromBeginCliLoginResponseCbor, fromBoolResponseCbor, fromCalendarConnectResponseCbor, fromCalendarMigrationRowCborValue, fromCalendarStatusCbor, fromCalendarTrashEntryCborValue, fromCalendarViewCbor, fromCliLoginRequestInfoCbor, fromCliSessionsResponseCbor, fromCliTokenResponseCbor, fromCommentCbor, fromCommentCborValue, fromDependencyGraphCbor, fromDevUsersResponseCbor, fromEffectiveSettingsCbor, fromEmptyResponseCbor, fromEventCbor, fromEventCborValue, fromExchangeCliLoginResponseCbor, fromGrantCborValue, fromGroupCbor, fromGroupCborValue, fromHouseCbor, fromHouseCborValue, fromLoginResponseCbor, fromMeResponseCbor, fromMemberAuditCborValue, fromMemberCbor, fromMemberCborValue, fromMilestoneCbor, fromMilestoneCborValue, fromNotificationCbor, fromNotificationCborValue, fromNotificationUnreadCountCbor, fromProjectCbor, fromProjectListCbor, fromRoleCbor, fromRoleCborValue, fromShareCbor, fromShareCborValue, fromSkillCbor, fromSkillCborValue, fromTaskCbor, fromTaskListCbor, fromTrashPageCbor, fromTrustedDomainCbor, fromTrustedDomainCborValue, toApproveCliLoginRequestCbor, toAuditQueryCbor, toBeginCliLoginRequestCbor, toBugReportRequestCbor, toCalendarViewCbor, toCommentCbor, toCommentListRequestCbor, toCompleteCalendarConnectRequestCbor, toCompleteRequestCbor, toConfigureCalendarRequestCbor, toDenyCliLoginRequestCbor, toDependencyRefCbor, toDependencyTargetCbor, toDevLoginRequestCbor, toEmptyRequestCbor, toEventCbor, toEventDecisionCbor, toEventListRequestCbor, toExchangeCliLoginRequestCbor, toGroupCbor, toGroupMemberRefCbor, toGroupSkillRefCbor, toHouseCbor, toHouseListRequestCbor, toHouseScopedListRequestCbor, toLoginRequestCbor, toMemberCbor, toMemberRoleRefCbor, toMemberScopedListRequestCbor, toMemberSkillRefCbor, toMilestoneCbor, toNotificationListRequestCbor, toProjectCbor, toProjectGrantRefCbor, toProjectMemberRefCbor, toProjectOwnerRefCbor, toProjectScopedListRequestCbor, toProjectTaskOrderRequestCbor, toProjectTaskRefCbor, toPurgeRequestCbor, toPutProjectGrantRequestCbor, toPutTaskGrantRequestCbor, toRefreshSessionRequestCbor, toResourceRefCbor, toRestoreCalendarEventRequestCbor, toRestoreRequestCbor, toRevokeSessionRequestCbor, toRoleCbor, toSetProjectVisibilityRequestCbor, toSetTaskVisibilityRequestCbor, toShareAccessRequestCbor, toShareCbor, toSkillCbor, toTaskCbor, toTaskGrantRefCbor, toTaskListRequestCbor, toTrustedDomainCbor, toUpdateSettingsRequestCbor } from "./codec.gen";
 
 export interface ServiceTransport {
   call(service: string, op: string, req: Uint8Array): Uint8Array;
@@ -171,6 +171,82 @@ export class BugClient {
   reportBug(req: BugReportRequest): Task {
     const csilResp = this.t.call("BugService", "report-bug", toBugReportRequestCbor(req));
     return fromTaskCbor(csilResp);
+  }
+}
+
+export class CalendarClient {
+  constructor(private readonly t: ServiceTransport) {}
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  getStatus(req: HouseID): CalendarStatus {
+    const csilResp = this.t.call("CalendarService", "get-status", encodeValue(req));
+    return fromCalendarStatusCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  configureCalendar(req: ConfigureCalendarRequest): CalendarStatus {
+    const csilResp = this.t.call("CalendarService", "configure-calendar", toConfigureCalendarRequestCbor(req));
+    return fromCalendarStatusCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  beginConnect(req: HouseID): CalendarConnectResponse {
+    const csilResp = this.t.call("CalendarService", "begin-connect", encodeValue(req));
+    return fromCalendarConnectResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  completeConnect(req: CompleteCalendarConnectRequest): CalendarStatus {
+    const csilResp = this.t.call("CalendarService", "complete-connect", toCompleteCalendarConnectRequestCbor(req));
+    return fromCalendarStatusCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  disconnect(req: HouseID): EmptyResponse {
+    const csilResp = this.t.call("CalendarService", "disconnect", encodeValue(req));
+    return fromEmptyResponseCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  previewMigration(req: HouseID): CalendarMigrationRow[] {
+    const csilResp = this.t.call("CalendarService", "preview-migration", encodeValue(req));
+    return asArray(decode(csilResp)).map((csilE) => fromCalendarMigrationRowCborValue(csilE));
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listTrash(req: HouseID): CalendarTrashEntry[] {
+    const csilResp = this.t.call("CalendarService", "list-trash", encodeValue(req));
+    return asArray(decode(csilResp)).map((csilE) => fromCalendarTrashEntryCborValue(csilE));
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  restoreEvent(req: RestoreCalendarEventRequest): Event {
+    const csilResp = this.t.call("CalendarService", "restore-event", toRestoreCalendarEventRequestCbor(req));
+    return fromEventCbor(csilResp);
   }
 }
 
@@ -349,6 +425,42 @@ export class EventClient {
   setCalendarView(req: CalendarView): CalendarView {
     const csilResp = this.t.call("EventService", "set-calendar-view", toCalendarViewCbor(req));
     return fromCalendarViewCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  acceptEvent(req: EventDecision): Event {
+    const csilResp = this.t.call("EventService", "accept-event", toEventDecisionCbor(req));
+    return fromEventCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  recoverEdit(req: EventID): Event {
+    const csilResp = this.t.call("EventService", "recover-edit", encodeValue(req));
+    return fromEventCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  declineEvent(req: EventDecision): Event {
+    const csilResp = this.t.call("EventService", "decline-event", toEventDecisionCbor(req));
+    return fromEventCbor(csilResp);
+  }
+
+  /**
+   * @throws {ServiceError} when the API returns an error response
+   * @throws transport errors (network, timeout) raised by the transport
+   */
+  listLocalEvents(req: HouseID): Event[] {
+    const csilResp = this.t.call("EventService", "list-local-events", encodeValue(req));
+    return asArray(decode(csilResp)).map((csilE) => fromEventCborValue(csilE));
   }
 }
 
@@ -1191,6 +1303,7 @@ export class ApiClient {
   readonly audit: AuditClient;
   readonly auth: AuthClient;
   readonly bug: BugClient;
+  readonly calendar: CalendarClient;
   readonly comment: CommentClient;
   readonly dependency: DependencyClient;
   readonly devAuth: DevAuthClient;
@@ -1212,6 +1325,7 @@ export class ApiClient {
     this.audit = new AuditClient(t);
     this.auth = new AuthClient(t);
     this.bug = new BugClient(t);
+    this.calendar = new CalendarClient(t);
     this.comment = new CommentClient(t);
     this.dependency = new DependencyClient(t);
     this.devAuth = new DevAuthClient(t);

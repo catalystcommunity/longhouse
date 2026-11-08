@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/catalystcommunity/longhouse/api/internal/auth"
+	calendarbridge "github.com/catalystcommunity/longhouse/api/internal/calendar"
 	"github.com/catalystcommunity/longhouse/api/internal/config"
 	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
 	"github.com/catalystcommunity/longhouse/api/internal/csilservices"
@@ -20,6 +21,7 @@ import (
 	"github.com/catalystcommunity/longhouse/api/internal/store/postgres/models"
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 func Serve(flags map[string]string) error {
@@ -85,7 +87,9 @@ func Serve(flags map[string]string) error {
 	}
 
 	log.Infof("Starting HTTP server on :%d", config.APIPort)
-	handler, err := buildHTTPHandler()
+	workerCtx, cancelWorkers := context.WithCancel(context.Background())
+	defer cancelWorkers()
+	handler, err := buildHTTPHandlerWithContext(workerCtx)
 	if err != nil {
 		return err
 	}
@@ -100,6 +104,10 @@ func Serve(flags map[string]string) error {
 //	GET /api/v1/auth/start       — browser navigation that 302s to the IDP.
 //	GET /api/v1/avatars/{member} — image bytes for an <img> src.
 func buildHTTPHandler() (http.Handler, error) {
+	return buildHTTPHandlerWithContext(context.Background())
+}
+
+func buildHTTPHandlerWithContext(workerCtx context.Context) (http.Handler, error) {
 	if config.JWTSecret == "" {
 		log.Warn("LONGHOUSE_JWT_SECRET is empty: every CSIL method will fail-closed with 'auth not configured'")
 	}
@@ -123,13 +131,31 @@ func buildHTTPHandler() (http.Handler, error) {
 	(&csilservices.GroupService{Store: store.AppStore}).Register(d)
 	(&csilservices.SkillService{Store: store.AppStore}).Register(d)
 	(&csilservices.TaskService{Store: store.AppStore}).Register(d)
-	(&csilservices.EventService{Store: store.AppStore}).Register(d)
+	eventSvc := &csilservices.EventService{Store: store.AppStore}
+	if dbStore, ok := store.AppStore.(interface{ CalendarDB() *gorm.DB }); ok {
+		remote, err := calendarbridge.New(calendarbridge.Config{URL: config.CatalystcalURL, KeysFile: config.CatalystcalKeysFile, CallbackURL: config.CatalystcalCallbackURL, RPAddress: config.LinkkeysTCPAddr, RPFingerprints: strings.Split(config.LinkkeysTCPFingerprints, ","), RPAPIKey: config.LinkkeysPKIAPIKey, BrowserURL: config.LinkkeysIDPURL, SubjectDomain: config.LinkkeysIDPDomain, HomeAddress: config.CalendarHomeTCPAddr, HomeFingerprints: strings.Split(config.CalendarHomeFingerprints, ",")})
+		if err != nil {
+			return nil, fmt.Errorf("calendar configuration: %w", err)
+		}
+		calendarSvc := &csilservices.CalendarService{Store: store.AppStore, DB: dbStore.CalendarDB()}
+		eventSvc.Calendar = calendarSvc
+		if remote != nil {
+			calendarSvc.Remote = remote
+		}
+		calendarSvc.Register(d)
+		// The worker shares the process lifetime with the HTTP server.
+		if remote != nil {
+			go calendarSvc.Run(workerCtx)
+			go remote.RunKeyRenewal(workerCtx)
+		}
+	}
+	eventSvc.Register(d)
 	(&csilservices.ProjectService{Store: store.AppStore}).Register(d)
 	(&csilservices.DependencyService{Store: store.AppStore}).Register(d)
 	(&csilservices.SettingsService{Store: store.AppStore}).Register(d)
 	(&csilservices.BugService{Store: store.AppStore}).Register(d)
 	(&csilservices.TrustedDomainService{Store: store.AppStore}).Register(d)
-	(&csilservices.CommentService{Store: store.AppStore}).Register(d)
+	(&csilservices.CommentService{Store: store.AppStore, Calendar: eventSvc.Calendar}).Register(d)
 	(&csilservices.NotificationService{Store: store.AppStore}).Register(d)
 	(&csilservices.AuditService{Store: store.AppStore}).Register(d)
 	(&csilservices.TrashService{Store: store.AppStore}).Register(d)

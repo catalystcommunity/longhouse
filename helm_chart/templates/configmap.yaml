@@ -5,6 +5,13 @@ metadata:
   labels:
     {{- include "longhouse.labels" . | nindent 4 }}
 data:
+  {{- if .Values.catalystcal.enabled }}
+  LONGHOUSE_CATALYSTCAL_URL: {{ required "catalystcal.url is required" .Values.catalystcal.url | quote }}
+  LONGHOUSE_CATALYSTCAL_CALLBACK_URL: {{ required "catalystcal.callbackUrl is required" .Values.catalystcal.callbackUrl | quote }}
+  LONGHOUSE_CATALYSTCAL_KEYS_FILE: "/var/run/longhouse-calendar/keys.json"
+  LONGHOUSE_CALENDAR_HOME_TCP_ADDR: {{ required "catalystcal.homeTcpAddr is required" .Values.catalystcal.homeTcpAddr | quote }}
+  LONGHOUSE_CALENDAR_HOME_FINGERPRINTS: {{ required "catalystcal.homeFingerprints is required" .Values.catalystcal.homeFingerprints | quote }}
+  {{- end }}
   LONGHOUSE_API_PORT: {{ .Values.server.apiPort | quote }}
   LONGHOUSE_BEARER_TTL_SECONDS: {{ .Values.server.bearerTTLSeconds | int64 | quote }}
   LONGHOUSE_REFRESH_TOKEN_TTL_SECONDS: {{ .Values.server.refreshTokenTTLSeconds | int64 | quote }}

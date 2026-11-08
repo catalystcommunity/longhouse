@@ -340,6 +340,8 @@ Event = {
     ? starts_at: Timestamp,
     ? ends_at: Timestamp,
     ? all_day: bool .default false,
+    ? timezone: text,
+    ? recurrence_rule: text,
 
     ;; Recurrence. When `recurrence_freq` is set, the row is the root of a
     ;; series; the server's recurrence worker spawns real Event rows for
@@ -364,6 +366,22 @@ Event = {
     ? recurrence_by_setpos: int,
     ? next_recurrence_at: Timestamp,
     ? recurrence_root_event_id: EventID,
+
+    ;; Assignment and publication state. Updates must send the current revision.
+    @receive-only
+    ? calendar_state: text,
+    ? revision: uint,
+    @receive-only
+    ? proposed_by_member_id: MemberID,
+    @receive-only
+    ? publication_error: text,
+    ;; A saved remote edit can be recovered only by the initiating member.
+    @receive-only
+    ? edit_pending_member_id: MemberID,
+    @receive-only
+    ? calendar_unbound: bool,
+    ;; Remote recurrence scope: all, this, or this_and_future.
+    ? edit_scope: text,
 
     @receive-only
     created_at: Timestamp,
@@ -1172,7 +1190,39 @@ service EventService {
     ;; get returns the caller's saved view for the house (empty if never set);
     ;; set replaces the caller's subscription list wholesale.
     get-calendar-view: HouseID -> CalendarView / ServiceError,
-    set-calendar-view: CalendarView -> CalendarView / ServiceError
+    set-calendar-view: CalendarView -> CalendarView / ServiceError,
+    accept-event: EventDecision -> Event / ServiceError,
+    recover-edit: EventID -> Event / ServiceError,
+    decline-event: EventDecision -> Event / ServiceError,
+    list-local-events: HouseID -> [* Event] / ServiceError
+}
+
+EventDecision = { event_id: EventID, revision: uint }
+CalendarStatus = {
+    house_id: HouseID,
+    available: bool,
+    enabled: bool,
+    ready: bool,
+    connected: bool,
+    ? last_error: text,
+    ? sync_pending_since: Timestamp
+}
+ConfigureCalendarRequest = { house_id: HouseID, enabled: bool }
+CalendarConnectResponse = { url: text }
+CompleteCalendarConnectRequest = { house_id: HouseID, grant_id: text, nonce: text }
+CalendarTrashEntry = { trash_id: text, event: Event, deleted_at: Timestamp, expires_at: Timestamp }
+RestoreCalendarEventRequest = { house_id: HouseID, trash_id: text }
+CalendarMigrationRow = { event_id: EventID, title: text, disposition: text, reason: text }
+
+service CalendarService {
+    get-status: HouseID -> CalendarStatus / ServiceError,
+    configure-calendar: ConfigureCalendarRequest -> CalendarStatus / ServiceError,
+    begin-connect: HouseID -> CalendarConnectResponse / ServiceError,
+    complete-connect: CompleteCalendarConnectRequest -> CalendarStatus / ServiceError,
+    disconnect: HouseID -> EmptyResponse / ServiceError,
+    preview-migration: HouseID -> [* CalendarMigrationRow] / ServiceError,
+    list-trash: HouseID -> [* CalendarTrashEntry] / ServiceError,
+    restore-event: RestoreCalendarEventRequest -> Event / ServiceError
 }
 
 service TaskService {

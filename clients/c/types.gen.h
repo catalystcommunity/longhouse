@@ -182,6 +182,14 @@ typedef struct BugReportRequest BugReportRequest;
 typedef struct ServiceError ServiceError;
 typedef struct CalendarSubscription CalendarSubscription;
 typedef struct CalendarView CalendarView;
+typedef struct EventDecision EventDecision;
+typedef struct CalendarStatus CalendarStatus;
+typedef struct ConfigureCalendarRequest ConfigureCalendarRequest;
+typedef struct CalendarConnectResponse CalendarConnectResponse;
+typedef struct CompleteCalendarConnectRequest CompleteCalendarConnectRequest;
+typedef struct CalendarTrashEntry CalendarTrashEntry;
+typedef struct RestoreCalendarEventRequest RestoreCalendarEventRequest;
+typedef struct CalendarMigrationRow CalendarMigrationRow;
 typedef struct AuditEntry AuditEntry;
 typedef struct AuditQuery AuditQuery;
 typedef struct AuditPage AuditPage;
@@ -409,6 +417,8 @@ typedef struct Event {
     Timestamp *starts_at;
     Timestamp *ends_at;
     bool *all_day;
+    char *timezone;
+    char *recurrence_rule;
     RecurrenceFreq *recurrence_freq;
     int64_t *recurrence_interval;
     int64_t *recurrence_by_weekday;
@@ -416,6 +426,13 @@ typedef struct Event {
     int64_t *recurrence_by_setpos;
     Timestamp *next_recurrence_at;
     EventID *recurrence_root_event_id;
+    char *calendar_state;
+    uint64_t *revision;
+    MemberID *proposed_by_member_id;
+    char *publication_error;
+    MemberID *edit_pending_member_id;
+    bool *calendar_unbound;
+    char *edit_scope;
     Timestamp created_at;
     Timestamp updated_at;
 } Event;
@@ -939,6 +956,63 @@ typedef struct CalendarView {
     CalendarSubscription *subscriptions;
     size_t subscriptions_count;
 } CalendarView;
+
+/* EventDecision is a structured data type. */
+typedef struct EventDecision {
+    EventID event_id;
+    uint64_t revision;
+} EventDecision;
+
+/* CalendarStatus is a structured data type. */
+typedef struct CalendarStatus {
+    HouseID house_id;
+    bool available;
+    bool enabled;
+    bool ready;
+    bool connected;
+    char *last_error;
+    Timestamp *sync_pending_since;
+} CalendarStatus;
+
+/* ConfigureCalendarRequest is a structured data type. */
+typedef struct ConfigureCalendarRequest {
+    HouseID house_id;
+    bool enabled;
+} ConfigureCalendarRequest;
+
+/* CalendarConnectResponse is a structured data type. */
+typedef struct CalendarConnectResponse {
+    char *url;
+} CalendarConnectResponse;
+
+/* CompleteCalendarConnectRequest is a structured data type. */
+typedef struct CompleteCalendarConnectRequest {
+    HouseID house_id;
+    char *grant_id;
+    char *nonce;
+} CompleteCalendarConnectRequest;
+
+/* CalendarTrashEntry is a structured data type. */
+typedef struct CalendarTrashEntry {
+    char *trash_id;
+    Event event;
+    Timestamp deleted_at;
+    Timestamp expires_at;
+} CalendarTrashEntry;
+
+/* RestoreCalendarEventRequest is a structured data type. */
+typedef struct RestoreCalendarEventRequest {
+    HouseID house_id;
+    char *trash_id;
+} RestoreCalendarEventRequest;
+
+/* CalendarMigrationRow is a structured data type. */
+typedef struct CalendarMigrationRow {
+    EventID event_id;
+    char *title;
+    char *disposition;
+    char *reason;
+} CalendarMigrationRow;
 
 /* AuditEntry is a structured data type. */
 typedef struct AuditEntry {

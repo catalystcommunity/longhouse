@@ -148,6 +148,23 @@ abstract interface class EventServiceHandler {
   List<Event> listEvents(EventListRequest request);
   CalendarView getCalendarView(HouseId request);
   CalendarView setCalendarView(CalendarView request);
+  Event acceptEvent(EventDecision request);
+  Event recoverEdit(EventId request);
+  Event declineEvent(EventDecision request);
+  List<Event> listLocalEvents(HouseId request);
+}
+
+/// The CalendarService service contract. A host `implements` this; the router
+/// dispatches decoded requests/messages to it.
+abstract interface class CalendarServiceHandler {
+  CalendarStatus getStatus(HouseId request);
+  CalendarStatus configureCalendar(ConfigureCalendarRequest request);
+  CalendarConnectResponse beginConnect(HouseId request);
+  CalendarStatus completeConnect(CompleteCalendarConnectRequest request);
+  EmptyResponse disconnect(HouseId request);
+  List<CalendarMigrationRow> previewMigration(HouseId request);
+  List<CalendarTrashEntry> listTrash(HouseId request);
+  Event restoreEvent(RestoreCalendarEventRequest request);
 }
 
 /// The TaskService service contract. A host `implements` this; the router

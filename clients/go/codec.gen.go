@@ -2190,7 +2190,7 @@ func DecodeMilestone(csilData []byte) (Milestone, error) {
 
 // csilEncEvent builds the canonical CBOR value tree for a Event.
 func csilEncEvent(csilV Event) cborValue {
-	csilEntries := make(cborMap, 0, 17)
+	csilEntries := make(cborMap, 0, 26)
 	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
 	if csilV.AllDay != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("all_day"), cborBool((*csilV.AllDay))})
@@ -2203,17 +2203,38 @@ func csilEncEvent(csilV Event) cborValue {
 	if csilV.Location != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("location"), cborText((*csilV.Location))})
 	}
+	if csilV.Revision != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("revision"), cborUint((*csilV.Revision))})
+	}
+	if csilV.Timezone != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("timezone"), cborText((*csilV.Timezone))})
+	}
 	if csilV.StartsAt != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("starts_at"), cborText((*csilV.StartsAt))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	if csilV.EditScope != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("edit_scope"), cborText((*csilV.EditScope))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
 	if csilV.Description != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("description"), cborText((*csilV.Description))})
 	}
+	if csilV.CalendarState != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("calendar_state"), cborText((*csilV.CalendarState))})
+	}
 	csilEntries = append(csilEntries, cborEntry{cborText("owner_member_id"), cborText(csilV.OwnerMemberId)})
 	if csilV.RecurrenceFreq != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("recurrence_freq"), cborText((*csilV.RecurrenceFreq))})
+	}
+	if csilV.RecurrenceRule != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("recurrence_rule"), cborText((*csilV.RecurrenceRule))})
+	}
+	if csilV.CalendarUnbound != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("calendar_unbound"), cborBool((*csilV.CalendarUnbound))})
+	}
+	if csilV.PublicationError != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("publication_error"), cborText((*csilV.PublicationError))})
 	}
 	if csilV.NextRecurrenceAt != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("next_recurrence_at"), cborText((*csilV.NextRecurrenceAt))})
@@ -2224,8 +2245,14 @@ func csilEncEvent(csilV Event) cborValue {
 	if csilV.RecurrenceBySetpos != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("recurrence_by_setpos"), cborInt((*csilV.RecurrenceBySetpos))})
 	}
+	if csilV.ProposedByMemberId != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("proposed_by_member_id"), cborText((*csilV.ProposedByMemberId))})
+	}
 	if csilV.RecurrenceByWeekday != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("recurrence_by_weekday"), cborEncArray(csilV.RecurrenceByWeekday, func(csilElem int64) cborValue { return cborInt(csilElem) })})
+	}
+	if csilV.EditPendingMemberId != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("edit_pending_member_id"), cborText((*csilV.EditPendingMemberId))})
 	}
 	if csilV.RecurrenceRootEventId != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("recurrence_root_event_id"), cborText((*csilV.RecurrenceRootEventId))})
@@ -2330,6 +2357,20 @@ func csilDecEvent(csilRoot cborValue) (Event, error) {
 		}
 		csilOut.AllDay = &csilVal
 	}
+	if csilField, csilOk := cborMapGet(csilRoot, "timezone"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Timezone = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "recurrence_rule"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.RecurrenceRule = &csilVal
+	}
 	if csilField, csilOk := cborMapGet(csilRoot, "recurrence_freq"); csilOk {
 		csilVal, csilErr := (func(csilV cborValue) (RecurrenceFreq, error) {
 			csilInner, csilErr := (func(csilV cborValue) (string, error) {
@@ -2391,6 +2432,61 @@ func csilDecEvent(csilRoot cborValue) (Event, error) {
 			return csilOut, csilErr
 		}
 		csilOut.RecurrenceRootEventId = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "calendar_state"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.CalendarState = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "revision"); csilOk {
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Revision = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "proposed_by_member_id"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (MemberID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return MemberID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ProposedByMemberId = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "publication_error"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.PublicationError = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "edit_pending_member_id"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (MemberID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return MemberID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.EditPendingMemberId = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "calendar_unbound"); csilOk {
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.CalendarUnbound = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "edit_scope"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.EditScope = &csilVal
 	}
 	{
 		csilField, csilErr := cborRequire(csilRoot, "created_at")
@@ -7610,6 +7706,545 @@ func DecodeCalendarView(csilData []byte) (CalendarView, error) {
 	return csilDecCalendarView(csilRoot)
 }
 
+// csilEncEventDecision builds the canonical CBOR value tree for a EventDecision.
+func csilEncEventDecision(csilV EventDecision) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("event_id"), cborText(csilV.EventId)})
+	csilEntries = append(csilEntries, cborEntry{cborText("revision"), cborUint(csilV.Revision)})
+	return csilEntries
+}
+
+// csilDecEventDecision reconstructs a EventDecision from a decoded CBOR value tree.
+func csilDecEventDecision(csilRoot cborValue) (EventDecision, error) {
+	var csilOut EventDecision
+	{
+		csilField, csilErr := cborRequire(csilRoot, "event_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (EventID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return EventID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.EventId = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "revision")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsU64)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Revision = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeEventDecision encodes a EventDecision to canonical CSIL CBOR bytes.
+func EncodeEventDecision(csilV EventDecision) []byte {
+	return cborEncode(csilEncEventDecision(csilV))
+}
+
+// DecodeEventDecision decodes canonical CSIL CBOR bytes into a EventDecision.
+func DecodeEventDecision(csilData []byte) (EventDecision, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero EventDecision
+		return csilZero, csilErr
+	}
+	return csilDecEventDecision(csilRoot)
+}
+
+// csilEncCalendarStatus builds the canonical CBOR value tree for a CalendarStatus.
+func csilEncCalendarStatus(csilV CalendarStatus) cborValue {
+	csilEntries := make(cborMap, 0, 7)
+	csilEntries = append(csilEntries, cborEntry{cborText("ready"), cborBool(csilV.Ready)})
+	csilEntries = append(csilEntries, cborEntry{cborText("enabled"), cborBool(csilV.Enabled)})
+	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
+	csilEntries = append(csilEntries, cborEntry{cborText("available"), cborBool(csilV.Available)})
+	csilEntries = append(csilEntries, cborEntry{cborText("connected"), cborBool(csilV.Connected)})
+	if csilV.LastError != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("last_error"), cborText((*csilV.LastError))})
+	}
+	if csilV.SyncPendingSince != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("sync_pending_since"), cborText((*csilV.SyncPendingSince))})
+	}
+	return csilEntries
+}
+
+// csilDecCalendarStatus reconstructs a CalendarStatus from a decoded CBOR value tree.
+func csilDecCalendarStatus(csilRoot cborValue) (CalendarStatus, error) {
+	var csilOut CalendarStatus
+	{
+		csilField, csilErr := cborRequire(csilRoot, "house_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (HouseID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return HouseID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.HouseId = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "available")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Available = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "enabled")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Enabled = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "ready")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Ready = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "connected")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Connected = csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "last_error"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.LastError = &csilVal
+	}
+	if csilField, csilOk := cborMapGet(csilRoot, "sync_pending_since"); csilOk {
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.SyncPendingSince = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeCalendarStatus encodes a CalendarStatus to canonical CSIL CBOR bytes.
+func EncodeCalendarStatus(csilV CalendarStatus) []byte {
+	return cborEncode(csilEncCalendarStatus(csilV))
+}
+
+// DecodeCalendarStatus decodes canonical CSIL CBOR bytes into a CalendarStatus.
+func DecodeCalendarStatus(csilData []byte) (CalendarStatus, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero CalendarStatus
+		return csilZero, csilErr
+	}
+	return csilDecCalendarStatus(csilRoot)
+}
+
+// csilEncConfigureCalendarRequest builds the canonical CBOR value tree for a ConfigureCalendarRequest.
+func csilEncConfigureCalendarRequest(csilV ConfigureCalendarRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("enabled"), cborBool(csilV.Enabled)})
+	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
+	return csilEntries
+}
+
+// csilDecConfigureCalendarRequest reconstructs a ConfigureCalendarRequest from a decoded CBOR value tree.
+func csilDecConfigureCalendarRequest(csilRoot cborValue) (ConfigureCalendarRequest, error) {
+	var csilOut ConfigureCalendarRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "house_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (HouseID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return HouseID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.HouseId = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "enabled")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsBool)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Enabled = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeConfigureCalendarRequest encodes a ConfigureCalendarRequest to canonical CSIL CBOR bytes.
+func EncodeConfigureCalendarRequest(csilV ConfigureCalendarRequest) []byte {
+	return cborEncode(csilEncConfigureCalendarRequest(csilV))
+}
+
+// DecodeConfigureCalendarRequest decodes canonical CSIL CBOR bytes into a ConfigureCalendarRequest.
+func DecodeConfigureCalendarRequest(csilData []byte) (ConfigureCalendarRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero ConfigureCalendarRequest
+		return csilZero, csilErr
+	}
+	return csilDecConfigureCalendarRequest(csilRoot)
+}
+
+// csilEncCalendarConnectResponse builds the canonical CBOR value tree for a CalendarConnectResponse.
+func csilEncCalendarConnectResponse(csilV CalendarConnectResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("url"), cborText(csilV.Url)})
+	return csilEntries
+}
+
+// csilDecCalendarConnectResponse reconstructs a CalendarConnectResponse from a decoded CBOR value tree.
+func csilDecCalendarConnectResponse(csilRoot cborValue) (CalendarConnectResponse, error) {
+	var csilOut CalendarConnectResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "url")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Url = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeCalendarConnectResponse encodes a CalendarConnectResponse to canonical CSIL CBOR bytes.
+func EncodeCalendarConnectResponse(csilV CalendarConnectResponse) []byte {
+	return cborEncode(csilEncCalendarConnectResponse(csilV))
+}
+
+// DecodeCalendarConnectResponse decodes canonical CSIL CBOR bytes into a CalendarConnectResponse.
+func DecodeCalendarConnectResponse(csilData []byte) (CalendarConnectResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero CalendarConnectResponse
+		return csilZero, csilErr
+	}
+	return csilDecCalendarConnectResponse(csilRoot)
+}
+
+// csilEncCompleteCalendarConnectRequest builds the canonical CBOR value tree for a CompleteCalendarConnectRequest.
+func csilEncCompleteCalendarConnectRequest(csilV CompleteCalendarConnectRequest) cborValue {
+	csilEntries := make(cborMap, 0, 3)
+	csilEntries = append(csilEntries, cborEntry{cborText("nonce"), cborText(csilV.Nonce)})
+	csilEntries = append(csilEntries, cborEntry{cborText("grant_id"), cborText(csilV.GrantId)})
+	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
+	return csilEntries
+}
+
+// csilDecCompleteCalendarConnectRequest reconstructs a CompleteCalendarConnectRequest from a decoded CBOR value tree.
+func csilDecCompleteCalendarConnectRequest(csilRoot cborValue) (CompleteCalendarConnectRequest, error) {
+	var csilOut CompleteCalendarConnectRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "house_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (HouseID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return HouseID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.HouseId = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "grant_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.GrantId = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "nonce")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Nonce = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeCompleteCalendarConnectRequest encodes a CompleteCalendarConnectRequest to canonical CSIL CBOR bytes.
+func EncodeCompleteCalendarConnectRequest(csilV CompleteCalendarConnectRequest) []byte {
+	return cborEncode(csilEncCompleteCalendarConnectRequest(csilV))
+}
+
+// DecodeCompleteCalendarConnectRequest decodes canonical CSIL CBOR bytes into a CompleteCalendarConnectRequest.
+func DecodeCompleteCalendarConnectRequest(csilData []byte) (CompleteCalendarConnectRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero CompleteCalendarConnectRequest
+		return csilZero, csilErr
+	}
+	return csilDecCompleteCalendarConnectRequest(csilRoot)
+}
+
+// csilEncCalendarTrashEntry builds the canonical CBOR value tree for a CalendarTrashEntry.
+func csilEncCalendarTrashEntry(csilV CalendarTrashEntry) cborValue {
+	csilEntries := make(cborMap, 0, 4)
+	csilEntries = append(csilEntries, cborEntry{cborText("event"), csilEncEvent(csilV.Event)})
+	csilEntries = append(csilEntries, cborEntry{cborText("trash_id"), cborText(csilV.TrashId)})
+	csilEntries = append(csilEntries, cborEntry{cborText("deleted_at"), cborText(csilV.DeletedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	return csilEntries
+}
+
+// csilDecCalendarTrashEntry reconstructs a CalendarTrashEntry from a decoded CBOR value tree.
+func csilDecCalendarTrashEntry(csilRoot cborValue) (CalendarTrashEntry, error) {
+	var csilOut CalendarTrashEntry
+	{
+		csilField, csilErr := cborRequire(csilRoot, "trash_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.TrashId = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "event")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (csilDecEvent)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Event = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "deleted_at")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.DeletedAt = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "expires_at")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return Timestamp(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.ExpiresAt = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeCalendarTrashEntry encodes a CalendarTrashEntry to canonical CSIL CBOR bytes.
+func EncodeCalendarTrashEntry(csilV CalendarTrashEntry) []byte {
+	return cborEncode(csilEncCalendarTrashEntry(csilV))
+}
+
+// DecodeCalendarTrashEntry decodes canonical CSIL CBOR bytes into a CalendarTrashEntry.
+func DecodeCalendarTrashEntry(csilData []byte) (CalendarTrashEntry, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero CalendarTrashEntry
+		return csilZero, csilErr
+	}
+	return csilDecCalendarTrashEntry(csilRoot)
+}
+
+// csilEncRestoreCalendarEventRequest builds the canonical CBOR value tree for a RestoreCalendarEventRequest.
+func csilEncRestoreCalendarEventRequest(csilV RestoreCalendarEventRequest) cborValue {
+	csilEntries := make(cborMap, 0, 2)
+	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
+	csilEntries = append(csilEntries, cborEntry{cborText("trash_id"), cborText(csilV.TrashId)})
+	return csilEntries
+}
+
+// csilDecRestoreCalendarEventRequest reconstructs a RestoreCalendarEventRequest from a decoded CBOR value tree.
+func csilDecRestoreCalendarEventRequest(csilRoot cborValue) (RestoreCalendarEventRequest, error) {
+	var csilOut RestoreCalendarEventRequest
+	{
+		csilField, csilErr := cborRequire(csilRoot, "house_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (HouseID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return HouseID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.HouseId = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "trash_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.TrashId = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeRestoreCalendarEventRequest encodes a RestoreCalendarEventRequest to canonical CSIL CBOR bytes.
+func EncodeRestoreCalendarEventRequest(csilV RestoreCalendarEventRequest) []byte {
+	return cborEncode(csilEncRestoreCalendarEventRequest(csilV))
+}
+
+// DecodeRestoreCalendarEventRequest decodes canonical CSIL CBOR bytes into a RestoreCalendarEventRequest.
+func DecodeRestoreCalendarEventRequest(csilData []byte) (RestoreCalendarEventRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero RestoreCalendarEventRequest
+		return csilZero, csilErr
+	}
+	return csilDecRestoreCalendarEventRequest(csilRoot)
+}
+
+// csilEncCalendarMigrationRow builds the canonical CBOR value tree for a CalendarMigrationRow.
+func csilEncCalendarMigrationRow(csilV CalendarMigrationRow) cborValue {
+	csilEntries := make(cborMap, 0, 4)
+	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
+	csilEntries = append(csilEntries, cborEntry{cborText("reason"), cborText(csilV.Reason)})
+	csilEntries = append(csilEntries, cborEntry{cborText("event_id"), cborText(csilV.EventId)})
+	csilEntries = append(csilEntries, cborEntry{cborText("disposition"), cborText(csilV.Disposition)})
+	return csilEntries
+}
+
+// csilDecCalendarMigrationRow reconstructs a CalendarMigrationRow from a decoded CBOR value tree.
+func csilDecCalendarMigrationRow(csilRoot cborValue) (CalendarMigrationRow, error) {
+	var csilOut CalendarMigrationRow
+	{
+		csilField, csilErr := cborRequire(csilRoot, "event_id")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (func(csilV cborValue) (EventID, error) {
+			csilInner, csilErr := (cborAsText)(csilV)
+			return EventID(csilInner), csilErr
+		})(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.EventId = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "title")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Title = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "disposition")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Disposition = csilVal
+	}
+	{
+		csilField, csilErr := cborRequire(csilRoot, "reason")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Reason = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeCalendarMigrationRow encodes a CalendarMigrationRow to canonical CSIL CBOR bytes.
+func EncodeCalendarMigrationRow(csilV CalendarMigrationRow) []byte {
+	return cborEncode(csilEncCalendarMigrationRow(csilV))
+}
+
+// DecodeCalendarMigrationRow decodes canonical CSIL CBOR bytes into a CalendarMigrationRow.
+func DecodeCalendarMigrationRow(csilData []byte) (CalendarMigrationRow, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero CalendarMigrationRow
+		return csilZero, csilErr
+	}
+	return csilDecCalendarMigrationRow(csilRoot)
+}
+
 // csilEncAuditEntry builds the canonical CBOR value tree for a AuditEntry.
 func csilEncAuditEntry(csilV AuditEntry) cborValue {
 	csilEntries := make(cborMap, 0, 15)
@@ -8906,6 +9541,181 @@ func DecodeEventGetCalendarViewRequest(csilData []byte) (HouseID, error) {
 	return (func(csilV cborValue) (HouseID, error) {
 		csilInner, csilErr := (cborAsText)(csilV)
 		return HouseID(csilInner), csilErr
+	})(csilRoot)
+}
+
+// EncodeEventRecoverEditRequest encodes the EventRecoverEditRequest payload to canonical CSIL CBOR bytes.
+func EncodeEventRecoverEditRequest(csilV EventID) []byte {
+	return cborEncode(cborText(csilV))
+}
+
+// DecodeEventRecoverEditRequest decodes canonical CSIL CBOR bytes into the EventRecoverEditRequest payload.
+func DecodeEventRecoverEditRequest(csilData []byte) (EventID, error) {
+	var csilZero EventID
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return (func(csilV cborValue) (EventID, error) {
+		csilInner, csilErr := (cborAsText)(csilV)
+		return EventID(csilInner), csilErr
+	})(csilRoot)
+}
+
+// EncodeEventListLocalEventsRequest encodes the EventListLocalEventsRequest payload to canonical CSIL CBOR bytes.
+func EncodeEventListLocalEventsRequest(csilV HouseID) []byte {
+	return cborEncode(cborText(csilV))
+}
+
+// DecodeEventListLocalEventsRequest decodes canonical CSIL CBOR bytes into the EventListLocalEventsRequest payload.
+func DecodeEventListLocalEventsRequest(csilData []byte) (HouseID, error) {
+	var csilZero HouseID
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return (func(csilV cborValue) (HouseID, error) {
+		csilInner, csilErr := (cborAsText)(csilV)
+		return HouseID(csilInner), csilErr
+	})(csilRoot)
+}
+
+// EncodeEventListLocalEventsResponse encodes the EventListLocalEventsResponse payload to canonical CSIL CBOR bytes.
+func EncodeEventListLocalEventsResponse(csilV []Event) []byte {
+	return cborEncode(cborEncArray(csilV, func(csilElem Event) cborValue { return csilEncEvent(csilElem) }))
+}
+
+// DecodeEventListLocalEventsResponse decodes canonical CSIL CBOR bytes into the EventListLocalEventsResponse payload.
+func DecodeEventListLocalEventsResponse(csilData []byte) ([]Event, error) {
+	var csilZero []Event
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return (func(csilV cborValue) ([]Event, error) { return cborDecArray(csilV, csilDecEvent) })(csilRoot)
+}
+
+// EncodeCalendarGetStatusRequest encodes the CalendarGetStatusRequest payload to canonical CSIL CBOR bytes.
+func EncodeCalendarGetStatusRequest(csilV HouseID) []byte {
+	return cborEncode(cborText(csilV))
+}
+
+// DecodeCalendarGetStatusRequest decodes canonical CSIL CBOR bytes into the CalendarGetStatusRequest payload.
+func DecodeCalendarGetStatusRequest(csilData []byte) (HouseID, error) {
+	var csilZero HouseID
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return (func(csilV cborValue) (HouseID, error) {
+		csilInner, csilErr := (cborAsText)(csilV)
+		return HouseID(csilInner), csilErr
+	})(csilRoot)
+}
+
+// EncodeCalendarBeginConnectRequest encodes the CalendarBeginConnectRequest payload to canonical CSIL CBOR bytes.
+func EncodeCalendarBeginConnectRequest(csilV HouseID) []byte {
+	return cborEncode(cborText(csilV))
+}
+
+// DecodeCalendarBeginConnectRequest decodes canonical CSIL CBOR bytes into the CalendarBeginConnectRequest payload.
+func DecodeCalendarBeginConnectRequest(csilData []byte) (HouseID, error) {
+	var csilZero HouseID
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return (func(csilV cborValue) (HouseID, error) {
+		csilInner, csilErr := (cborAsText)(csilV)
+		return HouseID(csilInner), csilErr
+	})(csilRoot)
+}
+
+// EncodeCalendarDisconnectRequest encodes the CalendarDisconnectRequest payload to canonical CSIL CBOR bytes.
+func EncodeCalendarDisconnectRequest(csilV HouseID) []byte {
+	return cborEncode(cborText(csilV))
+}
+
+// DecodeCalendarDisconnectRequest decodes canonical CSIL CBOR bytes into the CalendarDisconnectRequest payload.
+func DecodeCalendarDisconnectRequest(csilData []byte) (HouseID, error) {
+	var csilZero HouseID
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return (func(csilV cborValue) (HouseID, error) {
+		csilInner, csilErr := (cborAsText)(csilV)
+		return HouseID(csilInner), csilErr
+	})(csilRoot)
+}
+
+// EncodeCalendarPreviewMigrationRequest encodes the CalendarPreviewMigrationRequest payload to canonical CSIL CBOR bytes.
+func EncodeCalendarPreviewMigrationRequest(csilV HouseID) []byte {
+	return cborEncode(cborText(csilV))
+}
+
+// DecodeCalendarPreviewMigrationRequest decodes canonical CSIL CBOR bytes into the CalendarPreviewMigrationRequest payload.
+func DecodeCalendarPreviewMigrationRequest(csilData []byte) (HouseID, error) {
+	var csilZero HouseID
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return (func(csilV cborValue) (HouseID, error) {
+		csilInner, csilErr := (cborAsText)(csilV)
+		return HouseID(csilInner), csilErr
+	})(csilRoot)
+}
+
+// EncodeCalendarPreviewMigrationResponse encodes the CalendarPreviewMigrationResponse payload to canonical CSIL CBOR bytes.
+func EncodeCalendarPreviewMigrationResponse(csilV []CalendarMigrationRow) []byte {
+	return cborEncode(cborEncArray(csilV, func(csilElem CalendarMigrationRow) cborValue { return csilEncCalendarMigrationRow(csilElem) }))
+}
+
+// DecodeCalendarPreviewMigrationResponse decodes canonical CSIL CBOR bytes into the CalendarPreviewMigrationResponse payload.
+func DecodeCalendarPreviewMigrationResponse(csilData []byte) ([]CalendarMigrationRow, error) {
+	var csilZero []CalendarMigrationRow
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return (func(csilV cborValue) ([]CalendarMigrationRow, error) {
+		return cborDecArray(csilV, csilDecCalendarMigrationRow)
+	})(csilRoot)
+}
+
+// EncodeCalendarListTrashRequest encodes the CalendarListTrashRequest payload to canonical CSIL CBOR bytes.
+func EncodeCalendarListTrashRequest(csilV HouseID) []byte {
+	return cborEncode(cborText(csilV))
+}
+
+// DecodeCalendarListTrashRequest decodes canonical CSIL CBOR bytes into the CalendarListTrashRequest payload.
+func DecodeCalendarListTrashRequest(csilData []byte) (HouseID, error) {
+	var csilZero HouseID
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return (func(csilV cborValue) (HouseID, error) {
+		csilInner, csilErr := (cborAsText)(csilV)
+		return HouseID(csilInner), csilErr
+	})(csilRoot)
+}
+
+// EncodeCalendarListTrashResponse encodes the CalendarListTrashResponse payload to canonical CSIL CBOR bytes.
+func EncodeCalendarListTrashResponse(csilV []CalendarTrashEntry) []byte {
+	return cborEncode(cborEncArray(csilV, func(csilElem CalendarTrashEntry) cborValue { return csilEncCalendarTrashEntry(csilElem) }))
+}
+
+// DecodeCalendarListTrashResponse decodes canonical CSIL CBOR bytes into the CalendarListTrashResponse payload.
+func DecodeCalendarListTrashResponse(csilData []byte) ([]CalendarTrashEntry, error) {
+	var csilZero []CalendarTrashEntry
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return (func(csilV cborValue) ([]CalendarTrashEntry, error) {
+		return cborDecArray(csilV, csilDecCalendarTrashEntry)
 	})(csilRoot)
 }
 

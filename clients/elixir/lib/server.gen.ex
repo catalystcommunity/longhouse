@@ -287,6 +287,48 @@ defmodule Csilgen.Generated.EventServer do
   @callback set_calendar_view(req :: Csilgen.Generated.CalendarView.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.CalendarView.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback accept_event(req :: Csilgen.Generated.EventDecision.t(), ctx :: map()) ::
+              {:ok, Csilgen.Generated.Event.t()} | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback recover_edit(req :: Csilgen.Generated.EventID.t(), ctx :: map()) ::
+              {:ok, Csilgen.Generated.Event.t()} | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback decline_event(req :: Csilgen.Generated.EventDecision.t(), ctx :: map()) ::
+              {:ok, Csilgen.Generated.Event.t()} | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback list_local_events(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
+              {:ok, [Csilgen.Generated.Event.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+end
+
+defmodule Csilgen.Generated.CalendarServer do
+  @moduledoc "Server handler behaviour + routers for the CalendarService service."
+
+  @callback get_status(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
+              {:ok, Csilgen.Generated.CalendarStatus.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback configure_calendar(
+              req :: Csilgen.Generated.ConfigureCalendarRequest.t(),
+              ctx :: map()
+            ) ::
+              {:ok, Csilgen.Generated.CalendarStatus.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback begin_connect(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
+              {:ok, Csilgen.Generated.CalendarConnectResponse.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback complete_connect(
+              req :: Csilgen.Generated.CompleteCalendarConnectRequest.t(),
+              ctx :: map()
+            ) ::
+              {:ok, Csilgen.Generated.CalendarStatus.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback disconnect(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
+              {:ok, Csilgen.Generated.EmptyResponse.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback preview_migration(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
+              {:ok, [Csilgen.Generated.CalendarMigrationRow.t()]}
+              | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback list_trash(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
+              {:ok, [Csilgen.Generated.CalendarTrashEntry.t()]}
+              | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback restore_event(req :: Csilgen.Generated.RestoreCalendarEventRequest.t(), ctx :: map()) ::
+              {:ok, Csilgen.Generated.Event.t()} | {:error, Csilgen.Generated.ServiceError.t()}
 end
 
 defmodule Csilgen.Generated.TaskServer do
