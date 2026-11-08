@@ -1881,6 +1881,7 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
     if (v->recurrence_freq) csilc_n++;
     if (v->recurrence_rule) csilc_n++;
     if (v->calendar_unbound) csilc_n++;
+    if (v->clear_recurrence) csilc_n++;
     if (v->publication_error) csilc_n++;
     if (v->next_recurrence_at) csilc_n++;
     if (v->recurrence_interval) csilc_n++;
@@ -1949,6 +1950,10 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
     if (v->calendar_unbound) {
         if (csilc_w_text(b, "calendar_unbound", 16)) return -1;
         if (csilc_w_bool(b, ((*v->calendar_unbound)))) return -1;
+    }
+    if (v->clear_recurrence) {
+        if (csilc_w_text(b, "clear_recurrence", 16)) return -1;
+        if (csilc_w_bool(b, ((*v->clear_recurrence)))) return -1;
     }
     if (v->publication_error) {
         if (csilc_w_text(b, "publication_error", 17)) return -1;
@@ -2065,6 +2070,14 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
         if (!csilc_as_bool(csilc_f, &((*csilc_p)))) return -1;
         out->calendar_unbound = csilc_p;
     }
+    csilc_f = csilc_map_get(m, "clear_recurrence");
+    out->clear_recurrence = NULL;
+    if (csilc_f) {
+        bool *csilc_p = (bool *)csilc_arena_alloc(a, sizeof(bool));
+        if (!csilc_p) return -1;
+        if (!csilc_as_bool(csilc_f, &((*csilc_p)))) return -1;
+        out->clear_recurrence = csilc_p;
+    }
     csilc_f = csilc_map_get(m, "publication_error");
     out->publication_error = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "next_recurrence_at");
@@ -2141,6 +2154,7 @@ static inline int csilc_enc_Task(csilc_buf *b, const Task *v) {
     if (v->description) csilc_n++;
     if (v->parent_task_id) csilc_n++;
     if (v->recurrence_freq) csilc_n++;
+    if (v->clear_recurrence) csilc_n++;
     if (v->estimate_minutes) csilc_n++;
     if (v->next_recurrence_at) csilc_n++;
     if (v->recurrence_interval) csilc_n++;
@@ -2199,6 +2213,10 @@ static inline int csilc_enc_Task(csilc_buf *b, const Task *v) {
     if (v->recurrence_freq) {
         if (csilc_w_text(b, "recurrence_freq", 15)) return -1;
         if (csilc_enc_RecurrenceFreq(b, &((*v->recurrence_freq)))) return -1;
+    }
+    if (v->clear_recurrence) {
+        if (csilc_w_text(b, "clear_recurrence", 16)) return -1;
+        if (csilc_w_bool(b, ((*v->clear_recurrence)))) return -1;
     }
     if (v->estimate_minutes) {
         if (csilc_w_text(b, "estimate_minutes", 16)) return -1;
@@ -2313,6 +2331,14 @@ static inline int csilc_dec_Task(const csilc_value *m, CsilCodecArena *a, Task *
         if (!csilc_p) return -1;
         if (csilc_dec_RecurrenceFreq(csilc_f, a, &((*csilc_p)))) return -1;
         out->recurrence_freq = csilc_p;
+    }
+    csilc_f = csilc_map_get(m, "clear_recurrence");
+    out->clear_recurrence = NULL;
+    if (csilc_f) {
+        bool *csilc_p = (bool *)csilc_arena_alloc(a, sizeof(bool));
+        if (!csilc_p) return -1;
+        if (!csilc_as_bool(csilc_f, &((*csilc_p)))) return -1;
+        out->clear_recurrence = csilc_p;
     }
     csilc_f = csilc_map_get(m, "estimate_minutes");
     out->estimate_minutes = NULL;

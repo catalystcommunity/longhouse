@@ -268,6 +268,7 @@ and encode_event (v : event) : Cbor.t =
          (match v.recurrence_freq with Some csil_x -> Some (Cbor.Text "recurrence_freq", (encode_recurrence_freq csil_x)) | None -> None);
          (match v.recurrence_rule with Some csil_x -> Some (Cbor.Text "recurrence_rule", (Cbor.Text csil_x)) | None -> None);
          (match v.calendar_unbound with Some csil_x -> Some (Cbor.Text "calendar_unbound", (Cbor.Bool csil_x)) | None -> None);
+         (match v.clear_recurrence with Some csil_x -> Some (Cbor.Text "clear_recurrence", (Cbor.Bool csil_x)) | None -> None);
          (match v.publication_error with Some csil_x -> Some (Cbor.Text "publication_error", (Cbor.Text csil_x)) | None -> None);
          (match v.next_recurrence_at with Some csil_x -> Some (Cbor.Text "next_recurrence_at", (Cbor.Text csil_x)) | None -> None);
          (match v.recurrence_interval with Some csil_x -> Some (Cbor.Text "recurrence_interval", (Cbor.int64 csil_x)) | None -> None);
@@ -298,6 +299,7 @@ and encode_task (v : task) : Cbor.t =
          (match v.parent_task_id with Some csil_x -> Some (Cbor.Text "parent_task_id", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "owner_member_id", (Cbor.Text v.owner_member_id));
          (match v.recurrence_freq with Some csil_x -> Some (Cbor.Text "recurrence_freq", (encode_recurrence_freq csil_x)) | None -> None);
+         (match v.clear_recurrence with Some csil_x -> Some (Cbor.Text "clear_recurrence", (Cbor.Bool csil_x)) | None -> None);
          (match v.estimate_minutes with Some csil_x -> Some (Cbor.Text "estimate_minutes", (Cbor.int64 csil_x)) | None -> None);
          (match v.next_recurrence_at with Some csil_x -> Some (Cbor.Text "next_recurrence_at", (Cbor.Text csil_x)) | None -> None);
          (match v.recurrence_interval with Some csil_x -> Some (Cbor.Text "recurrence_interval", (Cbor.int64 csil_x)) | None -> None);
@@ -1489,6 +1491,7 @@ and decode_event (csil_c : Cbor.t) : event =
         recurrence_freq = (match csil_field "recurrence_freq" with Some csil_v -> Some (decode_recurrence_freq csil_v) | None -> None);
         recurrence_rule = (match csil_field "recurrence_rule" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         calendar_unbound = (match csil_field "calendar_unbound" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
+        clear_recurrence = (match csil_field "clear_recurrence" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
         publication_error = (match csil_field "publication_error" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         next_recurrence_at = (match csil_field "next_recurrence_at" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         recurrence_interval = (match csil_field "recurrence_interval" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
@@ -1524,6 +1527,7 @@ and decode_task (csil_c : Cbor.t) : task =
         parent_task_id = (match csil_field "parent_task_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         owner_member_id = (Cbor.to_text (csil_req "owner_member_id"));
         recurrence_freq = (match csil_field "recurrence_freq" with Some csil_v -> Some (decode_recurrence_freq csil_v) | None -> None);
+        clear_recurrence = (match csil_field "clear_recurrence" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
         estimate_minutes = (match csil_field "estimate_minutes" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
         next_recurrence_at = (match csil_field "next_recurrence_at" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         recurrence_interval = (match csil_field "recurrence_interval" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);

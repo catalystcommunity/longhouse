@@ -4,7 +4,7 @@ defmodule LonghouseClient.MixProject do
   def project do
     [
       app: :longhouse_client,
-      version: "0.15.1",
+      version: "0.15.3",
       elixir: "~> 1.14",
       deps: deps()
     ]

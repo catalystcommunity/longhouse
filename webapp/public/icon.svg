@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Longhouse brand mark (LonghouseMark in src/components/Icons.tsx) on
+  <!-- Longhouse brand mark (LonghouseMark in src/components/Icons.ts) on
        the header's accent gradient (accent-hi to accent-lo tokens). -->
   <defs>
     <linearGradient id="g" x1="0.33" y1="0" x2="0.67" y2="1">

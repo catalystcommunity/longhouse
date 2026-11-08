@@ -1511,6 +1511,7 @@ final class Event {
   final String? timezone;
   final String? recurrenceRule;
   final RecurrenceFreq? recurrenceFreq;
+  final bool? clearRecurrence;
   final int? recurrenceInterval;
   final List<int>? recurrenceByWeekday;
   final int? recurrenceBySetpos;
@@ -1539,6 +1540,7 @@ final class Event {
     this.timezone,
     this.recurrenceRule,
     this.recurrenceFreq,
+    this.clearRecurrence,
     this.recurrenceInterval,
     this.recurrenceByWeekday,
     this.recurrenceBySetpos,
@@ -1568,6 +1570,7 @@ final class Event {
     if (timezone != null) map['timezone'] = timezone;
     if (recurrenceRule != null) map['recurrence_rule'] = recurrenceRule;
     if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq;
+    if (clearRecurrence != null) map['clear_recurrence'] = clearRecurrence;
     if (recurrenceInterval != null)
       map['recurrence_interval'] = recurrenceInterval;
     if (recurrenceByWeekday != null)
@@ -1596,6 +1599,7 @@ final class Event {
       timezone: map['timezone'] as String?,
       recurrenceRule: map['recurrence_rule'] as String?,
       recurrenceFreq: map['recurrence_freq'] as RecurrenceFreq?,
+      clearRecurrence: map['clear_recurrence'] as bool?,
       recurrenceInterval: map['recurrence_interval'] as int?,
       recurrenceByWeekday: map['recurrence_by_weekday'] as List<int>?,
       recurrenceBySetpos: map['recurrence_by_setpos'] as int?,
@@ -1638,6 +1642,7 @@ final class Event {
         timezone == other.timezone &&
         recurrenceRule == other.recurrenceRule &&
         recurrenceFreq == other.recurrenceFreq &&
+        clearRecurrence == other.clearRecurrence &&
         recurrenceInterval == other.recurrenceInterval &&
         recurrenceByWeekday == other.recurrenceByWeekday &&
         recurrenceBySetpos == other.recurrenceBySetpos &&
@@ -1668,6 +1673,7 @@ final class Event {
     timezone,
     recurrenceRule,
     recurrenceFreq,
+    clearRecurrence,
     recurrenceInterval,
     recurrenceByWeekday,
     recurrenceBySetpos,
@@ -1698,6 +1704,7 @@ final class Event {
     if (timezone != null) map['timezone'] = timezone!;
     if (recurrenceRule != null) map['recurrence_rule'] = recurrenceRule!;
     if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq!;
+    if (clearRecurrence != null) map['clear_recurrence'] = clearRecurrence!;
     if (recurrenceInterval != null)
       map['recurrence_interval'] = recurrenceInterval!;
     if (recurrenceByWeekday != null)
@@ -1741,6 +1748,9 @@ final class Event {
               'quarterly',
               'yearly',
             ]),
+      clearRecurrence: map['clear_recurrence'] == null
+          ? null
+          : map['clear_recurrence'] as bool,
       recurrenceInterval: map['recurrence_interval'] == null
           ? null
           : map['recurrence_interval'] as int,
@@ -1804,6 +1814,7 @@ final class Task {
   final String? tag;
   final int? estimateMinutes;
   final RecurrenceFreq? recurrenceFreq;
+  final bool? clearRecurrence;
   final int? recurrenceInterval;
   final List<int>? recurrenceByWeekday;
   final int? recurrenceBySetpos;
@@ -1828,6 +1839,7 @@ final class Task {
     this.tag,
     this.estimateMinutes,
     this.recurrenceFreq,
+    this.clearRecurrence,
     this.recurrenceInterval,
     this.recurrenceByWeekday,
     this.recurrenceBySetpos,
@@ -1854,6 +1866,7 @@ final class Task {
     if (tag != null) map['tag'] = tag;
     if (estimateMinutes != null) map['estimate_minutes'] = estimateMinutes;
     if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq;
+    if (clearRecurrence != null) map['clear_recurrence'] = clearRecurrence;
     if (recurrenceInterval != null)
       map['recurrence_interval'] = recurrenceInterval;
     if (recurrenceByWeekday != null)
@@ -1883,6 +1896,7 @@ final class Task {
       tag: map['tag'] as String?,
       estimateMinutes: map['estimate_minutes'] as int?,
       recurrenceFreq: map['recurrence_freq'] as RecurrenceFreq?,
+      clearRecurrence: map['clear_recurrence'] as bool?,
       recurrenceInterval: map['recurrence_interval'] as int?,
       recurrenceByWeekday: map['recurrence_by_weekday'] as List<int>?,
       recurrenceBySetpos: map['recurrence_by_setpos'] as int?,
@@ -1921,6 +1935,7 @@ final class Task {
         tag == other.tag &&
         estimateMinutes == other.estimateMinutes &&
         recurrenceFreq == other.recurrenceFreq &&
+        clearRecurrence == other.clearRecurrence &&
         recurrenceInterval == other.recurrenceInterval &&
         recurrenceByWeekday == other.recurrenceByWeekday &&
         recurrenceBySetpos == other.recurrenceBySetpos &&
@@ -1947,6 +1962,7 @@ final class Task {
     tag,
     estimateMinutes,
     recurrenceFreq,
+    clearRecurrence,
     recurrenceInterval,
     recurrenceByWeekday,
     recurrenceBySetpos,
@@ -1974,6 +1990,7 @@ final class Task {
     if (tag != null) map['tag'] = tag!;
     if (estimateMinutes != null) map['estimate_minutes'] = estimateMinutes!;
     if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq!;
+    if (clearRecurrence != null) map['clear_recurrence'] = clearRecurrence!;
     if (recurrenceInterval != null)
       map['recurrence_interval'] = recurrenceInterval!;
     if (recurrenceByWeekday != null)
@@ -2041,6 +2058,9 @@ final class Task {
               'quarterly',
               'yearly',
             ]),
+      clearRecurrence: map['clear_recurrence'] == null
+          ? null
+          : map['clear_recurrence'] as bool,
       recurrenceInterval: map['recurrence_interval'] == null
           ? null
           : map['recurrence_interval'] as int,

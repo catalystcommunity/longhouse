@@ -211,6 +211,7 @@ export interface Event {
   timezone?: string;
   recurrenceRule?: string;
   recurrenceFreq?: RecurrenceFreq;
+  clearRecurrence?: boolean;
   recurrenceInterval?: number;
   recurrenceByWeekday?: number[];
   recurrenceBySetpos?: number;
@@ -242,6 +243,7 @@ export interface Task {
   tag?: string;
   estimateMinutes?: number;
   recurrenceFreq?: RecurrenceFreq;
+  clearRecurrence?: boolean;
   recurrenceInterval?: number;
   recurrenceByWeekday?: number[];
   recurrenceBySetpos?: number;

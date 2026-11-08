@@ -1448,6 +1448,7 @@ fn enc_Event(out: *std.ArrayList(u8), v: *const types.Event) CodecError!void {
     if (v.recurrence_freq != null) csil_n += 1;
     if (v.recurrence_rule != null) csil_n += 1;
     if (v.calendar_unbound != null) csil_n += 1;
+    if (v.clear_recurrence != null) csil_n += 1;
     if (v.publication_error != null) csil_n += 1;
     if (v.next_recurrence_at != null) csil_n += 1;
     if (v.recurrence_interval != null) csil_n += 1;
@@ -1515,6 +1516,10 @@ fn enc_Event(out: *std.ArrayList(u8), v: *const types.Event) CodecError!void {
     }
     if (v.calendar_unbound) |csil_x| {
         try w_text(out, "calendar_unbound");
+        try w_bool(out, csil_x);
+    }
+    if (v.clear_recurrence) |csil_x| {
+        try w_text(out, "clear_recurrence");
         try w_bool(out, csil_x);
     }
     if (v.publication_error) |csil_x| {
@@ -1667,6 +1672,13 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
         }
     }
     {
+        if (mget(m, "clear_recurrence")) |csil_fv| {
+            out.clear_recurrence = try as_bool(csil_fv);
+        } else {
+            out.clear_recurrence = null;
+        }
+    }
+    {
         if (mget(m, "publication_error")) |csil_fv| {
             out.publication_error = try as_text(csil_fv);
         } else {
@@ -1740,6 +1752,7 @@ fn enc_Task(out: *std.ArrayList(u8), v: *const types.Task) CodecError!void {
     if (v.description != null) csil_n += 1;
     if (v.parent_task_id != null) csil_n += 1;
     if (v.recurrence_freq != null) csil_n += 1;
+    if (v.clear_recurrence != null) csil_n += 1;
     if (v.estimate_minutes != null) csil_n += 1;
     if (v.next_recurrence_at != null) csil_n += 1;
     if (v.recurrence_interval != null) csil_n += 1;
@@ -1798,6 +1811,10 @@ fn enc_Task(out: *std.ArrayList(u8), v: *const types.Task) CodecError!void {
     if (v.recurrence_freq) |csil_x| {
         try w_text(out, "recurrence_freq");
         try enc_RecurrenceFreq(out, &(csil_x));
+    }
+    if (v.clear_recurrence) |csil_x| {
+        try w_text(out, "clear_recurrence");
+        try w_bool(out, csil_x);
     }
     if (v.estimate_minutes) |csil_x| {
         try w_text(out, "estimate_minutes");
@@ -1930,6 +1947,13 @@ fn dec_Task(alloc: std.mem.Allocator, m: Value, out: *types.Task) CodecError!voi
             out.recurrence_freq = csil_tmp;
         } else {
             out.recurrence_freq = null;
+        }
+    }
+    {
+        if (mget(m, "clear_recurrence")) |csil_fv| {
+            out.clear_recurrence = try as_bool(csil_fv);
+        } else {
+            out.clear_recurrence = null;
         }
     }
     {

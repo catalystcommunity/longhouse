@@ -494,6 +494,8 @@ public sealed record Event
     public string? RecurrenceRule { get; init; }
     // CBOR key: recurrence_freq
     public RecurrenceFreq? RecurrenceFreq { get; init; }
+    // CBOR key: clear_recurrence
+    public bool? ClearRecurrence { get; init; }
     // CBOR key: recurrence_interval
     public long? RecurrenceInterval { get; init; }
     // CBOR key: recurrence_by_weekday
@@ -567,6 +569,8 @@ public sealed record Task
     public ulong? EstimateMinutes { get; init; }
     // CBOR key: recurrence_freq
     public RecurrenceFreq? RecurrenceFreq { get; init; }
+    // CBOR key: clear_recurrence
+    public bool? ClearRecurrence { get; init; }
     // CBOR key: recurrence_interval
     public long? RecurrenceInterval { get; init; }
     // CBOR key: recurrence_by_weekday

@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach } from "vitest";
-import { cleanup } from "@solidjs/testing-library";
+import { cleanup } from "~/ui/testing";
 
 // happy-dom (v20) doesn't expose localStorage, and Node 26's experimental
 // global needs a CLI flag we don't want. Provide a small in-memory shim so
@@ -36,7 +36,7 @@ if (typeof globalThis.localStorage === "undefined") {
   });
 }
 
-// Unmount Solid trees and reset storage between tests.
+// Unmount Zest views and reset storage between tests.
 afterEach(() => {
   cleanup();
   localStorage.clear();

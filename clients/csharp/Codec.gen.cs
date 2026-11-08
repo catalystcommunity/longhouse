@@ -1424,37 +1424,41 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("calendar_unbound"), new CborValue.Bool(csilV17)));
         }
-        if (value.PublicationError is { } csilV18)
+        if (value.ClearRecurrence is { } csilV18)
         {
-            csilEntries.Add((new CborValue.Text("publication_error"), new CborValue.Text(csilV18)));
+            csilEntries.Add((new CborValue.Text("clear_recurrence"), new CborValue.Bool(csilV18)));
         }
-        if (value.NextRecurrenceAt is { } csilV19)
+        if (value.PublicationError is { } csilV19)
         {
-            csilEntries.Add((new CborValue.Text("next_recurrence_at"), new CborValue.Text(csilV19)));
+            csilEntries.Add((new CborValue.Text("publication_error"), new CborValue.Text(csilV19)));
         }
-        if (value.RecurrenceInterval is { } csilV20)
+        if (value.NextRecurrenceAt is { } csilV20)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_interval"), new CborValue.Int(csilV20)));
+            csilEntries.Add((new CborValue.Text("next_recurrence_at"), new CborValue.Text(csilV20)));
         }
-        if (value.RecurrenceBySetpos is { } csilV21)
+        if (value.RecurrenceInterval is { } csilV21)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_by_setpos"), new CborValue.Int(csilV21)));
+            csilEntries.Add((new CborValue.Text("recurrence_interval"), new CborValue.Int(csilV21)));
         }
-        if (value.ProposedByMemberId is { } csilV22)
+        if (value.RecurrenceBySetpos is { } csilV22)
         {
-            csilEntries.Add((new CborValue.Text("proposed_by_member_id"), new CborValue.Text(csilV22)));
+            csilEntries.Add((new CborValue.Text("recurrence_by_setpos"), new CborValue.Int(csilV22)));
         }
-        if (value.RecurrenceByWeekday is { } csilV23)
+        if (value.ProposedByMemberId is { } csilV23)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_by_weekday"), new CborValue.Array(csilV23.Select(csilElem => (CborValue)new CborValue.Int(csilElem)).ToList())));
+            csilEntries.Add((new CborValue.Text("proposed_by_member_id"), new CborValue.Text(csilV23)));
         }
-        if (value.EditPendingMemberId is { } csilV24)
+        if (value.RecurrenceByWeekday is { } csilV24)
         {
-            csilEntries.Add((new CborValue.Text("edit_pending_member_id"), new CborValue.Text(csilV24)));
+            csilEntries.Add((new CborValue.Text("recurrence_by_weekday"), new CborValue.Array(csilV24.Select(csilElem => (CborValue)new CborValue.Int(csilElem)).ToList())));
         }
-        if (value.RecurrenceRootEventId is { } csilV25)
+        if (value.EditPendingMemberId is { } csilV25)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_root_event_id"), new CborValue.Text(csilV25)));
+            csilEntries.Add((new CborValue.Text("edit_pending_member_id"), new CborValue.Text(csilV25)));
+        }
+        if (value.RecurrenceRootEventId is { } csilV26)
+        {
+            csilEntries.Add((new CborValue.Text("recurrence_root_event_id"), new CborValue.Text(csilV26)));
         }
         return new CborValue.Map(csilEntries);
     }
@@ -1474,20 +1478,21 @@ public static class Codec
         string? csilField9 = Cbor.MapGet(value, "timezone") is { } csilRaw9 ? Cbor.AsText(csilRaw9) : null;
         string? csilField10 = Cbor.MapGet(value, "recurrence_rule") is { } csilRaw10 ? Cbor.AsText(csilRaw10) : null;
         RecurrenceFreq? csilField11 = Cbor.MapGet(value, "recurrence_freq") is { } csilRaw11 ? RecurrenceFreqFromCborValue(csilRaw11) : null;
-        long? csilField12 = Cbor.MapGet(value, "recurrence_interval") is { } csilRaw12 ? Cbor.AsI64(csilRaw12) : null;
-        System.Collections.Generic.List<long>? csilField13 = Cbor.MapGet(value, "recurrence_by_weekday") is { } csilRaw13 ? Cbor.AsArray(csilRaw13).Select(csilElem => Cbor.AsI64(csilElem)).ToList() : null;
-        long? csilField14 = Cbor.MapGet(value, "recurrence_by_setpos") is { } csilRaw14 ? Cbor.AsI64(csilRaw14) : null;
-        Timestamp? csilField15 = Cbor.MapGet(value, "next_recurrence_at") is { } csilRaw15 ? Cbor.AsText(csilRaw15) : null;
-        EventID? csilField16 = Cbor.MapGet(value, "recurrence_root_event_id") is { } csilRaw16 ? Cbor.AsText(csilRaw16) : null;
-        string? csilField17 = Cbor.MapGet(value, "calendar_state") is { } csilRaw17 ? Cbor.AsText(csilRaw17) : null;
-        ulong? csilField18 = Cbor.MapGet(value, "revision") is { } csilRaw18 ? Cbor.AsU64(csilRaw18) : null;
-        MemberID? csilField19 = Cbor.MapGet(value, "proposed_by_member_id") is { } csilRaw19 ? Cbor.AsText(csilRaw19) : null;
-        string? csilField20 = Cbor.MapGet(value, "publication_error") is { } csilRaw20 ? Cbor.AsText(csilRaw20) : null;
-        MemberID? csilField21 = Cbor.MapGet(value, "edit_pending_member_id") is { } csilRaw21 ? Cbor.AsText(csilRaw21) : null;
-        bool? csilField22 = Cbor.MapGet(value, "calendar_unbound") is { } csilRaw22 ? Cbor.AsBool(csilRaw22) : null;
-        string? csilField23 = Cbor.MapGet(value, "edit_scope") is { } csilRaw23 ? Cbor.AsText(csilRaw23) : null;
-        var csilField24 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField25 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        bool? csilField12 = Cbor.MapGet(value, "clear_recurrence") is { } csilRaw12 ? Cbor.AsBool(csilRaw12) : null;
+        long? csilField13 = Cbor.MapGet(value, "recurrence_interval") is { } csilRaw13 ? Cbor.AsI64(csilRaw13) : null;
+        System.Collections.Generic.List<long>? csilField14 = Cbor.MapGet(value, "recurrence_by_weekday") is { } csilRaw14 ? Cbor.AsArray(csilRaw14).Select(csilElem => Cbor.AsI64(csilElem)).ToList() : null;
+        long? csilField15 = Cbor.MapGet(value, "recurrence_by_setpos") is { } csilRaw15 ? Cbor.AsI64(csilRaw15) : null;
+        Timestamp? csilField16 = Cbor.MapGet(value, "next_recurrence_at") is { } csilRaw16 ? Cbor.AsText(csilRaw16) : null;
+        EventID? csilField17 = Cbor.MapGet(value, "recurrence_root_event_id") is { } csilRaw17 ? Cbor.AsText(csilRaw17) : null;
+        string? csilField18 = Cbor.MapGet(value, "calendar_state") is { } csilRaw18 ? Cbor.AsText(csilRaw18) : null;
+        ulong? csilField19 = Cbor.MapGet(value, "revision") is { } csilRaw19 ? Cbor.AsU64(csilRaw19) : null;
+        MemberID? csilField20 = Cbor.MapGet(value, "proposed_by_member_id") is { } csilRaw20 ? Cbor.AsText(csilRaw20) : null;
+        string? csilField21 = Cbor.MapGet(value, "publication_error") is { } csilRaw21 ? Cbor.AsText(csilRaw21) : null;
+        MemberID? csilField22 = Cbor.MapGet(value, "edit_pending_member_id") is { } csilRaw22 ? Cbor.AsText(csilRaw22) : null;
+        bool? csilField23 = Cbor.MapGet(value, "calendar_unbound") is { } csilRaw23 ? Cbor.AsBool(csilRaw23) : null;
+        string? csilField24 = Cbor.MapGet(value, "edit_scope") is { } csilRaw24 ? Cbor.AsText(csilRaw24) : null;
+        var csilField25 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField26 = Cbor.AsText(Cbor.Require(value, "updated_at"));
         return new Event
         {
             EventId = csilField0,
@@ -1502,20 +1507,21 @@ public static class Codec
             Timezone = csilField9,
             RecurrenceRule = csilField10,
             RecurrenceFreq = csilField11,
-            RecurrenceInterval = csilField12,
-            RecurrenceByWeekday = csilField13,
-            RecurrenceBySetpos = csilField14,
-            NextRecurrenceAt = csilField15,
-            RecurrenceRootEventId = csilField16,
-            CalendarState = csilField17,
-            Revision = csilField18,
-            ProposedByMemberId = csilField19,
-            PublicationError = csilField20,
-            EditPendingMemberId = csilField21,
-            CalendarUnbound = csilField22,
-            EditScope = csilField23,
-            CreatedAt = csilField24,
-            UpdatedAt = csilField25,
+            ClearRecurrence = csilField12,
+            RecurrenceInterval = csilField13,
+            RecurrenceByWeekday = csilField14,
+            RecurrenceBySetpos = csilField15,
+            NextRecurrenceAt = csilField16,
+            RecurrenceRootEventId = csilField17,
+            CalendarState = csilField18,
+            Revision = csilField19,
+            ProposedByMemberId = csilField20,
+            PublicationError = csilField21,
+            EditPendingMemberId = csilField22,
+            CalendarUnbound = csilField23,
+            EditScope = csilField24,
+            CreatedAt = csilField25,
+            UpdatedAt = csilField26,
         };
     }
 
@@ -1565,33 +1571,37 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("recurrence_freq"), RecurrenceFreqToCborValue(csilV14)));
         }
-        if (value.EstimateMinutes is { } csilV15)
+        if (value.ClearRecurrence is { } csilV15)
         {
-            csilEntries.Add((new CborValue.Text("estimate_minutes"), new CborValue.Uint(csilV15)));
+            csilEntries.Add((new CborValue.Text("clear_recurrence"), new CborValue.Bool(csilV15)));
         }
-        if (value.NextRecurrenceAt is { } csilV16)
+        if (value.EstimateMinutes is { } csilV16)
         {
-            csilEntries.Add((new CborValue.Text("next_recurrence_at"), new CborValue.Text(csilV16)));
+            csilEntries.Add((new CborValue.Text("estimate_minutes"), new CborValue.Uint(csilV16)));
         }
-        if (value.RecurrenceInterval is { } csilV17)
+        if (value.NextRecurrenceAt is { } csilV17)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_interval"), new CborValue.Int(csilV17)));
+            csilEntries.Add((new CborValue.Text("next_recurrence_at"), new CborValue.Text(csilV17)));
         }
-        if (value.AssignedToSkillId is { } csilV18)
+        if (value.RecurrenceInterval is { } csilV18)
         {
-            csilEntries.Add((new CborValue.Text("assigned_to_skill_id"), new CborValue.Text(csilV18)));
+            csilEntries.Add((new CborValue.Text("recurrence_interval"), new CborValue.Int(csilV18)));
         }
-        if (value.RecurrenceBySetpos is { } csilV19)
+        if (value.AssignedToSkillId is { } csilV19)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_by_setpos"), new CborValue.Int(csilV19)));
+            csilEntries.Add((new CborValue.Text("assigned_to_skill_id"), new CborValue.Text(csilV19)));
         }
-        if (value.RecurrenceByWeekday is { } csilV20)
+        if (value.RecurrenceBySetpos is { } csilV20)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_by_weekday"), new CborValue.Array(csilV20.Select(csilElem => (CborValue)new CborValue.Int(csilElem)).ToList())));
+            csilEntries.Add((new CborValue.Text("recurrence_by_setpos"), new CborValue.Int(csilV20)));
         }
-        if (value.RecurrenceRootTaskId is { } csilV21)
+        if (value.RecurrenceByWeekday is { } csilV21)
         {
-            csilEntries.Add((new CborValue.Text("recurrence_root_task_id"), new CborValue.Text(csilV21)));
+            csilEntries.Add((new CborValue.Text("recurrence_by_weekday"), new CborValue.Array(csilV21.Select(csilElem => (CborValue)new CborValue.Int(csilElem)).ToList())));
+        }
+        if (value.RecurrenceRootTaskId is { } csilV22)
+        {
+            csilEntries.Add((new CborValue.Text("recurrence_root_task_id"), new CborValue.Text(csilV22)));
         }
         return new CborValue.Map(csilEntries);
     }
@@ -1613,14 +1623,15 @@ public static class Codec
         string? csilField11 = Cbor.MapGet(value, "tag") is { } csilRaw11 ? Cbor.AsText(csilRaw11) : null;
         ulong? csilField12 = Cbor.MapGet(value, "estimate_minutes") is { } csilRaw12 ? Cbor.AsU64(csilRaw12) : null;
         RecurrenceFreq? csilField13 = Cbor.MapGet(value, "recurrence_freq") is { } csilRaw13 ? RecurrenceFreqFromCborValue(csilRaw13) : null;
-        long? csilField14 = Cbor.MapGet(value, "recurrence_interval") is { } csilRaw14 ? Cbor.AsI64(csilRaw14) : null;
-        System.Collections.Generic.List<long>? csilField15 = Cbor.MapGet(value, "recurrence_by_weekday") is { } csilRaw15 ? Cbor.AsArray(csilRaw15).Select(csilElem => Cbor.AsI64(csilElem)).ToList() : null;
-        long? csilField16 = Cbor.MapGet(value, "recurrence_by_setpos") is { } csilRaw16 ? Cbor.AsI64(csilRaw16) : null;
-        Timestamp? csilField17 = Cbor.MapGet(value, "next_recurrence_at") is { } csilRaw17 ? Cbor.AsText(csilRaw17) : null;
-        TaskID? csilField18 = Cbor.MapGet(value, "recurrence_root_task_id") is { } csilRaw18 ? Cbor.AsText(csilRaw18) : null;
-        Timestamp? csilField19 = Cbor.MapGet(value, "deleted_at") is { } csilRaw19 ? Cbor.AsText(csilRaw19) : null;
-        var csilField20 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField21 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        bool? csilField14 = Cbor.MapGet(value, "clear_recurrence") is { } csilRaw14 ? Cbor.AsBool(csilRaw14) : null;
+        long? csilField15 = Cbor.MapGet(value, "recurrence_interval") is { } csilRaw15 ? Cbor.AsI64(csilRaw15) : null;
+        System.Collections.Generic.List<long>? csilField16 = Cbor.MapGet(value, "recurrence_by_weekday") is { } csilRaw16 ? Cbor.AsArray(csilRaw16).Select(csilElem => Cbor.AsI64(csilElem)).ToList() : null;
+        long? csilField17 = Cbor.MapGet(value, "recurrence_by_setpos") is { } csilRaw17 ? Cbor.AsI64(csilRaw17) : null;
+        Timestamp? csilField18 = Cbor.MapGet(value, "next_recurrence_at") is { } csilRaw18 ? Cbor.AsText(csilRaw18) : null;
+        TaskID? csilField19 = Cbor.MapGet(value, "recurrence_root_task_id") is { } csilRaw19 ? Cbor.AsText(csilRaw19) : null;
+        Timestamp? csilField20 = Cbor.MapGet(value, "deleted_at") is { } csilRaw20 ? Cbor.AsText(csilRaw20) : null;
+        var csilField21 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField22 = Cbor.AsText(Cbor.Require(value, "updated_at"));
         return new Task
         {
             TaskId = csilField0,
@@ -1637,14 +1648,15 @@ public static class Codec
             Tag = csilField11,
             EstimateMinutes = csilField12,
             RecurrenceFreq = csilField13,
-            RecurrenceInterval = csilField14,
-            RecurrenceByWeekday = csilField15,
-            RecurrenceBySetpos = csilField16,
-            NextRecurrenceAt = csilField17,
-            RecurrenceRootTaskId = csilField18,
-            DeletedAt = csilField19,
-            CreatedAt = csilField20,
-            UpdatedAt = csilField21,
+            ClearRecurrence = csilField14,
+            RecurrenceInterval = csilField15,
+            RecurrenceByWeekday = csilField16,
+            RecurrenceBySetpos = csilField17,
+            NextRecurrenceAt = csilField18,
+            RecurrenceRootTaskId = csilField19,
+            DeletedAt = csilField20,
+            CreatedAt = csilField21,
+            UpdatedAt = csilField22,
         };
     }
 

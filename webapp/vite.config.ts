@@ -1,5 +1,4 @@
 import { defineConfig } from "vite";
-import solid from "vite-plugin-solid";
 import { fileURLToPath, URL } from "node:url";
 import { readFileSync } from "node:fs";
 
@@ -15,7 +14,6 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
   },
-  plugins: [solid()],
   resolve: {
     alias: {
       "~": fileURLToPath(new URL("./src", import.meta.url)),
@@ -37,13 +35,14 @@ export default defineConfig({
       // dev-only: forward all /api/* requests to the local api server.
       // Match LONGHOUSE_API_PORT in api/internal/config/config.go (6080).
       "/api": {
-        target: "http://localhost:6080",
+        target: process.env.LONGHOUSE_DEV_API_TARGET ?? "http://localhost:6080",
         changeOrigin: false,
       },
     },
   },
   build: {
     target: "es2022",
+    cssTarget: ["chrome123", "firefox120", "safari17.5"],
     sourcemap: true,
   },
 });

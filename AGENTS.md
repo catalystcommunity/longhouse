@@ -16,12 +16,16 @@ membership model.
   /api/v1/auth/start` (302 to linkkeys for the browser flow), `GET
   /api/v1/avatars/{member}` (cached avatar bytes for an `<img>` src, bearer
   authenticated), and `GET /api/health` for k8s probes. No REST.
-- **webapp/**: SolidJS + Vite SPA (the web frontend). Talks to the api through
+- **webapp/**: Zest + TypeScript + Vite SPA (the web frontend). Talks to the api through
   the generated client package `@longhouse/client` (the async client surface),
   wired in `webapp/src/data/clients.ts`, over a CBOR CSIL-RPC carrier
   (`webapp/src/transport/csilrpc.ts`). The carrier is a "dumb byte seam":
   the generated codec owns payload (de)serialization, the carrier owns only
   the envelope + `fetch` + auth. (Built into a static image by `Dockerfile.web`.)
+  The component library is in `webapp/src/ui` and `webapp/src/components`.
+  Zest `BaseComponent` owns view cleanup. `BasicDataService` holds state, and
+  `SimpleRouter` handles navigation. Use native DOM views in `.ts` files.
+  See the README's "Web components" section before adding a view.
 - **clients/**: generated client libraries, one self-contained package per
   language, under `clients/<lang>/`. The SPA consumes `clients/typescript`
   (`@longhouse/client`) via a Vite/tsconfig path alias to its source. Generated

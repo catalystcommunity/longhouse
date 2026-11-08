@@ -281,9 +281,8 @@ func (s *EventService) UpdateEvent(ctx context.Context, in csil.Event) (csil.Eve
 		existing.AllDay = *in.AllDay
 	}
 	// Recurrence updates: passing freq=nil leaves the field alone, but a
-	// caller can clear an existing recurrence by sending an empty-string
-	// freq (which we drop to nil). Seed next_recurrence_at if recurrence
-	// was just turned on; clear it if recurrence was just turned off.
+	// caller uses clear_recurrence to remove the schedule. Seed
+	// next_recurrence_at when recurrence starts; clear it when recurrence stops.
 	wasRecurring := existing.RecurrenceFreq != nil
 	if in.RecurrenceFreq != nil {
 		f := string(*in.RecurrenceFreq)
@@ -323,6 +322,12 @@ func (s *EventService) UpdateEvent(ctx context.Context, in csil.Event) (csil.Eve
 			v := int(*in.RecurrenceBySetpos)
 			existing.RecurrenceBySetpos = &v
 		}
+	}
+	if in.ClearRecurrence != nil && *in.ClearRecurrence {
+		existing.RecurrenceFreq = nil
+		existing.NextRecurrenceAt = nil
+		existing.RecurrenceByWeekday = nil
+		existing.RecurrenceBySetpos = nil
 	}
 	if existing.CalendarState == "pending" {
 		existing.NextRecurrenceAt = nil

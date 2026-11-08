@@ -183,6 +183,7 @@ and event = {
   timezone : string option;
   recurrence_rule : string option;
   recurrence_freq : recurrence_freq option;
+  clear_recurrence : bool option;
   recurrence_interval : int64 option;
   recurrence_by_weekday : int64 list option;
   recurrence_by_setpos : int64 option;
@@ -214,6 +215,7 @@ and task = {
   tag : string option;
   estimate_minutes : int64 option;
   recurrence_freq : recurrence_freq option;
+  clear_recurrence : bool option;
   recurrence_interval : int64 option;
   recurrence_by_weekday : int64 list option;
   recurrence_by_setpos : int64 option;

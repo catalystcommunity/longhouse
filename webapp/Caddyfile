@@ -35,7 +35,7 @@
 	}
 
 	# Everything else: serve the static file if it exists, otherwise
-	# fall through to /index.html so @solidjs/router can take over
+	# fall through to /index.html so the Zest router can take over
 	# (covers /auth/callback, /dev-login, /projects/:slug, etc.)
 	handle {
 		try_files {path} /index.html

@@ -259,7 +259,7 @@ func (s *CalendarService) updateEvent(ctx context.Context, in csil.Event) (csil.
 	previous.StartDate = content.StartDate
 	previous.EndDate = content.EndDate
 	previous.Timezone = content.Timezone
-	if in.RecurrenceFreq != nil || in.RecurrenceRule != nil {
+	if in.RecurrenceFreq != nil || in.RecurrenceRule != nil || (in.ClearRecurrence != nil && *in.ClearRecurrence) {
 		previous.Recurrence = content.Recurrence
 	}
 	scope := cal.RecurrenceScope("all")
@@ -609,6 +609,10 @@ func validateEventTimes(in csil.Event, required bool) error {
 	return nil
 }
 func calendarContent(in csil.Event, calendarID, uid string) (cal.Event, error) {
+	if in.ClearRecurrence != nil && *in.ClearRecurrence {
+		in.RecurrenceFreq = nil
+		in.RecurrenceRule = nil
+	}
 	if err := validateEventTimes(in, true); err != nil {
 		return cal.Event{}, err
 	}

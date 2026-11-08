@@ -258,6 +258,7 @@ type Event struct {
 	Timezone              *string         `json:"timezone,omitempty" yaml:"timezone,omitempty"`
 	RecurrenceRule        *string         `json:"recurrence_rule,omitempty" yaml:"recurrence_rule,omitempty"`
 	RecurrenceFreq        *RecurrenceFreq `json:"recurrence_freq,omitempty" yaml:"recurrence_freq,omitempty"`
+	ClearRecurrence       *bool           `json:"clear_recurrence,omitempty" yaml:"clear_recurrence,omitempty"`
 	RecurrenceInterval    *int64          `json:"recurrence_interval,omitempty" yaml:"recurrence_interval,omitempty"`
 	RecurrenceByWeekday   []int64         `json:"recurrence_by_weekday,omitempty" yaml:"recurrence_by_weekday,omitempty"`
 	RecurrenceBySetpos    *int64          `json:"recurrence_by_setpos,omitempty" yaml:"recurrence_by_setpos,omitempty"`
@@ -290,6 +291,7 @@ type Task struct {
 	Tag                  *string         `json:"tag,omitempty" yaml:"tag,omitempty"`
 	EstimateMinutes      *uint64         `json:"estimate_minutes,omitempty" yaml:"estimate_minutes,omitempty"`
 	RecurrenceFreq       *RecurrenceFreq `json:"recurrence_freq,omitempty" yaml:"recurrence_freq,omitempty"`
+	ClearRecurrence      *bool           `json:"clear_recurrence,omitempty" yaml:"clear_recurrence,omitempty"`
 	RecurrenceInterval   *int64          `json:"recurrence_interval,omitempty" yaml:"recurrence_interval,omitempty"`
 	RecurrenceByWeekday  []int64         `json:"recurrence_by_weekday,omitempty" yaml:"recurrence_by_weekday,omitempty"`
 	RecurrenceBySetpos   *int64          `json:"recurrence_by_setpos,omitempty" yaml:"recurrence_by_setpos,omitempty"`

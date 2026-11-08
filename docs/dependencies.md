@@ -16,8 +16,8 @@ tasks/projects are done" — and the access required to read or change them.
 - Store: `dependencies` table + `Add/Remove/List Dependencies`,
   `ListDependents`, `DependencyPathExists`, `RemoveDependenciesForNode` in
   `postgres_store.go`; model in `store/postgres/models/dependency.go`.
-- SPA: `webapp/src/components/DependenciesSection.tsx` (used by
-  `TaskDetailEditor.tsx` and `pages/ProjectDetail.tsx`).
+- SPA: `webapp/src/components/DependenciesSection.ts` (used by
+  `TaskDetailEditor.ts` and `pages/ProjectDetail.ts`).
 - Tests: `csilservices/dependency_test.go` (unit, fake store),
   `cmd/dependency_postgres_test.go` (`-tags=integration`, real Postgres),
   `webapp/src/components/DependenciesSection.test.ts` (picker helpers).
