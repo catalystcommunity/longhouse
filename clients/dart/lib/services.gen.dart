@@ -15,6 +15,10 @@ abstract interface class CsilCodec {
 /// The AuthService service contract. A host `implements` this; the router
 /// dispatches decoded requests/messages to it.
 abstract interface class AuthServiceHandler {
+  ActAsScopeSetResponse getActAsScopeSet(ActAsScopeSetRequest request);
+  ActAsTokenResponse exchangeActAsCredential(
+    ExchangeActAsCredentialRequest request,
+  );
   LoginResponse login(LoginRequest request);
   LoginResponse complete(CompleteRequest request);
   LoginResponse refresh(EmptyRequest request);
@@ -157,6 +161,7 @@ abstract interface class EventServiceHandler {
 /// The CalendarService service contract. A host `implements` this; the router
 /// dispatches decoded requests/messages to it.
 abstract interface class CalendarServiceHandler {
+  ProjectDeadlineList listProjectDeadlines(ProjectDeadlineRequest request);
   CalendarStatus getStatus(HouseId request);
   CalendarStatus configureCalendar(ConfigureCalendarRequest request);
   CalendarConnectResponse beginConnect(HouseId request);

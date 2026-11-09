@@ -291,7 +291,15 @@ export interface HouseRoles {
   roles: string[];
 }
 
+export interface ActAsDelegation {
+  grantExpiresAt: number;
+  grantId: string;
+  grantee: string;
+  scopes: string[];
+}
+
 export interface Identity {
+  delegation?: ActAsDelegation;
   domain: string;
   userId: string;
   displayName?: string;
@@ -655,6 +663,32 @@ export interface ServiceError {
   message: string;
 }
 
+export interface ActAsScopeSetRequest {
+  granteeDomain?: string;
+  granteeUserId?: string;
+  granteeApplicationId?: string;
+  localRpFingerprint?: string;
+  scopes: string[];
+}
+
+export interface ActAsScopeSetResponse {
+  signedScopeSet: Uint8Array;
+}
+
+export interface ExchangeActAsCredentialRequest {
+  credential: Uint8Array;
+}
+
+export interface ActAsTokenResponse {
+  token: string;
+  domain: string;
+  userId: string;
+  expiresAt: Timestamp;
+  grantId: string;
+  grantee: string;
+  scopes: string[];
+}
+
 export interface CalendarSubscription {
   subjectMemberId: MemberID;
   enabled: boolean;
@@ -713,6 +747,26 @@ export interface CalendarMigrationRow {
   title: string;
   disposition: string;
   reason: string;
+}
+
+export interface ProjectDeadlineRequest {
+  projectId: ProjectID;
+  rangeStart: Timestamp;
+  rangeEnd: Timestamp;
+}
+
+export interface ProjectDeadline {
+  taskId: TaskID;
+  title: string;
+  dueAt: Timestamp;
+}
+
+export interface ProjectDeadlineList {
+  enabled: boolean;
+  pending: boolean;
+  category: string;
+  lastError?: string;
+  deadlines: ProjectDeadline[];
 }
 
 export type AuditID = string;

@@ -15,6 +15,16 @@ class AuthClient
     @transport = transport
   end
 
+  # get-act-as-scope-set: -> ActAsScopeSetResponse
+  def get_act_as_scope_set(req)
+    ActAsScopeSetResponse.from_cbor(@transport.call("AuthService", "get-act-as-scope-set", req.to_cbor))
+  end
+
+  # exchange-act-as-credential: -> ActAsTokenResponse
+  def exchange_act_as_credential(req)
+    ActAsTokenResponse.from_cbor(@transport.call("AuthService", "exchange-act-as-credential", req.to_cbor))
+  end
+
   # login: -> LoginResponse
   def login(req)
     LoginResponse.from_cbor(@transport.call("AuthService", "login", req.to_cbor))
@@ -543,6 +553,11 @@ end
 class CalendarClient
   def initialize(transport)
     @transport = transport
+  end
+
+  # list-project-deadlines: -> ProjectDeadlineList
+  def list_project_deadlines(req)
+    ProjectDeadlineList.from_cbor(@transport.call("CalendarService", "list-project-deadlines", req.to_cbor))
   end
 
   # get-status: -> CalendarStatus

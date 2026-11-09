@@ -372,14 +372,21 @@ HouseSummary = Data.define(:house_id, :name, :member_id, :roles)
 # roles [Array<String>]
 HouseRoles = Data.define(:house, :member, :roles)
 
+# grant_expires_at [Integer]
+# grant_id [String]
+# grantee [String]
+# scopes [Array<String>]
+ActAsDelegation = Data.define(:grant_expires_at, :grant_id, :grantee, :scopes)
+
+# delegation [ActAsDelegation]
 # domain [String]
 # user_id [String]
 # display_name [String]
 # houses [Array<HouseRoles>]
 # iat [Integer]
 # exp [Integer]
-Identity = Data.define(:domain, :user_id, :display_name, :houses, :iat, :exp) do
-  def initialize(domain:, user_id:, houses:, iat:, exp:, display_name: nil)
+Identity = Data.define(:delegation, :domain, :user_id, :display_name, :houses, :iat, :exp) do
+  def initialize(domain:, user_id:, houses:, iat:, exp:, delegation: nil, display_name: nil)
     super
   end
 end
@@ -770,6 +777,32 @@ end
 # message [String]
 ServiceError = Data.define(:code, :message)
 
+# grantee_domain [String]
+# grantee_user_id [String]
+# grantee_application_id [String]
+# local_rp_fingerprint [String]
+# scopes [Array<String>]
+ActAsScopeSetRequest = Data.define(:grantee_domain, :grantee_user_id, :grantee_application_id, :local_rp_fingerprint, :scopes) do
+  def initialize(scopes:, grantee_domain: nil, grantee_user_id: nil, grantee_application_id: nil, local_rp_fingerprint: nil)
+    super
+  end
+end
+
+# signed_scope_set [String]
+ActAsScopeSetResponse = Data.define(:signed_scope_set)
+
+# credential [String]
+ExchangeActAsCredentialRequest = Data.define(:credential)
+
+# token [String]
+# domain [String]
+# user_id [String]
+# expires_at [Timestamp]
+# grant_id [String]
+# grantee [String]
+# scopes [Array<String>]
+ActAsTokenResponse = Data.define(:token, :domain, :user_id, :expires_at, :grant_id, :grantee, :scopes)
+
 # subject_member_id [MemberId]
 # enabled [Boolean]
 CalendarSubscription = Data.define(:subject_member_id, :enabled)
@@ -827,6 +860,27 @@ RestoreCalendarEventRequest = Data.define(:house_id, :trash_id)
 # disposition [String]
 # reason [String]
 CalendarMigrationRow = Data.define(:event_id, :title, :disposition, :reason)
+
+# project_id [ProjectId]
+# range_start [Timestamp]
+# range_end [Timestamp]
+ProjectDeadlineRequest = Data.define(:project_id, :range_start, :range_end)
+
+# task_id [TaskId]
+# title [String]
+# due_at [Timestamp]
+ProjectDeadline = Data.define(:task_id, :title, :due_at)
+
+# enabled [Boolean]
+# pending [Boolean]
+# category [String]
+# last_error [String]
+# deadlines [Array<ProjectDeadline>]
+ProjectDeadlineList = Data.define(:enabled, :pending, :category, :last_error, :deadlines) do
+  def initialize(enabled:, pending:, category:, deadlines:, last_error: nil)
+    super
+  end
+end
 
 # AuditId is an alias for String.
 

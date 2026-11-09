@@ -237,8 +237,17 @@ pub const Timestamp = []const u8;
 /// AuditID is a type alias.
 pub const AuditID = []const u8;
 
+/// ActAsDelegation is a structured data type.
+pub const ActAsDelegation = struct {
+    grant_expires_at: i64,
+    grant_id: []const u8,
+    grantee: []const u8,
+    scopes: [][]const u8,
+};
+
 /// Identity is a structured data type.
 pub const Identity = struct {
+    delegation: ?ActAsDelegation = null,
     domain: []const u8,
     user_id: []const u8,
     display_name: ?[]const u8 = null,
@@ -348,9 +357,37 @@ pub const ServiceError = struct {
     message: []const u8,
 };
 
+/// ActAsScopeSetRequest is a structured data type.
+pub const ActAsScopeSetRequest = struct {
+    grantee_domain: ?[]const u8 = null,
+    grantee_user_id: ?[]const u8 = null,
+    grantee_application_id: ?[]const u8 = null,
+    local_rp_fingerprint: ?[]const u8 = null,
+    scopes: [][]const u8,
+};
+
+/// ActAsScopeSetResponse is a structured data type.
+pub const ActAsScopeSetResponse = struct {
+    signed_scope_set: []const u8,
+};
+
+/// ExchangeActAsCredentialRequest is a structured data type.
+pub const ExchangeActAsCredentialRequest = struct {
+    credential: []const u8,
+};
+
 /// CalendarConnectResponse is a structured data type.
 pub const CalendarConnectResponse = struct {
     url: []const u8,
+};
+
+/// ProjectDeadlineList is a structured data type.
+pub const ProjectDeadlineList = struct {
+    enabled: bool,
+    pending: bool,
+    category: []const u8,
+    last_error: ?[]const u8 = null,
+    deadlines: []ProjectDeadline,
 };
 
 /// AuditPage is a structured data type.
@@ -929,6 +966,17 @@ pub const BugReportRequest = struct {
     description: ?[]const u8 = null,
 };
 
+/// ActAsTokenResponse is a structured data type.
+pub const ActAsTokenResponse = struct {
+    token: []const u8,
+    domain: []const u8,
+    user_id: []const u8,
+    expires_at: Timestamp,
+    grant_id: []const u8,
+    grantee: []const u8,
+    scopes: [][]const u8,
+};
+
 /// CalendarSubscription is a structured data type.
 pub const CalendarSubscription = struct {
     subject_member_id: MemberID,
@@ -992,6 +1040,20 @@ pub const CalendarMigrationRow = struct {
     title: []const u8,
     disposition: []const u8,
     reason: []const u8,
+};
+
+/// ProjectDeadlineRequest is a structured data type.
+pub const ProjectDeadlineRequest = struct {
+    project_id: ProjectID,
+    range_start: Timestamp,
+    range_end: Timestamp,
+};
+
+/// ProjectDeadline is a structured data type.
+pub const ProjectDeadline = struct {
+    task_id: TaskID,
+    title: []const u8,
+    due_at: Timestamp,
 };
 
 /// AuditEntry is a structured data type.

@@ -13,7 +13,7 @@ shared repository — then depend on it alongside the transport library:
 
 ```kotlin
 dependencies {
-    implementation("com.catalystcommunity.longhouse.client:longhouse-client:0.15.3")
+    implementation("com.catalystcommunity.longhouse.client:longhouse-client:0.16.0")
     implementation("community.catalyst.csilgen:csilgen-transport:0.1.0")
 }
 ```
@@ -71,7 +71,7 @@ class HttpRpcTransport(baseUrl: String) : Transport {
 
 fun main() {
     val client = AuthClient(HttpRpcTransport("http://localhost:5080"))
-    val resp = client.login(LoginRequest(signedAssertion = "example"))
+    val resp = client.getActAsScopeSet(ActAsScopeSetRequest(scopes = emptyList()))
     println(resp)
 }
 ```
@@ -177,7 +177,7 @@ fun main() {
     val carrier = UdpDatagramCarrier("localhost", 9000)
 
     // Fire-and-forget: encode the `->` request and send it. seq 0 marks an unsequenced datagram.
-    val req: LoginRequest = LoginRequest(signedAssertion = "example")
+    val req: ActAsScopeSetRequest = ActAsScopeSetRequest(scopes = emptyList())
     carrier.sendDatagram(Datagram(OP_ORD, 0uL, req.toCbor()).encode())
 
     // Recv path: a datagram of the RESPONSE type MAY arrive later — or never. There is NO
@@ -186,7 +186,7 @@ fun main() {
     val inbound = carrier.recvDatagram()
     if (inbound != null) {
         val dg = Datagram.decode(inbound)
-        val resp: LoginResponse = loginResponseFromCbor(dg.payload)
+        val resp: ActAsScopeSetResponse = actAsScopeSetResponseFromCbor(dg.payload)
         println("late response: $resp")
     }
 }

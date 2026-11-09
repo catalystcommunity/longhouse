@@ -29,6 +29,10 @@ public sealed class CsilClientException : System.Exception
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class AuthClient(ICsilTransport transport)
 {
+    public ActAsScopeSetResponse GetActAsScopeSet(ActAsScopeSetRequest actAsScopeSetRequest) =>
+        Codec.Decode<ActAsScopeSetResponse>(transport.Call("AuthService", "get-act-as-scope-set", Codec.Encode(actAsScopeSetRequest)));
+    public ActAsTokenResponse ExchangeActAsCredential(ExchangeActAsCredentialRequest exchangeActAsCredentialRequest) =>
+        Codec.Decode<ActAsTokenResponse>(transport.Call("AuthService", "exchange-act-as-credential", Codec.Encode(exchangeActAsCredentialRequest)));
     public LoginResponse Login(LoginRequest loginRequest) =>
         Codec.Decode<LoginResponse>(transport.Call("AuthService", "login", Codec.Encode(loginRequest)));
     public LoginResponse Complete(CompleteRequest completeRequest) =>
@@ -273,6 +277,8 @@ public sealed class EventClient(ICsilTransport transport)
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class CalendarClient(ICsilTransport transport)
 {
+    public ProjectDeadlineList ListProjectDeadlines(ProjectDeadlineRequest projectDeadlineRequest) =>
+        Codec.Decode<ProjectDeadlineList>(transport.Call("CalendarService", "list-project-deadlines", Codec.Encode(projectDeadlineRequest)));
     public CalendarStatus GetStatus(HouseID houseID) =>
         Codec.Decode<CalendarStatus>(transport.Call("CalendarService", "get-status", Codec.EncodeCalendarGetStatusRequest(houseID)));
     public CalendarStatus ConfigureCalendar(ConfigureCalendarRequest configureCalendarRequest) =>

@@ -1040,16 +1040,53 @@ class HouseRoles:
 
 
 @dataclass
+class ActAsDelegation:
+    grant_expires_at: int
+    grant_id: str
+    grantee: str
+    scopes: List[str]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'grant_expires_at') and self.grant_expires_at is not None:
+            result['grant_expires_at'] = self.grant_expires_at
+        if hasattr(self, 'grant_id') and self.grant_id is not None:
+            result['grant_id'] = self.grant_id
+        if hasattr(self, 'grantee') and self.grantee is not None:
+            result['grantee'] = self.grantee
+        if hasattr(self, 'scopes') and self.scopes is not None:
+            result['scopes'] = self.scopes
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ActAsDelegation':
+        """Create instance from dictionary."""
+        return cls(grant_expires_at=data.get('grant_expires_at'), grant_id=data.get('grant_id'), grantee=data.get('grantee'), scopes=data.get('scopes'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ActAsDelegation':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class Identity:
     domain: str
     user_id: str
     houses: List[HouseRoles]
     iat: int
     exp: int
+    delegation: Optional[ActAsDelegation] = None
     display_name: Optional[str] = None
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {}
+        if hasattr(self, 'delegation') and self.delegation is not None:
+            result['delegation'] = self.delegation
         if hasattr(self, 'domain') and self.domain is not None:
             result['domain'] = self.domain
         if hasattr(self, 'user_id') and self.user_id is not None:
@@ -1067,7 +1104,7 @@ class Identity:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Identity':
         """Create instance from dictionary."""
-        return cls(domain=data.get('domain'), user_id=data.get('user_id'), display_name=data.get('display_name'), houses=data.get('houses'), iat=data.get('iat'), exp=data.get('exp'))
+        return cls(delegation=data.get('delegation'), domain=data.get('domain'), user_id=data.get('user_id'), display_name=data.get('display_name'), houses=data.get('houses'), iat=data.get('iat'), exp=data.get('exp'))
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -2896,6 +2933,136 @@ class ServiceError:
 
 
 @dataclass
+class ActAsScopeSetRequest:
+    scopes: List[str]
+    grantee_domain: Optional[str] = None
+    grantee_user_id: Optional[str] = None
+    grantee_application_id: Optional[str] = None
+    local_rp_fingerprint: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'grantee_domain') and self.grantee_domain is not None:
+            result['grantee_domain'] = self.grantee_domain
+        if hasattr(self, 'grantee_user_id') and self.grantee_user_id is not None:
+            result['grantee_user_id'] = self.grantee_user_id
+        if hasattr(self, 'grantee_application_id') and self.grantee_application_id is not None:
+            result['grantee_application_id'] = self.grantee_application_id
+        if hasattr(self, 'local_rp_fingerprint') and self.local_rp_fingerprint is not None:
+            result['local_rp_fingerprint'] = self.local_rp_fingerprint
+        if hasattr(self, 'scopes') and self.scopes is not None:
+            result['scopes'] = self.scopes
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ActAsScopeSetRequest':
+        """Create instance from dictionary."""
+        return cls(grantee_domain=data.get('grantee_domain'), grantee_user_id=data.get('grantee_user_id'), grantee_application_id=data.get('grantee_application_id'), local_rp_fingerprint=data.get('local_rp_fingerprint'), scopes=data.get('scopes'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ActAsScopeSetRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ActAsScopeSetResponse:
+    signed_scope_set: bytes
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'signed_scope_set') and self.signed_scope_set is not None:
+            result['signed_scope_set'] = self.signed_scope_set
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ActAsScopeSetResponse':
+        """Create instance from dictionary."""
+        return cls(signed_scope_set=data.get('signed_scope_set'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ActAsScopeSetResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ExchangeActAsCredentialRequest:
+    credential: bytes
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'credential') and self.credential is not None:
+            result['credential'] = self.credential
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ExchangeActAsCredentialRequest':
+        """Create instance from dictionary."""
+        return cls(credential=data.get('credential'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ExchangeActAsCredentialRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ActAsTokenResponse:
+    token: str
+    domain: str
+    user_id: str
+    expires_at: Timestamp
+    grant_id: str
+    grantee: str
+    scopes: List[str]
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'token') and self.token is not None:
+            result['token'] = self.token
+        if hasattr(self, 'domain') and self.domain is not None:
+            result['domain'] = self.domain
+        if hasattr(self, 'user_id') and self.user_id is not None:
+            result['user_id'] = self.user_id
+        if hasattr(self, 'expires_at') and self.expires_at is not None:
+            result['expires_at'] = self.expires_at
+        if hasattr(self, 'grant_id') and self.grant_id is not None:
+            result['grant_id'] = self.grant_id
+        if hasattr(self, 'grantee') and self.grantee is not None:
+            result['grantee'] = self.grantee
+        if hasattr(self, 'scopes') and self.scopes is not None:
+            result['scopes'] = self.scopes
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ActAsTokenResponse':
+        """Create instance from dictionary."""
+        return cls(token=data.get('token'), domain=data.get('domain'), user_id=data.get('user_id'), expires_at=data.get('expires_at'), grant_id=data.get('grant_id'), grantee=data.get('grantee'), scopes=data.get('scopes'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ActAsTokenResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class CalendarSubscription:
     subject_member_id: MemberId
     enabled: bool
@@ -3199,6 +3366,105 @@ class CalendarMigrationRow:
 
     @classmethod
     def from_json(cls, json_str: str) -> 'CalendarMigrationRow':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ProjectDeadlineRequest:
+    project_id: ProjectId
+    range_start: Timestamp
+    range_end: Timestamp
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'project_id') and self.project_id is not None:
+            result['project_id'] = self.project_id
+        if hasattr(self, 'range_start') and self.range_start is not None:
+            result['range_start'] = self.range_start
+        if hasattr(self, 'range_end') and self.range_end is not None:
+            result['range_end'] = self.range_end
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ProjectDeadlineRequest':
+        """Create instance from dictionary."""
+        return cls(project_id=data.get('project_id'), range_start=data.get('range_start'), range_end=data.get('range_end'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ProjectDeadlineRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ProjectDeadline:
+    task_id: TaskId
+    title: str
+    due_at: Timestamp
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'task_id') and self.task_id is not None:
+            result['task_id'] = self.task_id
+        if hasattr(self, 'title') and self.title is not None:
+            result['title'] = self.title
+        if hasattr(self, 'due_at') and self.due_at is not None:
+            result['due_at'] = self.due_at
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ProjectDeadline':
+        """Create instance from dictionary."""
+        return cls(task_id=data.get('task_id'), title=data.get('title'), due_at=data.get('due_at'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ProjectDeadline':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class ProjectDeadlineList:
+    enabled: bool
+    pending: bool
+    category: str
+    deadlines: List[ProjectDeadline]
+    last_error: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'enabled') and self.enabled is not None:
+            result['enabled'] = self.enabled
+        if hasattr(self, 'pending') and self.pending is not None:
+            result['pending'] = self.pending
+        if hasattr(self, 'category') and self.category is not None:
+            result['category'] = self.category
+        if hasattr(self, 'last_error') and self.last_error is not None:
+            result['last_error'] = self.last_error
+        if hasattr(self, 'deadlines') and self.deadlines is not None:
+            result['deadlines'] = self.deadlines
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ProjectDeadlineList':
+        """Create instance from dictionary."""
+        return cls(enabled=data.get('enabled'), pending=data.get('pending'), category=data.get('category'), last_error=data.get('last_error'), deadlines=data.get('deadlines'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'ProjectDeadlineList':
         """Create instance from JSON string."""
         return cls.from_dict(json.loads(json_str))
 

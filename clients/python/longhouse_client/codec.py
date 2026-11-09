@@ -1266,6 +1266,35 @@ def _house_roles_from_cbor(data: bytes) -> "HouseRoles":
 HouseRoles.to_cbor = _house_roles_to_cbor
 HouseRoles.from_cbor = staticmethod(_house_roles_from_cbor)
 
+def _encode_act_as_delegation_value(v: "ActAsDelegation") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["scopes"] = v.scopes
+    csil_m["grantee"] = v.grantee
+    csil_m["grant_id"] = v.grant_id
+    csil_m["grant_expires_at"] = v.grant_expires_at
+    return csil_m
+
+def _decode_act_as_delegation_value(tree: Any) -> "ActAsDelegation":
+    tree = _csil_expect_map(tree)
+    return ActAsDelegation(
+        grant_expires_at=_csil_expect_int(tree["grant_expires_at"]),
+        grant_id=_csil_expect_text(tree["grant_id"]),
+        grantee=_csil_expect_text(tree["grantee"]),
+        scopes=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["scopes"])],
+    )
+
+
+def _act_as_delegation_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_act_as_delegation_value(self))
+
+
+def _act_as_delegation_from_cbor(data: bytes) -> "ActAsDelegation":
+    return _decode_act_as_delegation_value(cbor_decode(data))
+
+
+ActAsDelegation.to_cbor = _act_as_delegation_to_cbor
+ActAsDelegation.from_cbor = staticmethod(_act_as_delegation_from_cbor)
+
 def _encode_identity_value(v: "Identity") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["exp"] = v.exp
@@ -1273,6 +1302,9 @@ def _encode_identity_value(v: "Identity") -> Dict[Any, Any]:
     csil_m["domain"] = v.domain
     csil_m["houses"] = [_encode_house_roles_value(csil_e) for csil_e in v.houses]
     csil_m["user_id"] = v.user_id
+    csil_x = v.delegation
+    if csil_x is not None:
+        csil_m["delegation"] = _encode_act_as_delegation_value(csil_x)
     csil_x = v.display_name
     if csil_x is not None:
         csil_m["display_name"] = csil_x
@@ -1281,6 +1313,7 @@ def _encode_identity_value(v: "Identity") -> Dict[Any, Any]:
 def _decode_identity_value(tree: Any) -> "Identity":
     tree = _csil_expect_map(tree)
     return Identity(
+        delegation=(None if tree.get("delegation") is None else _decode_act_as_delegation_value(tree["delegation"])),
         domain=_csil_expect_text(tree["domain"]),
         user_id=_csil_expect_text(tree["user_id"]),
         display_name=(None if tree.get("display_name") is None else _csil_expect_text(tree["display_name"])),
@@ -2990,6 +3023,126 @@ def _service_error_from_cbor(data: bytes) -> "ServiceError":
 ServiceError.to_cbor = _service_error_to_cbor
 ServiceError.from_cbor = staticmethod(_service_error_from_cbor)
 
+def _encode_act_as_scope_set_request_value(v: "ActAsScopeSetRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["scopes"] = v.scopes
+    csil_x = v.grantee_domain
+    if csil_x is not None:
+        csil_m["grantee_domain"] = csil_x
+    csil_x = v.grantee_user_id
+    if csil_x is not None:
+        csil_m["grantee_user_id"] = csil_x
+    csil_x = v.local_rp_fingerprint
+    if csil_x is not None:
+        csil_m["local_rp_fingerprint"] = csil_x
+    csil_x = v.grantee_application_id
+    if csil_x is not None:
+        csil_m["grantee_application_id"] = csil_x
+    return csil_m
+
+def _decode_act_as_scope_set_request_value(tree: Any) -> "ActAsScopeSetRequest":
+    tree = _csil_expect_map(tree)
+    return ActAsScopeSetRequest(
+        grantee_domain=(None if tree.get("grantee_domain") is None else _csil_expect_text(tree["grantee_domain"])),
+        grantee_user_id=(None if tree.get("grantee_user_id") is None else _csil_expect_text(tree["grantee_user_id"])),
+        grantee_application_id=(None if tree.get("grantee_application_id") is None else _csil_expect_text(tree["grantee_application_id"])),
+        local_rp_fingerprint=(None if tree.get("local_rp_fingerprint") is None else _csil_expect_text(tree["local_rp_fingerprint"])),
+        scopes=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["scopes"])],
+    )
+
+
+def _act_as_scope_set_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_act_as_scope_set_request_value(self))
+
+
+def _act_as_scope_set_request_from_cbor(data: bytes) -> "ActAsScopeSetRequest":
+    return _decode_act_as_scope_set_request_value(cbor_decode(data))
+
+
+ActAsScopeSetRequest.to_cbor = _act_as_scope_set_request_to_cbor
+ActAsScopeSetRequest.from_cbor = staticmethod(_act_as_scope_set_request_from_cbor)
+
+def _encode_act_as_scope_set_response_value(v: "ActAsScopeSetResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["signed_scope_set"] = v.signed_scope_set
+    return csil_m
+
+def _decode_act_as_scope_set_response_value(tree: Any) -> "ActAsScopeSetResponse":
+    tree = _csil_expect_map(tree)
+    return ActAsScopeSetResponse(
+        signed_scope_set=_csil_expect_bytes(tree["signed_scope_set"]),
+    )
+
+
+def _act_as_scope_set_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_act_as_scope_set_response_value(self))
+
+
+def _act_as_scope_set_response_from_cbor(data: bytes) -> "ActAsScopeSetResponse":
+    return _decode_act_as_scope_set_response_value(cbor_decode(data))
+
+
+ActAsScopeSetResponse.to_cbor = _act_as_scope_set_response_to_cbor
+ActAsScopeSetResponse.from_cbor = staticmethod(_act_as_scope_set_response_from_cbor)
+
+def _encode_exchange_act_as_credential_request_value(v: "ExchangeActAsCredentialRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["credential"] = v.credential
+    return csil_m
+
+def _decode_exchange_act_as_credential_request_value(tree: Any) -> "ExchangeActAsCredentialRequest":
+    tree = _csil_expect_map(tree)
+    return ExchangeActAsCredentialRequest(
+        credential=_csil_expect_bytes(tree["credential"]),
+    )
+
+
+def _exchange_act_as_credential_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_exchange_act_as_credential_request_value(self))
+
+
+def _exchange_act_as_credential_request_from_cbor(data: bytes) -> "ExchangeActAsCredentialRequest":
+    return _decode_exchange_act_as_credential_request_value(cbor_decode(data))
+
+
+ExchangeActAsCredentialRequest.to_cbor = _exchange_act_as_credential_request_to_cbor
+ExchangeActAsCredentialRequest.from_cbor = staticmethod(_exchange_act_as_credential_request_from_cbor)
+
+def _encode_act_as_token_response_value(v: "ActAsTokenResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["token"] = v.token
+    csil_m["domain"] = v.domain
+    csil_m["scopes"] = v.scopes
+    csil_m["grantee"] = v.grantee
+    csil_m["user_id"] = v.user_id
+    csil_m["grant_id"] = v.grant_id
+    csil_m["expires_at"] = v.expires_at
+    return csil_m
+
+def _decode_act_as_token_response_value(tree: Any) -> "ActAsTokenResponse":
+    tree = _csil_expect_map(tree)
+    return ActAsTokenResponse(
+        token=_csil_expect_text(tree["token"]),
+        domain=_csil_expect_text(tree["domain"]),
+        user_id=_csil_expect_text(tree["user_id"]),
+        expires_at=_csil_expect_text(tree["expires_at"]),
+        grant_id=_csil_expect_text(tree["grant_id"]),
+        grantee=_csil_expect_text(tree["grantee"]),
+        scopes=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["scopes"])],
+    )
+
+
+def _act_as_token_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_act_as_token_response_value(self))
+
+
+def _act_as_token_response_from_cbor(data: bytes) -> "ActAsTokenResponse":
+    return _decode_act_as_token_response_value(cbor_decode(data))
+
+
+ActAsTokenResponse.to_cbor = _act_as_token_response_to_cbor
+ActAsTokenResponse.from_cbor = staticmethod(_act_as_token_response_from_cbor)
+
 def _encode_calendar_subscription_value(v: "CalendarSubscription") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["enabled"] = v.enabled
@@ -3265,6 +3418,93 @@ def _calendar_migration_row_from_cbor(data: bytes) -> "CalendarMigrationRow":
 
 CalendarMigrationRow.to_cbor = _calendar_migration_row_to_cbor
 CalendarMigrationRow.from_cbor = staticmethod(_calendar_migration_row_from_cbor)
+
+def _encode_project_deadline_request_value(v: "ProjectDeadlineRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["range_end"] = v.range_end
+    csil_m["project_id"] = v.project_id
+    csil_m["range_start"] = v.range_start
+    return csil_m
+
+def _decode_project_deadline_request_value(tree: Any) -> "ProjectDeadlineRequest":
+    tree = _csil_expect_map(tree)
+    return ProjectDeadlineRequest(
+        project_id=_csil_expect_text(tree["project_id"]),
+        range_start=_csil_expect_text(tree["range_start"]),
+        range_end=_csil_expect_text(tree["range_end"]),
+    )
+
+
+def _project_deadline_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_project_deadline_request_value(self))
+
+
+def _project_deadline_request_from_cbor(data: bytes) -> "ProjectDeadlineRequest":
+    return _decode_project_deadline_request_value(cbor_decode(data))
+
+
+ProjectDeadlineRequest.to_cbor = _project_deadline_request_to_cbor
+ProjectDeadlineRequest.from_cbor = staticmethod(_project_deadline_request_from_cbor)
+
+def _encode_project_deadline_value(v: "ProjectDeadline") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["title"] = v.title
+    csil_m["due_at"] = v.due_at
+    csil_m["task_id"] = v.task_id
+    return csil_m
+
+def _decode_project_deadline_value(tree: Any) -> "ProjectDeadline":
+    tree = _csil_expect_map(tree)
+    return ProjectDeadline(
+        task_id=_csil_expect_text(tree["task_id"]),
+        title=_csil_expect_text(tree["title"]),
+        due_at=_csil_expect_text(tree["due_at"]),
+    )
+
+
+def _project_deadline_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_project_deadline_value(self))
+
+
+def _project_deadline_from_cbor(data: bytes) -> "ProjectDeadline":
+    return _decode_project_deadline_value(cbor_decode(data))
+
+
+ProjectDeadline.to_cbor = _project_deadline_to_cbor
+ProjectDeadline.from_cbor = staticmethod(_project_deadline_from_cbor)
+
+def _encode_project_deadline_list_value(v: "ProjectDeadlineList") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["enabled"] = v.enabled
+    csil_m["pending"] = v.pending
+    csil_m["category"] = v.category
+    csil_m["deadlines"] = [_encode_project_deadline_value(csil_e) for csil_e in v.deadlines]
+    csil_x = v.last_error
+    if csil_x is not None:
+        csil_m["last_error"] = csil_x
+    return csil_m
+
+def _decode_project_deadline_list_value(tree: Any) -> "ProjectDeadlineList":
+    tree = _csil_expect_map(tree)
+    return ProjectDeadlineList(
+        enabled=_csil_expect_bool(tree["enabled"]),
+        pending=_csil_expect_bool(tree["pending"]),
+        category=_csil_expect_text(tree["category"]),
+        last_error=(None if tree.get("last_error") is None else _csil_expect_text(tree["last_error"])),
+        deadlines=[_decode_project_deadline_value(csil_e) for csil_e in _csil_expect_array(tree["deadlines"])],
+    )
+
+
+def _project_deadline_list_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_project_deadline_list_value(self))
+
+
+def _project_deadline_list_from_cbor(data: bytes) -> "ProjectDeadlineList":
+    return _decode_project_deadline_list_value(cbor_decode(data))
+
+
+ProjectDeadlineList.to_cbor = _project_deadline_list_to_cbor
+ProjectDeadlineList.from_cbor = staticmethod(_project_deadline_list_from_cbor)
 
 def _encode_audit_entry_value(v: "AuditEntry") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}

@@ -83,7 +83,7 @@ public static class CsilRpcExample
     public static void Run()
     {
         var client = new AuthClient(new HttpRpcCarrier("http://localhost:5080"));
-        var response = client.Login(new LoginRequest { SignedAssertion = "example" });
+        var response = client.GetActAsScopeSet(new ActAsScopeSetRequest { Scopes = default! });
         System.Console.WriteLine(response);
     }
 }
@@ -174,7 +174,7 @@ public static class CsilDatagramsExample
 
         // Fire-and-forget: encode the `->` request via the generated codec and send it.
         // seq 0 marks an unsequenced datagram.
-        var req = new LoginRequest { SignedAssertion = "example" };
+        var req = new ActAsScopeSetRequest { Scopes = default! };
         carrier.SendDatagram(new Datagram(OpOrd, 0, Codec.Encode(req)).Encode());
 
         // Recv path: a datagram of the RESPONSE type MAY arrive later — or never. There is
@@ -184,7 +184,7 @@ public static class CsilDatagramsExample
         if (inbound is not null)
         {
             Datagram dg = Datagram.Decode(inbound);
-            LoginResponse resp = Codec.Decode<LoginResponse>(dg.Payload);
+            ActAsScopeSetResponse resp = Codec.Decode<ActAsScopeSetResponse>(dg.Payload);
             System.Console.WriteLine($"late response {resp}");
         }
     }

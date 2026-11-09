@@ -13,6 +13,7 @@ const (
 )
 
 var (
+	ActAsKeysFile            = getEnvOrDefault("LONGHOUSE_ACT_AS_KEYS_FILE", "")
 	CatalystcalURL           = getEnvOrDefault("LONGHOUSE_CATALYSTCAL_URL", "")
 	CatalystcalKeysFile      = getEnvOrDefault("LONGHOUSE_CATALYSTCAL_KEYS_FILE", "")
 	CatalystcalCallbackURL   = getEnvOrDefault("LONGHOUSE_CATALYSTCAL_CALLBACK_URL", "")

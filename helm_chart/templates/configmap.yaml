@@ -5,6 +5,9 @@ metadata:
   labels:
     {{- include "longhouse.labels" . | nindent 4 }}
 data:
+  {{- if .Values.actAs.enabled }}
+  LONGHOUSE_ACT_AS_KEYS_FILE: "/var/run/longhouse-act-as/keys.json"
+  {{- end }}
   {{- if .Values.catalystcal.enabled }}
   LONGHOUSE_CATALYSTCAL_URL: {{ required "catalystcal.url is required" .Values.catalystcal.url | quote }}
   LONGHOUSE_CATALYSTCAL_CALLBACK_URL: {{ required "catalystcal.callbackUrl is required" .Values.catalystcal.callbackUrl | quote }}

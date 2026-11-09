@@ -116,6 +116,16 @@ func Emit(ctx context.Context, rec Recorder, service, method string, id *auth.Id
 			e.Detail = models.JSONMap(d.Detail)
 		}
 	}
+	if id != nil && id.Delegation != nil {
+		detail := models.JSONMap{}
+		for k, v := range e.Detail {
+			detail[k] = v
+		}
+		detail["act_as_grant_id"] = id.Delegation.GrantID
+		detail["act_as_grantee"] = id.Delegation.Grantee
+		detail["act_as_scopes"] = id.Delegation.Scopes
+		e.Detail = detail
+	}
 	return rec.RecordAuditEntry(ctx, e)
 }
 

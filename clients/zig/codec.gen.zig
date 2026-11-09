@@ -2223,8 +2223,48 @@ fn dec_HouseRoles(alloc: std.mem.Allocator, m: Value, out: *types.HouseRoles) Co
     }
 }
 
+fn enc_ActAsDelegation(out: *std.ArrayList(u8), v: *const types.ActAsDelegation) CodecError!void {
+    try w_map_head(out, 4);
+    try w_text(out, "scopes");
+    try w_array_head(out, v.scopes.len);
+    for (v.scopes) |csil_it| {
+        try w_text(out, csil_it);
+    }
+    try w_text(out, "grantee");
+    try w_text(out, v.grantee);
+    try w_text(out, "grant_id");
+    try w_text(out, v.grant_id);
+    try w_text(out, "grant_expires_at");
+    try w_int(out, v.grant_expires_at);
+}
+
+fn dec_ActAsDelegation(alloc: std.mem.Allocator, m: Value, out: *types.ActAsDelegation) CodecError!void {
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "scopes");
+        if (csil_fv != .array) return error.WrongType;
+        out.scopes = try alloc.alloc([]const u8, csil_fv.array.len);
+        for (csil_fv.array, 0..) |csil_it, csil_i| {
+            out.scopes[csil_i] = try as_text(csil_it);
+        }
+    }
+    {
+        const csil_fv = try req(m, "grantee");
+        out.grantee = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "grant_id");
+        out.grant_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "grant_expires_at");
+        out.grant_expires_at = try as_i64(csil_fv);
+    }
+}
+
 fn enc_Identity(out: *std.ArrayList(u8), v: *const types.Identity) CodecError!void {
     var csil_n: usize = 5;
+    if (v.delegation != null) csil_n += 1;
     if (v.display_name != null) csil_n += 1;
     try w_map_head(out, csil_n);
     try w_text(out, "exp");
@@ -2240,6 +2280,10 @@ fn enc_Identity(out: *std.ArrayList(u8), v: *const types.Identity) CodecError!vo
     }
     try w_text(out, "user_id");
     try w_text(out, v.user_id);
+    if (v.delegation) |csil_x| {
+        try w_text(out, "delegation");
+        try enc_ActAsDelegation(out, &(csil_x));
+    }
     if (v.display_name) |csil_x| {
         try w_text(out, "display_name");
         try w_text(out, csil_x);
@@ -2271,6 +2315,15 @@ fn dec_Identity(alloc: std.mem.Allocator, m: Value, out: *types.Identity) CodecE
     {
         const csil_fv = try req(m, "user_id");
         out.user_id = try as_text(csil_fv);
+    }
+    {
+        if (mget(m, "delegation")) |csil_fv| {
+            var csil_tmp: types.ActAsDelegation = undefined;
+            try dec_ActAsDelegation(alloc, csil_fv, &csil_tmp);
+            out.delegation = csil_tmp;
+        } else {
+            out.delegation = null;
+        }
     }
     {
         if (mget(m, "display_name")) |csil_fv| {
@@ -4247,6 +4300,163 @@ fn dec_ServiceError(alloc: std.mem.Allocator, m: Value, out: *types.ServiceError
     }
 }
 
+fn enc_ActAsScopeSetRequest(out: *std.ArrayList(u8), v: *const types.ActAsScopeSetRequest) CodecError!void {
+    var csil_n: usize = 1;
+    if (v.grantee_domain != null) csil_n += 1;
+    if (v.grantee_user_id != null) csil_n += 1;
+    if (v.local_rp_fingerprint != null) csil_n += 1;
+    if (v.grantee_application_id != null) csil_n += 1;
+    try w_map_head(out, csil_n);
+    try w_text(out, "scopes");
+    try w_array_head(out, v.scopes.len);
+    for (v.scopes) |csil_it| {
+        try w_text(out, csil_it);
+    }
+    if (v.grantee_domain) |csil_x| {
+        try w_text(out, "grantee_domain");
+        try w_text(out, csil_x);
+    }
+    if (v.grantee_user_id) |csil_x| {
+        try w_text(out, "grantee_user_id");
+        try w_text(out, csil_x);
+    }
+    if (v.local_rp_fingerprint) |csil_x| {
+        try w_text(out, "local_rp_fingerprint");
+        try w_text(out, csil_x);
+    }
+    if (v.grantee_application_id) |csil_x| {
+        try w_text(out, "grantee_application_id");
+        try w_text(out, csil_x);
+    }
+}
+
+fn dec_ActAsScopeSetRequest(alloc: std.mem.Allocator, m: Value, out: *types.ActAsScopeSetRequest) CodecError!void {
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "scopes");
+        if (csil_fv != .array) return error.WrongType;
+        out.scopes = try alloc.alloc([]const u8, csil_fv.array.len);
+        for (csil_fv.array, 0..) |csil_it, csil_i| {
+            out.scopes[csil_i] = try as_text(csil_it);
+        }
+    }
+    {
+        if (mget(m, "grantee_domain")) |csil_fv| {
+            out.grantee_domain = try as_text(csil_fv);
+        } else {
+            out.grantee_domain = null;
+        }
+    }
+    {
+        if (mget(m, "grantee_user_id")) |csil_fv| {
+            out.grantee_user_id = try as_text(csil_fv);
+        } else {
+            out.grantee_user_id = null;
+        }
+    }
+    {
+        if (mget(m, "local_rp_fingerprint")) |csil_fv| {
+            out.local_rp_fingerprint = try as_text(csil_fv);
+        } else {
+            out.local_rp_fingerprint = null;
+        }
+    }
+    {
+        if (mget(m, "grantee_application_id")) |csil_fv| {
+            out.grantee_application_id = try as_text(csil_fv);
+        } else {
+            out.grantee_application_id = null;
+        }
+    }
+}
+
+fn enc_ActAsScopeSetResponse(out: *std.ArrayList(u8), v: *const types.ActAsScopeSetResponse) CodecError!void {
+    try w_map_head(out, 1);
+    try w_text(out, "signed_scope_set");
+    try w_bytes(out, v.signed_scope_set);
+}
+
+fn dec_ActAsScopeSetResponse(alloc: std.mem.Allocator, m: Value, out: *types.ActAsScopeSetResponse) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "signed_scope_set");
+        out.signed_scope_set = try as_bytes(csil_fv);
+    }
+}
+
+fn enc_ExchangeActAsCredentialRequest(out: *std.ArrayList(u8), v: *const types.ExchangeActAsCredentialRequest) CodecError!void {
+    try w_map_head(out, 1);
+    try w_text(out, "credential");
+    try w_bytes(out, v.credential);
+}
+
+fn dec_ExchangeActAsCredentialRequest(alloc: std.mem.Allocator, m: Value, out: *types.ExchangeActAsCredentialRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "credential");
+        out.credential = try as_bytes(csil_fv);
+    }
+}
+
+fn enc_ActAsTokenResponse(out: *std.ArrayList(u8), v: *const types.ActAsTokenResponse) CodecError!void {
+    try w_map_head(out, 7);
+    try w_text(out, "token");
+    try w_text(out, v.token);
+    try w_text(out, "domain");
+    try w_text(out, v.domain);
+    try w_text(out, "scopes");
+    try w_array_head(out, v.scopes.len);
+    for (v.scopes) |csil_it| {
+        try w_text(out, csil_it);
+    }
+    try w_text(out, "grantee");
+    try w_text(out, v.grantee);
+    try w_text(out, "user_id");
+    try w_text(out, v.user_id);
+    try w_text(out, "grant_id");
+    try w_text(out, v.grant_id);
+    try w_text(out, "expires_at");
+    try w_text(out, v.expires_at);
+}
+
+fn dec_ActAsTokenResponse(alloc: std.mem.Allocator, m: Value, out: *types.ActAsTokenResponse) CodecError!void {
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "token");
+        out.token = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "domain");
+        out.domain = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "scopes");
+        if (csil_fv != .array) return error.WrongType;
+        out.scopes = try alloc.alloc([]const u8, csil_fv.array.len);
+        for (csil_fv.array, 0..) |csil_it, csil_i| {
+            out.scopes[csil_i] = try as_text(csil_it);
+        }
+    }
+    {
+        const csil_fv = try req(m, "grantee");
+        out.grantee = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "user_id");
+        out.user_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "grant_id");
+        out.grant_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "expires_at");
+        out.expires_at = try as_text(csil_fv);
+    }
+}
+
 fn enc_CalendarSubscription(out: *std.ArrayList(u8), v: *const types.CalendarSubscription) CodecError!void {
     try w_map_head(out, 2);
     try w_text(out, "enabled");
@@ -4540,6 +4750,112 @@ fn dec_CalendarMigrationRow(alloc: std.mem.Allocator, m: Value, out: *types.Cale
     {
         const csil_fv = try req(m, "disposition");
         out.disposition = try as_text(csil_fv);
+    }
+}
+
+fn enc_ProjectDeadlineRequest(out: *std.ArrayList(u8), v: *const types.ProjectDeadlineRequest) CodecError!void {
+    try w_map_head(out, 3);
+    try w_text(out, "range_end");
+    try w_text(out, v.range_end);
+    try w_text(out, "project_id");
+    try w_text(out, v.project_id);
+    try w_text(out, "range_start");
+    try w_text(out, v.range_start);
+}
+
+fn dec_ProjectDeadlineRequest(alloc: std.mem.Allocator, m: Value, out: *types.ProjectDeadlineRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "range_end");
+        out.range_end = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "project_id");
+        out.project_id = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "range_start");
+        out.range_start = try as_text(csil_fv);
+    }
+}
+
+fn enc_ProjectDeadline(out: *std.ArrayList(u8), v: *const types.ProjectDeadline) CodecError!void {
+    try w_map_head(out, 3);
+    try w_text(out, "title");
+    try w_text(out, v.title);
+    try w_text(out, "due_at");
+    try w_text(out, v.due_at);
+    try w_text(out, "task_id");
+    try w_text(out, v.task_id);
+}
+
+fn dec_ProjectDeadline(alloc: std.mem.Allocator, m: Value, out: *types.ProjectDeadline) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "title");
+        out.title = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "due_at");
+        out.due_at = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "task_id");
+        out.task_id = try as_text(csil_fv);
+    }
+}
+
+fn enc_ProjectDeadlineList(out: *std.ArrayList(u8), v: *const types.ProjectDeadlineList) CodecError!void {
+    var csil_n: usize = 4;
+    if (v.last_error != null) csil_n += 1;
+    try w_map_head(out, csil_n);
+    try w_text(out, "enabled");
+    try w_bool(out, v.enabled);
+    try w_text(out, "pending");
+    try w_bool(out, v.pending);
+    try w_text(out, "category");
+    try w_text(out, v.category);
+    try w_text(out, "deadlines");
+    try w_array_head(out, v.deadlines.len);
+    for (v.deadlines) |csil_it| {
+        try enc_ProjectDeadline(out, &(csil_it));
+    }
+    if (v.last_error) |csil_x| {
+        try w_text(out, "last_error");
+        try w_text(out, csil_x);
+    }
+}
+
+fn dec_ProjectDeadlineList(alloc: std.mem.Allocator, m: Value, out: *types.ProjectDeadlineList) CodecError!void {
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "enabled");
+        out.enabled = try as_bool(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "pending");
+        out.pending = try as_bool(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "category");
+        out.category = try as_text(csil_fv);
+    }
+    {
+        const csil_fv = try req(m, "deadlines");
+        if (csil_fv != .array) return error.WrongType;
+        out.deadlines = try alloc.alloc(types.ProjectDeadline, csil_fv.array.len);
+        for (csil_fv.array, 0..) |csil_it, csil_i| {
+            try dec_ProjectDeadline(alloc, csil_it, &(out.deadlines[csil_i]));
+        }
+    }
+    {
+        if (mget(m, "last_error")) |csil_fv| {
+            out.last_error = try as_text(csil_fv);
+        } else {
+            out.last_error = null;
+        }
     }
 }
 
@@ -5540,6 +5856,22 @@ pub fn decode_HouseRoles(alloc: std.mem.Allocator, bytes: []const u8, out: *type
     try dec_HouseRoles(alloc, root, out);
 }
 
+/// Encode a ActAsDelegation to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ActAsDelegation(alloc: std.mem.Allocator, v: *const types.ActAsDelegation) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ActAsDelegation(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ActAsDelegation. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ActAsDelegation(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ActAsDelegation) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ActAsDelegation(alloc, root, out);
+}
+
 /// Encode a Identity to CBOR. The returned slice is owned by the caller
 /// (free it with alloc.free).
 pub fn encode_Identity(alloc: std.mem.Allocator, v: *const types.Identity) CodecError![]u8 {
@@ -6500,6 +6832,70 @@ pub fn decode_ServiceError(alloc: std.mem.Allocator, bytes: []const u8, out: *ty
     try dec_ServiceError(alloc, root, out);
 }
 
+/// Encode a ActAsScopeSetRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ActAsScopeSetRequest(alloc: std.mem.Allocator, v: *const types.ActAsScopeSetRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ActAsScopeSetRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ActAsScopeSetRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ActAsScopeSetRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ActAsScopeSetRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ActAsScopeSetRequest(alloc, root, out);
+}
+
+/// Encode a ActAsScopeSetResponse to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ActAsScopeSetResponse(alloc: std.mem.Allocator, v: *const types.ActAsScopeSetResponse) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ActAsScopeSetResponse(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ActAsScopeSetResponse. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ActAsScopeSetResponse(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ActAsScopeSetResponse) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ActAsScopeSetResponse(alloc, root, out);
+}
+
+/// Encode a ExchangeActAsCredentialRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ExchangeActAsCredentialRequest(alloc: std.mem.Allocator, v: *const types.ExchangeActAsCredentialRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ExchangeActAsCredentialRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ExchangeActAsCredentialRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ExchangeActAsCredentialRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ExchangeActAsCredentialRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ExchangeActAsCredentialRequest(alloc, root, out);
+}
+
+/// Encode a ActAsTokenResponse to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ActAsTokenResponse(alloc: std.mem.Allocator, v: *const types.ActAsTokenResponse) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ActAsTokenResponse(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ActAsTokenResponse. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ActAsTokenResponse(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ActAsTokenResponse) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ActAsTokenResponse(alloc, root, out);
+}
+
 /// Encode a CalendarSubscription to CBOR. The returned slice is owned by the caller
 /// (free it with alloc.free).
 pub fn encode_CalendarSubscription(alloc: std.mem.Allocator, v: *const types.CalendarSubscription) CodecError![]u8 {
@@ -6658,6 +7054,54 @@ pub fn encode_CalendarMigrationRow(alloc: std.mem.Allocator, v: *const types.Cal
 pub fn decode_CalendarMigrationRow(alloc: std.mem.Allocator, bytes: []const u8, out: *types.CalendarMigrationRow) CodecError!void {
     const root = try decode(alloc, bytes);
     try dec_CalendarMigrationRow(alloc, root, out);
+}
+
+/// Encode a ProjectDeadlineRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ProjectDeadlineRequest(alloc: std.mem.Allocator, v: *const types.ProjectDeadlineRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ProjectDeadlineRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ProjectDeadlineRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ProjectDeadlineRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ProjectDeadlineRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ProjectDeadlineRequest(alloc, root, out);
+}
+
+/// Encode a ProjectDeadline to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ProjectDeadline(alloc: std.mem.Allocator, v: *const types.ProjectDeadline) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ProjectDeadline(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ProjectDeadline. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ProjectDeadline(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ProjectDeadline) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ProjectDeadline(alloc, root, out);
+}
+
+/// Encode a ProjectDeadlineList to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_ProjectDeadlineList(alloc: std.mem.Allocator, v: *const types.ProjectDeadlineList) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_ProjectDeadlineList(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a ProjectDeadlineList. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_ProjectDeadlineList(alloc: std.mem.Allocator, bytes: []const u8, out: *types.ProjectDeadlineList) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_ProjectDeadlineList(alloc, root, out);
 }
 
 /// Encode a AuditEntry to CBOR. The returned slice is owned by the caller

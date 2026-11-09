@@ -1,6 +1,7 @@
 package calendar
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
@@ -145,4 +146,74 @@ func (c *Client) RunKeyRenewal(ctx context.Context) {
 		case <-tick.C:
 		}
 	}
+}
+
+// EnsureKeys enrolls a missing instance. It never resets an existing instance.
+func EnsureKeys(ctx context.Context, transport lk.Transport, keys Keys) error {
+	response, err := lk.NewApplicationKeysClient(transport).GetApplicationKeys(ctx, lk.GetApplicationKeysRequest{SubjectUserId: keys.Application.SubjectUserId, ApplicationId: keys.Application.ApplicationId, InstanceId: keys.InstanceID})
+	if err != nil {
+		// Released LinkKeys carriers use status 1 or 2 for this service's 404.
+		var remote *rp.ServerError
+		if !errors.As(err, &remote) || (remote.Status != 1 && remote.Status != 2) || remote.Message != "unknown application instance" {
+			return err
+		}
+		if err := Enroll(ctx, transport, keys); err != nil {
+			return err
+		}
+	} else {
+		if err := checkApplicationKeys(response, keys, false); err != nil {
+			return err
+		}
+		if err := RenewKeys(ctx, transport, keys); err != nil {
+			return err
+		}
+	}
+	response, err = lk.NewApplicationKeysClient(transport).GetApplicationKeys(ctx, lk.GetApplicationKeysRequest{SubjectUserId: keys.Application.SubjectUserId, ApplicationId: keys.Application.ApplicationId, InstanceId: keys.InstanceID})
+	if err != nil {
+		return err
+	}
+	return checkApplicationKeys(response, keys, true)
+}
+
+func checkApplicationKeys(response lk.GetApplicationKeysResponse, keys Keys, current bool) error {
+	if response.SubjectDomain != keys.Application.SubjectDomain || response.SubjectUserId != keys.Application.SubjectUserId || response.ApplicationId != keys.Application.ApplicationId || response.InstanceId != keys.InstanceID {
+		return errors.New("home domain returned another application identity")
+	}
+	for _, key := range keys.Keys {
+		_, pub, err := keySigner(key)
+		if err != nil {
+			return err
+		}
+		for _, revocation := range response.Revocations {
+			if revocation.TargetKeyId == key.KeyID {
+				return errors.New("configured application key is revoked")
+			}
+		}
+		matched := false
+		for _, signed := range response.Keys {
+			attestation, err := lk.DecodeApplicationKeyAttestation(signed.Attestation)
+			if err != nil {
+				return errors.New("invalid application attestation")
+			}
+			if attestation.KeyId != key.KeyID {
+				continue
+			}
+			if attestation.SubjectDomain != keys.Application.SubjectDomain || attestation.SubjectUserId != keys.Application.SubjectUserId || attestation.ApplicationId != keys.Application.ApplicationId || attestation.InstanceId != keys.InstanceID || attestation.Fingerprint != rp.Fingerprint(pub) || !bytes.Equal(attestation.PublicKey, pub) || attestation.KeyUsage != "sign" || attestation.Algorithm != "ed25519" {
+				return errors.New("existing application keys differ; refusing a trust reset")
+			}
+			if current {
+				for _, raw := range []string{attestation.KeyExpiresAt, attestation.AttestationExpiresAt} {
+					expires, err := time.Parse(time.RFC3339, raw)
+					if err != nil || !expires.After(time.Now()) {
+						return errors.New("application key attestation is expired")
+					}
+				}
+			}
+			matched = true
+		}
+		if !matched {
+			return errors.New("existing application key is missing; refusing a trust reset")
+		}
+	}
+	return nil
 }

@@ -120,6 +120,7 @@ typedef struct Comment Comment;
 typedef struct Share Share;
 typedef struct HouseSummary HouseSummary;
 typedef struct HouseRoles HouseRoles;
+typedef struct ActAsDelegation ActAsDelegation;
 typedef struct Identity Identity;
 typedef struct LoginRequest LoginRequest;
 typedef struct CompleteRequest CompleteRequest;
@@ -180,6 +181,10 @@ typedef struct EffectiveSettings EffectiveSettings;
 typedef struct UpdateSettingsRequest UpdateSettingsRequest;
 typedef struct BugReportRequest BugReportRequest;
 typedef struct ServiceError ServiceError;
+typedef struct ActAsScopeSetRequest ActAsScopeSetRequest;
+typedef struct ActAsScopeSetResponse ActAsScopeSetResponse;
+typedef struct ExchangeActAsCredentialRequest ExchangeActAsCredentialRequest;
+typedef struct ActAsTokenResponse ActAsTokenResponse;
 typedef struct CalendarSubscription CalendarSubscription;
 typedef struct CalendarView CalendarView;
 typedef struct EventDecision EventDecision;
@@ -190,6 +195,9 @@ typedef struct CompleteCalendarConnectRequest CompleteCalendarConnectRequest;
 typedef struct CalendarTrashEntry CalendarTrashEntry;
 typedef struct RestoreCalendarEventRequest RestoreCalendarEventRequest;
 typedef struct CalendarMigrationRow CalendarMigrationRow;
+typedef struct ProjectDeadlineRequest ProjectDeadlineRequest;
+typedef struct ProjectDeadline ProjectDeadline;
+typedef struct ProjectDeadlineList ProjectDeadlineList;
 typedef struct AuditEntry AuditEntry;
 typedef struct AuditQuery AuditQuery;
 typedef struct AuditPage AuditPage;
@@ -510,8 +518,18 @@ typedef struct HouseRoles {
     size_t roles_count;
 } HouseRoles;
 
+/* ActAsDelegation is a structured data type. */
+typedef struct ActAsDelegation {
+    int64_t grant_expires_at;
+    char *grant_id;
+    char *grantee;
+    char **scopes;
+    size_t scopes_count;
+} ActAsDelegation;
+
 /* Identity is a structured data type. */
 typedef struct Identity {
+    ActAsDelegation *delegation;
     char *domain;
     char *user_id;
     char *display_name;
@@ -945,6 +963,38 @@ typedef struct ServiceError {
     char *message;
 } ServiceError;
 
+/* ActAsScopeSetRequest is a structured data type. */
+typedef struct ActAsScopeSetRequest {
+    char *grantee_domain;
+    char *grantee_user_id;
+    char *grantee_application_id;
+    char *local_rp_fingerprint;
+    char **scopes;
+    size_t scopes_count;
+} ActAsScopeSetRequest;
+
+/* ActAsScopeSetResponse is a structured data type. */
+typedef struct ActAsScopeSetResponse {
+    CsilBytes signed_scope_set;
+} ActAsScopeSetResponse;
+
+/* ExchangeActAsCredentialRequest is a structured data type. */
+typedef struct ExchangeActAsCredentialRequest {
+    CsilBytes credential;
+} ExchangeActAsCredentialRequest;
+
+/* ActAsTokenResponse is a structured data type. */
+typedef struct ActAsTokenResponse {
+    char *token;
+    char *domain;
+    char *user_id;
+    Timestamp expires_at;
+    char *grant_id;
+    char *grantee;
+    char **scopes;
+    size_t scopes_count;
+} ActAsTokenResponse;
+
 /* CalendarSubscription is a structured data type. */
 typedef struct CalendarSubscription {
     MemberID subject_member_id;
@@ -1015,6 +1065,30 @@ typedef struct CalendarMigrationRow {
     char *disposition;
     char *reason;
 } CalendarMigrationRow;
+
+/* ProjectDeadlineRequest is a structured data type. */
+typedef struct ProjectDeadlineRequest {
+    ProjectID project_id;
+    Timestamp range_start;
+    Timestamp range_end;
+} ProjectDeadlineRequest;
+
+/* ProjectDeadline is a structured data type. */
+typedef struct ProjectDeadline {
+    TaskID task_id;
+    char *title;
+    Timestamp due_at;
+} ProjectDeadline;
+
+/* ProjectDeadlineList is a structured data type. */
+typedef struct ProjectDeadlineList {
+    bool enabled;
+    bool pending;
+    char *category;
+    char *last_error;
+    ProjectDeadline *deadlines;
+    size_t deadlines_count;
+} ProjectDeadlineList;
 
 /* AuditEntry is a structured data type. */
 typedef struct AuditEntry {

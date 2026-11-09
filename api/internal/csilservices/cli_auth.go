@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/catalystcommunity/longhouse/api/internal/auth"
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
 	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
 	"github.com/catalystcommunity/longhouse/api/internal/store"
@@ -76,6 +77,9 @@ func (s *AuthService) BeginCliLogin(ctx context.Context, req csil.BeginCliLoginR
 }
 
 func (s *AuthService) ApproveCliLogin(ctx context.Context, req csil.ApproveCliLoginRequest) (csil.EmptyResponse, error) {
+	if id := auth.IdentityFromContext(ctx); id != nil && id.Delegation != nil {
+		return csil.EmptyResponse{}, csilrpc.Forbidden("delegated callers cannot approve sign-in sessions")
+	}
 	id, err := requireIdentity(ctx)
 	if err != nil {
 		return csil.EmptyResponse{}, err

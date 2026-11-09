@@ -18,6 +18,10 @@ public interface ICsilAsyncTransport
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class AuthAsyncClient(ICsilAsyncTransport transport)
 {
+    public async System.Threading.Tasks.Task<ActAsScopeSetResponse> GetActAsScopeSetAsync(ActAsScopeSetRequest actAsScopeSetRequest) =>
+        Codec.Decode<ActAsScopeSetResponse>(await transport.Call("AuthService", "get-act-as-scope-set", Codec.Encode(actAsScopeSetRequest)));
+    public async System.Threading.Tasks.Task<ActAsTokenResponse> ExchangeActAsCredentialAsync(ExchangeActAsCredentialRequest exchangeActAsCredentialRequest) =>
+        Codec.Decode<ActAsTokenResponse>(await transport.Call("AuthService", "exchange-act-as-credential", Codec.Encode(exchangeActAsCredentialRequest)));
     public async System.Threading.Tasks.Task<LoginResponse> LoginAsync(LoginRequest loginRequest) =>
         Codec.Decode<LoginResponse>(await transport.Call("AuthService", "login", Codec.Encode(loginRequest)));
     public async System.Threading.Tasks.Task<LoginResponse> CompleteAsync(CompleteRequest completeRequest) =>
@@ -262,6 +266,8 @@ public sealed class EventAsyncClient(ICsilAsyncTransport transport)
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class CalendarAsyncClient(ICsilAsyncTransport transport)
 {
+    public async System.Threading.Tasks.Task<ProjectDeadlineList> ListProjectDeadlinesAsync(ProjectDeadlineRequest projectDeadlineRequest) =>
+        Codec.Decode<ProjectDeadlineList>(await transport.Call("CalendarService", "list-project-deadlines", Codec.Encode(projectDeadlineRequest)));
     public async System.Threading.Tasks.Task<CalendarStatus> GetStatusAsync(HouseID houseID) =>
         Codec.Decode<CalendarStatus>(await transport.Call("CalendarService", "get-status", Codec.EncodeCalendarGetStatusRequest(houseID)));
     public async System.Threading.Tasks.Task<CalendarStatus> ConfigureCalendarAsync(ConfigureCalendarRequest configureCalendarRequest) =>

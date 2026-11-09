@@ -1253,6 +1253,33 @@ public extension HouseRoles {
     static func fromCbor(_ bytes: [UInt8]) throws -> HouseRoles { try HouseRoles(cborValue: CsilCbor.decode(bytes)) }
 }
 
+public extension ActAsDelegation {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("scopes"), CsilCborValue.array(self.scopes.map { .text($0) })))
+        csilEntries.append((.text("grantee"), .text(self.grantee)))
+        csilEntries.append((.text("grant_id"), .text(self.grantId)))
+        csilEntries.append((.text("grant_expires_at"), .int(self.grantExpiresAt)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let grantExpiresAt = try CsilCbor.asI64((try CsilCbor.require(cborValue, "grant_expires_at")))
+        let grantId = try CsilCbor.asText((try CsilCbor.require(cborValue, "grant_id")))
+        let grantee = try CsilCbor.asText((try CsilCbor.require(cborValue, "grantee")))
+        let scopes = try CsilCbor.asArray((try CsilCbor.require(cborValue, "scopes"))).map { try CsilCbor.asText($0) }
+        self.init(grantExpiresAt: grantExpiresAt, grantId: grantId, grantee: grantee, scopes: scopes)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> ActAsDelegation { try ActAsDelegation(cborValue: CsilCbor.decode(bytes)) }
+}
+
 public extension Identity {
     /// The CBOR value tree for this record (deep, canonical key order).
     func toCborValue() -> CsilCborValue {
@@ -1262,19 +1289,21 @@ public extension Identity {
         csilEntries.append((.text("domain"), .text(self.domain)))
         csilEntries.append((.text("houses"), CsilCborValue.array(self.houses.map { $0.toCborValue() })))
         csilEntries.append((.text("user_id"), .text(self.userId)))
+        if let csilV = self.delegation { csilEntries.append((.text("delegation"), csilV.toCborValue())) }
         if let csilV = self.displayName { csilEntries.append((.text("display_name"), .text(csilV))) }
         return .map(csilEntries)
     }
 
     /// Reconstruct this record from a decoded CBOR value tree.
     init(cborValue: CsilCborValue) throws {
+        let delegation: ActAsDelegation? = if let csilV = CsilCbor.mapGet(cborValue, "delegation") { try ActAsDelegation(cborValue: csilV) } else { nil }
         let domain = try CsilCbor.asText((try CsilCbor.require(cborValue, "domain")))
         let userId = try CsilCbor.asText((try CsilCbor.require(cborValue, "user_id")))
         let displayName: String? = if let csilV = CsilCbor.mapGet(cborValue, "display_name") { try CsilCbor.asText(csilV) } else { nil }
         let houses = try CsilCbor.asArray((try CsilCbor.require(cborValue, "houses"))).map { try HouseRoles(cborValue: $0) }
         let iat = try CsilCbor.asI64((try CsilCbor.require(cborValue, "iat")))
         let exp = try CsilCbor.asI64((try CsilCbor.require(cborValue, "exp")))
-        self.init(domain: domain, userId: userId, displayName: displayName, houses: houses, iat: iat, exp: exp)
+        self.init(delegation: delegation, domain: domain, userId: userId, displayName: displayName, houses: houses, iat: iat, exp: exp)
     }
 
     /// Encode this record to canonical CSIL CBOR bytes.
@@ -2761,6 +2790,110 @@ public extension ServiceError {
     static func fromCbor(_ bytes: [UInt8]) throws -> ServiceError { try ServiceError(cborValue: CsilCbor.decode(bytes)) }
 }
 
+public extension ActAsScopeSetRequest {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("scopes"), CsilCborValue.array(self.scopes.map { .text($0) })))
+        if let csilV = self.granteeDomain { csilEntries.append((.text("grantee_domain"), .text(csilV))) }
+        if let csilV = self.granteeUserId { csilEntries.append((.text("grantee_user_id"), .text(csilV))) }
+        if let csilV = self.localRpFingerprint { csilEntries.append((.text("local_rp_fingerprint"), .text(csilV))) }
+        if let csilV = self.granteeApplicationId { csilEntries.append((.text("grantee_application_id"), .text(csilV))) }
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let granteeDomain: String? = if let csilV = CsilCbor.mapGet(cborValue, "grantee_domain") { try CsilCbor.asText(csilV) } else { nil }
+        let granteeUserId: String? = if let csilV = CsilCbor.mapGet(cborValue, "grantee_user_id") { try CsilCbor.asText(csilV) } else { nil }
+        let granteeApplicationId: String? = if let csilV = CsilCbor.mapGet(cborValue, "grantee_application_id") { try CsilCbor.asText(csilV) } else { nil }
+        let localRpFingerprint: String? = if let csilV = CsilCbor.mapGet(cborValue, "local_rp_fingerprint") { try CsilCbor.asText(csilV) } else { nil }
+        let scopes = try CsilCbor.asArray((try CsilCbor.require(cborValue, "scopes"))).map { try CsilCbor.asText($0) }
+        self.init(granteeDomain: granteeDomain, granteeUserId: granteeUserId, granteeApplicationId: granteeApplicationId, localRpFingerprint: localRpFingerprint, scopes: scopes)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> ActAsScopeSetRequest { try ActAsScopeSetRequest(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension ActAsScopeSetResponse {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("signed_scope_set"), .bytes(self.signedScopeSet)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let signedScopeSet = try CsilCbor.asBytes((try CsilCbor.require(cborValue, "signed_scope_set")))
+        self.init(signedScopeSet: signedScopeSet)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> ActAsScopeSetResponse { try ActAsScopeSetResponse(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension ExchangeActAsCredentialRequest {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("credential"), .bytes(self.credential)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let credential = try CsilCbor.asBytes((try CsilCbor.require(cborValue, "credential")))
+        self.init(credential: credential)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> ExchangeActAsCredentialRequest { try ExchangeActAsCredentialRequest(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension ActAsTokenResponse {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("token"), .text(self.token)))
+        csilEntries.append((.text("domain"), .text(self.domain)))
+        csilEntries.append((.text("scopes"), CsilCborValue.array(self.scopes.map { .text($0) })))
+        csilEntries.append((.text("grantee"), .text(self.grantee)))
+        csilEntries.append((.text("user_id"), .text(self.userId)))
+        csilEntries.append((.text("grant_id"), .text(self.grantId)))
+        csilEntries.append((.text("expires_at"), .text(self.expiresAt)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let token = try CsilCbor.asText((try CsilCbor.require(cborValue, "token")))
+        let domain = try CsilCbor.asText((try CsilCbor.require(cborValue, "domain")))
+        let userId = try CsilCbor.asText((try CsilCbor.require(cborValue, "user_id")))
+        let expiresAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "expires_at")))
+        let grantId = try CsilCbor.asText((try CsilCbor.require(cborValue, "grant_id")))
+        let grantee = try CsilCbor.asText((try CsilCbor.require(cborValue, "grantee")))
+        let scopes = try CsilCbor.asArray((try CsilCbor.require(cborValue, "scopes"))).map { try CsilCbor.asText($0) }
+        self.init(token: token, domain: domain, userId: userId, expiresAt: expiresAt, grantId: grantId, grantee: grantee, scopes: scopes)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> ActAsTokenResponse { try ActAsTokenResponse(cborValue: CsilCbor.decode(bytes)) }
+}
+
 public extension CalendarSubscription {
     /// The CBOR value tree for this record (deep, canonical key order).
     func toCborValue() -> CsilCborValue {
@@ -3009,6 +3142,85 @@ public extension CalendarMigrationRow {
 
     /// Decode a CSIL CBOR byte payload into this record.
     static func fromCbor(_ bytes: [UInt8]) throws -> CalendarMigrationRow { try CalendarMigrationRow(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension ProjectDeadlineRequest {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("range_end"), .text(self.rangeEnd)))
+        csilEntries.append((.text("project_id"), .text(self.projectId)))
+        csilEntries.append((.text("range_start"), .text(self.rangeStart)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let projectId = try CsilCbor.asText((try CsilCbor.require(cborValue, "project_id")))
+        let rangeStart = try CsilCbor.asText((try CsilCbor.require(cborValue, "range_start")))
+        let rangeEnd = try CsilCbor.asText((try CsilCbor.require(cborValue, "range_end")))
+        self.init(projectId: projectId, rangeStart: rangeStart, rangeEnd: rangeEnd)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> ProjectDeadlineRequest { try ProjectDeadlineRequest(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension ProjectDeadline {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("title"), .text(self.title)))
+        csilEntries.append((.text("due_at"), .text(self.dueAt)))
+        csilEntries.append((.text("task_id"), .text(self.taskId)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let taskId = try CsilCbor.asText((try CsilCbor.require(cborValue, "task_id")))
+        let title = try CsilCbor.asText((try CsilCbor.require(cborValue, "title")))
+        let dueAt = try CsilCbor.asText((try CsilCbor.require(cborValue, "due_at")))
+        self.init(taskId: taskId, title: title, dueAt: dueAt)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> ProjectDeadline { try ProjectDeadline(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension ProjectDeadlineList {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("enabled"), .bool(self.enabled)))
+        csilEntries.append((.text("pending"), .bool(self.pending)))
+        csilEntries.append((.text("category"), .text(self.category)))
+        csilEntries.append((.text("deadlines"), CsilCborValue.array(self.deadlines.map { $0.toCborValue() })))
+        if let csilV = self.lastError { csilEntries.append((.text("last_error"), .text(csilV))) }
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let enabled = try CsilCbor.asBool((try CsilCbor.require(cborValue, "enabled")))
+        let pending = try CsilCbor.asBool((try CsilCbor.require(cborValue, "pending")))
+        let category = try CsilCbor.asText((try CsilCbor.require(cborValue, "category")))
+        let lastError: String? = if let csilV = CsilCbor.mapGet(cborValue, "last_error") { try CsilCbor.asText(csilV) } else { nil }
+        let deadlines = try CsilCbor.asArray((try CsilCbor.require(cborValue, "deadlines"))).map { try ProjectDeadline(cborValue: $0) }
+        self.init(enabled: enabled, pending: pending, category: category, lastError: lastError, deadlines: deadlines)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> ProjectDeadlineList { try ProjectDeadlineList(cborValue: CsilCbor.decode(bytes)) }
 }
 
 public extension AuditEntry {

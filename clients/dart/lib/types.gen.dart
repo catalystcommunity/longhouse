@@ -2481,7 +2481,84 @@ final class HouseRoles {
       HouseRoles.fromCborValue(CsilCbor.decode(bytes));
 }
 
+final class ActAsDelegation {
+  final int grantExpiresAt;
+  final String grantId;
+  final String grantee;
+  final List<String> scopes;
+
+  const ActAsDelegation({
+    required this.grantExpiresAt,
+    required this.grantId,
+    required this.grantee,
+    required this.scopes,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['grant_expires_at'] = grantExpiresAt;
+    map['grant_id'] = grantId;
+    map['grantee'] = grantee;
+    map['scopes'] = scopes;
+    return map;
+  }
+
+  factory ActAsDelegation.fromMap(Map<String, Object?> map) {
+    return ActAsDelegation(
+      grantExpiresAt: map['grant_expires_at'] as int,
+      grantId: map['grant_id'] as String,
+      grantee: map['grantee'] as String,
+      scopes: map['scopes'] as List<String>,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ActAsDelegation) return false;
+    return grantExpiresAt == other.grantExpiresAt &&
+        grantId == other.grantId &&
+        grantee == other.grantee &&
+        scopes == other.scopes;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hashAll([grantExpiresAt, grantId, grantee, scopes]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['grant_expires_at'] = grantExpiresAt;
+    map['grant_id'] = grantId;
+    map['grantee'] = grantee;
+    map['scopes'] = scopes;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ActAsDelegation.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ActAsDelegation(
+      grantExpiresAt: map['grant_expires_at'] as int,
+      grantId: map['grant_id'] as String,
+      grantee: map['grantee'] as String,
+      scopes: (map['scopes'] as List)
+          .map((csilE) => csilE as String)
+          .cast<String>()
+          .toList(),
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ActAsDelegation.fromCbor(List<int> bytes) =>
+      ActAsDelegation.fromCborValue(CsilCbor.decode(bytes));
+}
+
 final class Identity {
+  final ActAsDelegation? delegation;
   final String domain;
   final String userId;
   final String? displayName;
@@ -2490,6 +2567,7 @@ final class Identity {
   final int exp;
 
   const Identity({
+    this.delegation,
     required this.domain,
     required this.userId,
     this.displayName,
@@ -2500,6 +2578,7 @@ final class Identity {
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
+    if (delegation != null) map['delegation'] = delegation;
     map['domain'] = domain;
     map['user_id'] = userId;
     if (displayName != null) map['display_name'] = displayName;
@@ -2511,6 +2590,7 @@ final class Identity {
 
   factory Identity.fromMap(Map<String, Object?> map) {
     return Identity(
+      delegation: map['delegation'] as ActAsDelegation?,
       domain: map['domain'] as String,
       userId: map['user_id'] as String,
       displayName: map['display_name'] as String?,
@@ -2523,7 +2603,8 @@ final class Identity {
   @override
   bool operator ==(Object other) {
     if (other is! Identity) return false;
-    return domain == other.domain &&
+    return delegation == other.delegation &&
+        domain == other.domain &&
         userId == other.userId &&
         displayName == other.displayName &&
         houses == other.houses &&
@@ -2532,12 +2613,20 @@ final class Identity {
   }
 
   @override
-  int get hashCode =>
-      Object.hashAll([domain, userId, displayName, houses, iat, exp]);
+  int get hashCode => Object.hashAll([
+    delegation,
+    domain,
+    userId,
+    displayName,
+    houses,
+    iat,
+    exp,
+  ]);
 
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
+    if (delegation != null) map['delegation'] = delegation!.toCborValue();
     map['domain'] = domain;
     map['user_id'] = userId;
     if (displayName != null) map['display_name'] = displayName!;
@@ -2551,6 +2640,9 @@ final class Identity {
   factory Identity.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return Identity(
+      delegation: map['delegation'] == null
+          ? null
+          : ActAsDelegation.fromCborValue(map['delegation']),
       domain: map['domain'] as String,
       userId: map['user_id'] as String,
       displayName: map['display_name'] == null
@@ -6531,6 +6623,326 @@ final class ServiceError {
       ServiceError.fromCborValue(CsilCbor.decode(bytes));
 }
 
+final class ActAsScopeSetRequest {
+  final String? granteeDomain;
+  final String? granteeUserId;
+  final String? granteeApplicationId;
+  final String? localRpFingerprint;
+  final List<String> scopes;
+
+  const ActAsScopeSetRequest({
+    this.granteeDomain,
+    this.granteeUserId,
+    this.granteeApplicationId,
+    this.localRpFingerprint,
+    required this.scopes,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    if (granteeDomain != null) map['grantee_domain'] = granteeDomain;
+    if (granteeUserId != null) map['grantee_user_id'] = granteeUserId;
+    if (granteeApplicationId != null)
+      map['grantee_application_id'] = granteeApplicationId;
+    if (localRpFingerprint != null)
+      map['local_rp_fingerprint'] = localRpFingerprint;
+    map['scopes'] = scopes;
+    return map;
+  }
+
+  factory ActAsScopeSetRequest.fromMap(Map<String, Object?> map) {
+    return ActAsScopeSetRequest(
+      granteeDomain: map['grantee_domain'] as String?,
+      granteeUserId: map['grantee_user_id'] as String?,
+      granteeApplicationId: map['grantee_application_id'] as String?,
+      localRpFingerprint: map['local_rp_fingerprint'] as String?,
+      scopes: map['scopes'] as List<String>,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ActAsScopeSetRequest) return false;
+    return granteeDomain == other.granteeDomain &&
+        granteeUserId == other.granteeUserId &&
+        granteeApplicationId == other.granteeApplicationId &&
+        localRpFingerprint == other.localRpFingerprint &&
+        scopes == other.scopes;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    granteeDomain,
+    granteeUserId,
+    granteeApplicationId,
+    localRpFingerprint,
+    scopes,
+  ]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    if (granteeDomain != null) map['grantee_domain'] = granteeDomain!;
+    if (granteeUserId != null) map['grantee_user_id'] = granteeUserId!;
+    if (granteeApplicationId != null)
+      map['grantee_application_id'] = granteeApplicationId!;
+    if (localRpFingerprint != null)
+      map['local_rp_fingerprint'] = localRpFingerprint!;
+    map['scopes'] = scopes;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ActAsScopeSetRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ActAsScopeSetRequest(
+      granteeDomain: map['grantee_domain'] == null
+          ? null
+          : map['grantee_domain'] as String,
+      granteeUserId: map['grantee_user_id'] == null
+          ? null
+          : map['grantee_user_id'] as String,
+      granteeApplicationId: map['grantee_application_id'] == null
+          ? null
+          : map['grantee_application_id'] as String,
+      localRpFingerprint: map['local_rp_fingerprint'] == null
+          ? null
+          : map['local_rp_fingerprint'] as String,
+      scopes: (map['scopes'] as List)
+          .map((csilE) => csilE as String)
+          .cast<String>()
+          .toList(),
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ActAsScopeSetRequest.fromCbor(List<int> bytes) =>
+      ActAsScopeSetRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class ActAsScopeSetResponse {
+  final Uint8List signedScopeSet;
+
+  const ActAsScopeSetResponse({required this.signedScopeSet});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['signed_scope_set'] = signedScopeSet;
+    return map;
+  }
+
+  factory ActAsScopeSetResponse.fromMap(Map<String, Object?> map) {
+    return ActAsScopeSetResponse(
+      signedScopeSet: map['signed_scope_set'] as Uint8List,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ActAsScopeSetResponse) return false;
+    return _bytesEqual(signedScopeSet, other.signedScopeSet);
+  }
+
+  @override
+  int get hashCode => Object.hashAll([Object.hashAll(signedScopeSet)]);
+
+  static bool _bytesEqual(Uint8List? a, Uint8List? b) {
+    if (a == null || b == null) return a == b;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['signed_scope_set'] = signedScopeSet;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ActAsScopeSetResponse.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ActAsScopeSetResponse(
+      signedScopeSet: map['signed_scope_set'] as Uint8List,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ActAsScopeSetResponse.fromCbor(List<int> bytes) =>
+      ActAsScopeSetResponse.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class ExchangeActAsCredentialRequest {
+  final Uint8List credential;
+
+  const ExchangeActAsCredentialRequest({required this.credential});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['credential'] = credential;
+    return map;
+  }
+
+  factory ExchangeActAsCredentialRequest.fromMap(Map<String, Object?> map) {
+    return ExchangeActAsCredentialRequest(
+      credential: map['credential'] as Uint8List,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ExchangeActAsCredentialRequest) return false;
+    return _bytesEqual(credential, other.credential);
+  }
+
+  @override
+  int get hashCode => Object.hashAll([Object.hashAll(credential)]);
+
+  static bool _bytesEqual(Uint8List? a, Uint8List? b) {
+    if (a == null || b == null) return a == b;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['credential'] = credential;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ExchangeActAsCredentialRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ExchangeActAsCredentialRequest(
+      credential: map['credential'] as Uint8List,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ExchangeActAsCredentialRequest.fromCbor(List<int> bytes) =>
+      ExchangeActAsCredentialRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class ActAsTokenResponse {
+  final String token;
+  final String domain;
+  final String userId;
+  final Timestamp expiresAt;
+  final String grantId;
+  final String grantee;
+  final List<String> scopes;
+
+  const ActAsTokenResponse({
+    required this.token,
+    required this.domain,
+    required this.userId,
+    required this.expiresAt,
+    required this.grantId,
+    required this.grantee,
+    required this.scopes,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['token'] = token;
+    map['domain'] = domain;
+    map['user_id'] = userId;
+    map['expires_at'] = expiresAt;
+    map['grant_id'] = grantId;
+    map['grantee'] = grantee;
+    map['scopes'] = scopes;
+    return map;
+  }
+
+  factory ActAsTokenResponse.fromMap(Map<String, Object?> map) {
+    return ActAsTokenResponse(
+      token: map['token'] as String,
+      domain: map['domain'] as String,
+      userId: map['user_id'] as String,
+      expiresAt: map['expires_at'] as Timestamp,
+      grantId: map['grant_id'] as String,
+      grantee: map['grantee'] as String,
+      scopes: map['scopes'] as List<String>,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ActAsTokenResponse) return false;
+    return token == other.token &&
+        domain == other.domain &&
+        userId == other.userId &&
+        expiresAt == other.expiresAt &&
+        grantId == other.grantId &&
+        grantee == other.grantee &&
+        scopes == other.scopes;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    token,
+    domain,
+    userId,
+    expiresAt,
+    grantId,
+    grantee,
+    scopes,
+  ]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['token'] = token;
+    map['domain'] = domain;
+    map['user_id'] = userId;
+    map['expires_at'] = expiresAt;
+    map['grant_id'] = grantId;
+    map['grantee'] = grantee;
+    map['scopes'] = scopes;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ActAsTokenResponse.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ActAsTokenResponse(
+      token: map['token'] as String,
+      domain: map['domain'] as String,
+      userId: map['user_id'] as String,
+      expiresAt: map['expires_at'] as String,
+      grantId: map['grant_id'] as String,
+      grantee: map['grantee'] as String,
+      scopes: (map['scopes'] as List)
+          .map((csilE) => csilE as String)
+          .cast<String>()
+          .toList(),
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ActAsTokenResponse.fromCbor(List<int> bytes) =>
+      ActAsTokenResponse.fromCborValue(CsilCbor.decode(bytes));
+}
+
 final class CalendarSubscription {
   final MemberId subjectMemberId;
   final bool enabled;
@@ -7182,6 +7594,219 @@ final class CalendarMigrationRow {
   /// Decode a CSIL CBOR byte payload into this record.
   factory CalendarMigrationRow.fromCbor(List<int> bytes) =>
       CalendarMigrationRow.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class ProjectDeadlineRequest {
+  final ProjectId projectId;
+  final Timestamp rangeStart;
+  final Timestamp rangeEnd;
+
+  const ProjectDeadlineRequest({
+    required this.projectId,
+    required this.rangeStart,
+    required this.rangeEnd,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['project_id'] = projectId;
+    map['range_start'] = rangeStart;
+    map['range_end'] = rangeEnd;
+    return map;
+  }
+
+  factory ProjectDeadlineRequest.fromMap(Map<String, Object?> map) {
+    return ProjectDeadlineRequest(
+      projectId: map['project_id'] as ProjectId,
+      rangeStart: map['range_start'] as Timestamp,
+      rangeEnd: map['range_end'] as Timestamp,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ProjectDeadlineRequest) return false;
+    return projectId == other.projectId &&
+        rangeStart == other.rangeStart &&
+        rangeEnd == other.rangeEnd;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([projectId, rangeStart, rangeEnd]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['project_id'] = projectId;
+    map['range_start'] = rangeStart;
+    map['range_end'] = rangeEnd;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ProjectDeadlineRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ProjectDeadlineRequest(
+      projectId: map['project_id'] as String,
+      rangeStart: map['range_start'] as String,
+      rangeEnd: map['range_end'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ProjectDeadlineRequest.fromCbor(List<int> bytes) =>
+      ProjectDeadlineRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class ProjectDeadline {
+  final TaskId taskId;
+  final String title;
+  final Timestamp dueAt;
+
+  const ProjectDeadline({
+    required this.taskId,
+    required this.title,
+    required this.dueAt,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['task_id'] = taskId;
+    map['title'] = title;
+    map['due_at'] = dueAt;
+    return map;
+  }
+
+  factory ProjectDeadline.fromMap(Map<String, Object?> map) {
+    return ProjectDeadline(
+      taskId: map['task_id'] as TaskId,
+      title: map['title'] as String,
+      dueAt: map['due_at'] as Timestamp,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ProjectDeadline) return false;
+    return taskId == other.taskId &&
+        title == other.title &&
+        dueAt == other.dueAt;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([taskId, title, dueAt]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['task_id'] = taskId;
+    map['title'] = title;
+    map['due_at'] = dueAt;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ProjectDeadline.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ProjectDeadline(
+      taskId: map['task_id'] as String,
+      title: map['title'] as String,
+      dueAt: map['due_at'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ProjectDeadline.fromCbor(List<int> bytes) =>
+      ProjectDeadline.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class ProjectDeadlineList {
+  final bool enabled;
+  final bool pending;
+  final String category;
+  final String? lastError;
+  final List<ProjectDeadline> deadlines;
+
+  const ProjectDeadlineList({
+    required this.enabled,
+    required this.pending,
+    required this.category,
+    this.lastError,
+    required this.deadlines,
+  });
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['enabled'] = enabled;
+    map['pending'] = pending;
+    map['category'] = category;
+    if (lastError != null) map['last_error'] = lastError;
+    map['deadlines'] = deadlines;
+    return map;
+  }
+
+  factory ProjectDeadlineList.fromMap(Map<String, Object?> map) {
+    return ProjectDeadlineList(
+      enabled: map['enabled'] as bool,
+      pending: map['pending'] as bool,
+      category: map['category'] as String,
+      lastError: map['last_error'] as String?,
+      deadlines: map['deadlines'] as List<ProjectDeadline>,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! ProjectDeadlineList) return false;
+    return enabled == other.enabled &&
+        pending == other.pending &&
+        category == other.category &&
+        lastError == other.lastError &&
+        deadlines == other.deadlines;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hashAll([enabled, pending, category, lastError, deadlines]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['enabled'] = enabled;
+    map['pending'] = pending;
+    map['category'] = category;
+    if (lastError != null) map['last_error'] = lastError!;
+    map['deadlines'] = deadlines.map((csilE) => csilE.toCborValue()).toList();
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory ProjectDeadlineList.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return ProjectDeadlineList(
+      enabled: map['enabled'] as bool,
+      pending: map['pending'] as bool,
+      category: map['category'] as String,
+      lastError: map['last_error'] == null ? null : map['last_error'] as String,
+      deadlines: (map['deadlines'] as List)
+          .map((csilE) => ProjectDeadline.fromCborValue(csilE))
+          .cast<ProjectDeadline>()
+          .toList(),
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory ProjectDeadlineList.fromCbor(List<int> bytes) =>
+      ProjectDeadlineList.fromCborValue(CsilCbor.decode(bytes));
 }
 
 typedef AuditId = String;

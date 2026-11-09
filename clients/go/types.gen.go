@@ -343,14 +343,23 @@ type HouseRoles struct {
 	Roles  []string `json:"roles" yaml:"roles"`
 }
 
+// ActAsDelegation represents a structured data type
+type ActAsDelegation struct {
+	GrantExpiresAt int64    `json:"grant_expires_at" yaml:"grant_expires_at"`
+	GrantId        string   `json:"grant_id" yaml:"grant_id"`
+	Grantee        string   `json:"grantee" yaml:"grantee"`
+	Scopes         []string `json:"scopes" yaml:"scopes"`
+}
+
 // Identity represents a structured data type
 type Identity struct {
-	Domain      string       `json:"domain" yaml:"domain"`
-	UserId      string       `json:"user_id" yaml:"user_id"`
-	DisplayName *string      `json:"display_name,omitempty" yaml:"display_name,omitempty"`
-	Houses      []HouseRoles `json:"houses" yaml:"houses"`
-	Iat         int64        `json:"iat" yaml:"iat"`
-	Exp         int64        `json:"exp" yaml:"exp"`
+	Delegation  *ActAsDelegation `json:"delegation,omitempty" yaml:"delegation,omitempty"`
+	Domain      string           `json:"domain" yaml:"domain"`
+	UserId      string           `json:"user_id" yaml:"user_id"`
+	DisplayName *string          `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	Houses      []HouseRoles     `json:"houses" yaml:"houses"`
+	Iat         int64            `json:"iat" yaml:"iat"`
+	Exp         int64            `json:"exp" yaml:"exp"`
 }
 
 // LoginRequest represents a structured data type
@@ -767,6 +776,36 @@ type ServiceError struct {
 	Message string `json:"message" yaml:"message"`
 }
 
+// ActAsScopeSetRequest represents a structured data type
+type ActAsScopeSetRequest struct {
+	GranteeDomain        *string  `json:"grantee_domain,omitempty" yaml:"grantee_domain,omitempty"`
+	GranteeUserId        *string  `json:"grantee_user_id,omitempty" yaml:"grantee_user_id,omitempty"`
+	GranteeApplicationId *string  `json:"grantee_application_id,omitempty" yaml:"grantee_application_id,omitempty"`
+	LocalRpFingerprint   *string  `json:"local_rp_fingerprint,omitempty" yaml:"local_rp_fingerprint,omitempty"`
+	Scopes               []string `json:"scopes" yaml:"scopes"`
+}
+
+// ActAsScopeSetResponse represents a structured data type
+type ActAsScopeSetResponse struct {
+	SignedScopeSet []byte `json:"signed_scope_set" yaml:"signed_scope_set"`
+}
+
+// ExchangeActAsCredentialRequest represents a structured data type
+type ExchangeActAsCredentialRequest struct {
+	Credential []byte `json:"credential" yaml:"credential"`
+}
+
+// ActAsTokenResponse represents a structured data type
+type ActAsTokenResponse struct {
+	Token     string    `json:"token" yaml:"token"`
+	Domain    string    `json:"domain" yaml:"domain"`
+	UserId    string    `json:"user_id" yaml:"user_id"`
+	ExpiresAt Timestamp `json:"expires_at" yaml:"expires_at"`
+	GrantId   string    `json:"grant_id" yaml:"grant_id"`
+	Grantee   string    `json:"grantee" yaml:"grantee"`
+	Scopes    []string  `json:"scopes" yaml:"scopes"`
+}
+
 // CalendarSubscription represents a structured data type
 type CalendarSubscription struct {
 	SubjectMemberId MemberID `json:"subject_member_id" yaml:"subject_member_id"`
@@ -835,6 +874,29 @@ type CalendarMigrationRow struct {
 	Title       string  `json:"title" yaml:"title"`
 	Disposition string  `json:"disposition" yaml:"disposition"`
 	Reason      string  `json:"reason" yaml:"reason"`
+}
+
+// ProjectDeadlineRequest represents a structured data type
+type ProjectDeadlineRequest struct {
+	ProjectId  ProjectID `json:"project_id" yaml:"project_id"`
+	RangeStart Timestamp `json:"range_start" yaml:"range_start"`
+	RangeEnd   Timestamp `json:"range_end" yaml:"range_end"`
+}
+
+// ProjectDeadline represents a structured data type
+type ProjectDeadline struct {
+	TaskId TaskID    `json:"task_id" yaml:"task_id"`
+	Title  string    `json:"title" yaml:"title"`
+	DueAt  Timestamp `json:"due_at" yaml:"due_at"`
+}
+
+// ProjectDeadlineList represents a structured data type
+type ProjectDeadlineList struct {
+	Enabled   bool              `json:"enabled" yaml:"enabled"`
+	Pending   bool              `json:"pending" yaml:"pending"`
+	Category  string            `json:"category" yaml:"category"`
+	LastError *string           `json:"last_error,omitempty" yaml:"last_error,omitempty"`
+	Deadlines []ProjectDeadline `json:"deadlines" yaml:"deadlines"`
 }
 
 // AuditID is a type alias

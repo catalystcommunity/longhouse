@@ -8,6 +8,8 @@ namespace Longhouse.Client;
 /// <summary>Server handler interface for the AuthService service.</summary>
 public interface IAuthService
 {
+    ActAsScopeSetResponse GetActAsScopeSet(ActAsScopeSetRequest actAsScopeSetRequest);
+    ActAsTokenResponse ExchangeActAsCredential(ExchangeActAsCredentialRequest exchangeActAsCredentialRequest);
     LoginResponse Login(LoginRequest loginRequest);
     LoginResponse Complete(CompleteRequest completeRequest);
     LoginResponse Refresh(EmptyRequest emptyRequest);
@@ -150,6 +152,7 @@ public interface IEventService
 /// <summary>Server handler interface for the CalendarService service.</summary>
 public interface ICalendarService
 {
+    ProjectDeadlineList ListProjectDeadlines(ProjectDeadlineRequest projectDeadlineRequest);
     CalendarStatus GetStatus(HouseID houseID);
     CalendarStatus ConfigureCalendar(ConfigureCalendarRequest configureCalendarRequest);
     CalendarConnectResponse BeginConnect(HouseID houseID);

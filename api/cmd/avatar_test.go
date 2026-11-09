@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"image"
 	"image/png"
 	"net/http"
@@ -151,5 +152,44 @@ func TestAvatarHandler_NotModified(t *testing.T) {
 	etag := first.Header().Get("ETag")
 	if rr := doReq(h, bearerFor(t, "hX"), "m1", etag); rr.Code != http.StatusNotModified {
 		t.Fatalf("If-None-Match = %d, want 304", rr.Code)
+	}
+}
+
+func TestAvatarHandler_DelegationChecks(t *testing.T) {
+	for _, tc := range []struct {
+		name, scope string
+		verify      bool
+		revoked     bool
+		want        int
+	}{
+		{"read allowed", "members.read", true, false, http.StatusOK},
+		{"task scope denied", "tasks.read", true, false, http.StatusForbidden},
+		{"revoked full access", "longhouse.full", true, true, http.StatusForbidden},
+		{"no verifier", "longhouse.full", false, false, http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			st := &avatarFakeStore{member: &models.Member{HouseID: "house", AvatarURL: "https://example.test/avatar.png"}, cached: &models.CachedAvatar{ContentType: "image/png", Bytes: []byte("image")}}
+			h := newAvatarHandler(st, []byte(avatarSecret))
+			if tc.verify {
+				h.verifyDelegation = func(context.Context, *auth.Identity) error {
+					if tc.revoked {
+						return errors.New("revoked")
+					}
+					return nil
+				}
+			}
+			token, err := auth.Mint([]byte(avatarSecret), auth.Identity{Houses: []auth.HouseRoles{{House: "house"}}, Delegation: &auth.Delegation{GrantID: "grant", Grantee: "app", Scopes: []string{tc.scope}}}, time.Minute)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/avatars/member", nil)
+			req.SetPathValue("member", "member")
+			req.Header.Set("Authorization", "Bearer "+token)
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, req)
+			if w.Code != tc.want {
+				t.Fatalf("status %d, want %d", w.Code, tc.want)
+			}
+		})
 	}
 }

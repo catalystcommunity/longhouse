@@ -20,6 +20,16 @@ class AuthServiceHandlers(ABC):
     """Server-side handlers for AuthService service operations."""
 
     @abstractmethod
+    def get_act_as_scope_set(self, req: ActAsScopeSetRequest, ctx: dict) -> Union[ActAsScopeSetResponse, ServiceError]:
+        """get-act-as-scope-set"""
+        ...
+
+    @abstractmethod
+    def exchange_act_as_credential(self, req: ExchangeActAsCredentialRequest, ctx: dict) -> Union[ActAsTokenResponse, ServiceError]:
+        """exchange-act-as-credential"""
+        ...
+
+    @abstractmethod
     def login(self, req: LoginRequest, ctx: dict) -> Union[LoginResponse, ServiceError]:
         """login"""
         ...
@@ -508,6 +518,11 @@ class EventServiceHandlers(ABC):
 
 class CalendarServiceHandlers(ABC):
     """Server-side handlers for CalendarService service operations."""
+
+    @abstractmethod
+    def list_project_deadlines(self, req: ProjectDeadlineRequest, ctx: dict) -> Union[ProjectDeadlineList, ServiceError]:
+        """list-project-deadlines"""
+        ...
 
     @abstractmethod
     def get_status(self, req: HouseId, ctx: dict) -> Union[CalendarStatus, ServiceError]:

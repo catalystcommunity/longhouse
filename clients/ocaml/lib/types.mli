@@ -259,7 +259,15 @@ and house_summary = {
 
 and house_roles = { house : house_id; member : member_id; roles : string list }
 
+and act_as_delegation = {
+  grant_expires_at : int64;
+  grant_id : string;
+  grantee : string;
+  scopes : string list;
+}
+
 and identity = {
+  delegation : act_as_delegation option;
   domain : string;
   user_id : string;
   display_name : string option;
@@ -545,6 +553,28 @@ and bug_report_request = {
 }
 
 and service_error = { code : int64; message : string }
+
+and act_as_scope_set_request = {
+  grantee_domain : string option;
+  grantee_user_id : string option;
+  grantee_application_id : string option;
+  local_rp_fingerprint : string option;
+  scopes : string list;
+}
+
+and act_as_scope_set_response = { signed_scope_set : bytes }
+and exchange_act_as_credential_request = { credential : bytes }
+
+and act_as_token_response = {
+  token : string;
+  domain : string;
+  user_id : string;
+  expires_at : timestamp;
+  grant_id : string;
+  grantee : string;
+  scopes : string list;
+}
+
 and calendar_subscription = { subject_member_id : member_id; enabled : bool }
 
 and calendar_view = {
@@ -588,6 +618,26 @@ and calendar_migration_row = {
   title : string;
   disposition : string;
   reason : string;
+}
+
+and project_deadline_request = {
+  project_id : project_id;
+  range_start : timestamp;
+  range_end : timestamp;
+}
+
+and project_deadline = {
+  task_id : task_id;
+  title : string;
+  due_at : timestamp;
+}
+
+and project_deadline_list = {
+  enabled : bool;
+  pending : bool;
+  category : string;
+  last_error : string option;
+  deadlines : project_deadline list;
 }
 
 and audit_id = string

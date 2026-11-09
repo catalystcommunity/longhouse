@@ -88,7 +88,22 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 
 	// The typed route returns the success-arm variant + the response payload
 	// already encoded by the generated codec.
-	variant, payload, callErr := handler(ctx, req.Payload)
+	var variant string
+	var payload []byte
+	var callErr error
+	identity := auth.IdentityFromContext(ctx)
+	if authenticated && identity.Delegation != nil {
+		if !identity.AllowsDelegatedMethod(service, method) {
+			callErr = Forbidden("delegation does not permit this operation")
+		} else if d.delegationVerifier == nil {
+			callErr = Unauthorized("delegation verifier is not configured")
+		} else {
+			callErr = d.delegationVerifier(ctx, identity)
+		}
+	}
+	if callErr == nil {
+		variant, payload, callErr = handler(ctx, req.Payload)
+	}
 	if authenticated {
 		d.emitAudit(ctx, service, method, callErr)
 	}

@@ -5,6 +5,18 @@ use super::types::*;
 /// AuthService service trait
 pub trait AuthService {
     type Context;
+    /// get-act-as-scope-set (request/response).
+    fn get_act_as_scope_set(
+        &self,
+        ctx: &Self::Context,
+        input: ActAsScopeSetRequest,
+    ) -> Result<ActAsScopeSetResponse, ServiceError>;
+    /// exchange-act-as-credential (request/response).
+    fn exchange_act_as_credential(
+        &self,
+        ctx: &Self::Context,
+        input: ExchangeActAsCredentialRequest,
+    ) -> Result<ActAsTokenResponse, ServiceError>;
     /// login (request/response).
     fn login(
         &self,
@@ -527,6 +539,12 @@ pub trait EventService {
 /// CalendarService service trait
 pub trait CalendarService {
     type Context;
+    /// list-project-deadlines (request/response).
+    fn list_project_deadlines(
+        &self,
+        ctx: &Self::Context,
+        input: ProjectDeadlineRequest,
+    ) -> Result<ProjectDeadlineList, ServiceError>;
     /// get-status (request/response).
     fn get_status(
         &self,

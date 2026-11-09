@@ -13,6 +13,16 @@ type client = {
 let make_client ~call = { call }
 
 module Auth_service = struct
+  let get_act_as_scope_set (c : client) (req : act_as_scope_set_request) : (act_as_scope_set_response, string) result =
+    match c.call ~service:"AuthService" ~op:"get-act-as-scope-set" ~payload:(Codec.encode_act_as_scope_set_request_bytes req) with
+    | Ok payload -> Ok (Codec.decode_act_as_scope_set_response_bytes payload)
+    | Error _ as e -> e
+
+  let exchange_act_as_credential (c : client) (req : exchange_act_as_credential_request) : (act_as_token_response, string) result =
+    match c.call ~service:"AuthService" ~op:"exchange-act-as-credential" ~payload:(Codec.encode_exchange_act_as_credential_request_bytes req) with
+    | Ok payload -> Ok (Codec.decode_act_as_token_response_bytes payload)
+    | Error _ as e -> e
+
   let login (c : client) (req : login_request) : (login_response, string) result =
     match c.call ~service:"AuthService" ~op:"login" ~payload:(Codec.encode_login_request_bytes req) with
     | Ok payload -> Ok (Codec.decode_login_response_bytes payload)
@@ -566,6 +576,11 @@ module Event_service = struct
 end
 
 module Calendar_service = struct
+  let list_project_deadlines (c : client) (req : project_deadline_request) : (project_deadline_list, string) result =
+    match c.call ~service:"CalendarService" ~op:"list-project-deadlines" ~payload:(Codec.encode_project_deadline_request_bytes req) with
+    | Ok payload -> Ok (Codec.decode_project_deadline_list_bytes payload)
+    | Error _ as e -> e
+
   let get_status (c : client)
       ~(encode_request : house_id -> bytes)
       (req : house_id) : (calendar_status, string) result =

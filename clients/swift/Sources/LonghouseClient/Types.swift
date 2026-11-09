@@ -1078,8 +1078,34 @@ public struct HouseRoles: Equatable, Sendable {
     ]
 }
 
+/// ActAsDelegation is a generated CSIL record type.
+public struct ActAsDelegation: Equatable, Sendable {
+    /// wire key: grant_expires_at
+    public let grantExpiresAt: Int64
+    /// wire key: grant_id
+    public let grantId: String
+    public let grantee: String
+    public let scopes: [String]
+
+    public init(grantExpiresAt: Int64, grantId: String, grantee: String, scopes: [String]) {
+        self.grantExpiresAt = grantExpiresAt
+        self.grantId = grantId
+        self.grantee = grantee
+        self.scopes = scopes
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "grantExpiresAt": "grant_expires_at",
+        "grantId": "grant_id",
+        "grantee": "grantee",
+        "scopes": "scopes"
+    ]
+}
+
 /// Identity is a generated CSIL record type.
 public struct Identity: Equatable, Sendable {
+    public let delegation: ActAsDelegation?
     public let domain: String
     /// wire key: user_id
     public let userId: String
@@ -1089,7 +1115,8 @@ public struct Identity: Equatable, Sendable {
     public let iat: Int64
     public let exp: Int64
 
-    public init(domain: String, userId: String, displayName: String? = nil, houses: [HouseRoles], iat: Int64, exp: Int64) {
+    public init(delegation: ActAsDelegation? = nil, domain: String, userId: String, displayName: String? = nil, houses: [HouseRoles], iat: Int64, exp: Int64) {
+        self.delegation = delegation
         self.domain = domain
         self.userId = userId
         self.displayName = displayName
@@ -1100,6 +1127,7 @@ public struct Identity: Equatable, Sendable {
 
     /// CBOR wire keys (verbatim) keyed by Swift property name.
     public static let wireKeys: [String: String] = [
+        "delegation": "delegation",
         "domain": "domain",
         "userId": "user_id",
         "displayName": "display_name",
@@ -2425,6 +2453,100 @@ public struct ServiceError: Equatable, Sendable {
     ]
 }
 
+/// ActAsScopeSetRequest is a generated CSIL record type.
+public struct ActAsScopeSetRequest: Equatable, Sendable {
+    /// wire key: grantee_domain
+    public let granteeDomain: String?
+    /// wire key: grantee_user_id
+    public let granteeUserId: String?
+    /// wire key: grantee_application_id
+    public let granteeApplicationId: String?
+    /// wire key: local_rp_fingerprint
+    public let localRpFingerprint: String?
+    public let scopes: [String]
+
+    public init(granteeDomain: String? = nil, granteeUserId: String? = nil, granteeApplicationId: String? = nil, localRpFingerprint: String? = nil, scopes: [String]) {
+        self.granteeDomain = granteeDomain
+        self.granteeUserId = granteeUserId
+        self.granteeApplicationId = granteeApplicationId
+        self.localRpFingerprint = localRpFingerprint
+        self.scopes = scopes
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "granteeDomain": "grantee_domain",
+        "granteeUserId": "grantee_user_id",
+        "granteeApplicationId": "grantee_application_id",
+        "localRpFingerprint": "local_rp_fingerprint",
+        "scopes": "scopes"
+    ]
+}
+
+/// ActAsScopeSetResponse is a generated CSIL record type.
+public struct ActAsScopeSetResponse: Equatable, Sendable {
+    /// wire key: signed_scope_set
+    public let signedScopeSet: [UInt8]
+
+    public init(signedScopeSet: [UInt8]) {
+        self.signedScopeSet = signedScopeSet
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "signedScopeSet": "signed_scope_set"
+    ]
+}
+
+/// ExchangeActAsCredentialRequest is a generated CSIL record type.
+public struct ExchangeActAsCredentialRequest: Equatable, Sendable {
+    public let credential: [UInt8]
+
+    public init(credential: [UInt8]) {
+        self.credential = credential
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "credential": "credential"
+    ]
+}
+
+/// ActAsTokenResponse is a generated CSIL record type.
+public struct ActAsTokenResponse: Equatable, Sendable {
+    public let token: String
+    public let domain: String
+    /// wire key: user_id
+    public let userId: String
+    /// wire key: expires_at
+    public let expiresAt: Timestamp
+    /// wire key: grant_id
+    public let grantId: String
+    public let grantee: String
+    public let scopes: [String]
+
+    public init(token: String, domain: String, userId: String, expiresAt: Timestamp, grantId: String, grantee: String, scopes: [String]) {
+        self.token = token
+        self.domain = domain
+        self.userId = userId
+        self.expiresAt = expiresAt
+        self.grantId = grantId
+        self.grantee = grantee
+        self.scopes = scopes
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "token": "token",
+        "domain": "domain",
+        "userId": "user_id",
+        "expiresAt": "expires_at",
+        "grantId": "grant_id",
+        "grantee": "grantee",
+        "scopes": "scopes"
+    ]
+}
+
 /// CalendarSubscription is a generated CSIL record type.
 public struct CalendarSubscription: Equatable, Sendable {
     /// wire key: subject_member_id
@@ -2638,6 +2760,78 @@ public struct CalendarMigrationRow: Equatable, Sendable {
         "title": "title",
         "disposition": "disposition",
         "reason": "reason"
+    ]
+}
+
+/// ProjectDeadlineRequest is a generated CSIL record type.
+public struct ProjectDeadlineRequest: Equatable, Sendable {
+    /// wire key: project_id
+    public let projectId: ProjectId
+    /// wire key: range_start
+    public let rangeStart: Timestamp
+    /// wire key: range_end
+    public let rangeEnd: Timestamp
+
+    public init(projectId: ProjectId, rangeStart: Timestamp, rangeEnd: Timestamp) {
+        self.projectId = projectId
+        self.rangeStart = rangeStart
+        self.rangeEnd = rangeEnd
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "projectId": "project_id",
+        "rangeStart": "range_start",
+        "rangeEnd": "range_end"
+    ]
+}
+
+/// ProjectDeadline is a generated CSIL record type.
+public struct ProjectDeadline: Equatable, Sendable {
+    /// wire key: task_id
+    public let taskId: TaskId
+    public let title: String
+    /// wire key: due_at
+    public let dueAt: Timestamp
+
+    public init(taskId: TaskId, title: String, dueAt: Timestamp) {
+        self.taskId = taskId
+        self.title = title
+        self.dueAt = dueAt
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "taskId": "task_id",
+        "title": "title",
+        "dueAt": "due_at"
+    ]
+}
+
+/// ProjectDeadlineList is a generated CSIL record type.
+public struct ProjectDeadlineList: Equatable, Sendable {
+    public let enabled: Bool
+    public let pending: Bool
+    public let category: String
+    /// wire key: last_error
+    public let lastError: String?
+    public let deadlines: [ProjectDeadline]
+
+    public init(enabled: Bool, pending: Bool, category: String, lastError: String? = nil, deadlines: [ProjectDeadline]) {
+        self.enabled = enabled
+        self.pending = pending
+        self.category = category
+        self.lastError = lastError
+        self.deadlines = deadlines
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "enabled": "enabled",
+        "pending": "pending",
+        "category": "category",
+        "lastError": "last_error",
+        "deadlines": "deadlines"
     ]
 }
 

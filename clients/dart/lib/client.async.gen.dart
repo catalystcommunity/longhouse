@@ -21,6 +21,28 @@ final class AuthAsyncClient {
   final AsyncCsilTransport transport;
   const AuthAsyncClient(this.transport);
 
+  Future<ActAsScopeSetResponse> getActAsScopeSet(
+    ActAsScopeSetRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'get-act-as-scope-set',
+      request.toCbor(),
+    );
+    return ActAsScopeSetResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  Future<ActAsTokenResponse> exchangeActAsCredential(
+    ExchangeActAsCredentialRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'exchange-act-as-credential',
+      request.toCbor(),
+    );
+    return ActAsTokenResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
   Future<LoginResponse> login(LoginRequest request) async {
     final csilResp = await transport.call(
       'AuthService',
@@ -976,6 +998,17 @@ final class EventAsyncClient {
 final class CalendarAsyncClient {
   final AsyncCsilTransport transport;
   const CalendarAsyncClient(this.transport);
+
+  Future<ProjectDeadlineList> listProjectDeadlines(
+    ProjectDeadlineRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'CalendarService',
+      'list-project-deadlines',
+      request.toCbor(),
+    );
+    return ProjectDeadlineList.fromCborValue(CsilCbor.decode(csilResp));
+  }
 
   Future<CalendarStatus> getStatus(HouseId request) async {
     final csilResp = await transport.call(

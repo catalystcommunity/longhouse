@@ -214,3 +214,69 @@ were removed. The enrolled application and deployment configuration remain.
 Review the implementation and the migration report before the PR. Run CI
 after the PR is created. Configure application keys and access separately
 for each deployment before enabling its houses.
+
+## Project category deadlines
+
+Each enabled house has one application-owned deadline calendar for each
+project category. The calendar name starts with the category label and
+includes a stable house identifier. Categories are case-sensitive. Leading
+and trailing spaces are removed. A blank category shows as `Uncategorized`.
+An explicit category named `Uncategorized` remains a separate category.
+
+Longhouse owns task content, deadlines, project categories, and access rules.
+Catalystcal stores the calendar entries. These entries use the Longhouse
+application identity. They need no member act-as grant. Personal event writes
+continue to use the member's grant and the existing acceptance process.
+
+A task with a deadline gets one entry in each of its project categories.
+Several projects in the same category share that entry. Subtasks and spawned
+recurring tasks inherit their project categories. A recurring task produces
+entries for its stored occurrences; it does not create a second recurrence
+rule in Catalystcal. Completed and cancelled tasks keep their deadline entries
+with a status prefix in the remote title.
+
+Each entry starts at the deadline and lasts one minute. Catalystcal stores
+whole seconds, so subsecond precision is removed. Each entry is
+transparent to free/busy checks. It has no attendees, reminders, or invitations.
+Edit the task in Longhouse to change its deadline. An entry does not copy the
+task description. Tasks without deadlines have no entry.
+
+Open a project to see its **Deadline calendar**. Use the month buttons to
+change the date range. Times use the browser's local time zone. This view
+reads Catalystcal and includes only the current project's tasks that the
+caller can read. The view reports pending updates and failed requests. It
+does not show an old deadline while a date change waits for synchronization.
+
+Category calendars have no member or group shares. This prevents a shared
+category from exposing a private project. Longhouse checks current membership,
+roles, project access, and task access before it returns deadline data. Do not
+add direct shares to these calendars. Use Longhouse for filtered access.
+
+Database migration 26 adds durable update jobs, category mappings, and saved
+create requests. Task, project, and project-task changes queue work in the
+same database transaction. The worker checks every 15 seconds. It retries a
+failed job after one minute and checks each enabled house at least hourly.
+A task save does not wait for Catalystcal.
+
+The worker saves the exact create request before it sends it. After a lost
+response or restart, it reads the durable create receipt. If no receipt
+exists, it uses the same request and key. A newer task edit is applied only
+after that recovery. Updates and deletes can be retried. A concurrent source
+change keeps the job pending for another pass.
+
+Removing a deadline, deleting a task or project, or removing its last category
+link removes the corresponding entry. Restore or a new deadline creates a
+new entry. Empty category calendars remain for reuse. House deletion removes
+all category calendars, including a calendar whose create response was lost.
+Cleanup retries until it succeeds.
+
+A moved, deleted, or inaccessible event found during create recovery requires
+operator review. Recovery does not restore it or create another event. Keep
+application credentials stable during recovery. The existing application key
+configuration also supplies these calendars; no new secret is required.
+
+Deploy the API and web images together. Existing enabled houses receive the
+new jobs when migration 26 runs. Other houses must first enable the existing
+Catalystcal integration. The generated API operation is
+`CalendarService.list-project-deadlines`. Its date range must be greater than
+zero and no longer than 93 days.

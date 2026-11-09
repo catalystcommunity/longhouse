@@ -518,7 +518,15 @@ HouseRoles = {
     roles: [* text]
 }
 
+ActAsDelegation = {
+    grant_expires_at: int,
+    grant_id: text,
+    grantee: text,
+    scopes: [* text]
+}
+
 Identity = {
+    ? delegation: ActAsDelegation,
     domain: text,
     user_id: text,
     ? display_name: text,
@@ -1034,7 +1042,31 @@ ServiceError = {
 ;;               cookie rotates on each call. Works with an expired bearer.
 ;;   end-session    — public: revoke the browser session cookie and clear it.
 ;;   me        — identity + accessible houses (needs bearer)
+;; LinkKeys delegation. The signed structures are CBOR bytes from the LinkKeys SDK.
+;; Set either all three grantee application fields or the local RP fingerprint.
+ActAsScopeSetRequest = {
+    ? grantee_domain: text,
+    ? grantee_user_id: text,
+    ? grantee_application_id: text,
+    ? local_rp_fingerprint: text,
+    scopes: [+ text]
+}
+ActAsScopeSetResponse = { signed_scope_set: bytes }
+;; Sign SHA-256("longhouse/AuthService/exchange-act-as-credential") as the request digest.
+ExchangeActAsCredentialRequest = { credential: bytes }
+ActAsTokenResponse = {
+    token: text,
+    domain: text,
+    user_id: text,
+    expires_at: Timestamp,
+    grant_id: text,
+    grantee: text,
+    scopes: [* text]
+}
+
 service AuthService {
+    get-act-as-scope-set: ActAsScopeSetRequest -> ActAsScopeSetResponse / ServiceError,
+    exchange-act-as-credential: ExchangeActAsCredentialRequest -> ActAsTokenResponse / ServiceError,
     login:    LoginRequest    -> LoginResponse / ServiceError,
     complete: CompleteRequest -> LoginResponse / ServiceError,
     refresh:  EmptyRequest    -> LoginResponse / ServiceError,
@@ -1218,7 +1250,18 @@ CalendarTrashEntry = { trash_id: text, event: Event, deleted_at: Timestamp, expi
 RestoreCalendarEventRequest = { house_id: HouseID, trash_id: text }
 CalendarMigrationRow = { event_id: EventID, title: text, disposition: text, reason: text }
 
+ProjectDeadlineRequest = { project_id: ProjectID, range_start: Timestamp, range_end: Timestamp }
+ProjectDeadline = { task_id: TaskID, title: text, due_at: Timestamp }
+ProjectDeadlineList = {
+    enabled: bool,
+    pending: bool,
+    category: text,
+    ? last_error: text,
+    deadlines: [* ProjectDeadline]
+}
+
 service CalendarService {
+    list-project-deadlines: ProjectDeadlineRequest -> ProjectDeadlineList / ServiceError,
     get-status: HouseID -> CalendarStatus / ServiceError,
     configure-calendar: ConfigureCalendarRequest -> CalendarStatus / ServiceError,
     begin-connect: HouseID -> CalendarConnectResponse / ServiceError,

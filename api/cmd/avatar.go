@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -22,9 +23,10 @@ import (
 // longer depend on the remote URL. A fetch failure is a 404 — the SPA's Avatar
 // component already falls back to initials.
 type avatarHandler struct {
-	store     store.Store
-	fetcher   *avatar.Fetcher
-	jwtSecret []byte
+	store            store.Store
+	fetcher          *avatar.Fetcher
+	jwtSecret        []byte
+	verifyDelegation func(context.Context, *auth.Identity) error
 }
 
 func newAvatarHandler(st store.Store, jwtSecret []byte) *avatarHandler {
@@ -36,6 +38,12 @@ func (h *avatarHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
+	}
+	if id.Delegation != nil {
+		if !id.AllowsDelegatedMethod("member", "GetMember") || h.verifyDelegation == nil || h.verifyDelegation(r.Context(), id) != nil {
+			http.Error(w, "delegation does not permit this request", http.StatusForbidden)
+			return
+		}
 	}
 	memberID := r.PathValue("member")
 	m, err := h.store.GetMemberByID(r.Context(), memberID)

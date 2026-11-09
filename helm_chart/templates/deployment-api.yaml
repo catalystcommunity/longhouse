@@ -16,6 +16,10 @@ spec:
   template:
     metadata:
       annotations:
+        {{- if .Values.actAs.enabled }}
+        {{- $actAsSecret := lookup "v1" "Secret" .Release.Namespace .Values.actAs.existingSecret }}
+        checksum/act-as-keys: {{ (($actAsSecret | default dict).data | default dict) | toJson | sha256sum }}
+        {{- end }}
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- with .Values.podAnnotations }}
@@ -42,11 +46,18 @@ spec:
           image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.api.pullPolicy }}
           args: ["serve"]
-          {{- if .Values.catalystcal.enabled }}
+          {{- if or .Values.catalystcal.enabled .Values.actAs.enabled }}
           volumeMounts:
+            {{- if .Values.actAs.enabled }}
+            - name: act-as-keys
+              mountPath: /var/run/longhouse-act-as
+              readOnly: true
+            {{- end }}
+            {{- if .Values.catalystcal.enabled }}
             - name: calendar-keys
               mountPath: /var/run/longhouse-calendar
               readOnly: true
+            {{- end }}
           {{- end }}
           ports:
             - name: http
@@ -89,8 +100,18 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.catalystcal.enabled }}
+      {{- if or .Values.catalystcal.enabled .Values.actAs.enabled }}
       volumes:
+        {{- if .Values.actAs.enabled }}
+        - name: act-as-keys
+          secret:
+            secretName: {{ required "actAs.existingSecret is required" .Values.actAs.existingSecret }}
+            defaultMode: 0440
+            items:
+              - key: {{ .Values.actAs.keysKey }}
+                path: keys.json
+        {{- end }}
+        {{- if .Values.catalystcal.enabled }}
         - name: calendar-keys
           secret:
             secretName: {{ required "catalystcal.existingSecret is required" .Values.catalystcal.existingSecret }}
@@ -98,6 +119,7 @@ spec:
             items:
               - key: {{ .Values.catalystcal.keysKey }}
                 path: keys.json
+        {{- end }}
       {{- end }}
       {{- with .Values.affinity }}
       affinity:

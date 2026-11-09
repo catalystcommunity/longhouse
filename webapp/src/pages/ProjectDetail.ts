@@ -1,6 +1,7 @@
 import { transaction, observe, computed, query, cell } from "~/ui/state";
 import { Repeat, When, el, live } from "~/ui/dom";
 import { Link, navigation, routeParams } from "~/ui/router";
+import { ProjectDeadlines } from "~/components/ProjectDeadlines";
 import { AuthGate } from "~/components/AuthGate";
 import { AvatarStack } from "~/components/Avatar";
 import { Check } from "~/components/Icons";
@@ -68,7 +69,9 @@ export const ProjectDetail = () => {
         const total = taskFeed.total();
         return total === 0 ? 0 : Math.round((doneCount() / total) * 100);
     });
+    const [deadlineRevision, setDeadlineRevision] = cell(0);
     const refreshTasks = async () => {
+        setDeadlineRevision(v => v + 1);
         await Promise.all([taskFeed.refresh(), refetchClosed()]);
     };
     const [editing, setEditing] = cell(false);
@@ -382,6 +385,11 @@ export const ProjectDetail = () => {
                                                 get "onChanged"() {
                                                     return refreshTasks;
                                                 }
+                                            }),
+                                            ProjectDeadlines({
+                                                get projectId() { return p().projectId; },
+                                                get revision() { return deadlineRevision(); },
+                                                get category() { return p().category; },
                                             }),
                                             MilestoneList({
                                                 get "project"() {

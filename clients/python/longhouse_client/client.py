@@ -31,6 +31,14 @@ class AuthClient:
     def __init__(self, transport: Transport):
         self._transport = transport
 
+    def get_act_as_scope_set(self, req: ActAsScopeSetRequest) -> ActAsScopeSetResponse:
+        """get-act-as-scope-set"""
+        return ActAsScopeSetResponse.from_cbor(self._transport.call("AuthService", "get-act-as-scope-set", req.to_cbor()))
+
+    def exchange_act_as_credential(self, req: ExchangeActAsCredentialRequest) -> ActAsTokenResponse:
+        """exchange-act-as-credential"""
+        return ActAsTokenResponse.from_cbor(self._transport.call("AuthService", "exchange-act-as-credential", req.to_cbor()))
+
     def login(self, req: LoginRequest) -> LoginResponse:
         """login"""
         return LoginResponse.from_cbor(self._transport.call("AuthService", "login", req.to_cbor()))
@@ -448,6 +456,10 @@ class CalendarClient:
     """Typed client for the CalendarService service."""
     def __init__(self, transport: Transport):
         self._transport = transport
+
+    def list_project_deadlines(self, req: ProjectDeadlineRequest) -> ProjectDeadlineList:
+        """list-project-deadlines"""
+        return ProjectDeadlineList.from_cbor(self._transport.call("CalendarService", "list-project-deadlines", req.to_cbor()))
 
     def get_status(self, req: HouseId) -> CalendarStatus:
         """get-status"""

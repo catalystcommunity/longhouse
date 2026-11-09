@@ -568,7 +568,16 @@ pub struct HouseRoles {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ActAsDelegation {
+    pub grant_expires_at: i64,
+    pub grant_id: String,
+    pub grantee: String,
+    pub scopes: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Identity {
+    pub delegation: Option<ActAsDelegation>,
     pub domain: String,
     pub user_id: String,
     pub display_name: Option<String>,
@@ -1044,6 +1053,36 @@ pub struct ServiceError {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ActAsScopeSetRequest {
+    pub grantee_domain: Option<String>,
+    pub grantee_user_id: Option<String>,
+    pub grantee_application_id: Option<String>,
+    pub local_rp_fingerprint: Option<String>,
+    pub scopes: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ActAsScopeSetResponse {
+    pub signed_scope_set: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExchangeActAsCredentialRequest {
+    pub credential: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ActAsTokenResponse {
+    pub token: String,
+    pub domain: String,
+    pub user_id: String,
+    pub expires_at: Timestamp,
+    pub grant_id: String,
+    pub grantee: String,
+    pub scopes: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct CalendarSubscription {
     pub subject_member_id: MemberID,
     pub enabled: bool,
@@ -1111,6 +1150,29 @@ pub struct CalendarMigrationRow {
     pub title: String,
     pub disposition: String,
     pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProjectDeadlineRequest {
+    pub project_id: ProjectID,
+    pub range_start: Timestamp,
+    pub range_end: Timestamp,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProjectDeadline {
+    pub task_id: TaskID,
+    pub title: String,
+    pub due_at: Timestamp,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProjectDeadlineList {
+    pub enabled: bool,
+    pub pending: bool,
+    pub category: String,
+    pub last_error: Option<String>,
+    pub deadlines: Vec<ProjectDeadline>,
 }
 
 pub type AuditID = String;

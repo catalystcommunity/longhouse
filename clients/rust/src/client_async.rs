@@ -25,6 +25,39 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
         Self { transport }
     }
 
+    /// get-act-as-scope-set (request/response).
+    pub async fn get_act_as_scope_set(
+        &self,
+        req: ActAsScopeSetRequest,
+    ) -> Result<ActAsScopeSetResponse, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "AuthService",
+                "get-act-as-scope-set",
+                &encode_act_as_scope_set_request(&req),
+            )
+            .await?;
+        decode_act_as_scope_set_response(&csil_resp)
+            .map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// exchange-act-as-credential (request/response).
+    pub async fn exchange_act_as_credential(
+        &self,
+        req: ExchangeActAsCredentialRequest,
+    ) -> Result<ActAsTokenResponse, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "AuthService",
+                "exchange-act-as-credential",
+                &encode_exchange_act_as_credential_request(&req),
+            )
+            .await?;
+        decode_act_as_token_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
     /// login (request/response).
     pub async fn login(&self, req: LoginRequest) -> Result<LoginResponse, ClientError> {
         let csil_resp = self
@@ -1362,6 +1395,22 @@ pub struct CalendarAsyncClient<T: AsyncTransport> {
 impl<T: AsyncTransport> CalendarAsyncClient<T> {
     pub fn new(transport: T) -> Self {
         Self { transport }
+    }
+
+    /// list-project-deadlines (request/response).
+    pub async fn list_project_deadlines(
+        &self,
+        req: ProjectDeadlineRequest,
+    ) -> Result<ProjectDeadlineList, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "CalendarService",
+                "list-project-deadlines",
+                &encode_project_deadline_request(&req),
+            )
+            .await?;
+        decode_project_deadline_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
     }
 
     /// get-status (request/response).

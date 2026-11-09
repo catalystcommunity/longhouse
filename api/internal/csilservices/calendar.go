@@ -56,6 +56,7 @@ type CalendarService struct {
 
 func (s *CalendarService) native() *EventService { return &EventService{Store: s.Store} }
 func (s *CalendarService) Register(d *csilrpc.Dispatcher) {
+	d.RegisterTyped("calendar", "ListProjectDeadlines", csilrpc.Route(s.ListProjectDeadlines, csil.DecodeProjectDeadlineRequest, csil.EncodeProjectDeadlineList))
 	d.RegisterTyped("calendar", "GetStatus", csilrpc.Route(s.GetStatus, csil.DecodeCalendarGetStatusRequest, csil.EncodeCalendarStatus))
 	d.RegisterTyped("calendar", "ConfigureCalendar", csilrpc.Route(s.ConfigureCalendar, csil.DecodeConfigureCalendarRequest, csil.EncodeCalendarStatus))
 	d.RegisterTyped("calendar", "BeginConnect", csilrpc.Route(s.BeginConnect, csil.DecodeCalendarBeginConnectRequest, csil.EncodeCalendarConnectResponse))
@@ -313,6 +314,9 @@ func (s *CalendarService) Run(ctx context.Context) {
 				}
 			}
 		}
+		if err := s.SyncTaskDeadlines(ctx); err != nil {
+			log.WithError(err).Warn("task deadline calendar synchronization failed")
+		}
 		select {
 		case <-ctx.Done():
 			return
@@ -336,6 +340,9 @@ func (s *CalendarService) reconcile(ctx context.Context, id string) error {
 		calendars := cal.NewCalendarClient(s.Remote.ApplicationTransport())
 		groups := cal.NewGroupClient(s.Remote.ApplicationTransport())
 		if h.Deleted {
+			if err := s.deleteCategoryCalendars(ctx, tx, id); err != nil {
+				return err
+			}
 			if h.CalendarID != "" {
 				_, err := calendars.DeleteCalendar(ctx, cal.CalendarID(h.CalendarID))
 				if !remoteNotFound(err) {

@@ -22,6 +22,28 @@ pub const AuthClient = struct {
         return .{ .transport = transport };
     }
 
+    /// Invoke AuthService/get-act-as-scope-set with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn get_act_as_scope_set(self: AuthClient, alloc: std.mem.Allocator, req: *const types.ActAsScopeSetRequest, out: *types.ActAsScopeSetResponse) anyerror!void {
+        const csil_reqb = try codec.encode_ActAsScopeSetRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "get-act-as-scope-set", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_ActAsScopeSetResponse(alloc, csil_respb, out);
+    }
+
+    /// Invoke AuthService/exchange-act-as-credential with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn exchange_act_as_credential(self: AuthClient, alloc: std.mem.Allocator, req: *const types.ExchangeActAsCredentialRequest, out: *types.ActAsTokenResponse) anyerror!void {
+        const csil_reqb = try codec.encode_ExchangeActAsCredentialRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "exchange-act-as-credential", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_ActAsTokenResponse(alloc, csil_respb, out);
+    }
+
     /// Invoke AuthService/login with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.
@@ -1122,6 +1144,17 @@ pub const CalendarClient = struct {
 
     pub fn init(transport: CsilgenTransport) CalendarClient {
         return .{ .transport = transport };
+    }
+
+    /// Invoke CalendarService/list-project-deadlines with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn list_project_deadlines(self: CalendarClient, alloc: std.mem.Allocator, req: *const types.ProjectDeadlineRequest, out: *types.ProjectDeadlineList) anyerror!void {
+        const csil_reqb = try codec.encode_ProjectDeadlineRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "CalendarService", "list-project-deadlines", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_ProjectDeadlineList(alloc, csil_respb, out);
     }
 
     /// Invoke CalendarService/get-status with a typed request, returning the decoded

@@ -82,6 +82,10 @@ if [[ -n "${REGISTRY_USER:-}" ]] && [[ -n "${REGISTRY_PASSWORD:-}" ]]; then
         -o yaml | kubectl apply -f -
 fi
 
+# Load the enrolled keys before Helm reads the Secret for its pod checksum.
+python3 .reactorcide/jobs/scripts/application-keys.py
+unset LONGHOUSE_APPLICATION_KEYS
+
 # ================================================
 # Deploy with Helm
 # ================================================

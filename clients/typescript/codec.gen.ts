@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AccessLevel, ApproveCliLoginRequest, AuditEntry, AuditID, AuditPage, AuditQuery, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarConnectResponse, CalendarMigrationRow, CalendarStatus, CalendarSubscription, CalendarTrashEntry, CalendarView, CliLoginRequestInfo, CliLoginStatus, CliSessionID, CliSessionSummary, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteCalendarConnectRequest, CompleteRequest, ConfigureCalendarRequest, DenyCliLoginRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventDecision, EventID, EventListRequest, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, RefreshSessionRequest, ResourceRef, ResourceType, RestoreCalendarEventRequest, RestoreRequest, RevokeSessionRequest, Role, RoleID, ServiceError, SessionKind, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskListRequest, TaskState, TaskStatus, Timestamp, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import type { AccessLevel, ActAsDelegation, ActAsScopeSetRequest, ActAsScopeSetResponse, ActAsTokenResponse, ApproveCliLoginRequest, AuditEntry, AuditID, AuditPage, AuditQuery, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarConnectResponse, CalendarMigrationRow, CalendarStatus, CalendarSubscription, CalendarTrashEntry, CalendarView, CliLoginRequestInfo, CliLoginStatus, CliSessionID, CliSessionSummary, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteCalendarConnectRequest, CompleteRequest, ConfigureCalendarRequest, DenyCliLoginRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventDecision, EventID, EventListRequest, ExchangeActAsCredentialRequest, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectDeadline, ProjectDeadlineList, ProjectDeadlineRequest, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, RefreshSessionRequest, ResourceRef, ResourceType, RestoreCalendarEventRequest, RestoreRequest, RevokeSessionRequest, Role, RoleID, ServiceError, SessionKind, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskListRequest, TaskState, TaskStatus, Timestamp, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -1066,6 +1066,32 @@ export function fromHouseRolesCbor(bytes: Uint8Array): HouseRoles {
   return fromHouseRolesCborValue(decode(bytes));
 }
 
+export function toActAsDelegationCborValue(v: ActAsDelegation): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("scopes", v.scopes);
+  csilMap.set("grantee", v.grantee);
+  csilMap.set("grant_id", v.grantId);
+  csilMap.set("grant_expires_at", v.grantExpiresAt);
+  return csilMap;
+}
+
+export function fromActAsDelegationCborValue(value: CborValue): ActAsDelegation {
+  return {
+    grantExpiresAt: asNumber(requireKey(value, "grant_expires_at")),
+    grantId: asString(requireKey(value, "grant_id")),
+    grantee: asString(requireKey(value, "grantee")),
+    scopes: asArray(requireKey(value, "scopes")).map((csilE) => asString(csilE)),
+  };
+}
+
+export function toActAsDelegationCbor(v: ActAsDelegation): Uint8Array {
+  return encodeValue(toActAsDelegationCborValue(v));
+}
+
+export function fromActAsDelegationCbor(bytes: Uint8Array): ActAsDelegation {
+  return fromActAsDelegationCborValue(decode(bytes));
+}
+
 export function toIdentityCborValue(v: Identity): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("exp", v.exp);
@@ -1073,12 +1099,14 @@ export function toIdentityCborValue(v: Identity): CborValue {
   csilMap.set("domain", v.domain);
   csilMap.set("houses", v.houses.map((csilE): CborValue => toHouseRolesCborValue(csilE)));
   csilMap.set("user_id", v.userId);
+  if (v.delegation !== undefined) csilMap.set("delegation", toActAsDelegationCborValue(v.delegation));
   if (v.displayName !== undefined) csilMap.set("display_name", v.displayName);
   return csilMap;
 }
 
 export function fromIdentityCborValue(value: CborValue): Identity {
   return {
+    delegation: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromActAsDelegationCborValue(csilV))(mapGet(value, "delegation")),
     domain: asString(requireKey(value, "domain")),
     userId: asString(requireKey(value, "user_id")),
     displayName: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "display_name")),
@@ -2514,6 +2542,106 @@ export function fromServiceErrorCbor(bytes: Uint8Array): ServiceError {
   return fromServiceErrorCborValue(decode(bytes));
 }
 
+export function toActAsScopeSetRequestCborValue(v: ActAsScopeSetRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("scopes", v.scopes);
+  if (v.granteeDomain !== undefined) csilMap.set("grantee_domain", v.granteeDomain);
+  if (v.granteeUserId !== undefined) csilMap.set("grantee_user_id", v.granteeUserId);
+  if (v.localRpFingerprint !== undefined) csilMap.set("local_rp_fingerprint", v.localRpFingerprint);
+  if (v.granteeApplicationId !== undefined) csilMap.set("grantee_application_id", v.granteeApplicationId);
+  return csilMap;
+}
+
+export function fromActAsScopeSetRequestCborValue(value: CborValue): ActAsScopeSetRequest {
+  return {
+    granteeDomain: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "grantee_domain")),
+    granteeUserId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "grantee_user_id")),
+    granteeApplicationId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "grantee_application_id")),
+    localRpFingerprint: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "local_rp_fingerprint")),
+    scopes: asArray(requireKey(value, "scopes")).map((csilE) => asString(csilE)),
+  };
+}
+
+export function toActAsScopeSetRequestCbor(v: ActAsScopeSetRequest): Uint8Array {
+  return encodeValue(toActAsScopeSetRequestCborValue(v));
+}
+
+export function fromActAsScopeSetRequestCbor(bytes: Uint8Array): ActAsScopeSetRequest {
+  return fromActAsScopeSetRequestCborValue(decode(bytes));
+}
+
+export function toActAsScopeSetResponseCborValue(v: ActAsScopeSetResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("signed_scope_set", v.signedScopeSet);
+  return csilMap;
+}
+
+export function fromActAsScopeSetResponseCborValue(value: CborValue): ActAsScopeSetResponse {
+  return {
+    signedScopeSet: asBytes(requireKey(value, "signed_scope_set")),
+  };
+}
+
+export function toActAsScopeSetResponseCbor(v: ActAsScopeSetResponse): Uint8Array {
+  return encodeValue(toActAsScopeSetResponseCborValue(v));
+}
+
+export function fromActAsScopeSetResponseCbor(bytes: Uint8Array): ActAsScopeSetResponse {
+  return fromActAsScopeSetResponseCborValue(decode(bytes));
+}
+
+export function toExchangeActAsCredentialRequestCborValue(v: ExchangeActAsCredentialRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("credential", v.credential);
+  return csilMap;
+}
+
+export function fromExchangeActAsCredentialRequestCborValue(value: CborValue): ExchangeActAsCredentialRequest {
+  return {
+    credential: asBytes(requireKey(value, "credential")),
+  };
+}
+
+export function toExchangeActAsCredentialRequestCbor(v: ExchangeActAsCredentialRequest): Uint8Array {
+  return encodeValue(toExchangeActAsCredentialRequestCborValue(v));
+}
+
+export function fromExchangeActAsCredentialRequestCbor(bytes: Uint8Array): ExchangeActAsCredentialRequest {
+  return fromExchangeActAsCredentialRequestCborValue(decode(bytes));
+}
+
+export function toActAsTokenResponseCborValue(v: ActAsTokenResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("token", v.token);
+  csilMap.set("domain", v.domain);
+  csilMap.set("scopes", v.scopes);
+  csilMap.set("grantee", v.grantee);
+  csilMap.set("user_id", v.userId);
+  csilMap.set("grant_id", v.grantId);
+  csilMap.set("expires_at", v.expiresAt);
+  return csilMap;
+}
+
+export function fromActAsTokenResponseCborValue(value: CborValue): ActAsTokenResponse {
+  return {
+    token: asString(requireKey(value, "token")),
+    domain: asString(requireKey(value, "domain")),
+    userId: asString(requireKey(value, "user_id")),
+    expiresAt: asString(requireKey(value, "expires_at")),
+    grantId: asString(requireKey(value, "grant_id")),
+    grantee: asString(requireKey(value, "grantee")),
+    scopes: asArray(requireKey(value, "scopes")).map((csilE) => asString(csilE)),
+  };
+}
+
+export function toActAsTokenResponseCbor(v: ActAsTokenResponse): Uint8Array {
+  return encodeValue(toActAsTokenResponseCborValue(v));
+}
+
+export function fromActAsTokenResponseCbor(bytes: Uint8Array): ActAsTokenResponse {
+  return fromActAsTokenResponseCborValue(decode(bytes));
+}
+
 export function toCalendarSubscriptionCborValue(v: CalendarSubscription): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("enabled", v.enabled);
@@ -2752,6 +2880,82 @@ export function toCalendarMigrationRowCbor(v: CalendarMigrationRow): Uint8Array 
 
 export function fromCalendarMigrationRowCbor(bytes: Uint8Array): CalendarMigrationRow {
   return fromCalendarMigrationRowCborValue(decode(bytes));
+}
+
+export function toProjectDeadlineRequestCborValue(v: ProjectDeadlineRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("range_end", v.rangeEnd);
+  csilMap.set("project_id", v.projectId);
+  csilMap.set("range_start", v.rangeStart);
+  return csilMap;
+}
+
+export function fromProjectDeadlineRequestCborValue(value: CborValue): ProjectDeadlineRequest {
+  return {
+    projectId: asString(requireKey(value, "project_id")),
+    rangeStart: asString(requireKey(value, "range_start")),
+    rangeEnd: asString(requireKey(value, "range_end")),
+  };
+}
+
+export function toProjectDeadlineRequestCbor(v: ProjectDeadlineRequest): Uint8Array {
+  return encodeValue(toProjectDeadlineRequestCborValue(v));
+}
+
+export function fromProjectDeadlineRequestCbor(bytes: Uint8Array): ProjectDeadlineRequest {
+  return fromProjectDeadlineRequestCborValue(decode(bytes));
+}
+
+export function toProjectDeadlineCborValue(v: ProjectDeadline): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("title", v.title);
+  csilMap.set("due_at", v.dueAt);
+  csilMap.set("task_id", v.taskId);
+  return csilMap;
+}
+
+export function fromProjectDeadlineCborValue(value: CborValue): ProjectDeadline {
+  return {
+    taskId: asString(requireKey(value, "task_id")),
+    title: asString(requireKey(value, "title")),
+    dueAt: asString(requireKey(value, "due_at")),
+  };
+}
+
+export function toProjectDeadlineCbor(v: ProjectDeadline): Uint8Array {
+  return encodeValue(toProjectDeadlineCborValue(v));
+}
+
+export function fromProjectDeadlineCbor(bytes: Uint8Array): ProjectDeadline {
+  return fromProjectDeadlineCborValue(decode(bytes));
+}
+
+export function toProjectDeadlineListCborValue(v: ProjectDeadlineList): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("enabled", v.enabled);
+  csilMap.set("pending", v.pending);
+  csilMap.set("category", v.category);
+  csilMap.set("deadlines", v.deadlines.map((csilE): CborValue => toProjectDeadlineCborValue(csilE)));
+  if (v.lastError !== undefined) csilMap.set("last_error", v.lastError);
+  return csilMap;
+}
+
+export function fromProjectDeadlineListCborValue(value: CborValue): ProjectDeadlineList {
+  return {
+    enabled: asBool(requireKey(value, "enabled")),
+    pending: asBool(requireKey(value, "pending")),
+    category: asString(requireKey(value, "category")),
+    lastError: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "last_error")),
+    deadlines: asArray(requireKey(value, "deadlines")).map((csilE) => fromProjectDeadlineCborValue(csilE)),
+  };
+}
+
+export function toProjectDeadlineListCbor(v: ProjectDeadlineList): Uint8Array {
+  return encodeValue(toProjectDeadlineListCborValue(v));
+}
+
+export function fromProjectDeadlineListCbor(bytes: Uint8Array): ProjectDeadlineList {
+  return fromProjectDeadlineListCborValue(decode(bytes));
 }
 
 export function toAuditEntryCborValue(v: AuditEntry): CborValue {

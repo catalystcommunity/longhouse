@@ -116,8 +116,8 @@ let make_rpc_client base_url =
 
 let () =
   let client = make_rpc_client "http://localhost:5080" in
-  let req : Types.login_request = { signed_assertion = "example" } in
-  match Client.Auth_service.login client req with
+  let req : Types.act_as_scope_set_request = { scopes = [] } in
+  match Client.Auth_service.get_act_as_scope_set client req with
   | Ok _resp -> print_endline "ok: received typed response"
   | Error e -> prerr_endline e
 ```
@@ -225,8 +225,8 @@ let () =
 
   (* Fire-and-forget: encode the [->] request via the generated codec, wrap it in the
      library's Datagram, and send it. seq 0 marks an unsequenced datagram. *)
-  let req : Types.login_request = { signed_assertion = "example" } in
-  let dg = Datagrams.new_datagram op_ord 0L (Codec.encode_login_request_bytes req) in
+  let req : Types.act_as_scope_set_request = { scopes = [] } in
+  let dg = Datagrams.new_datagram op_ord 0L (Codec.encode_act_as_scope_set_request_bytes req) in
   ignore (carrier.Carrier.send_datagram (Datagrams.encode_datagram dg));
 
   (* Recv path: a datagram of the RESPONSE type MAY arrive later — or never. There is NO
@@ -236,7 +236,7 @@ let () =
   | Ok (Some bytes) -> (
     match Datagrams.decode_datagram bytes with
     | Ok (dg : Datagrams.datagram) ->
-      let resp = Codec.decode_login_response_bytes dg.payload in
+      let resp = Codec.decode_act_as_scope_set_response_bytes dg.payload in
       ignore resp;
       print_endline "late response"
     | Error _ -> ())

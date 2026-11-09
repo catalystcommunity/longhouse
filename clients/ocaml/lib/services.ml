@@ -11,6 +11,10 @@ let transport_error ~status ~message = Transport_error { status; message }
 
 module Auth_service = struct
   type handler = {
+    (* request payload decodes to: act_as_scope_set_request *)
+    get_act_as_scope_set : bytes -> outcome;
+    (* request payload decodes to: exchange_act_as_credential_request *)
+    exchange_act_as_credential : bytes -> outcome;
     (* request payload decodes to: login_request *)
     login : bytes -> outcome;
     (* request payload decodes to: complete_request *)
@@ -47,6 +51,8 @@ module Auth_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
+    | "get-act-as-scope-set" -> h.get_act_as_scope_set payload
+    | "exchange-act-as-credential" -> h.exchange_act_as_credential payload
     | "login" -> h.login payload
     | "complete" -> h.complete payload
     | "refresh" -> h.refresh payload
@@ -397,6 +403,8 @@ end
 
 module Calendar_service = struct
   type handler = {
+    (* request payload decodes to: project_deadline_request *)
+    list_project_deadlines : bytes -> outcome;
     (* request payload decodes to: house_id *)
     get_status : bytes -> outcome;
     (* request payload decodes to: configure_calendar_request *)
@@ -419,6 +427,7 @@ module Calendar_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
+    | "list-project-deadlines" -> h.list_project_deadlines payload
     | "get-status" -> h.get_status payload
     | "configure-calendar" -> h.configure_calendar payload
     | "begin-connect" -> h.begin_connect payload

@@ -182,6 +182,13 @@ gateway:
 
 resources: {}
 
+# LinkKeys grants for applications that act for a Longhouse user.
+# The Secret contains an enrolled application key file. See docs/act-as.md.
+actAs:
+  enabled: false
+  existingSecret: ""
+  keysKey: "keys.json"
+
 # Optional calendar service. Keep disabled until application enrollment and
 # the required catalystcal API release are complete.
 catalystcal:
