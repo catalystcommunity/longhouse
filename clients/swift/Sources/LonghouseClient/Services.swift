@@ -10,6 +10,8 @@ public enum CsilTransportError: Error, Equatable {
 
 /// AuthService is the server-side handler seam.
 public protocol AuthService {
+    func getActAsScopeSet(_ request: ActAsScopeSetRequest) throws -> ActAsScopeSetResponse
+    func exchangeActAsCredential(_ request: ExchangeActAsCredentialRequest) throws -> ActAsTokenResponse
     func login(_ request: LoginRequest) throws -> LoginResponse
     func complete(_ request: CompleteRequest) throws -> LoginResponse
     func refresh(_ request: EmptyRequest) throws -> LoginResponse
@@ -142,6 +144,7 @@ public protocol EventService {
 
 /// CalendarService is the server-side handler seam.
 public protocol CalendarService {
+    func listProjectDeadlines(_ request: ProjectDeadlineRequest) throws -> ProjectDeadlineList
     func getStatus(_ request: HouseId) throws -> CalendarStatus
     func configureCalendar(_ request: ConfigureCalendarRequest) throws -> CalendarStatus
     func beginConnect(_ request: HouseId) throws -> CalendarConnectResponse

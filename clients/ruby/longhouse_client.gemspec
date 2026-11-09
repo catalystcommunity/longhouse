@@ -4,7 +4,7 @@
 
 Gem::Specification.new do |spec|
   spec.name = "longhouse_client"
-  spec.version = "0.15.3"
+  spec.version = "0.16.0"
   spec.summary = "CSIL-generated Ruby package longhouse_client."
   spec.authors = ["csilgen"]
   spec.license = "Apache-2.0"

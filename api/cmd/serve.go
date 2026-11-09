@@ -124,6 +124,9 @@ func buildHTTPHandlerWithContext(workerCtx context.Context) (http.Handler, error
 	}
 	if authSvc != nil {
 		authSvc.Register(d)
+		if renewal, ok := authSvc.ActAs.(interface{ RunKeyRenewal(context.Context) }); ok {
+			go renewal.RunKeyRenewal(workerCtx)
+		}
 	}
 	(&csilservices.HouseService{Store: store.AppStore}).Register(d)
 	(&csilservices.MemberService{Store: store.AppStore}).Register(d)
@@ -177,7 +180,11 @@ func buildHTTPHandlerWithContext(workerCtx context.Context) (http.Handler, error
 	// carrier) so the SPA can fetch the bytes with its bearer. Needs the JWT
 	// secret to verify; absent it, the route can't authenticate, so we skip it.
 	if len(jwtSecret) > 0 {
-		mux.Handle("GET /api/v1/avatars/{member}", newAvatarHandler(store.AppStore, jwtSecret))
+		avatars := newAvatarHandler(store.AppStore, jwtSecret)
+		if authSvc != nil {
+			avatars.verifyDelegation = authSvc.VerifyDelegation
+		}
+		mux.Handle("GET /api/v1/avatars/{member}", avatars)
 	}
 	// Canonical CSIL-RPC v1 carrier — one self-routing endpoint for every op.
 	// Mounted at the canonical path and, for parity with longhouse's existing
@@ -261,6 +268,11 @@ func buildAuthService() (*csilservices.AuthService, error) {
 		log.Warn("linkkeys RP not configured: auth.Login/Complete will fail. " +
 			"Use devauth.DevLogin locally (LONGHOUSE_DEV_AUTH_ENABLED=true).")
 	}
+	provider, err := buildActAsProvider()
+	if err != nil {
+		return nil, err
+	}
+	svc.ActAs = provider
 	return svc, nil
 }
 

@@ -47,6 +47,7 @@ type HouseRoles struct {
 // (a linkkeys identity) and carries their full per-house membership + roles
 // so authorization is self-contained. ExpiresAt is Unix seconds.
 type Identity struct {
+	Delegation   *Delegation  `cbor:"delegation,omitempty"`
 	Domain       string       `cbor:"domain"`
 	UserID       string       `cbor:"user_id"`
 	DisplayName  string       `cbor:"display_name,omitempty"`
@@ -113,6 +114,12 @@ func Mint(secret []byte, id Identity, ttl time.Duration) (string, error) {
 	now := time.Now().UTC()
 	id.IssuedAt = now.Unix()
 	id.ExpiresAt = now.Add(ttl).Unix()
+	if id.Delegation != nil && id.Delegation.GrantExpiresAt > 0 {
+		id.ExpiresAt = min(id.ExpiresAt, id.Delegation.GrantExpiresAt)
+		if id.ExpiresAt <= now.Unix() {
+			return "", ErrTokenExpired
+		}
+	}
 
 	header, err := cbor.Marshal(tokenHeader{Alg: "HS256", Typ: "longhouse-id"})
 	if err != nil {

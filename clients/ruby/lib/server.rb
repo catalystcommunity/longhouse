@@ -5,6 +5,16 @@
 # Server-side handlers for the AuthService service. Subclass and override each
 # operation; the unimplemented base raises NotImplementedError.
 class AuthHandlers
+  # get-act-as-scope-set
+  def get_act_as_scope_set(req)
+    raise NotImplementedError, "AuthHandlers#get_act_as_scope_set"
+  end
+
+  # exchange-act-as-credential
+  def exchange_act_as_credential(req)
+    raise NotImplementedError, "AuthHandlers#exchange_act_as_credential"
+  end
+
   # login
   def login(req)
     raise NotImplementedError, "AuthHandlers#login"
@@ -505,6 +515,11 @@ end
 # Server-side handlers for the CalendarService service. Subclass and override each
 # operation; the unimplemented base raises NotImplementedError.
 class CalendarHandlers
+  # list-project-deadlines
+  def list_project_deadlines(req)
+    raise NotImplementedError, "CalendarHandlers#list_project_deadlines"
+  end
+
   # get-status
   def get_status(req)
     raise NotImplementedError, "CalendarHandlers#get_status"

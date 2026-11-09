@@ -12,7 +12,7 @@ raw UDP unchanged.
 # TODO: publish longhouse_client to Hex, then add it (and the transport lib) to deps:
 def deps do
   [
-    {:longhouse_client, "~> 0.15.3"},
+    {:longhouse_client, "~> 0.16.0"},
     # not yet published — vendor or git for now:
     {:csilgen_transport, github: "catalystcommunity/csilgen", sparse: "transports/elixir"}
   ]
@@ -130,7 +130,7 @@ end
 
 transport = CsilRpcHttpCarrier.new("http://localhost:5080")
 client = Csilgen.Generated.AuthClient.new(transport)
-resp = Csilgen.Generated.AuthClient.login(client, %Csilgen.Generated.LoginRequest{signed_assertion: "example"})
+resp = Csilgen.Generated.AuthClient.get_act_as_scope_set(client, %Csilgen.Generated.ActAsScopeSetRequest{scopes: []})
 IO.inspect(resp)
 ```
 
@@ -294,8 +294,8 @@ op_ord = 1
 
 # Fire-and-forget: encode the `->` request via the generated codec, wrap it in the
 # library's Datagram, and send it. seq 0 marks an unsequenced datagram.
-req = %Csilgen.Generated.LoginRequest{signed_assertion: "example"}
-payload = Csilgen.Generated.LoginRequest.to_cbor(req)
+req = %Csilgen.Generated.ActAsScopeSetRequest{scopes: []}
+payload = Csilgen.Generated.ActAsScopeSetRequest.to_cbor(req)
 
 datagram = Datagrams.encode_datagram(Datagrams.new_datagram(op_ord, 0, payload))
 {:ok, carrier} = UdpDatagramCarrier.send_datagram(carrier, datagram)
@@ -306,7 +306,7 @@ datagram = Datagrams.encode_datagram(Datagrams.new_datagram(op_ord, 0, payload))
 case UdpDatagramCarrier.recv_datagram(carrier) do
   {:ok, bytes, _carrier} ->
     {:ok, dg} = Datagrams.decode_datagram(bytes)
-    resp = Csilgen.Generated.LoginResponse.from_cbor(dg.payload)
+    resp = Csilgen.Generated.ActAsScopeSetResponse.from_cbor(dg.payload)
     IO.inspect(resp, label: "late response")
 
   :empty ->

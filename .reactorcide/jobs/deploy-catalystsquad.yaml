@@ -17,11 +17,6 @@ description: "Auto-deploy longhouse to the catalystsquad environment after a rel
 
 # The release workflow runs this after release images are available.
 #
-# NOTE: this job is LIVE. Until the linkkeys API key secret
-# `catalystsquad/longhouse:linkkeys_api_key` exists in the CI secrets
-# store, this job will fail to resolve LINKKEYS_PKI_API_KEY and error on
-# the next release. Set that secret (see run-local notes in
-# deploy-tnl-example.yaml) before the next version bump lands on main.
 triggers:
   events:
     - tag_created
@@ -69,11 +64,6 @@ environment:
   # `linkkeysRp.apiKey`, which secret.yaml turns into the
   # `LONGHOUSE_LINKKEYS_PKI_API_KEY` env var on the web pod.
   #
-  # TODO(catalystsquad): this secret does not exist yet. Register an
-  # API-key user on the catalystsquad linkkeys RP
-  # (`linkkeys user create longhouse-web "Longhouse webapp" --api-key`)
-  # and store the key:
-  #   REACTORCIDE_SECRETS_PASSWORD="$(cat ~/.reactorcide-pass)" \
-  #     reactorcide secrets set catalystsquad/longhouse linkkeys_api_key
-  # (the CI secrets DB needs the same key for the push-to-main path).
   LINKKEYS_PKI_API_KEY: "${secret:catalystsquad/longhouse:linkkeys_api_key}"
+  LONGHOUSE_APPLICATION_KEYS: "${secret:catalystsquad/longhouse:application_keys}"
+  LONGHOUSE_APPLICATION_KEYS_SECRET: "longhouse-application-keys"

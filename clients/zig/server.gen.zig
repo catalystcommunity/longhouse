@@ -15,6 +15,8 @@ pub const CsilgenCodec = struct {
 
 /// AuthHandlers is the host's implementation of the AuthService service.
 pub const AuthHandlers = struct {
+    get_act_as_scope_set: *const fn (ctx: *anyopaque, req: *const types.ActAsScopeSetRequest, resp: *types.ActAsScopeSetResponse) anyerror!void,
+    exchange_act_as_credential: *const fn (ctx: *anyopaque, req: *const types.ExchangeActAsCredentialRequest, resp: *types.ActAsTokenResponse) anyerror!void,
     login: *const fn (ctx: *anyopaque, req: *const types.LoginRequest, resp: *types.LoginResponse) anyerror!void,
     complete: *const fn (ctx: *anyopaque, req: *const types.CompleteRequest, resp: *types.LoginResponse) anyerror!void,
     refresh: *const fn (ctx: *anyopaque, req: *const types.EmptyRequest, resp: *types.LoginResponse) anyerror!void,
@@ -147,6 +149,7 @@ pub const EventHandlers = struct {
 
 /// CalendarHandlers is the host's implementation of the CalendarService service.
 pub const CalendarHandlers = struct {
+    list_project_deadlines: *const fn (ctx: *anyopaque, req: *const types.ProjectDeadlineRequest, resp: *types.ProjectDeadlineList) anyerror!void,
     get_status: *const fn (ctx: *anyopaque, req: *const types.HouseID, resp: *types.CalendarStatus) anyerror!void,
     configure_calendar: *const fn (ctx: *anyopaque, req: *const types.ConfigureCalendarRequest, resp: *types.CalendarStatus) anyerror!void,
     begin_connect: *const fn (ctx: *anyopaque, req: *const types.HouseID, resp: *types.CalendarConnectResponse) anyerror!void,

@@ -9,6 +9,8 @@ import (
 
 // AuthService defines the service interface
 type AuthService interface {
+	GetActAsScopeSet(ctx context.Context, req ActAsScopeSetRequest) (ActAsScopeSetResponse, error)
+	ExchangeActAsCredential(ctx context.Context, req ExchangeActAsCredentialRequest) (ActAsTokenResponse, error)
 	Login(ctx context.Context, req LoginRequest) (LoginResponse, error)
 	Complete(ctx context.Context, req CompleteRequest) (LoginResponse, error)
 	Refresh(ctx context.Context, req EmptyRequest) (LoginResponse, error)
@@ -141,6 +143,7 @@ type EventService interface {
 
 // CalendarService defines the service interface
 type CalendarService interface {
+	ListProjectDeadlines(ctx context.Context, req ProjectDeadlineRequest) (ProjectDeadlineList, error)
 	GetStatus(ctx context.Context, req HouseID) (CalendarStatus, error)
 	ConfigureCalendar(ctx context.Context, req ConfigureCalendarRequest) (CalendarStatus, error)
 	BeginConnect(ctx context.Context, req HouseID) (CalendarConnectResponse, error)

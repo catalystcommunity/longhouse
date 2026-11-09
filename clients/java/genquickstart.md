@@ -15,7 +15,7 @@ TODO: publish to a shared repository). Depend on it and on the transport library
 <dependency>
     <groupId>com.catalystcommunity.longhouse.client</groupId>
     <artifactId>longhouse-client</artifactId>
-    <version>0.15.3</version>
+    <version>0.16.0</version>
 </dependency>
 <dependency>
     <groupId>community.catalyst.csilgen</groupId>
@@ -94,7 +94,7 @@ final class HttpRpcCarrier implements Transport {
 public final class RpcExample {
     public static void main(String[] args) {
         AuthClient client = new AuthClient(new HttpRpcCarrier("http://localhost:5080"));
-        LoginResponse resp = client.login(new LoginRequest("example"));
+        ActAsScopeSetResponse resp = client.getActAsScopeSet(new ActAsScopeSetRequest(null, null, null, null, java.util.List.of()));
         System.out.println(resp);
     }
 }
@@ -184,19 +184,19 @@ public final class DatagramsExample {
 
     // Fire-and-forget: encode the `->` request via the generated codec, wrap it in the
     // library's Datagram, and send. seq 0 marks an unsequenced datagram.
-    static void sendRequest(DatagramCarrier carrier, LoginRequest request) throws IOException {
-        carrier.sendDatagram(Datagrams.Datagram.of(OP_ORD, 0, CsilCbor.encodeLoginRequest(request)).encode());
+    static void sendRequest(DatagramCarrier carrier, ActAsScopeSetRequest request) throws IOException {
+        carrier.sendDatagram(Datagrams.Datagram.of(OP_ORD, 0, CsilCbor.encodeActAsScopeSetRequest(request)).encode());
     }
 
     // Recv path: a datagram of the RESPONSE type MAY arrive later — or never. There is NO
     // synchronous response; the caller must tolerate loss and reordering.
-    static LoginResponse recvResponse(DatagramCarrier carrier) throws IOException {
+    static ActAsScopeSetResponse recvResponse(DatagramCarrier carrier) throws IOException {
         byte[] inbound = carrier.recvDatagram();
         if (inbound == null) {
             return null;
         }
         Datagrams.Datagram dg = Datagrams.Datagram.decode(inbound);
-        return CsilCbor.decodeLoginResponse(dg.payload());
+        return CsilCbor.decodeActAsScopeSetResponse(dg.payload());
     }
 
     public static void main(String[] args) throws IOException {
@@ -204,9 +204,9 @@ public final class DatagramsExample {
         DatagramSocket socket = new DatagramSocket();
         socket.connect(new InetSocketAddress("localhost", 9000));
         DatagramCarrier carrier = new UdpDatagramCarrier(socket);
-        sendRequest(carrier, new LoginRequest("example"));
+        sendRequest(carrier, new ActAsScopeSetRequest(null, null, null, null, java.util.List.of()));
         // No synchronous reply: a response datagram may arrive later, or never.
-        LoginResponse resp = recvResponse(carrier);
+        ActAsScopeSetResponse resp = recvResponse(carrier);
         System.out.println(resp);
     }
 }

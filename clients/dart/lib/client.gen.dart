@@ -20,6 +20,26 @@ final class AuthClient {
   final CsilTransport transport;
   const AuthClient(this.transport);
 
+  ActAsScopeSetResponse getActAsScopeSet(ActAsScopeSetRequest request) {
+    final csilResp = transport.call(
+      'AuthService',
+      'get-act-as-scope-set',
+      request.toCbor(),
+    );
+    return ActAsScopeSetResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
+  ActAsTokenResponse exchangeActAsCredential(
+    ExchangeActAsCredentialRequest request,
+  ) {
+    final csilResp = transport.call(
+      'AuthService',
+      'exchange-act-as-credential',
+      request.toCbor(),
+    );
+    return ActAsTokenResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
   LoginResponse login(LoginRequest request) {
     final csilResp = transport.call('AuthService', 'login', request.toCbor());
     return LoginResponse.fromCborValue(CsilCbor.decode(csilResp));
@@ -949,6 +969,15 @@ final class EventClient {
 final class CalendarClient {
   final CsilTransport transport;
   const CalendarClient(this.transport);
+
+  ProjectDeadlineList listProjectDeadlines(ProjectDeadlineRequest request) {
+    final csilResp = transport.call(
+      'CalendarService',
+      'list-project-deadlines',
+      request.toCbor(),
+    );
+    return ProjectDeadlineList.fromCborValue(CsilCbor.decode(csilResp));
+  }
 
   CalendarStatus getStatus(HouseId request) {
     final csilResp = transport.call(

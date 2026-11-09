@@ -2374,9 +2374,66 @@ pub fn decode_house_roles(csil_data: &[u8]) -> Result<HouseRoles, CsilCborError>
     csil_dec_house_roles(&csil_root)
 }
 
+/// Build the canonical CBOR value tree for a ActAsDelegation.
+fn csil_enc_act_as_delegation(csil_v: &ActAsDelegation) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(4);
+    csil_entries.push((
+        cbor_text("scopes"),
+        cbor_enc_array(&csil_v.scopes, |csil_elem| cbor_text(csil_elem)),
+    ));
+    csil_entries.push((cbor_text("grantee"), cbor_text(&csil_v.grantee)));
+    csil_entries.push((cbor_text("grant_id"), cbor_text(&csil_v.grant_id)));
+    csil_entries.push((
+        cbor_text("grant_expires_at"),
+        cbor_int(csil_v.grant_expires_at),
+    ));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a ActAsDelegation from a decoded CBOR value tree.
+fn csil_dec_act_as_delegation(csil_root: &CsilCborValue) -> Result<ActAsDelegation, CsilCborError> {
+    let grant_expires_at = {
+        let csil_field = cbor_require(csil_root, "grant_expires_at")?;
+        let csil_decode = cbor_as_i64;
+        csil_decode(csil_field)?
+    };
+    let grant_id = {
+        let csil_field = cbor_require(csil_root, "grant_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let grantee = {
+        let csil_field = cbor_require(csil_root, "grantee")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let scopes = {
+        let csil_field = cbor_require(csil_root, "scopes")?;
+        let csil_decode = |csil_v| cbor_dec_array(csil_v, cbor_as_text);
+        csil_decode(csil_field)?
+    };
+    Ok(ActAsDelegation {
+        grant_expires_at,
+        grant_id,
+        grantee,
+        scopes,
+    })
+}
+
+/// Encode a ActAsDelegation to canonical CSIL CBOR bytes.
+pub fn encode_act_as_delegation(csil_v: &ActAsDelegation) -> Vec<u8> {
+    cbor_encode(&csil_enc_act_as_delegation(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a ActAsDelegation.
+pub fn decode_act_as_delegation(csil_data: &[u8]) -> Result<ActAsDelegation, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_act_as_delegation(&csil_root)
+}
+
 /// Build the canonical CBOR value tree for a Identity.
 fn csil_enc_identity(csil_v: &Identity) -> CsilCborValue {
-    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(6);
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(7);
     csil_entries.push((cbor_text("exp"), cbor_int(csil_v.exp)));
     csil_entries.push((cbor_text("iat"), cbor_int(csil_v.iat)));
     csil_entries.push((cbor_text("domain"), cbor_text(&csil_v.domain)));
@@ -2385,6 +2442,12 @@ fn csil_enc_identity(csil_v: &Identity) -> CsilCborValue {
         cbor_enc_array(&csil_v.houses, csil_enc_house_roles),
     ));
     csil_entries.push((cbor_text("user_id"), cbor_text(&csil_v.user_id)));
+    if let Some(csil_inner) = &csil_v.delegation {
+        csil_entries.push((
+            cbor_text("delegation"),
+            csil_enc_act_as_delegation(csil_inner),
+        ));
+    }
     if let Some(csil_inner) = &csil_v.display_name {
         csil_entries.push((cbor_text("display_name"), cbor_text(csil_inner)));
     }
@@ -2393,6 +2456,13 @@ fn csil_enc_identity(csil_v: &Identity) -> CsilCborValue {
 
 /// Reconstruct a Identity from a decoded CBOR value tree.
 fn csil_dec_identity(csil_root: &CsilCborValue) -> Result<Identity, CsilCborError> {
+    let delegation = match cbor_map_get(csil_root, "delegation") {
+        Some(csil_field) => {
+            let csil_decode = csil_dec_act_as_delegation;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
     let domain = {
         let csil_field = cbor_require(csil_root, "domain")?;
         let csil_decode = cbor_as_text;
@@ -2426,6 +2496,7 @@ fn csil_dec_identity(csil_root: &CsilCborValue) -> Result<Identity, CsilCborErro
         csil_decode(csil_field)?
     };
     Ok(Identity {
+        delegation,
         domain,
         user_id,
         display_name,
@@ -5413,6 +5484,235 @@ pub fn decode_service_error(csil_data: &[u8]) -> Result<ServiceError, CsilCborEr
     csil_dec_service_error(&csil_root)
 }
 
+/// Build the canonical CBOR value tree for a ActAsScopeSetRequest.
+fn csil_enc_act_as_scope_set_request(csil_v: &ActAsScopeSetRequest) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(5);
+    csil_entries.push((
+        cbor_text("scopes"),
+        cbor_enc_array(&csil_v.scopes, |csil_elem| cbor_text(csil_elem)),
+    ));
+    if let Some(csil_inner) = &csil_v.grantee_domain {
+        csil_entries.push((cbor_text("grantee_domain"), cbor_text(csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.grantee_user_id {
+        csil_entries.push((cbor_text("grantee_user_id"), cbor_text(csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.local_rp_fingerprint {
+        csil_entries.push((cbor_text("local_rp_fingerprint"), cbor_text(csil_inner)));
+    }
+    if let Some(csil_inner) = &csil_v.grantee_application_id {
+        csil_entries.push((cbor_text("grantee_application_id"), cbor_text(csil_inner)));
+    }
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a ActAsScopeSetRequest from a decoded CBOR value tree.
+fn csil_dec_act_as_scope_set_request(
+    csil_root: &CsilCborValue,
+) -> Result<ActAsScopeSetRequest, CsilCborError> {
+    let grantee_domain = match cbor_map_get(csil_root, "grantee_domain") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let grantee_user_id = match cbor_map_get(csil_root, "grantee_user_id") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let grantee_application_id = match cbor_map_get(csil_root, "grantee_application_id") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let local_rp_fingerprint = match cbor_map_get(csil_root, "local_rp_fingerprint") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let scopes = {
+        let csil_field = cbor_require(csil_root, "scopes")?;
+        let csil_decode = |csil_v| cbor_dec_array(csil_v, cbor_as_text);
+        csil_decode(csil_field)?
+    };
+    Ok(ActAsScopeSetRequest {
+        grantee_domain,
+        grantee_user_id,
+        grantee_application_id,
+        local_rp_fingerprint,
+        scopes,
+    })
+}
+
+/// Encode a ActAsScopeSetRequest to canonical CSIL CBOR bytes.
+pub fn encode_act_as_scope_set_request(csil_v: &ActAsScopeSetRequest) -> Vec<u8> {
+    cbor_encode(&csil_enc_act_as_scope_set_request(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a ActAsScopeSetRequest.
+pub fn decode_act_as_scope_set_request(
+    csil_data: &[u8],
+) -> Result<ActAsScopeSetRequest, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_act_as_scope_set_request(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a ActAsScopeSetResponse.
+fn csil_enc_act_as_scope_set_response(csil_v: &ActAsScopeSetResponse) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
+    csil_entries.push((
+        cbor_text("signed_scope_set"),
+        cbor_bytes(&csil_v.signed_scope_set),
+    ));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a ActAsScopeSetResponse from a decoded CBOR value tree.
+fn csil_dec_act_as_scope_set_response(
+    csil_root: &CsilCborValue,
+) -> Result<ActAsScopeSetResponse, CsilCborError> {
+    let signed_scope_set = {
+        let csil_field = cbor_require(csil_root, "signed_scope_set")?;
+        let csil_decode = cbor_as_bytes;
+        csil_decode(csil_field)?
+    };
+    Ok(ActAsScopeSetResponse { signed_scope_set })
+}
+
+/// Encode a ActAsScopeSetResponse to canonical CSIL CBOR bytes.
+pub fn encode_act_as_scope_set_response(csil_v: &ActAsScopeSetResponse) -> Vec<u8> {
+    cbor_encode(&csil_enc_act_as_scope_set_response(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a ActAsScopeSetResponse.
+pub fn decode_act_as_scope_set_response(
+    csil_data: &[u8],
+) -> Result<ActAsScopeSetResponse, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_act_as_scope_set_response(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a ExchangeActAsCredentialRequest.
+fn csil_enc_exchange_act_as_credential_request(
+    csil_v: &ExchangeActAsCredentialRequest,
+) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
+    csil_entries.push((cbor_text("credential"), cbor_bytes(&csil_v.credential)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a ExchangeActAsCredentialRequest from a decoded CBOR value tree.
+fn csil_dec_exchange_act_as_credential_request(
+    csil_root: &CsilCborValue,
+) -> Result<ExchangeActAsCredentialRequest, CsilCborError> {
+    let credential = {
+        let csil_field = cbor_require(csil_root, "credential")?;
+        let csil_decode = cbor_as_bytes;
+        csil_decode(csil_field)?
+    };
+    Ok(ExchangeActAsCredentialRequest { credential })
+}
+
+/// Encode a ExchangeActAsCredentialRequest to canonical CSIL CBOR bytes.
+pub fn encode_exchange_act_as_credential_request(
+    csil_v: &ExchangeActAsCredentialRequest,
+) -> Vec<u8> {
+    cbor_encode(&csil_enc_exchange_act_as_credential_request(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a ExchangeActAsCredentialRequest.
+pub fn decode_exchange_act_as_credential_request(
+    csil_data: &[u8],
+) -> Result<ExchangeActAsCredentialRequest, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_exchange_act_as_credential_request(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a ActAsTokenResponse.
+fn csil_enc_act_as_token_response(csil_v: &ActAsTokenResponse) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(7);
+    csil_entries.push((cbor_text("token"), cbor_text(&csil_v.token)));
+    csil_entries.push((cbor_text("domain"), cbor_text(&csil_v.domain)));
+    csil_entries.push((
+        cbor_text("scopes"),
+        cbor_enc_array(&csil_v.scopes, |csil_elem| cbor_text(csil_elem)),
+    ));
+    csil_entries.push((cbor_text("grantee"), cbor_text(&csil_v.grantee)));
+    csil_entries.push((cbor_text("user_id"), cbor_text(&csil_v.user_id)));
+    csil_entries.push((cbor_text("grant_id"), cbor_text(&csil_v.grant_id)));
+    csil_entries.push((cbor_text("expires_at"), cbor_text(&csil_v.expires_at)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a ActAsTokenResponse from a decoded CBOR value tree.
+fn csil_dec_act_as_token_response(
+    csil_root: &CsilCborValue,
+) -> Result<ActAsTokenResponse, CsilCborError> {
+    let token = {
+        let csil_field = cbor_require(csil_root, "token")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let domain = {
+        let csil_field = cbor_require(csil_root, "domain")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let user_id = {
+        let csil_field = cbor_require(csil_root, "user_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let expires_at = {
+        let csil_field = cbor_require(csil_root, "expires_at")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let grant_id = {
+        let csil_field = cbor_require(csil_root, "grant_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let grantee = {
+        let csil_field = cbor_require(csil_root, "grantee")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let scopes = {
+        let csil_field = cbor_require(csil_root, "scopes")?;
+        let csil_decode = |csil_v| cbor_dec_array(csil_v, cbor_as_text);
+        csil_decode(csil_field)?
+    };
+    Ok(ActAsTokenResponse {
+        token,
+        domain,
+        user_id,
+        expires_at,
+        grant_id,
+        grantee,
+        scopes,
+    })
+}
+
+/// Encode a ActAsTokenResponse to canonical CSIL CBOR bytes.
+pub fn encode_act_as_token_response(csil_v: &ActAsTokenResponse) -> Vec<u8> {
+    cbor_encode(&csil_enc_act_as_token_response(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a ActAsTokenResponse.
+pub fn decode_act_as_token_response(csil_data: &[u8]) -> Result<ActAsTokenResponse, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_act_as_token_response(&csil_root)
+}
+
 /// Build the canonical CBOR value tree for a CalendarSubscription.
 fn csil_enc_calendar_subscription(csil_v: &CalendarSubscription) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(2);
@@ -5891,6 +6191,167 @@ pub fn decode_calendar_migration_row(
 ) -> Result<CalendarMigrationRow, CsilCborError> {
     let csil_root = cbor_decode(csil_data)?;
     csil_dec_calendar_migration_row(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a ProjectDeadlineRequest.
+fn csil_enc_project_deadline_request(csil_v: &ProjectDeadlineRequest) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
+    csil_entries.push((cbor_text("range_end"), cbor_text(&csil_v.range_end)));
+    csil_entries.push((cbor_text("project_id"), cbor_text(&csil_v.project_id)));
+    csil_entries.push((cbor_text("range_start"), cbor_text(&csil_v.range_start)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a ProjectDeadlineRequest from a decoded CBOR value tree.
+fn csil_dec_project_deadline_request(
+    csil_root: &CsilCborValue,
+) -> Result<ProjectDeadlineRequest, CsilCborError> {
+    let project_id = {
+        let csil_field = cbor_require(csil_root, "project_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let range_start = {
+        let csil_field = cbor_require(csil_root, "range_start")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let range_end = {
+        let csil_field = cbor_require(csil_root, "range_end")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    Ok(ProjectDeadlineRequest {
+        project_id,
+        range_start,
+        range_end,
+    })
+}
+
+/// Encode a ProjectDeadlineRequest to canonical CSIL CBOR bytes.
+pub fn encode_project_deadline_request(csil_v: &ProjectDeadlineRequest) -> Vec<u8> {
+    cbor_encode(&csil_enc_project_deadline_request(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a ProjectDeadlineRequest.
+pub fn decode_project_deadline_request(
+    csil_data: &[u8],
+) -> Result<ProjectDeadlineRequest, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_project_deadline_request(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a ProjectDeadline.
+fn csil_enc_project_deadline(csil_v: &ProjectDeadline) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
+    csil_entries.push((cbor_text("title"), cbor_text(&csil_v.title)));
+    csil_entries.push((cbor_text("due_at"), cbor_text(&csil_v.due_at)));
+    csil_entries.push((cbor_text("task_id"), cbor_text(&csil_v.task_id)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a ProjectDeadline from a decoded CBOR value tree.
+fn csil_dec_project_deadline(csil_root: &CsilCborValue) -> Result<ProjectDeadline, CsilCborError> {
+    let task_id = {
+        let csil_field = cbor_require(csil_root, "task_id")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let title = {
+        let csil_field = cbor_require(csil_root, "title")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let due_at = {
+        let csil_field = cbor_require(csil_root, "due_at")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    Ok(ProjectDeadline {
+        task_id,
+        title,
+        due_at,
+    })
+}
+
+/// Encode a ProjectDeadline to canonical CSIL CBOR bytes.
+pub fn encode_project_deadline(csil_v: &ProjectDeadline) -> Vec<u8> {
+    cbor_encode(&csil_enc_project_deadline(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a ProjectDeadline.
+pub fn decode_project_deadline(csil_data: &[u8]) -> Result<ProjectDeadline, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_project_deadline(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a ProjectDeadlineList.
+fn csil_enc_project_deadline_list(csil_v: &ProjectDeadlineList) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(5);
+    csil_entries.push((cbor_text("enabled"), cbor_bool(csil_v.enabled)));
+    csil_entries.push((cbor_text("pending"), cbor_bool(csil_v.pending)));
+    csil_entries.push((cbor_text("category"), cbor_text(&csil_v.category)));
+    csil_entries.push((
+        cbor_text("deadlines"),
+        cbor_enc_array(&csil_v.deadlines, csil_enc_project_deadline),
+    ));
+    if let Some(csil_inner) = &csil_v.last_error {
+        csil_entries.push((cbor_text("last_error"), cbor_text(csil_inner)));
+    }
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a ProjectDeadlineList from a decoded CBOR value tree.
+fn csil_dec_project_deadline_list(
+    csil_root: &CsilCborValue,
+) -> Result<ProjectDeadlineList, CsilCborError> {
+    let enabled = {
+        let csil_field = cbor_require(csil_root, "enabled")?;
+        let csil_decode = cbor_as_bool;
+        csil_decode(csil_field)?
+    };
+    let pending = {
+        let csil_field = cbor_require(csil_root, "pending")?;
+        let csil_decode = cbor_as_bool;
+        csil_decode(csil_field)?
+    };
+    let category = {
+        let csil_field = cbor_require(csil_root, "category")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    let last_error = match cbor_map_get(csil_root, "last_error") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    let deadlines = {
+        let csil_field = cbor_require(csil_root, "deadlines")?;
+        let csil_decode = |csil_v| cbor_dec_array(csil_v, csil_dec_project_deadline);
+        csil_decode(csil_field)?
+    };
+    Ok(ProjectDeadlineList {
+        enabled,
+        pending,
+        category,
+        last_error,
+        deadlines,
+    })
+}
+
+/// Encode a ProjectDeadlineList to canonical CSIL CBOR bytes.
+pub fn encode_project_deadline_list(csil_v: &ProjectDeadlineList) -> Vec<u8> {
+    cbor_encode(&csil_enc_project_deadline_list(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a ProjectDeadlineList.
+pub fn decode_project_deadline_list(
+    csil_data: &[u8],
+) -> Result<ProjectDeadlineList, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_project_deadline_list(&csil_root)
 }
 
 /// Build the canonical CBOR value tree for a AuditEntry.

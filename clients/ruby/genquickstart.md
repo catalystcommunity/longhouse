@@ -67,7 +67,7 @@ class HttpRpcTransport
 end
 
 client = AuthClient.new(HttpRpcTransport.new("http://localhost:5080"))
-resp = client.login(LoginRequest.new(signed_assertion: "example"))
+resp = client.get_act_as_scope_set(ActAsScopeSetRequest.new(scopes: []))
 puts resp.inspect
 ```
 
@@ -151,7 +151,7 @@ OP_ORD = 1
 carrier = open_udp_carrier("localhost", 9000)
 
 # Fire-and-forget: encode the `->` request and send it. seq 0 marks an unsequenced datagram.
-req = LoginRequest.new(signed_assertion: "example")
+req = ActAsScopeSetRequest.new(scopes: [])
 carrier.send_datagram(Datagrams::Datagram.new(op_ord: OP_ORD, seq: 0, payload: req.to_cbor).encode)
 
 # Recv path: a datagram of the RESPONSE type MAY arrive later — or never. There is NO
@@ -160,7 +160,7 @@ carrier.send_datagram(Datagrams::Datagram.new(op_ord: OP_ORD, seq: 0, payload: r
 inbound = carrier.recv_datagram
 unless inbound.nil?
   dg = Datagrams::Datagram.decode(inbound)
-  resp = LoginResponse.from_cbor(dg.payload)
+  resp = ActAsScopeSetResponse.from_cbor(dg.payload)
   puts "late response: #{resp.inspect}"
 end
 ```

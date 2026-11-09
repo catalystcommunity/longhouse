@@ -43,6 +43,24 @@ func NewAuthClient(transport Transport) *AuthClient {
 	return &AuthClient{transport: transport}
 }
 
+func (c *AuthClient) GetActAsScopeSet(ctx context.Context, req ActAsScopeSetRequest) (ActAsScopeSetResponse, error) {
+	var csilZero ActAsScopeSetResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "get-act-as-scope-set", EncodeActAsScopeSetRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeActAsScopeSetResponse(csilResp)
+}
+
+func (c *AuthClient) ExchangeActAsCredential(ctx context.Context, req ExchangeActAsCredentialRequest) (ActAsTokenResponse, error) {
+	var csilZero ActAsTokenResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "exchange-act-as-credential", EncodeExchangeActAsCredentialRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeActAsTokenResponse(csilResp)
+}
+
 func (c *AuthClient) Login(ctx context.Context, req LoginRequest) (LoginResponse, error) {
 	var csilZero LoginResponse
 	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "login", EncodeLoginRequest(req))
@@ -969,6 +987,15 @@ type CalendarClient struct {
 
 func NewCalendarClient(transport Transport) *CalendarClient {
 	return &CalendarClient{transport: transport}
+}
+
+func (c *CalendarClient) ListProjectDeadlines(ctx context.Context, req ProjectDeadlineRequest) (ProjectDeadlineList, error) {
+	var csilZero ProjectDeadlineList
+	csilResp, csilErr := c.transport.Call(ctx, "CalendarService", "list-project-deadlines", EncodeProjectDeadlineRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeProjectDeadlineList(csilResp)
 }
 
 func (c *CalendarClient) GetStatus(ctx context.Context, req HouseID) (CalendarStatus, error) {

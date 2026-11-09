@@ -19,6 +19,8 @@ typedef struct CsilgenCodec {
 
 /* AuthHandlers is the host's implementation of the AuthService service. */
 typedef struct AuthHandlers {
+    int (*get_act_as_scope_set)(void *ctx, const ActAsScopeSetRequest *req, ActAsScopeSetResponse *resp);
+    int (*exchange_act_as_credential)(void *ctx, const ExchangeActAsCredentialRequest *req, ActAsTokenResponse *resp);
     int (*login)(void *ctx, const LoginRequest *req, LoginResponse *resp);
     int (*complete)(void *ctx, const CompleteRequest *req, LoginResponse *resp);
     int (*refresh)(void *ctx, const EmptyRequest *req, LoginResponse *resp);
@@ -151,6 +153,7 @@ typedef struct EventHandlers {
 
 /* CalendarHandlers is the host's implementation of the CalendarService service. */
 typedef struct CalendarHandlers {
+    int (*list_project_deadlines)(void *ctx, const ProjectDeadlineRequest *req, ProjectDeadlineList *resp);
     int (*get_status)(void *ctx, const HouseID *req, CalendarStatus *resp);
     int (*configure_calendar)(void *ctx, const ConfigureCalendarRequest *req, CalendarStatus *resp);
     int (*begin_connect)(void *ctx, const HouseID *req, CalendarConnectResponse *resp);

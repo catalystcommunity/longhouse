@@ -42,6 +42,33 @@ impl<T: Transport> AuthClient<T> {
         Self { transport }
     }
 
+    /// get-act-as-scope-set (request/response).
+    pub fn get_act_as_scope_set(
+        &self,
+        req: ActAsScopeSetRequest,
+    ) -> Result<ActAsScopeSetResponse, ClientError> {
+        let csil_resp = self.transport.call(
+            "AuthService",
+            "get-act-as-scope-set",
+            &encode_act_as_scope_set_request(&req),
+        )?;
+        decode_act_as_scope_set_response(&csil_resp)
+            .map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
+    /// exchange-act-as-credential (request/response).
+    pub fn exchange_act_as_credential(
+        &self,
+        req: ExchangeActAsCredentialRequest,
+    ) -> Result<ActAsTokenResponse, ClientError> {
+        let csil_resp = self.transport.call(
+            "AuthService",
+            "exchange-act-as-credential",
+            &encode_exchange_act_as_credential_request(&req),
+        )?;
+        decode_act_as_token_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
     /// login (request/response).
     pub fn login(&self, req: LoginRequest) -> Result<LoginResponse, ClientError> {
         let csil_resp = self
@@ -1093,6 +1120,19 @@ pub struct CalendarClient<T: Transport> {
 impl<T: Transport> CalendarClient<T> {
     pub fn new(transport: T) -> Self {
         Self { transport }
+    }
+
+    /// list-project-deadlines (request/response).
+    pub fn list_project_deadlines(
+        &self,
+        req: ProjectDeadlineRequest,
+    ) -> Result<ProjectDeadlineList, ClientError> {
+        let csil_resp = self.transport.call(
+            "CalendarService",
+            "list-project-deadlines",
+            &encode_project_deadline_request(&req),
+        )?;
+        decode_project_deadline_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
     }
 
     /// get-status (request/response).

@@ -72,3 +72,9 @@ gateway:
       parentSection: http
       hostnames:
         - longhouse.todandlorna.com
+
+# The release job loads this Secret from the environment's Reactorcide store.
+actAs:
+  enabled: true
+  existingSecret: longhouse-application-keys
+  keysKey: keys.json

@@ -10,6 +10,7 @@ import (
 var AppStore Store
 
 type Store interface {
+	ConsumeActAsNonce(ctx context.Context, domain, grantID, nonce string, expiresAt time.Time) (bool, error)
 	Initialize() (cleanup func(), err error)
 
 	// Audit log (append-only, partitioned by month). RecordAuditEntry appends

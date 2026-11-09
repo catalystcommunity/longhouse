@@ -17,6 +17,16 @@ public struct AuthAsyncClient {
         self.transport = transport
     }
 
+    public func getActAsScopeSet(_ request: ActAsScopeSetRequest) async throws -> ActAsScopeSetResponse {
+        let csilResp = try await transport.call(service: "AuthService", op: "get-act-as-scope-set", request: request.toCbor())
+        return try ActAsScopeSetResponse.fromCbor(csilResp)
+    }
+
+    public func exchangeActAsCredential(_ request: ExchangeActAsCredentialRequest) async throws -> ActAsTokenResponse {
+        let csilResp = try await transport.call(service: "AuthService", op: "exchange-act-as-credential", request: request.toCbor())
+        return try ActAsTokenResponse.fromCbor(csilResp)
+    }
+
     public func login(_ request: LoginRequest) async throws -> LoginResponse {
         let csilResp = try await transport.call(service: "AuthService", op: "login", request: request.toCbor())
         return try LoginResponse.fromCbor(csilResp)
@@ -575,6 +585,11 @@ public struct CalendarAsyncClient {
     public let transport: AsyncCsilTransport
     public init(transport: AsyncCsilTransport) {
         self.transport = transport
+    }
+
+    public func listProjectDeadlines(_ request: ProjectDeadlineRequest) async throws -> ProjectDeadlineList {
+        let csilResp = try await transport.call(service: "CalendarService", op: "list-project-deadlines", request: request.toCbor())
+        return try ProjectDeadlineList.fromCbor(csilResp)
     }
 
     public func getStatus(_ request: HouseId) async throws -> CalendarStatus {

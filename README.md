@@ -4,6 +4,8 @@ Coordination system for small-to-medium organizations and neighborhoods.
 Tasks, calendar, projects, members, groups, and skills under a per-house
 membership model.
 
+See [LinkKeys act-as access](docs/act-as.md) to let applications act for a user.
+
 ## Quick start
 
 ```bash

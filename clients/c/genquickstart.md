@@ -172,13 +172,13 @@ int main(void) {
     CsilgenTransport transport = { .call = csil_rpc_call, .self = &carrier };
 
     CsilCodecArena *owner = NULL;
-    LoginResponse resp;
-    LoginRequest req = { .signed_assertion = "example" };
-    if (csil_auth_login(&transport, &req, &resp, &owner) != 0) {
-        fprintf(stderr, "csil-rpc AuthService/login failed\n");
+    ActAsScopeSetResponse resp;
+    ActAsScopeSetRequest req = { .scopes = {0} };
+    if (csil_auth_get_act_as_scope_set(&transport, &req, &resp, &owner) != 0) {
+        fprintf(stderr, "csil-rpc AuthService/get-act-as-scope-set failed\n");
         return 1;
     }
-    printf("AuthService/login -> %s\n", resp.token);
+    printf("AuthService/get-act-as-scope-set ok\n");
     csil_codec_arena_free(owner); // frees everything `resp` borrows
     return 0;
 }
@@ -346,9 +346,9 @@ int main(void) {
 
     // Fire-and-forget: encode the `->` request via the generated codec, wrap it in
     // the library's Datagram, and send it. seq 0 marks an unsequenced datagram.
-    LoginRequest req = { .signed_assertion = "example" };
+    ActAsScopeSetRequest req = { .scopes = {0} };
     uint8_t *payload = NULL; size_t payload_len = 0;
-    if (csil_encode_LoginRequest(&req, &payload, &payload_len)) { close(fd); return 1; }
+    if (csil_encode_ActAsScopeSetRequest(&req, &payload, &payload_len)) { close(fd); return 1; }
     csil_datagram dg;
     csil_datagram_init(&dg, OP_ORD, 0, payload, payload_len);
     uint8_t *frame = NULL; size_t frame_len = 0;
@@ -365,9 +365,9 @@ int main(void) {
     if (carrier.recv_datagram(carrier.userdata, &inb, &inn) == CSIL_OK && inb) {
         csil_datagram in_dg;
         if (csil_datagram_decode(inb, inn, &in_dg) == 0) {
-            LoginResponse resp;
+            ActAsScopeSetResponse resp;
             CsilCodecArena *owner = NULL;
-            if (csil_decode_LoginResponse(in_dg.payload, in_dg.payload_len, &resp, &owner) == 0) {
+            if (csil_decode_ActAsScopeSetResponse(in_dg.payload, in_dg.payload_len, &resp, &owner) == 0) {
                 printf("late response\n");
                 csil_codec_arena_free(owner);
             }

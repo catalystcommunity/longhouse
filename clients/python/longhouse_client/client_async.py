@@ -31,6 +31,14 @@ class AuthAsyncClient:
     def __init__(self, transport: AsyncTransport):
         self._transport = transport
 
+    async def get_act_as_scope_set(self, req: ActAsScopeSetRequest) -> ActAsScopeSetResponse:
+        """get-act-as-scope-set"""
+        return ActAsScopeSetResponse.from_cbor(await self._transport.call("AuthService", "get-act-as-scope-set", req.to_cbor()))
+
+    async def exchange_act_as_credential(self, req: ExchangeActAsCredentialRequest) -> ActAsTokenResponse:
+        """exchange-act-as-credential"""
+        return ActAsTokenResponse.from_cbor(await self._transport.call("AuthService", "exchange-act-as-credential", req.to_cbor()))
+
     async def login(self, req: LoginRequest) -> LoginResponse:
         """login"""
         return LoginResponse.from_cbor(await self._transport.call("AuthService", "login", req.to_cbor()))
@@ -448,6 +456,10 @@ class CalendarAsyncClient:
     """Typed client for the CalendarService service."""
     def __init__(self, transport: AsyncTransport):
         self._transport = transport
+
+    async def list_project_deadlines(self, req: ProjectDeadlineRequest) -> ProjectDeadlineList:
+        """list-project-deadlines"""
+        return ProjectDeadlineList.from_cbor(await self._transport.call("CalendarService", "list-project-deadlines", req.to_cbor()))
 
     async def get_status(self, req: HouseId) -> CalendarStatus:
         """get-status"""

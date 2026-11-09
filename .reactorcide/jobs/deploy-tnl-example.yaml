@@ -82,6 +82,8 @@ environment:
   # Per-env path: each environment's RP gets its own API-key user
   # registered on the linkkeys side, so revocation is per-app.
   LINKKEYS_PKI_API_KEY: "${secret:tnl/longhouse:linkkeys_api_key}"
+  LONGHOUSE_APPLICATION_KEYS: "${secret:tnl/longhouse:application_keys}"
+  LONGHOUSE_APPLICATION_KEYS_SECRET: "longhouse-application-keys"
 
 # ----------------------------------------------------------------------
 # Run-local notes

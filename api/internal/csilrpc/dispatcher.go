@@ -50,13 +50,19 @@ type Dispatcher struct {
 	// mutation (and denied/failed attempt). Nil disables audit recording.
 	// The auth/devauth services are skipped here — they emit their own
 	// security events with per-house fan-out.
-	auditRecorder audit.Recorder
+	auditRecorder      audit.Recorder
+	delegationVerifier func(context.Context, *auth.Identity) error
 }
 
 // SetAuditRecorder wires the audit sink. Call once at startup. Safe to leave
 // unset (audit recording is then a no-op) — used by tests that exercise just
 // the dispatch surface.
 func (d *Dispatcher) SetAuditRecorder(rec audit.Recorder) { d.auditRecorder = rec }
+
+// SetDelegationVerifier installs the live grant and membership check.
+func (d *Dispatcher) SetDelegationVerifier(verify func(context.Context, *auth.Identity) error) {
+	d.delegationVerifier = verify
+}
 
 // New constructs an empty Dispatcher. Pass the JWT secret so non-public
 // methods can verify bearers; pass nil only in tests that exercise just
@@ -103,7 +109,8 @@ func (d *Dispatcher) registerTyped(service, method string, h TypedHandler) {
 // per-house fan-out and unattributable-failure handling. Best-effort: a failed
 // audit write is logged loudly but never affects the response the caller sees.
 func (d *Dispatcher) emitAudit(ctx context.Context, service, method string, callErr error) {
-	if d.auditRecorder == nil || service == "auth" || service == "devauth" {
+	id := auth.IdentityFromContext(ctx)
+	if d.auditRecorder == nil || service == "devauth" || (service == "auth" && (id == nil || id.Delegation == nil)) {
 		return
 	}
 	outcome := models.AuditOutcomeOK

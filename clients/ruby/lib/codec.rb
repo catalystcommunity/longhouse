@@ -1046,6 +1046,36 @@ class HouseRoles
   end
 end
 
+# CBOR codec for ActAsDelegation: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ActAsDelegation
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["scopes"] = (scopes).map { |csil_e| csil_e }
+    csil_map["grantee"] = grantee
+    csil_map["grant_id"] = grant_id
+    csil_map["grant_expires_at"] = grant_expires_at
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      grant_expires_at: node["grant_expires_at"],
+      grant_id: node["grant_id"],
+      grantee: node["grantee"],
+      scopes: (node["scopes"]).map { |csil_e| csil_e }
+    )
+  end
+end
+
 # CBOR codec for Identity: a map keyed by the verbatim CSIL field names in
 # canonical RFC 8949 order.
 class Identity
@@ -1060,6 +1090,7 @@ class Identity
     csil_map["domain"] = domain
     csil_map["houses"] = (houses).map { |csil_e| (csil_e).csil_to_tree }
     csil_map["user_id"] = user_id
+    csil_map["delegation"] = (delegation).csil_to_tree unless delegation.nil?
     csil_map["display_name"] = display_name unless display_name.nil?
     csil_map
   end
@@ -1070,6 +1101,7 @@ class Identity
 
   def self.csil_from_tree(node)
     new(
+      delegation: (node.key?("delegation") ? ActAsDelegation.csil_from_tree(node["delegation"]) : nil),
       domain: node["domain"],
       user_id: node["user_id"],
       display_name: (node.key?("display_name") ? node["display_name"] : nil),
@@ -2859,6 +2891,122 @@ class ServiceError
   end
 end
 
+# CBOR codec for ActAsScopeSetRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ActAsScopeSetRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["scopes"] = (scopes).map { |csil_e| csil_e }
+    csil_map["grantee_domain"] = grantee_domain unless grantee_domain.nil?
+    csil_map["grantee_user_id"] = grantee_user_id unless grantee_user_id.nil?
+    csil_map["local_rp_fingerprint"] = local_rp_fingerprint unless local_rp_fingerprint.nil?
+    csil_map["grantee_application_id"] = grantee_application_id unless grantee_application_id.nil?
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      grantee_domain: (node.key?("grantee_domain") ? node["grantee_domain"] : nil),
+      grantee_user_id: (node.key?("grantee_user_id") ? node["grantee_user_id"] : nil),
+      grantee_application_id: (node.key?("grantee_application_id") ? node["grantee_application_id"] : nil),
+      local_rp_fingerprint: (node.key?("local_rp_fingerprint") ? node["local_rp_fingerprint"] : nil),
+      scopes: (node["scopes"]).map { |csil_e| csil_e }
+    )
+  end
+end
+
+# CBOR codec for ActAsScopeSetResponse: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ActAsScopeSetResponse
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["signed_scope_set"] = (signed_scope_set).b
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      signed_scope_set: node["signed_scope_set"]
+    )
+  end
+end
+
+# CBOR codec for ExchangeActAsCredentialRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ExchangeActAsCredentialRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["credential"] = (credential).b
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      credential: node["credential"]
+    )
+  end
+end
+
+# CBOR codec for ActAsTokenResponse: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ActAsTokenResponse
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["token"] = token
+    csil_map["domain"] = domain
+    csil_map["scopes"] = (scopes).map { |csil_e| csil_e }
+    csil_map["grantee"] = grantee
+    csil_map["user_id"] = user_id
+    csil_map["grant_id"] = grant_id
+    csil_map["expires_at"] = expires_at
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      token: node["token"],
+      domain: node["domain"],
+      user_id: node["user_id"],
+      expires_at: node["expires_at"],
+      grant_id: node["grant_id"],
+      grantee: node["grantee"],
+      scopes: (node["scopes"]).map { |csil_e| csil_e }
+    )
+  end
+end
+
 # CBOR codec for CalendarSubscription: a map keyed by the verbatim CSIL field names in
 # canonical RFC 8949 order.
 class CalendarSubscription
@@ -3135,6 +3283,94 @@ class CalendarMigrationRow
       title: node["title"],
       disposition: node["disposition"],
       reason: node["reason"]
+    )
+  end
+end
+
+# CBOR codec for ProjectDeadlineRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ProjectDeadlineRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["range_end"] = range_end
+    csil_map["project_id"] = project_id
+    csil_map["range_start"] = range_start
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      project_id: node["project_id"],
+      range_start: node["range_start"],
+      range_end: node["range_end"]
+    )
+  end
+end
+
+# CBOR codec for ProjectDeadline: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ProjectDeadline
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["title"] = title
+    csil_map["due_at"] = due_at
+    csil_map["task_id"] = task_id
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      task_id: node["task_id"],
+      title: node["title"],
+      due_at: node["due_at"]
+    )
+  end
+end
+
+# CBOR codec for ProjectDeadlineList: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class ProjectDeadlineList
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["enabled"] = enabled
+    csil_map["pending"] = pending
+    csil_map["category"] = category
+    csil_map["deadlines"] = (deadlines).map { |csil_e| (csil_e).csil_to_tree }
+    csil_map["last_error"] = last_error unless last_error.nil?
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      enabled: node["enabled"],
+      pending: node["pending"],
+      category: node["category"],
+      last_error: (node.key?("last_error") ? node["last_error"] : nil),
+      deadlines: (node["deadlines"]).map { |csil_e| ProjectDeadline.csil_from_tree(csil_e) }
     )
   end
 end

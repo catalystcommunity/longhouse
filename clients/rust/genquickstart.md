@@ -78,7 +78,7 @@ impl Transport for HttpRpcCarrier {
 
 fn main() {
     let client = AuthClient::new(HttpRpcCarrier::new("http://localhost:5080"));
-    let resp = client.login(LoginRequest { signed_assertion: "example".to_string() });
+    let resp = client.get_act_as_scope_set(ActAsScopeSetRequest { grantee_domain: None, grantee_user_id: None, grantee_application_id: None, local_rp_fingerprint: None, scopes: Vec::new() });
     match resp {
         Ok(value) => println!("{value:?}"),
         Err(err) => eprintln!("call failed: {err}"),
@@ -179,13 +179,13 @@ const OP_ORD: u64 = 1;
 // response type MAY arrive later — or never — so the caller must tolerate loss and
 // reordering.
 fn run_datagrams(carrier: &mut impl DatagramCarrier) -> Result<(), Box<dyn std::error::Error>> {
-    let req = LoginRequest { signed_assertion: "example".to_string() };
+    let req = ActAsScopeSetRequest { grantee_domain: None, grantee_user_id: None, grantee_application_id: None, local_rp_fingerprint: None, scopes: Vec::new() };
     // seq 0 marks an unsequenced datagram.
-    carrier.send_datagram(&Datagram::new(OP_ORD, 0, encode_login_request(&req)).encode()?)?;
+    carrier.send_datagram(&Datagram::new(OP_ORD, 0, encode_act_as_scope_set_request(&req)).encode()?)?;
 
     if let Some(inbound) = carrier.recv_datagram()? {
         let dg = Datagram::decode(&inbound)?;
-        let resp = decode_login_response(&dg.payload)?;
+        let resp = decode_act_as_scope_set_response(&dg.payload)?;
         println!("late response: {resp:?}");
     }
     Ok(())

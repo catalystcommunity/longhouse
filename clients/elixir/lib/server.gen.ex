@@ -3,6 +3,15 @@
 defmodule Csilgen.Generated.AuthServer do
   @moduledoc "Server handler behaviour + routers for the AuthService service."
 
+  @callback get_act_as_scope_set(req :: Csilgen.Generated.ActAsScopeSetRequest.t(), ctx :: map()) ::
+              {:ok, Csilgen.Generated.ActAsScopeSetResponse.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
+  @callback exchange_act_as_credential(
+              req :: Csilgen.Generated.ExchangeActAsCredentialRequest.t(),
+              ctx :: map()
+            ) ::
+              {:ok, Csilgen.Generated.ActAsTokenResponse.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback login(req :: Csilgen.Generated.LoginRequest.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.LoginResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
@@ -300,6 +309,12 @@ end
 defmodule Csilgen.Generated.CalendarServer do
   @moduledoc "Server handler behaviour + routers for the CalendarService service."
 
+  @callback list_project_deadlines(
+              req :: Csilgen.Generated.ProjectDeadlineRequest.t(),
+              ctx :: map()
+            ) ::
+              {:ok, Csilgen.Generated.ProjectDeadlineList.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback get_status(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.CalendarStatus.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}

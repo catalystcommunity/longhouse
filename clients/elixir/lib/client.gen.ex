@@ -30,6 +30,34 @@ defmodule Csilgen.Generated.AuthClient do
   @spec new(Csilgen.Generated.Transport.t()) :: t()
   def new(transport), do: %__MODULE__{transport: transport}
 
+  @spec get_act_as_scope_set(t(), Csilgen.Generated.ActAsScopeSetRequest.t()) ::
+          Csilgen.Generated.ActAsScopeSetResponse.t()
+  def get_act_as_scope_set(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "AuthService",
+        "get-act-as-scope-set",
+        Csilgen.Generated.ActAsScopeSetRequest.to_cbor(req)
+      )
+
+    Csilgen.Generated.ActAsScopeSetResponse.from_cbor(resp)
+  end
+
+  @spec exchange_act_as_credential(t(), Csilgen.Generated.ExchangeActAsCredentialRequest.t()) ::
+          Csilgen.Generated.ActAsTokenResponse.t()
+  def exchange_act_as_credential(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "AuthService",
+        "exchange-act-as-credential",
+        Csilgen.Generated.ExchangeActAsCredentialRequest.to_cbor(req)
+      )
+
+    Csilgen.Generated.ActAsTokenResponse.from_cbor(resp)
+  end
+
   @spec login(t(), Csilgen.Generated.LoginRequest.t()) :: Csilgen.Generated.LoginResponse.t()
   def login(%__MODULE__{transport: transport}, req) do
     resp =
@@ -1630,6 +1658,20 @@ defmodule Csilgen.Generated.CalendarClient do
 
   @spec new(Csilgen.Generated.Transport.t()) :: t()
   def new(transport), do: %__MODULE__{transport: transport}
+
+  @spec list_project_deadlines(t(), Csilgen.Generated.ProjectDeadlineRequest.t()) ::
+          Csilgen.Generated.ProjectDeadlineList.t()
+  def list_project_deadlines(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "CalendarService",
+        "list-project-deadlines",
+        Csilgen.Generated.ProjectDeadlineRequest.to_cbor(req)
+      )
+
+    Csilgen.Generated.ProjectDeadlineList.from_cbor(resp)
+  end
 
   @spec get_status(t(), Csilgen.Generated.HouseID.t()) :: Csilgen.Generated.CalendarStatus.t()
   def get_status(%__MODULE__{transport: transport}, req) do

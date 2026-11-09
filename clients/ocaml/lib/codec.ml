@@ -362,6 +362,17 @@ and encode_house_roles (v : house_roles) : Cbor.t =
          Some (Cbor.Text "member", (Cbor.Text v.member));
        ])
 
+and encode_act_as_delegation (v : act_as_delegation) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "scopes", (Cbor.Array (List.map (fun csil_e -> (Cbor.Text csil_e)) v.scopes)));
+         Some (Cbor.Text "grantee", (Cbor.Text v.grantee));
+         Some (Cbor.Text "grant_id", (Cbor.Text v.grant_id));
+         Some (Cbor.Text "grant_expires_at", (Cbor.int64 v.grant_expires_at));
+       ])
+
 and encode_identity (v : identity) : Cbor.t =
   Cbor.Map
     (List.filter_map
@@ -372,6 +383,7 @@ and encode_identity (v : identity) : Cbor.t =
          Some (Cbor.Text "domain", (Cbor.Text v.domain));
          Some (Cbor.Text "houses", (Cbor.Array (List.map (fun csil_e -> (encode_house_roles csil_e)) v.houses)));
          Some (Cbor.Text "user_id", (Cbor.Text v.user_id));
+         (match v.delegation with Some csil_x -> Some (Cbor.Text "delegation", (encode_act_as_delegation csil_x)) | None -> None);
          (match v.display_name with Some csil_x -> Some (Cbor.Text "display_name", (Cbor.Text csil_x)) | None -> None);
        ])
 
@@ -956,6 +968,48 @@ and encode_service_error (v : service_error) : Cbor.t =
          Some (Cbor.Text "message", (Cbor.Text v.message));
        ])
 
+and encode_act_as_scope_set_request (v : act_as_scope_set_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "scopes", (Cbor.Array (List.map (fun csil_e -> (Cbor.Text csil_e)) v.scopes)));
+         (match v.grantee_domain with Some csil_x -> Some (Cbor.Text "grantee_domain", (Cbor.Text csil_x)) | None -> None);
+         (match v.grantee_user_id with Some csil_x -> Some (Cbor.Text "grantee_user_id", (Cbor.Text csil_x)) | None -> None);
+         (match v.local_rp_fingerprint with Some csil_x -> Some (Cbor.Text "local_rp_fingerprint", (Cbor.Text csil_x)) | None -> None);
+         (match v.grantee_application_id with Some csil_x -> Some (Cbor.Text "grantee_application_id", (Cbor.Text csil_x)) | None -> None);
+       ])
+
+and encode_act_as_scope_set_response (v : act_as_scope_set_response) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "signed_scope_set", (Cbor.Bytes v.signed_scope_set));
+       ])
+
+and encode_exchange_act_as_credential_request (v : exchange_act_as_credential_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "credential", (Cbor.Bytes v.credential));
+       ])
+
+and encode_act_as_token_response (v : act_as_token_response) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "token", (Cbor.Text v.token));
+         Some (Cbor.Text "domain", (Cbor.Text v.domain));
+         Some (Cbor.Text "scopes", (Cbor.Array (List.map (fun csil_e -> (Cbor.Text csil_e)) v.scopes)));
+         Some (Cbor.Text "grantee", (Cbor.Text v.grantee));
+         Some (Cbor.Text "user_id", (Cbor.Text v.user_id));
+         Some (Cbor.Text "grant_id", (Cbor.Text v.grant_id));
+         Some (Cbor.Text "expires_at", (Cbor.Text v.expires_at));
+       ])
+
 and encode_calendar_subscription (v : calendar_subscription) : Cbor.t =
   Cbor.Map
     (List.filter_map
@@ -1054,6 +1108,38 @@ and encode_calendar_migration_row (v : calendar_migration_row) : Cbor.t =
          Some (Cbor.Text "reason", (Cbor.Text v.reason));
          Some (Cbor.Text "event_id", (Cbor.Text v.event_id));
          Some (Cbor.Text "disposition", (Cbor.Text v.disposition));
+       ])
+
+and encode_project_deadline_request (v : project_deadline_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "range_end", (Cbor.Text v.range_end));
+         Some (Cbor.Text "project_id", (Cbor.Text v.project_id));
+         Some (Cbor.Text "range_start", (Cbor.Text v.range_start));
+       ])
+
+and encode_project_deadline (v : project_deadline) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "title", (Cbor.Text v.title));
+         Some (Cbor.Text "due_at", (Cbor.Text v.due_at));
+         Some (Cbor.Text "task_id", (Cbor.Text v.task_id));
+       ])
+
+and encode_project_deadline_list (v : project_deadline_list) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "enabled", (Cbor.Bool v.enabled));
+         Some (Cbor.Text "pending", (Cbor.Bool v.pending));
+         Some (Cbor.Text "category", (Cbor.Text v.category));
+         Some (Cbor.Text "deadlines", (Cbor.Array (List.map (fun csil_e -> (encode_project_deadline csil_e)) v.deadlines)));
+         (match v.last_error with Some csil_x -> Some (Cbor.Text "last_error", (Cbor.Text csil_x)) | None -> None);
        ])
 
 and encode_audit_entry (v : audit_entry) : Cbor.t =
@@ -1611,6 +1697,22 @@ and decode_house_roles (csil_c : Cbor.t) : house_roles =
       }
   | _ -> failwith "csilgen: expected map for house_roles"
 
+and decode_act_as_delegation (csil_c : Cbor.t) : act_as_delegation =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        scopes = (match (csil_req "scopes") with Cbor.Array csil_xs -> List.map (fun csil_e -> (Cbor.to_text csil_e)) csil_xs | _ -> failwith "csilgen: expected array");
+        grantee = (Cbor.to_text (csil_req "grantee"));
+        grant_id = (Cbor.to_text (csil_req "grant_id"));
+        grant_expires_at = (Cbor.to_i64 (csil_req "grant_expires_at"));
+      }
+  | _ -> failwith "csilgen: expected map for act_as_delegation"
+
 and decode_identity (csil_c : Cbor.t) : identity =
   match csil_c with
   | Cbor.Map csil_kvs ->
@@ -1625,6 +1727,7 @@ and decode_identity (csil_c : Cbor.t) : identity =
         domain = (Cbor.to_text (csil_req "domain"));
         houses = (match (csil_req "houses") with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_house_roles csil_e)) csil_xs | _ -> failwith "csilgen: expected array");
         user_id = (Cbor.to_text (csil_req "user_id"));
+        delegation = (match csil_field "delegation" with Some csil_v -> Some (decode_act_as_delegation csil_v) | None -> None);
         display_name = (match csil_field "display_name" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
       }
   | _ -> failwith "csilgen: expected map for identity"
@@ -2497,6 +2600,68 @@ and decode_service_error (csil_c : Cbor.t) : service_error =
       }
   | _ -> failwith "csilgen: expected map for service_error"
 
+and decode_act_as_scope_set_request (csil_c : Cbor.t) : act_as_scope_set_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        scopes = (match (csil_req "scopes") with Cbor.Array csil_xs -> List.map (fun csil_e -> (Cbor.to_text csil_e)) csil_xs | _ -> failwith "csilgen: expected array");
+        grantee_domain = (match csil_field "grantee_domain" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        grantee_user_id = (match csil_field "grantee_user_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        local_rp_fingerprint = (match csil_field "local_rp_fingerprint" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+        grantee_application_id = (match csil_field "grantee_application_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+      }
+  | _ -> failwith "csilgen: expected map for act_as_scope_set_request"
+
+and decode_act_as_scope_set_response (csil_c : Cbor.t) : act_as_scope_set_response =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        signed_scope_set = (Cbor.to_bytes (csil_req "signed_scope_set"));
+      }
+  | _ -> failwith "csilgen: expected map for act_as_scope_set_response"
+
+and decode_exchange_act_as_credential_request (csil_c : Cbor.t) : exchange_act_as_credential_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        credential = (Cbor.to_bytes (csil_req "credential"));
+      }
+  | _ -> failwith "csilgen: expected map for exchange_act_as_credential_request"
+
+and decode_act_as_token_response (csil_c : Cbor.t) : act_as_token_response =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        token = (Cbor.to_text (csil_req "token"));
+        domain = (Cbor.to_text (csil_req "domain"));
+        scopes = (match (csil_req "scopes") with Cbor.Array csil_xs -> List.map (fun csil_e -> (Cbor.to_text csil_e)) csil_xs | _ -> failwith "csilgen: expected array");
+        grantee = (Cbor.to_text (csil_req "grantee"));
+        user_id = (Cbor.to_text (csil_req "user_id"));
+        grant_id = (Cbor.to_text (csil_req "grant_id"));
+        expires_at = (Cbor.to_text (csil_req "expires_at"));
+      }
+  | _ -> failwith "csilgen: expected map for act_as_token_response"
+
 and decode_calendar_subscription (csil_c : Cbor.t) : calendar_subscription =
   match csil_c with
   | Cbor.Map csil_kvs ->
@@ -2646,6 +2811,53 @@ and decode_calendar_migration_row (csil_c : Cbor.t) : calendar_migration_row =
         disposition = (Cbor.to_text (csil_req "disposition"));
       }
   | _ -> failwith "csilgen: expected map for calendar_migration_row"
+
+and decode_project_deadline_request (csil_c : Cbor.t) : project_deadline_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        range_end = (Cbor.to_text (csil_req "range_end"));
+        project_id = (Cbor.to_text (csil_req "project_id"));
+        range_start = (Cbor.to_text (csil_req "range_start"));
+      }
+  | _ -> failwith "csilgen: expected map for project_deadline_request"
+
+and decode_project_deadline (csil_c : Cbor.t) : project_deadline =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        title = (Cbor.to_text (csil_req "title"));
+        due_at = (Cbor.to_text (csil_req "due_at"));
+        task_id = (Cbor.to_text (csil_req "task_id"));
+      }
+  | _ -> failwith "csilgen: expected map for project_deadline"
+
+and decode_project_deadline_list (csil_c : Cbor.t) : project_deadline_list =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        enabled = (Cbor.to_bool (csil_req "enabled"));
+        pending = (Cbor.to_bool (csil_req "pending"));
+        category = (Cbor.to_text (csil_req "category"));
+        deadlines = (match (csil_req "deadlines") with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_project_deadline csil_e)) csil_xs | _ -> failwith "csilgen: expected array");
+        last_error = (match csil_field "last_error" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+      }
+  | _ -> failwith "csilgen: expected map for project_deadline_list"
 
 and decode_audit_entry (csil_c : Cbor.t) : audit_entry =
   match csil_c with
@@ -2908,6 +3120,10 @@ let encode_house_roles_bytes (v : house_roles) : bytes = Cbor.encode (encode_hou
 let decode_house_roles_bytes (b : bytes) : house_roles =
   match Cbor.decode b with Ok c -> decode_house_roles c | Error e -> failwith e
 
+let encode_act_as_delegation_bytes (v : act_as_delegation) : bytes = Cbor.encode (encode_act_as_delegation v)
+let decode_act_as_delegation_bytes (b : bytes) : act_as_delegation =
+  match Cbor.decode b with Ok c -> decode_act_as_delegation c | Error e -> failwith e
+
 let encode_identity_bytes (v : identity) : bytes = Cbor.encode (encode_identity v)
 let decode_identity_bytes (b : bytes) : identity =
   match Cbor.decode b with Ok c -> decode_identity c | Error e -> failwith e
@@ -3148,6 +3364,22 @@ let encode_service_error_bytes (v : service_error) : bytes = Cbor.encode (encode
 let decode_service_error_bytes (b : bytes) : service_error =
   match Cbor.decode b with Ok c -> decode_service_error c | Error e -> failwith e
 
+let encode_act_as_scope_set_request_bytes (v : act_as_scope_set_request) : bytes = Cbor.encode (encode_act_as_scope_set_request v)
+let decode_act_as_scope_set_request_bytes (b : bytes) : act_as_scope_set_request =
+  match Cbor.decode b with Ok c -> decode_act_as_scope_set_request c | Error e -> failwith e
+
+let encode_act_as_scope_set_response_bytes (v : act_as_scope_set_response) : bytes = Cbor.encode (encode_act_as_scope_set_response v)
+let decode_act_as_scope_set_response_bytes (b : bytes) : act_as_scope_set_response =
+  match Cbor.decode b with Ok c -> decode_act_as_scope_set_response c | Error e -> failwith e
+
+let encode_exchange_act_as_credential_request_bytes (v : exchange_act_as_credential_request) : bytes = Cbor.encode (encode_exchange_act_as_credential_request v)
+let decode_exchange_act_as_credential_request_bytes (b : bytes) : exchange_act_as_credential_request =
+  match Cbor.decode b with Ok c -> decode_exchange_act_as_credential_request c | Error e -> failwith e
+
+let encode_act_as_token_response_bytes (v : act_as_token_response) : bytes = Cbor.encode (encode_act_as_token_response v)
+let decode_act_as_token_response_bytes (b : bytes) : act_as_token_response =
+  match Cbor.decode b with Ok c -> decode_act_as_token_response c | Error e -> failwith e
+
 let encode_calendar_subscription_bytes (v : calendar_subscription) : bytes = Cbor.encode (encode_calendar_subscription v)
 let decode_calendar_subscription_bytes (b : bytes) : calendar_subscription =
   match Cbor.decode b with Ok c -> decode_calendar_subscription c | Error e -> failwith e
@@ -3187,6 +3419,18 @@ let decode_restore_calendar_event_request_bytes (b : bytes) : restore_calendar_e
 let encode_calendar_migration_row_bytes (v : calendar_migration_row) : bytes = Cbor.encode (encode_calendar_migration_row v)
 let decode_calendar_migration_row_bytes (b : bytes) : calendar_migration_row =
   match Cbor.decode b with Ok c -> decode_calendar_migration_row c | Error e -> failwith e
+
+let encode_project_deadline_request_bytes (v : project_deadline_request) : bytes = Cbor.encode (encode_project_deadline_request v)
+let decode_project_deadline_request_bytes (b : bytes) : project_deadline_request =
+  match Cbor.decode b with Ok c -> decode_project_deadline_request c | Error e -> failwith e
+
+let encode_project_deadline_bytes (v : project_deadline) : bytes = Cbor.encode (encode_project_deadline v)
+let decode_project_deadline_bytes (b : bytes) : project_deadline =
+  match Cbor.decode b with Ok c -> decode_project_deadline c | Error e -> failwith e
+
+let encode_project_deadline_list_bytes (v : project_deadline_list) : bytes = Cbor.encode (encode_project_deadline_list v)
+let decode_project_deadline_list_bytes (b : bytes) : project_deadline_list =
+  match Cbor.decode b with Ok c -> decode_project_deadline_list c | Error e -> failwith e
 
 let encode_audit_entry_bytes (v : audit_entry) : bytes = Cbor.encode (encode_audit_entry v)
 let decode_audit_entry_bytes (b : bytes) : audit_entry =

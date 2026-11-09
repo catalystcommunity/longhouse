@@ -379,6 +379,7 @@ public static class Codec
         Share csilTyped => ShareToCborValue(csilTyped),
         HouseSummary csilTyped => HouseSummaryToCborValue(csilTyped),
         HouseRoles csilTyped => HouseRolesToCborValue(csilTyped),
+        ActAsDelegation csilTyped => ActAsDelegationToCborValue(csilTyped),
         Identity csilTyped => IdentityToCborValue(csilTyped),
         LoginRequest csilTyped => LoginRequestToCborValue(csilTyped),
         CompleteRequest csilTyped => CompleteRequestToCborValue(csilTyped),
@@ -439,6 +440,10 @@ public static class Codec
         UpdateSettingsRequest csilTyped => UpdateSettingsRequestToCborValue(csilTyped),
         BugReportRequest csilTyped => BugReportRequestToCborValue(csilTyped),
         ServiceError csilTyped => ServiceErrorToCborValue(csilTyped),
+        ActAsScopeSetRequest csilTyped => ActAsScopeSetRequestToCborValue(csilTyped),
+        ActAsScopeSetResponse csilTyped => ActAsScopeSetResponseToCborValue(csilTyped),
+        ExchangeActAsCredentialRequest csilTyped => ExchangeActAsCredentialRequestToCborValue(csilTyped),
+        ActAsTokenResponse csilTyped => ActAsTokenResponseToCborValue(csilTyped),
         CalendarSubscription csilTyped => CalendarSubscriptionToCborValue(csilTyped),
         CalendarView csilTyped => CalendarViewToCborValue(csilTyped),
         EventDecision csilTyped => EventDecisionToCborValue(csilTyped),
@@ -449,6 +454,9 @@ public static class Codec
         CalendarTrashEntry csilTyped => CalendarTrashEntryToCborValue(csilTyped),
         RestoreCalendarEventRequest csilTyped => RestoreCalendarEventRequestToCborValue(csilTyped),
         CalendarMigrationRow csilTyped => CalendarMigrationRowToCborValue(csilTyped),
+        ProjectDeadlineRequest csilTyped => ProjectDeadlineRequestToCborValue(csilTyped),
+        ProjectDeadline csilTyped => ProjectDeadlineToCborValue(csilTyped),
+        ProjectDeadlineList csilTyped => ProjectDeadlineListToCborValue(csilTyped),
         AuditEntry csilTyped => AuditEntryToCborValue(csilTyped),
         AuditQuery csilTyped => AuditQueryToCborValue(csilTyped),
         AuditPage csilTyped => AuditPageToCborValue(csilTyped),
@@ -495,6 +503,7 @@ public static class Codec
         if (csilType == typeof(Share)) return ShareFromCborValue(value);
         if (csilType == typeof(HouseSummary)) return HouseSummaryFromCborValue(value);
         if (csilType == typeof(HouseRoles)) return HouseRolesFromCborValue(value);
+        if (csilType == typeof(ActAsDelegation)) return ActAsDelegationFromCborValue(value);
         if (csilType == typeof(Identity)) return IdentityFromCborValue(value);
         if (csilType == typeof(LoginRequest)) return LoginRequestFromCborValue(value);
         if (csilType == typeof(CompleteRequest)) return CompleteRequestFromCborValue(value);
@@ -555,6 +564,10 @@ public static class Codec
         if (csilType == typeof(UpdateSettingsRequest)) return UpdateSettingsRequestFromCborValue(value);
         if (csilType == typeof(BugReportRequest)) return BugReportRequestFromCborValue(value);
         if (csilType == typeof(ServiceError)) return ServiceErrorFromCborValue(value);
+        if (csilType == typeof(ActAsScopeSetRequest)) return ActAsScopeSetRequestFromCborValue(value);
+        if (csilType == typeof(ActAsScopeSetResponse)) return ActAsScopeSetResponseFromCborValue(value);
+        if (csilType == typeof(ExchangeActAsCredentialRequest)) return ExchangeActAsCredentialRequestFromCborValue(value);
+        if (csilType == typeof(ActAsTokenResponse)) return ActAsTokenResponseFromCborValue(value);
         if (csilType == typeof(CalendarSubscription)) return CalendarSubscriptionFromCborValue(value);
         if (csilType == typeof(CalendarView)) return CalendarViewFromCborValue(value);
         if (csilType == typeof(EventDecision)) return EventDecisionFromCborValue(value);
@@ -565,6 +578,9 @@ public static class Codec
         if (csilType == typeof(CalendarTrashEntry)) return CalendarTrashEntryFromCborValue(value);
         if (csilType == typeof(RestoreCalendarEventRequest)) return RestoreCalendarEventRequestFromCborValue(value);
         if (csilType == typeof(CalendarMigrationRow)) return CalendarMigrationRowFromCborValue(value);
+        if (csilType == typeof(ProjectDeadlineRequest)) return ProjectDeadlineRequestFromCborValue(value);
+        if (csilType == typeof(ProjectDeadline)) return ProjectDeadlineFromCborValue(value);
+        if (csilType == typeof(ProjectDeadlineList)) return ProjectDeadlineListFromCborValue(value);
         if (csilType == typeof(AuditEntry)) return AuditEntryFromCborValue(value);
         if (csilType == typeof(AuditQuery)) return AuditQueryFromCborValue(value);
         if (csilType == typeof(AuditPage)) return AuditPageFromCborValue(value);
@@ -1801,6 +1817,33 @@ public static class Codec
         };
     }
 
+    /// <summary>The canonical CBOR value tree for a ActAsDelegation.</summary>
+    public static CborValue ActAsDelegationToCborValue(ActAsDelegation value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("scopes"), new CborValue.Array(value.Scopes.Select(csilElem => (CborValue)new CborValue.Text(csilElem)).ToList())));
+        csilEntries.Add((new CborValue.Text("grantee"), new CborValue.Text(value.Grantee)));
+        csilEntries.Add((new CborValue.Text("grant_id"), new CborValue.Text(value.GrantId)));
+        csilEntries.Add((new CborValue.Text("grant_expires_at"), new CborValue.Int(value.GrantExpiresAt)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ActAsDelegation from a decoded CBOR value tree.</summary>
+    public static ActAsDelegation ActAsDelegationFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsI64(Cbor.Require(value, "grant_expires_at"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "grant_id"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "grantee"));
+        var csilField3 = Cbor.AsArray(Cbor.Require(value, "scopes")).Select(csilElem => Cbor.AsText(csilElem)).ToList();
+        return new ActAsDelegation
+        {
+            GrantExpiresAt = csilField0,
+            GrantId = csilField1,
+            Grantee = csilField2,
+            Scopes = csilField3,
+        };
+    }
+
     /// <summary>The canonical CBOR value tree for a Identity.</summary>
     public static CborValue IdentityToCborValue(Identity value)
     {
@@ -1810,9 +1853,13 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("domain"), new CborValue.Text(value.Domain)));
         csilEntries.Add((new CborValue.Text("houses"), new CborValue.Array(value.Houses.Select(csilElem => (CborValue)HouseRolesToCborValue(csilElem)).ToList())));
         csilEntries.Add((new CborValue.Text("user_id"), new CborValue.Text(value.UserId)));
-        if (value.DisplayName is { } csilV5)
+        if (value.Delegation is { } csilV5)
         {
-            csilEntries.Add((new CborValue.Text("display_name"), new CborValue.Text(csilV5)));
+            csilEntries.Add((new CborValue.Text("delegation"), ActAsDelegationToCborValue(csilV5)));
+        }
+        if (value.DisplayName is { } csilV6)
+        {
+            csilEntries.Add((new CborValue.Text("display_name"), new CborValue.Text(csilV6)));
         }
         return new CborValue.Map(csilEntries);
     }
@@ -1820,20 +1867,22 @@ public static class Codec
     /// <summary>Reconstruct a Identity from a decoded CBOR value tree.</summary>
     public static Identity IdentityFromCborValue(CborValue value)
     {
-        var csilField0 = Cbor.AsText(Cbor.Require(value, "domain"));
-        var csilField1 = Cbor.AsText(Cbor.Require(value, "user_id"));
-        string? csilField2 = Cbor.MapGet(value, "display_name") is { } csilRaw2 ? Cbor.AsText(csilRaw2) : null;
-        var csilField3 = Cbor.AsArray(Cbor.Require(value, "houses")).Select(csilElem => HouseRolesFromCborValue(csilElem)).ToList();
-        var csilField4 = Cbor.AsI64(Cbor.Require(value, "iat"));
-        var csilField5 = Cbor.AsI64(Cbor.Require(value, "exp"));
+        ActAsDelegation? csilField0 = Cbor.MapGet(value, "delegation") is { } csilRaw0 ? ActAsDelegationFromCborValue(csilRaw0) : null;
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "domain"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "user_id"));
+        string? csilField3 = Cbor.MapGet(value, "display_name") is { } csilRaw3 ? Cbor.AsText(csilRaw3) : null;
+        var csilField4 = Cbor.AsArray(Cbor.Require(value, "houses")).Select(csilElem => HouseRolesFromCborValue(csilElem)).ToList();
+        var csilField5 = Cbor.AsI64(Cbor.Require(value, "iat"));
+        var csilField6 = Cbor.AsI64(Cbor.Require(value, "exp"));
         return new Identity
         {
-            Domain = csilField0,
-            UserId = csilField1,
-            DisplayName = csilField2,
-            Houses = csilField3,
-            Iat = csilField4,
-            Exp = csilField5,
+            Delegation = csilField0,
+            Domain = csilField1,
+            UserId = csilField2,
+            DisplayName = csilField3,
+            Houses = csilField4,
+            Iat = csilField5,
+            Exp = csilField6,
         };
     }
 
@@ -3400,6 +3449,120 @@ public static class Codec
         };
     }
 
+    /// <summary>The canonical CBOR value tree for a ActAsScopeSetRequest.</summary>
+    public static CborValue ActAsScopeSetRequestToCborValue(ActAsScopeSetRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("scopes"), new CborValue.Array(value.Scopes.Select(csilElem => (CborValue)new CborValue.Text(csilElem)).ToList())));
+        if (value.GranteeDomain is { } csilV1)
+        {
+            csilEntries.Add((new CborValue.Text("grantee_domain"), new CborValue.Text(csilV1)));
+        }
+        if (value.GranteeUserId is { } csilV2)
+        {
+            csilEntries.Add((new CborValue.Text("grantee_user_id"), new CborValue.Text(csilV2)));
+        }
+        if (value.LocalRpFingerprint is { } csilV3)
+        {
+            csilEntries.Add((new CborValue.Text("local_rp_fingerprint"), new CborValue.Text(csilV3)));
+        }
+        if (value.GranteeApplicationId is { } csilV4)
+        {
+            csilEntries.Add((new CborValue.Text("grantee_application_id"), new CborValue.Text(csilV4)));
+        }
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ActAsScopeSetRequest from a decoded CBOR value tree.</summary>
+    public static ActAsScopeSetRequest ActAsScopeSetRequestFromCborValue(CborValue value)
+    {
+        string? csilField0 = Cbor.MapGet(value, "grantee_domain") is { } csilRaw0 ? Cbor.AsText(csilRaw0) : null;
+        string? csilField1 = Cbor.MapGet(value, "grantee_user_id") is { } csilRaw1 ? Cbor.AsText(csilRaw1) : null;
+        string? csilField2 = Cbor.MapGet(value, "grantee_application_id") is { } csilRaw2 ? Cbor.AsText(csilRaw2) : null;
+        string? csilField3 = Cbor.MapGet(value, "local_rp_fingerprint") is { } csilRaw3 ? Cbor.AsText(csilRaw3) : null;
+        var csilField4 = Cbor.AsArray(Cbor.Require(value, "scopes")).Select(csilElem => Cbor.AsText(csilElem)).ToList();
+        return new ActAsScopeSetRequest
+        {
+            GranteeDomain = csilField0,
+            GranteeUserId = csilField1,
+            GranteeApplicationId = csilField2,
+            LocalRpFingerprint = csilField3,
+            Scopes = csilField4,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a ActAsScopeSetResponse.</summary>
+    public static CborValue ActAsScopeSetResponseToCborValue(ActAsScopeSetResponse value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("signed_scope_set"), new CborValue.Bytes(value.SignedScopeSet)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ActAsScopeSetResponse from a decoded CBOR value tree.</summary>
+    public static ActAsScopeSetResponse ActAsScopeSetResponseFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsBytes(Cbor.Require(value, "signed_scope_set"));
+        return new ActAsScopeSetResponse
+        {
+            SignedScopeSet = csilField0,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a ExchangeActAsCredentialRequest.</summary>
+    public static CborValue ExchangeActAsCredentialRequestToCborValue(ExchangeActAsCredentialRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("credential"), new CborValue.Bytes(value.Credential)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ExchangeActAsCredentialRequest from a decoded CBOR value tree.</summary>
+    public static ExchangeActAsCredentialRequest ExchangeActAsCredentialRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsBytes(Cbor.Require(value, "credential"));
+        return new ExchangeActAsCredentialRequest
+        {
+            Credential = csilField0,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a ActAsTokenResponse.</summary>
+    public static CborValue ActAsTokenResponseToCborValue(ActAsTokenResponse value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("token"), new CborValue.Text(value.Token)));
+        csilEntries.Add((new CborValue.Text("domain"), new CborValue.Text(value.Domain)));
+        csilEntries.Add((new CborValue.Text("scopes"), new CborValue.Array(value.Scopes.Select(csilElem => (CborValue)new CborValue.Text(csilElem)).ToList())));
+        csilEntries.Add((new CborValue.Text("grantee"), new CborValue.Text(value.Grantee)));
+        csilEntries.Add((new CborValue.Text("user_id"), new CborValue.Text(value.UserId)));
+        csilEntries.Add((new CborValue.Text("grant_id"), new CborValue.Text(value.GrantId)));
+        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ActAsTokenResponse from a decoded CBOR value tree.</summary>
+    public static ActAsTokenResponse ActAsTokenResponseFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "token"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "domain"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "user_id"));
+        var csilField3 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        var csilField4 = Cbor.AsText(Cbor.Require(value, "grant_id"));
+        var csilField5 = Cbor.AsText(Cbor.Require(value, "grantee"));
+        var csilField6 = Cbor.AsArray(Cbor.Require(value, "scopes")).Select(csilElem => Cbor.AsText(csilElem)).ToList();
+        return new ActAsTokenResponse
+        {
+            Token = csilField0,
+            Domain = csilField1,
+            UserId = csilField2,
+            ExpiresAt = csilField3,
+            GrantId = csilField4,
+            Grantee = csilField5,
+            Scopes = csilField6,
+        };
+    }
+
     /// <summary>The canonical CBOR value tree for a CalendarSubscription.</summary>
     public static CborValue CalendarSubscriptionToCborValue(CalendarSubscription value)
     {
@@ -3646,6 +3809,87 @@ public static class Codec
             Title = csilField1,
             Disposition = csilField2,
             Reason = csilField3,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a ProjectDeadlineRequest.</summary>
+    public static CborValue ProjectDeadlineRequestToCborValue(ProjectDeadlineRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("range_end"), new CborValue.Text(value.RangeEnd)));
+        csilEntries.Add((new CborValue.Text("project_id"), new CborValue.Text(value.ProjectId)));
+        csilEntries.Add((new CborValue.Text("range_start"), new CborValue.Text(value.RangeStart)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ProjectDeadlineRequest from a decoded CBOR value tree.</summary>
+    public static ProjectDeadlineRequest ProjectDeadlineRequestFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "project_id"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "range_start"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "range_end"));
+        return new ProjectDeadlineRequest
+        {
+            ProjectId = csilField0,
+            RangeStart = csilField1,
+            RangeEnd = csilField2,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a ProjectDeadline.</summary>
+    public static CborValue ProjectDeadlineToCborValue(ProjectDeadline value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("title"), new CborValue.Text(value.Title)));
+        csilEntries.Add((new CborValue.Text("due_at"), new CborValue.Text(value.DueAt)));
+        csilEntries.Add((new CborValue.Text("task_id"), new CborValue.Text(value.TaskId)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ProjectDeadline from a decoded CBOR value tree.</summary>
+    public static ProjectDeadline ProjectDeadlineFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "task_id"));
+        var csilField1 = Cbor.AsText(Cbor.Require(value, "title"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "due_at"));
+        return new ProjectDeadline
+        {
+            TaskId = csilField0,
+            Title = csilField1,
+            DueAt = csilField2,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a ProjectDeadlineList.</summary>
+    public static CborValue ProjectDeadlineListToCborValue(ProjectDeadlineList value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("enabled"), new CborValue.Bool(value.Enabled)));
+        csilEntries.Add((new CborValue.Text("pending"), new CborValue.Bool(value.Pending)));
+        csilEntries.Add((new CborValue.Text("category"), new CborValue.Text(value.Category)));
+        csilEntries.Add((new CborValue.Text("deadlines"), new CborValue.Array(value.Deadlines.Select(csilElem => (CborValue)ProjectDeadlineToCborValue(csilElem)).ToList())));
+        if (value.LastError is { } csilV4)
+        {
+            csilEntries.Add((new CborValue.Text("last_error"), new CborValue.Text(csilV4)));
+        }
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a ProjectDeadlineList from a decoded CBOR value tree.</summary>
+    public static ProjectDeadlineList ProjectDeadlineListFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsBool(Cbor.Require(value, "enabled"));
+        var csilField1 = Cbor.AsBool(Cbor.Require(value, "pending"));
+        var csilField2 = Cbor.AsText(Cbor.Require(value, "category"));
+        string? csilField3 = Cbor.MapGet(value, "last_error") is { } csilRaw3 ? Cbor.AsText(csilRaw3) : null;
+        var csilField4 = Cbor.AsArray(Cbor.Require(value, "deadlines")).Select(csilElem => ProjectDeadlineFromCborValue(csilElem)).ToList();
+        return new ProjectDeadlineList
+        {
+            Enabled = csilField0,
+            Pending = csilField1,
+            Category = csilField2,
+            LastError = csilField3,
+            Deadlines = csilField4,
         };
     }
 

@@ -681,8 +681,22 @@ public sealed record HouseRoles
     public required System.Collections.Generic.List<string> Roles { get; init; }
 }
 
+public sealed record ActAsDelegation
+{
+    // CBOR key: grant_expires_at
+    public required long GrantExpiresAt { get; init; }
+    // CBOR key: grant_id
+    public required string GrantId { get; init; }
+    // CBOR key: grantee
+    public required string Grantee { get; init; }
+    // CBOR key: scopes
+    public required System.Collections.Generic.List<string> Scopes { get; init; }
+}
+
 public sealed record Identity
 {
+    // CBOR key: delegation
+    public ActAsDelegation? Delegation { get; init; }
     // CBOR key: domain
     public required string Domain { get; init; }
     // CBOR key: user_id
@@ -1315,6 +1329,50 @@ public sealed record ServiceError
     public required string Message { get; init; }
 }
 
+public sealed record ActAsScopeSetRequest
+{
+    // CBOR key: grantee_domain
+    public string? GranteeDomain { get; init; }
+    // CBOR key: grantee_user_id
+    public string? GranteeUserId { get; init; }
+    // CBOR key: grantee_application_id
+    public string? GranteeApplicationId { get; init; }
+    // CBOR key: local_rp_fingerprint
+    public string? LocalRpFingerprint { get; init; }
+    // CBOR key: scopes
+    public required System.Collections.Generic.List<string> Scopes { get; init; }
+}
+
+public sealed record ActAsScopeSetResponse
+{
+    // CBOR key: signed_scope_set
+    public required byte[] SignedScopeSet { get; init; }
+}
+
+public sealed record ExchangeActAsCredentialRequest
+{
+    // CBOR key: credential
+    public required byte[] Credential { get; init; }
+}
+
+public sealed record ActAsTokenResponse
+{
+    // CBOR key: token
+    public required string Token { get; init; }
+    // CBOR key: domain
+    public required string Domain { get; init; }
+    // CBOR key: user_id
+    public required string UserId { get; init; }
+    // CBOR key: expires_at
+    public required Timestamp ExpiresAt { get; init; }
+    // CBOR key: grant_id
+    public required string GrantId { get; init; }
+    // CBOR key: grantee
+    public required string Grantee { get; init; }
+    // CBOR key: scopes
+    public required System.Collections.Generic.List<string> Scopes { get; init; }
+}
+
 public sealed record CalendarSubscription
 {
     // CBOR key: subject_member_id
@@ -1413,6 +1471,40 @@ public sealed record CalendarMigrationRow
     public required string Disposition { get; init; }
     // CBOR key: reason
     public required string Reason { get; init; }
+}
+
+public sealed record ProjectDeadlineRequest
+{
+    // CBOR key: project_id
+    public required ProjectID ProjectId { get; init; }
+    // CBOR key: range_start
+    public required Timestamp RangeStart { get; init; }
+    // CBOR key: range_end
+    public required Timestamp RangeEnd { get; init; }
+}
+
+public sealed record ProjectDeadline
+{
+    // CBOR key: task_id
+    public required TaskID TaskId { get; init; }
+    // CBOR key: title
+    public required string Title { get; init; }
+    // CBOR key: due_at
+    public required Timestamp DueAt { get; init; }
+}
+
+public sealed record ProjectDeadlineList
+{
+    // CBOR key: enabled
+    public required bool Enabled { get; init; }
+    // CBOR key: pending
+    public required bool Pending { get; init; }
+    // CBOR key: category
+    public required string Category { get; init; }
+    // CBOR key: last_error
+    public string? LastError { get; init; }
+    // CBOR key: deadlines
+    public required System.Collections.Generic.List<ProjectDeadline> Deadlines { get; init; }
 }
 
 public sealed record AuditEntry

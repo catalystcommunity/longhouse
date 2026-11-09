@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/catalystcommunity/longhouse/api/internal/actas"
 	"github.com/catalystcommunity/longhouse/api/internal/auth"
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
 	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
@@ -26,6 +27,7 @@ import (
 // Refresh and Me work whenever the JWT secret is set, because they don't
 // touch linkkeys.
 type AuthService struct {
+	ActAs           actas.Provider
 	Store           store.Store
 	JWTSecret       []byte
 	BearerTTL       time.Duration
@@ -121,6 +123,9 @@ func resolveDisplayName(claims map[string]string, a *linkkeys.Assertion) string 
 }
 
 func (s *AuthService) Register(d *csilrpc.Dispatcher) {
+	d.SetDelegationVerifier(s.VerifyDelegation)
+	d.RegisterTypedPublic("auth", "GetActAsScopeSet", csilrpc.Route(s.GetActAsScopeSet, csil.DecodeActAsScopeSetRequest, csil.EncodeActAsScopeSetResponse))
+	d.RegisterTypedPublic("auth", "ExchangeActAsCredential", csilrpc.Route(s.ExchangeActAsCredential, csil.DecodeExchangeActAsCredentialRequest, csil.EncodeActAsTokenResponse))
 	d.RegisterTypedPublic("auth", "Login", csilrpc.Route(s.Login, csil.DecodeLoginRequest, csil.EncodeLoginResponse))
 	d.RegisterTypedPublic("auth", "Complete", csilrpc.Route(s.Complete, csil.DecodeCompleteRequest, csil.EncodeLoginResponse))
 	d.RegisterTyped("auth", "Refresh", csilrpc.Route(s.Refresh, csil.DecodeEmptyRequest, csil.EncodeLoginResponse))
@@ -267,6 +272,9 @@ func (s *AuthService) Refresh(ctx context.Context, _ csil.EmptyRequest) (csil.Lo
 	id, err := requireIdentity(ctx)
 	if err != nil {
 		return csil.LoginResponse{}, err
+	}
+	if id.Delegation != nil {
+		return csil.LoginResponse{}, csilrpc.Forbidden("delegated callers must present a new LinkKeys credential")
 	}
 	if id.CliSessionID != "" {
 		return csil.LoginResponse{}, csilrpc.Unauthorized("CLI sessions must use a refresh token")
