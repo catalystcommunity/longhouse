@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
+	lkgen "github.com/catalystcommunity/linkkeys/sdks/regular-rp/go/generated"
 	"math/big"
 	"net"
 	"reflect"
@@ -114,6 +115,51 @@ func TestTCPClient_SignRequest_RoundTrip(t *testing.T) {
 	req := <-recvd
 	if req.Service != "Rp" || req.Op != "sign-request" {
 		t.Fatalf("envelope routed to %s/%s, want Rp/sign-request", req.Service, req.Op)
+	}
+}
+
+// TestTCPClient_SignRequest_ApplicationAndClaims decodes the sign-request
+// payload with the linkkeys generated codec. That proves the wire shape of
+// application_id and requested_claims.
+func TestTCPClient_SignRequest_ApplicationAndClaims(t *testing.T) {
+	t.Parallel()
+	got := make(chan lkgen.RpSignRequest, 1)
+	_, tlsCert, _ := newTestCert(t)
+	addr := startTestRPCServer(t, tlsCert, func(req *transport.RpcRequest) transport.HandlerOutcome {
+		in, err := lkgen.DecodeRpSignRequest(req.Payload)
+		if err != nil {
+			return transport.Transport(transport.StatusInternal, err.Error())
+		}
+		got <- in
+		b, _ := cbor.Marshal(map[string]string{"signed_request": "ok"})
+		return transport.Reply("RpSignResponse", b)
+	})
+	c, err := NewTCPClient(TCPConfig{Addr: addr, Insecure: true, APIKey: "k", ApplicationID: "longhouse", RequestedClaims: LonghouseClaimRequest()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.SignRequest("https://app/cb", "n"); err != nil {
+		t.Fatalf("SignRequest: %v", err)
+	}
+	in := <-got
+	if in.ApplicationId == nil || *in.ApplicationId != "longhouse" {
+		t.Fatalf("application_id = %v, want longhouse", in.ApplicationId)
+	}
+	if in.RequestedClaims == nil || len(in.RequestedClaims.Required) != 1 || in.RequestedClaims.Required[0].ClaimType != "handle" || len(in.RequestedClaims.Optional) != 3 {
+		t.Fatalf("requested_claims = %+v", in.RequestedClaims)
+	}
+
+	// Without the settings, the fields are absent and the RP defaults apply.
+	bare, err := NewTCPClient(TCPConfig{Addr: addr, Insecure: true, APIKey: "k"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bare.SignRequest("https://app/cb", "n"); err != nil {
+		t.Fatalf("SignRequest: %v", err)
+	}
+	in = <-got
+	if in.ApplicationId != nil || in.RequestedClaims != nil {
+		t.Fatalf("bare request sent application_id=%v requested_claims=%v", in.ApplicationId, in.RequestedClaims)
 	}
 }
 

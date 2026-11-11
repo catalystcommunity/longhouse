@@ -301,6 +301,9 @@ func buildPKIClient() csilservices.PKIClient {
 			Addr:         config.LinkkeysTCPAddr,
 			Fingerprints: fps,
 			Insecure:     config.LinkkeysTCPAllowInsecure,
+
+			ApplicationID:   loginApplicationID(),
+			RequestedClaims: linkkeys.LonghouseClaimRequest(),
 		})
 		if err != nil {
 			log.WithError(err).Error("linkkeys tcp transport init failed; auth.Login/Complete will fail")
@@ -319,6 +322,21 @@ func buildPKIClient() csilservices.PKIClient {
 			config.LinkkeysPKIAllowInvalid,
 		)
 	}
+}
+
+// loginApplicationID returns the application_id for Rp/sign-request. An
+// explicit setting wins. Otherwise the act-as key file names the enrolled
+// application, so login consent and act-as use one ApplicationRef.
+func loginApplicationID() string {
+	if id := strings.TrimSpace(config.LinkkeysApplicationID); id != "" {
+		return id
+	}
+	if config.ActAsKeysFile != "" {
+		if keys, err := calendarbridge.ReadKeys(config.ActAsKeysFile); err == nil && keys.Application.ApplicationId != "" {
+			return keys.Application.ApplicationId
+		}
+	}
+	return "longhouse"
 }
 
 // buildDevAuthService is the gated counterpart. Returns nil unless every

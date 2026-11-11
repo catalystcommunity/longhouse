@@ -51,8 +51,16 @@ type TCPConfig struct {
 	Addr         string   // optional host:port override (else DNS-discovered)
 	Fingerprints []string // optional pinned SPKI sha256 hex (else DNS-discovered)
 	Insecure     bool     // dev only: skip server-cert fingerprint pinning
-	DialTimeout  time.Duration
-	IOTimeout    time.Duration
+	// ApplicationID names this application under the RP API-key account in
+	// Rp/sign-request. The IDP keys standing consent by it, and it must equal
+	// the application ID enrolled for act-as. Empty: the RP uses the account
+	// username.
+	ApplicationID string
+	// RequestedClaims is the claim request sent with Rp/sign-request. Nil: the
+	// RP uses its RP_CLAIMS_CONFIG (an empty request when that is not set).
+	RequestedClaims *ClaimRequest
+	DialTimeout     time.Duration
+	IOTimeout       time.Duration
 }
 
 // TCPClient speaks CSIL-RPC to linkkeys' Rp service over TCP+TLS. It is safe
@@ -67,8 +75,39 @@ type TCPClient struct {
 	insecure     bool
 	apiBase      string
 	domain       string
+	appID        string
+	claims       *ClaimRequest
 	dialTimeout  time.Duration
 	ioTimeout    time.Duration
+}
+
+// RequestedClaim is one claim type in a ClaimRequest (linkkeys RequestedClaim).
+type RequestedClaim struct {
+	ClaimType string `cbor:"claim_type"`
+	Datatype  string `cbor:"datatype"`
+}
+
+// ClaimRequest is the linkkeys ClaimRequest. The IDP refuses sign-in when the
+// user declines a required claim. Silent consent opens the consent screen
+// again only for a new required claim, so a new optional claim is not
+// released to an existing grant until the user consents again.
+type ClaimRequest struct {
+	Required []RequestedClaim `cbor:"required"`
+	Optional []RequestedClaim `cbor:"optional"`
+}
+
+// LonghouseClaimRequest is the claim request of the Longhouse application.
+// handle is required: Longhouse shows people to each other by handle. The
+// other claims are optional; a member without them signs in as usual.
+func LonghouseClaimRequest() *ClaimRequest {
+	return &ClaimRequest{
+		Required: []RequestedClaim{{ClaimType: "handle", Datatype: "text"}},
+		Optional: []RequestedClaim{
+			{ClaimType: "email", Datatype: "email"},
+			{ClaimType: "display_name", Datatype: "text"},
+			{ClaimType: "avatar_url", Datatype: "url"},
+		},
+	}
 }
 
 // UserInfo is linkkeys' Rp.userinfo-fetch / Identity UserInfo response: the
@@ -160,20 +199,28 @@ func NewTCPClient(cfg TCPConfig) (*TCPClient, error) {
 		insecure:     cfg.Insecure,
 		apiBase:      cfg.APIBase,
 		domain:       cfg.Domain,
+		appID:        strings.TrimSpace(cfg.ApplicationID),
+		claims:       cfg.RequestedClaims,
 		dialTimeout:  dialTimeout,
 		ioTimeout:    ioTimeout,
 	}, nil
 }
 
 // SignRequest asks the RP to sign an AuthRequest bound to callbackURL + nonce.
+// It names the configured application and sends its claim request.
 func (c *TCPClient) SignRequest(callbackURL, nonce string) (string, error) {
 	var out struct {
 		SignedRequest string `cbor:"signed_request"`
 	}
 	in := struct {
-		CallbackURL string `cbor:"callback_url"`
-		Nonce       string `cbor:"nonce"`
-	}{callbackURL, nonce}
+		CallbackURL     string        `cbor:"callback_url"`
+		Nonce           string        `cbor:"nonce"`
+		ApplicationID   *string       `cbor:"application_id,omitempty"`
+		RequestedClaims *ClaimRequest `cbor:"requested_claims,omitempty"`
+	}{CallbackURL: callbackURL, Nonce: nonce, RequestedClaims: c.claims}
+	if c.appID != "" {
+		in.ApplicationID = &c.appID
+	}
 	if err := c.call(opSignRequest, in, &out); err != nil {
 		return "", err
 	}

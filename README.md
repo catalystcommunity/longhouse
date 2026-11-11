@@ -87,6 +87,19 @@ as the identity provider. Longhouse keeps a local member record that caches the
 identity data linkkeys releases; who may sign in is controlled by trusted
 domains and explicit user lists.
 
+Longhouse sends its own claim request in `Rp/sign-request`
+(`linkkeys.LonghouseClaimRequest` in `api/internal/linkkeys/tcp.go`). The
+`handle` claim is required. A user who declines it cannot sign in. The
+`email`, `display_name`, and `avatar_url` claims are optional. The RP server
+does not need an `RP_CLAIMS_CONFIG` for Longhouse.
+
+The request also names the application (`application_id`). LinkKeys 0.16.7
+and later keep standing consent for each application, and the consent screen
+shows the display name of the RP API-key account. The application ID comes
+from `LONGHOUSE_LINKKEYS_APPLICATION_ID`. When that is empty, it comes from the
+act-as key file (`LONGHOUSE_ACT_AS_KEYS_FILE`). Otherwise it is `longhouse`.
+Keep it equal to the act-as application ID.
+
 The bearer token snapshots the caller's per-house membership and roles at mint
 time, so authorization needs no database lookup per request. Staleness is
 bounded by the token's `exp` and by the `AuthService.Refresh` op.

@@ -55,6 +55,12 @@ var (
 	LinkkeysTCPFingerprints  = getEnvOrDefault("LONGHOUSE_LINKKEYS_TCP_FINGERPRINTS", "")
 	LinkkeysTCPAllowInsecure = getEnvOrDefault("LONGHOUSE_LINKKEYS_TCP_ALLOW_INSECURE", "") == "true"
 
+	// LinkkeysApplicationID is the application_id that Rp/sign-request sends.
+	// The IDP keys standing consent by it. Empty: use the application ID in
+	// LONGHOUSE_ACT_AS_KEYS_FILE, else "longhouse". It must equal the act-as
+	// application ID, so that login and act-as are one application.
+	LinkkeysApplicationID = getEnvOrDefault("LONGHOUSE_LINKKEYS_APPLICATION_ID", "")
+
 	// IDP whose assertions we trust. We pin a single IDP per deployment;
 	// federated multi-IDP can come later.
 	LinkkeysIDPDomain = getEnvOrDefault("LONGHOUSE_LINKKEYS_IDP_DOMAIN", "")

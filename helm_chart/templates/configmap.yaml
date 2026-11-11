@@ -50,6 +50,9 @@ data:
   {{- if .Values.linkkeysRp.tcpAllowInsecure }}
   LONGHOUSE_LINKKEYS_TCP_ALLOW_INSECURE: "true"
   {{- end }}
+  {{- if .Values.linkkeysRp.applicationId }}
+  LONGHOUSE_LINKKEYS_APPLICATION_ID: {{ .Values.linkkeysRp.applicationId | quote }}
+  {{- end }}
   {{- if .Values.server.linkkeysIdpDomain }}
   LONGHOUSE_LINKKEYS_IDP_DOMAIN: {{ .Values.server.linkkeysIdpDomain | quote }}
   {{- end }}

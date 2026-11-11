@@ -67,9 +67,7 @@ func TestConformanceCredentialThroughAdapter(t *testing.T) {
 	}
 	type vec map[string]json.RawMessage
 	var file struct {
-		Context vec `json:"context"
- "strings"
- "github.com/fxamacker/cbor/v2"`
+		Context       vec   `json:"context"`
 		Cases         []vec `json:"cases"`
 		NegativeCases []vec `json:"negative_cases"`
 	}
