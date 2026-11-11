@@ -104,6 +104,10 @@ linkkeysRp:
   # Skip server-cert fingerprint pinning. Dev clusters with self-signed certs
   # only — never in prod.
   tcpAllowInsecure: false
+  # application_id that Rp/sign-request sends. The IDP keeps standing consent
+  # for each application. Empty: the application ID in the act-as key file,
+  # else "longhouse". Keep it equal to the act-as application ID.
+  applicationId: ""
   # Extra env vars to pass through to the linkkeys container (for any
   # deployment-specific knobs not covered above).
   extraEnv: []

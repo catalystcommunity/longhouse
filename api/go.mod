@@ -5,7 +5,7 @@ go 1.26.4
 require (
 	charm.land/huh/v2 v2.0.3
 	github.com/catalystcommunity/catalystcal/clients/go v0.3.0
-	github.com/catalystcommunity/linkkeys/sdks/regular-rp/go v0.0.0-20261012235123-03fcbd8e7007
+	github.com/catalystcommunity/linkkeys/sdks/regular-rp/go v0.0.0-20261111162043-3227a58c78a7
 	github.com/catalystcommunity/longhouse/clients/go v0.0.0-00010101000000-000000000000
 	github.com/catalystcommunity/longhouse/coredb v0.0.0-00010101000000-000000000000
 	github.com/fxamacker/cbor/v2 v2.9.2

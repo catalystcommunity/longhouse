@@ -132,6 +132,13 @@ It requires pinned TLS even if browser login permits an insecure development
 connection. It renews application attestations at startup and every six hours.
 Renewal uses application signatures and does not need the account API key.
 
+Browser login sends the same application ID in `Rp/sign-request`. Thus the
+login consent and the act-as grants use one `ApplicationRef`. The
+catalystsquad account username is `longhouse-web`, but its enrolled
+application ID is `longhouse`. Without an explicit `application_id`, LinkKeys
+would use `longhouse-web`. Set `LONGHOUSE_LINKKEYS_APPLICATION_ID` only when
+there is no act-as key file and the ID must not be `longhouse`.
+
 The existing `Longhouse Release Tag` workflow creates a release after a pull
 request is merged into `main`. The tag workflow builds the images, then runs
 both deployment jobs. Migration 27 is applied by normal API startup.
