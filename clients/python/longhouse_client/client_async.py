@@ -31,6 +31,10 @@ class AuthAsyncClient:
     def __init__(self, transport: AsyncTransport):
         self._transport = transport
 
+    async def begin_browser_login(self, req: BeginBrowserLoginRequest) -> BeginBrowserLoginResponse:
+        """begin-browser-login"""
+        return BeginBrowserLoginResponse.from_cbor(await self._transport.call("AuthService", "begin-browser-login", req.to_cbor()))
+
     async def get_act_as_scope_set(self, req: ActAsScopeSetRequest) -> ActAsScopeSetResponse:
         """get-act-as-scope-set"""
         return ActAsScopeSetResponse.from_cbor(await self._transport.call("AuthService", "get-act-as-scope-set", req.to_cbor()))

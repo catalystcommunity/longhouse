@@ -15,6 +15,11 @@ class AuthClient
     @transport = transport
   end
 
+  # begin-browser-login: -> BeginBrowserLoginResponse
+  def begin_browser_login(req)
+    BeginBrowserLoginResponse.from_cbor(@transport.call("AuthService", "begin-browser-login", req.to_cbor))
+  end
+
   # get-act-as-scope-set: -> ActAsScopeSetResponse
   def get_act_as_scope_set(req)
     ActAsScopeSetResponse.from_cbor(@transport.call("AuthService", "get-act-as-scope-set", req.to_cbor))

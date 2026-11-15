@@ -20,6 +20,17 @@ final class AuthClient {
   final CsilTransport transport;
   const AuthClient(this.transport);
 
+  BeginBrowserLoginResponse beginBrowserLogin(
+    BeginBrowserLoginRequest request,
+  ) {
+    final csilResp = transport.call(
+      'AuthService',
+      'begin-browser-login',
+      request.toCbor(),
+    );
+    return BeginBrowserLoginResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
   ActAsScopeSetResponse getActAsScopeSet(ActAsScopeSetRequest request) {
     final csilResp = transport.call(
       'AuthService',

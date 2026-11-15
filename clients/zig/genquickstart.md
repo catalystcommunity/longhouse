@@ -91,10 +91,10 @@ pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(alloc);
     defer arena.deinit();
 
-    var resp: types.ActAsScopeSetResponse = undefined;
-    const req = types.ActAsScopeSetRequest{ .scopes = undefined };
-    try svc.get_act_as_scope_set(arena.allocator(), &req, &resp);
-    std.debug.print("AuthService/get-act-as-scope-set ok\n", .{});
+    var resp: types.BeginBrowserLoginResponse = undefined;
+    const req = types.BeginBrowserLoginRequest{};
+    try svc.begin_browser_login(arena.allocator(), &req, &resp);
+    std.debug.print("AuthService/begin-browser-login -> {s}\n", .{resp.redirect_url});
 }
 ```
 
@@ -292,8 +292,8 @@ pub fn main() !void {
 
     // Fire-and-forget: encode the `->` request and send it. seq 0 marks an
     // unsequenced datagram.
-    const req = types.ActAsScopeSetRequest{ .scopes = undefined };
-    const payload = try codec_gen.encode_ActAsScopeSetRequest(alloc, &req);
+    const req = types.BeginBrowserLoginRequest{};
+    const payload = try codec_gen.encode_BeginBrowserLoginRequest(alloc, &req);
     defer alloc.free(payload);
     const datagram = try datagrams.Datagram.init(OP_ORD, 0, payload).encode(alloc);
     defer alloc.free(datagram);
@@ -306,9 +306,9 @@ pub fn main() !void {
     defer arena.deinit();
     if (try carrier.recv(arena.allocator())) |inbound| {
         const dg = try datagrams.decode_datagram(arena.allocator(), inbound);
-        var resp: types.ActAsScopeSetResponse = undefined;
-        try codec_gen.decode_ActAsScopeSetResponse(arena.allocator(), dg.payload, &resp);
-        std.debug.print("late response\n", .{});
+        var resp: types.BeginBrowserLoginResponse = undefined;
+        try codec_gen.decode_BeginBrowserLoginResponse(arena.allocator(), dg.payload, &resp);
+        std.debug.print("late response {s}\n", .{resp.redirect_url});
     }
 }
 ```

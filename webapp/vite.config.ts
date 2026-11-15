@@ -2,10 +2,9 @@ import { defineConfig } from "vite";
 import { fileURLToPath, URL } from "node:url";
 import { readFileSync } from "node:fs";
 
-// The release version is owned by version/VERSION.txt at the repo root
-// (CI bumps it on push-to-main). Inject it as a compile-time constant so
-// the SPA footer doesn't have to be hand-edited and drift out of sync.
-const appVersion = readFileSync(
+// Release CI supplies the image version from its Git tag. The tagged commit
+// can precede the VERSION.txt update. Local builds use VERSION.txt.
+const appVersion = process.env.LONGHOUSE_APP_VERSION?.trim() || readFileSync(
   fileURLToPath(new URL("../version/VERSION.txt", import.meta.url)),
   "utf8",
 ).trim();

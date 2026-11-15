@@ -2710,6 +2710,102 @@ final class LoginRequest {
       LoginRequest.fromCborValue(CsilCbor.decode(bytes));
 }
 
+final class BeginBrowserLoginRequest {
+  final String? login;
+
+  const BeginBrowserLoginRequest({this.login});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    if (login != null) map['login'] = login;
+    return map;
+  }
+
+  factory BeginBrowserLoginRequest.fromMap(Map<String, Object?> map) {
+    return BeginBrowserLoginRequest(login: map['login'] as String?);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! BeginBrowserLoginRequest) return false;
+    return login == other.login;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([login]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    if (login != null) map['login'] = login!;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory BeginBrowserLoginRequest.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return BeginBrowserLoginRequest(
+      login: map['login'] == null ? null : map['login'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory BeginBrowserLoginRequest.fromCbor(List<int> bytes) =>
+      BeginBrowserLoginRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class BeginBrowserLoginResponse {
+  final String redirectUrl;
+
+  const BeginBrowserLoginResponse({required this.redirectUrl});
+
+  Map<String, Object?> toMap() {
+    final map = <String, Object?>{};
+    map['redirect_url'] = redirectUrl;
+    return map;
+  }
+
+  factory BeginBrowserLoginResponse.fromMap(Map<String, Object?> map) {
+    return BeginBrowserLoginResponse(
+      redirectUrl: map['redirect_url'] as String,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! BeginBrowserLoginResponse) return false;
+    return redirectUrl == other.redirectUrl;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([redirectUrl]);
+
+  /// The CBOR-encodable dynamic tree for this record (deep).
+  Map<String, Object?> toCborValue() {
+    final map = <String, Object?>{};
+    map['redirect_url'] = redirectUrl;
+    return map;
+  }
+
+  /// Reconstruct this record from a decoded CBOR dynamic tree.
+  factory BeginBrowserLoginResponse.fromCborValue(Object? cbor) {
+    final map = cbor as Map;
+    return BeginBrowserLoginResponse(
+      redirectUrl: map['redirect_url'] as String,
+    );
+  }
+
+  /// Encode this record to canonical CSIL CBOR bytes.
+  Uint8List toCbor() => CsilCbor.encodeValue(toCborValue());
+
+  /// Decode a CSIL CBOR byte payload into this record.
+  factory BeginBrowserLoginResponse.fromCbor(List<int> bytes) =>
+      BeginBrowserLoginResponse.fromCborValue(CsilCbor.decode(bytes));
+}
+
 final class CompleteRequest {
   final String encryptedToken;
 

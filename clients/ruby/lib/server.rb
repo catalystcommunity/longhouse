@@ -5,6 +5,11 @@
 # Server-side handlers for the AuthService service. Subclass and override each
 # operation; the unimplemented base raises NotImplementedError.
 class AuthHandlers
+  # begin-browser-login
+  def begin_browser_login(req)
+    raise NotImplementedError, "AuthHandlers#begin_browser_login"
+  end
+
   # get-act-as-scope-set
   def get_act_as_scope_set(req)
     raise NotImplementedError, "AuthHandlers#get_act_as_scope_set"

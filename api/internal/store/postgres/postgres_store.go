@@ -915,7 +915,7 @@ func (s *PostgresStore) HousesTrustingDomain(ctx context.Context, domain string)
 	var houses []models.House
 	err := db.WithContext(ctx).
 		Joins("JOIN trusted_domains td ON td.house_id = houses.house_id").
-		Where("td.domain = ?", domain).
+		Where("LOWER(td.domain) = LOWER(?)", domain).
 		Order("houses.name ASC").
 		Find(&houses).Error
 	if err != nil {

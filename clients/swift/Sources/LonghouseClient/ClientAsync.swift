@@ -17,6 +17,11 @@ public struct AuthAsyncClient {
         self.transport = transport
     }
 
+    public func beginBrowserLogin(_ request: BeginBrowserLoginRequest) async throws -> BeginBrowserLoginResponse {
+        let csilResp = try await transport.call(service: "AuthService", op: "begin-browser-login", request: request.toCbor())
+        return try BeginBrowserLoginResponse.fromCbor(csilResp)
+    }
+
     public func getActAsScopeSet(_ request: ActAsScopeSetRequest) async throws -> ActAsScopeSetResponse {
         let csilResp = try await transport.call(service: "AuthService", op: "get-act-as-scope-set", request: request.toCbor())
         return try ActAsScopeSetResponse.fromCbor(csilResp)

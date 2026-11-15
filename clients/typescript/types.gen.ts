@@ -312,6 +312,14 @@ export interface LoginRequest {
   signedAssertion: string;
 }
 
+export interface BeginBrowserLoginRequest {
+  login?: string;
+}
+
+export interface BeginBrowserLoginResponse {
+  redirectUrl: string;
+}
+
 export interface CompleteRequest {
   encryptedToken: string;
 }

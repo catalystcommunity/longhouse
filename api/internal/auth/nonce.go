@@ -15,10 +15,10 @@ import (
 // mint a nonce, the RP binds it into the signed request, the IDP echoes it
 // back inside the assertion, and we re-check the HMAC + expiry on return.
 //
-// This proves "we issued this login recently" without a cookie or store —
-// the property the no-cookie, any-client design needs. It does NOT enforce
-// single-use within the window; that protection leans on the assertion's own
-// short expiry and linkkeys' single-use of the sealed token.
+// This proves that the server issued the login recently. BrowserLoginState
+// also binds the nonce and selected domain to the browser cookie. The nonce
+// does not enforce single use. That check depends on LinkKeys consuming the
+// sealed token once and the assertion's short expiry.
 
 const NonceTTL = 10 * time.Minute
 

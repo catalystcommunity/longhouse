@@ -9,6 +9,7 @@ import (
 
 // AuthService defines the service interface
 type AuthService interface {
+	BeginBrowserLogin(ctx context.Context, req BeginBrowserLoginRequest) (BeginBrowserLoginResponse, error)
 	GetActAsScopeSet(ctx context.Context, req ActAsScopeSetRequest) (ActAsScopeSetResponse, error)
 	ExchangeActAsCredential(ctx context.Context, req ExchangeActAsCredentialRequest) (ActAsTokenResponse, error)
 	Login(ctx context.Context, req LoginRequest) (LoginResponse, error)

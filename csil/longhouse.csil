@@ -543,6 +543,15 @@ LoginRequest = {
     signed_assertion: text
 }
 
+;; Omit login to use the home IDP. Otherwise, use username@domain.
+BeginBrowserLoginRequest = {
+    ? login: text
+}
+
+BeginBrowserLoginResponse = {
+    redirect_url: text
+}
+
 ;; Browser callback: the SPA POSTs the sealed token it received at the
 ;; /auth/callback route. The api decrypts + verifies via the RP.
 CompleteRequest = {
@@ -1065,6 +1074,7 @@ ActAsTokenResponse = {
 }
 
 service AuthService {
+    begin-browser-login: BeginBrowserLoginRequest -> BeginBrowserLoginResponse / ServiceError,
     get-act-as-scope-set: ActAsScopeSetRequest -> ActAsScopeSetResponse / ServiceError,
     exchange-act-as-credential: ExchangeActAsCredentialRequest -> ActAsTokenResponse / ServiceError,
     login:    LoginRequest    -> LoginResponse / ServiceError,

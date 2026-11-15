@@ -25,6 +25,23 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
         Self { transport }
     }
 
+    /// begin-browser-login (request/response).
+    pub async fn begin_browser_login(
+        &self,
+        req: BeginBrowserLoginRequest,
+    ) -> Result<BeginBrowserLoginResponse, ClientError> {
+        let csil_resp = self
+            .transport
+            .call(
+                "AuthService",
+                "begin-browser-login",
+                &encode_begin_browser_login_request(&req),
+            )
+            .await?;
+        decode_begin_browser_login_response(&csil_resp)
+            .map_err(|e| ClientError::Transport(e.to_string()))
+    }
+
     /// get-act-as-scope-set (request/response).
     pub async fn get_act_as_scope_set(
         &self,

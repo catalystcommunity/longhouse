@@ -1142,6 +1142,56 @@ class LoginRequest:
 
 
 @dataclass
+class BeginBrowserLoginRequest:
+    login: Optional[str] = None
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'login') and self.login is not None:
+            result['login'] = self.login
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'BeginBrowserLoginRequest':
+        """Create instance from dictionary."""
+        return cls(login=data.get('login'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'BeginBrowserLoginRequest':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
+class BeginBrowserLoginResponse:
+    redirect_url: str
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result = {}
+        if hasattr(self, 'redirect_url') and self.redirect_url is not None:
+            result['redirect_url'] = self.redirect_url
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'BeginBrowserLoginResponse':
+        """Create instance from dictionary."""
+        return cls(redirect_url=data.get('redirect_url'))
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'BeginBrowserLoginResponse':
+        """Create instance from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+@dataclass
 class CompleteRequest:
     encrypted_token: str
     def to_dict(self) -> Dict[str, Any]:

@@ -1136,6 +1136,54 @@ class LoginRequest
   end
 end
 
+# CBOR codec for BeginBrowserLoginRequest: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class BeginBrowserLoginRequest
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["login"] = login unless login.nil?
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      login: (node.key?("login") ? node["login"] : nil)
+    )
+  end
+end
+
+# CBOR codec for BeginBrowserLoginResponse: a map keyed by the verbatim CSIL field names in
+# canonical RFC 8949 order.
+class BeginBrowserLoginResponse
+  def to_cbor
+    CsilCbor.encode(csil_to_tree)
+  end
+
+  def csil_to_tree
+    csil_map = {}
+    csil_map["redirect_url"] = redirect_url
+    csil_map
+  end
+
+  def self.from_cbor(bytes)
+    csil_from_tree(CsilCbor.decode(bytes))
+  end
+
+  def self.csil_from_tree(node)
+    new(
+      redirect_url: node["redirect_url"]
+    )
+  end
+end
+
 # CBOR codec for CompleteRequest: a map keyed by the verbatim CSIL field names in
 # canonical RFC 8949 order.
 class CompleteRequest

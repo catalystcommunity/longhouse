@@ -10,6 +10,7 @@ public enum CsilTransportError: Error, Equatable {
 
 /// AuthService is the server-side handler seam.
 public protocol AuthService {
+    func beginBrowserLogin(_ request: BeginBrowserLoginRequest) throws -> BeginBrowserLoginResponse
     func getActAsScopeSet(_ request: ActAsScopeSetRequest) throws -> ActAsScopeSetResponse
     func exchangeActAsCredential(_ request: ExchangeActAsCredentialRequest) throws -> ActAsTokenResponse
     func login(_ request: LoginRequest) throws -> LoginResponse

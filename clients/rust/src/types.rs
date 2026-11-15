@@ -592,6 +592,16 @@ pub struct LoginRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct BeginBrowserLoginRequest {
+    pub login: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BeginBrowserLoginResponse {
+    pub redirect_url: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct CompleteRequest {
     pub encrypted_token: String,
 }

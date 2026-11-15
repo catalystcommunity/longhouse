@@ -18,6 +18,8 @@ public interface ICsilAsyncTransport
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class AuthAsyncClient(ICsilAsyncTransport transport)
 {
+    public async System.Threading.Tasks.Task<BeginBrowserLoginResponse> BeginBrowserLoginAsync(BeginBrowserLoginRequest beginBrowserLoginRequest) =>
+        Codec.Decode<BeginBrowserLoginResponse>(await transport.Call("AuthService", "begin-browser-login", Codec.Encode(beginBrowserLoginRequest)));
     public async System.Threading.Tasks.Task<ActAsScopeSetResponse> GetActAsScopeSetAsync(ActAsScopeSetRequest actAsScopeSetRequest) =>
         Codec.Decode<ActAsScopeSetResponse>(await transport.Call("AuthService", "get-act-as-scope-set", Codec.Encode(actAsScopeSetRequest)));
     public async System.Threading.Tasks.Task<ActAsTokenResponse> ExchangeActAsCredentialAsync(ExchangeActAsCredentialRequest exchangeActAsCredentialRequest) =>

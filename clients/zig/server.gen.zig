@@ -15,6 +15,7 @@ pub const CsilgenCodec = struct {
 
 /// AuthHandlers is the host's implementation of the AuthService service.
 pub const AuthHandlers = struct {
+    begin_browser_login: *const fn (ctx: *anyopaque, req: *const types.BeginBrowserLoginRequest, resp: *types.BeginBrowserLoginResponse) anyerror!void,
     get_act_as_scope_set: *const fn (ctx: *anyopaque, req: *const types.ActAsScopeSetRequest, resp: *types.ActAsScopeSetResponse) anyerror!void,
     exchange_act_as_credential: *const fn (ctx: *anyopaque, req: *const types.ExchangeActAsCredentialRequest, resp: *types.ActAsTokenResponse) anyerror!void,
     login: *const fn (ctx: *anyopaque, req: *const types.LoginRequest, resp: *types.LoginResponse) anyerror!void,

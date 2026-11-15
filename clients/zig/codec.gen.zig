@@ -2349,6 +2349,43 @@ fn dec_LoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.LoginRequest
     }
 }
 
+fn enc_BeginBrowserLoginRequest(out: *std.ArrayList(u8), v: *const types.BeginBrowserLoginRequest) CodecError!void {
+    var csil_n: usize = 0;
+    if (v.login != null) csil_n += 1;
+    try w_map_head(out, csil_n);
+    if (v.login) |csil_x| {
+        try w_text(out, "login");
+        try w_text(out, csil_x);
+    }
+}
+
+fn dec_BeginBrowserLoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.BeginBrowserLoginRequest) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        if (mget(m, "login")) |csil_fv| {
+            out.login = try as_text(csil_fv);
+        } else {
+            out.login = null;
+        }
+    }
+}
+
+fn enc_BeginBrowserLoginResponse(out: *std.ArrayList(u8), v: *const types.BeginBrowserLoginResponse) CodecError!void {
+    try w_map_head(out, 1);
+    try w_text(out, "redirect_url");
+    try w_text(out, v.redirect_url);
+}
+
+fn dec_BeginBrowserLoginResponse(alloc: std.mem.Allocator, m: Value, out: *types.BeginBrowserLoginResponse) CodecError!void {
+    _ = alloc;
+    if (m != .map) return error.WrongType;
+    {
+        const csil_fv = try req(m, "redirect_url");
+        out.redirect_url = try as_text(csil_fv);
+    }
+}
+
 fn enc_CompleteRequest(out: *std.ArrayList(u8), v: *const types.CompleteRequest) CodecError!void {
     try w_map_head(out, 1);
     try w_text(out, "encrypted_token");
@@ -5902,6 +5939,38 @@ pub fn encode_LoginRequest(alloc: std.mem.Allocator, v: *const types.LoginReques
 pub fn decode_LoginRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.LoginRequest) CodecError!void {
     const root = try decode(alloc, bytes);
     try dec_LoginRequest(alloc, root, out);
+}
+
+/// Encode a BeginBrowserLoginRequest to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_BeginBrowserLoginRequest(alloc: std.mem.Allocator, v: *const types.BeginBrowserLoginRequest) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_BeginBrowserLoginRequest(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a BeginBrowserLoginRequest. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_BeginBrowserLoginRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *types.BeginBrowserLoginRequest) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_BeginBrowserLoginRequest(alloc, root, out);
+}
+
+/// Encode a BeginBrowserLoginResponse to CBOR. The returned slice is owned by the caller
+/// (free it with alloc.free).
+pub fn encode_BeginBrowserLoginResponse(alloc: std.mem.Allocator, v: *const types.BeginBrowserLoginResponse) CodecError![]u8 {
+    var out = std.ArrayList(u8).init(alloc);
+    errdefer out.deinit();
+    try enc_BeginBrowserLoginResponse(&out, v);
+    return out.toOwnedSlice();
+}
+
+/// Decode CBOR into a BeginBrowserLoginResponse. Every string/slice/map inside `out` is
+/// allocated from `alloc`; pass an arena and free it all at once.
+pub fn decode_BeginBrowserLoginResponse(alloc: std.mem.Allocator, bytes: []const u8, out: *types.BeginBrowserLoginResponse) CodecError!void {
+    const root = try decode(alloc, bytes);
+    try dec_BeginBrowserLoginResponse(alloc, root, out);
 }
 
 /// Encode a CompleteRequest to CBOR. The returned slice is owned by the caller

@@ -15,6 +15,7 @@ func TestDelegationScopeCoverage(t *testing.T) {
 	}
 	excluded := map[string]bool{"auth.Login": true, "auth.Complete": true, "auth.Refresh": true, "auth.Logout": true, "auth.ResumeSession": true, "auth.EndSession": true, "auth.BeginCliLogin": true, "auth.InspectCliLogin": true, "auth.ApproveCliLogin": true, "auth.ExchangeCliLogin": true, "auth.RefreshSession": true, "auth.GetActAsScopeSet": true, "auth.ExchangeActAsCredential": true, "devauth.ListDevUsers": true, "devauth.DevLogin": true}
 	services := regexp.MustCompile(`(?s)service (\w+)Service \{(.*?)\n\}`).FindAllStringSubmatch(string(raw), -1)
+	excluded["auth.BeginBrowserLogin"] = true
 	ops := regexp.MustCompile(`(?m)^\s+([a-z][a-z-]+):`)
 	for _, svc := range services {
 		for _, op := range ops.FindAllStringSubmatch(svc[2], -1) {

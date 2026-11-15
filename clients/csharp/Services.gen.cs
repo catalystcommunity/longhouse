@@ -8,6 +8,7 @@ namespace Longhouse.Client;
 /// <summary>Server handler interface for the AuthService service.</summary>
 public interface IAuthService
 {
+    BeginBrowserLoginResponse BeginBrowserLogin(BeginBrowserLoginRequest beginBrowserLoginRequest);
     ActAsScopeSetResponse GetActAsScopeSet(ActAsScopeSetRequest actAsScopeSetRequest);
     ActAsTokenResponse ExchangeActAsCredential(ExchangeActAsCredentialRequest exchangeActAsCredentialRequest);
     LoginResponse Login(LoginRequest loginRequest);

@@ -277,6 +277,8 @@ and identity = {
 }
 
 and login_request = { signed_assertion : string }
+and begin_browser_login_request = { login : string option }
+and begin_browser_login_response = { redirect_url : string }
 and complete_request = { encrypted_token : string }
 
 and login_response = {

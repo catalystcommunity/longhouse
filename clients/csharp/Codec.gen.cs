@@ -382,6 +382,8 @@ public static class Codec
         ActAsDelegation csilTyped => ActAsDelegationToCborValue(csilTyped),
         Identity csilTyped => IdentityToCborValue(csilTyped),
         LoginRequest csilTyped => LoginRequestToCborValue(csilTyped),
+        BeginBrowserLoginRequest csilTyped => BeginBrowserLoginRequestToCborValue(csilTyped),
+        BeginBrowserLoginResponse csilTyped => BeginBrowserLoginResponseToCborValue(csilTyped),
         CompleteRequest csilTyped => CompleteRequestToCborValue(csilTyped),
         LoginResponse csilTyped => LoginResponseToCborValue(csilTyped),
         CliTokenResponse csilTyped => CliTokenResponseToCborValue(csilTyped),
@@ -506,6 +508,8 @@ public static class Codec
         if (csilType == typeof(ActAsDelegation)) return ActAsDelegationFromCborValue(value);
         if (csilType == typeof(Identity)) return IdentityFromCborValue(value);
         if (csilType == typeof(LoginRequest)) return LoginRequestFromCborValue(value);
+        if (csilType == typeof(BeginBrowserLoginRequest)) return BeginBrowserLoginRequestFromCborValue(value);
+        if (csilType == typeof(BeginBrowserLoginResponse)) return BeginBrowserLoginResponseFromCborValue(value);
         if (csilType == typeof(CompleteRequest)) return CompleteRequestFromCborValue(value);
         if (csilType == typeof(LoginResponse)) return LoginResponseFromCborValue(value);
         if (csilType == typeof(CliTokenResponse)) return CliTokenResponseFromCborValue(value);
@@ -1901,6 +1905,45 @@ public static class Codec
         return new LoginRequest
         {
             SignedAssertion = csilField0,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a BeginBrowserLoginRequest.</summary>
+    public static CborValue BeginBrowserLoginRequestToCborValue(BeginBrowserLoginRequest value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        if (value.Login is { } csilV0)
+        {
+            csilEntries.Add((new CborValue.Text("login"), new CborValue.Text(csilV0)));
+        }
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a BeginBrowserLoginRequest from a decoded CBOR value tree.</summary>
+    public static BeginBrowserLoginRequest BeginBrowserLoginRequestFromCborValue(CborValue value)
+    {
+        string? csilField0 = Cbor.MapGet(value, "login") is { } csilRaw0 ? Cbor.AsText(csilRaw0) : null;
+        return new BeginBrowserLoginRequest
+        {
+            Login = csilField0,
+        };
+    }
+
+    /// <summary>The canonical CBOR value tree for a BeginBrowserLoginResponse.</summary>
+    public static CborValue BeginBrowserLoginResponseToCborValue(BeginBrowserLoginResponse value)
+    {
+        var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
+        csilEntries.Add((new CborValue.Text("redirect_url"), new CborValue.Text(value.RedirectUrl)));
+        return new CborValue.Map(csilEntries);
+    }
+
+    /// <summary>Reconstruct a BeginBrowserLoginResponse from a decoded CBOR value tree.</summary>
+    public static BeginBrowserLoginResponse BeginBrowserLoginResponseFromCborValue(CborValue value)
+    {
+        var csilField0 = Cbor.AsText(Cbor.Require(value, "redirect_url"));
+        return new BeginBrowserLoginResponse
+        {
+            RedirectUrl = csilField0,
         };
     }
 

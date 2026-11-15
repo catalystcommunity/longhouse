@@ -123,6 +123,8 @@ typedef struct HouseRoles HouseRoles;
 typedef struct ActAsDelegation ActAsDelegation;
 typedef struct Identity Identity;
 typedef struct LoginRequest LoginRequest;
+typedef struct BeginBrowserLoginRequest BeginBrowserLoginRequest;
+typedef struct BeginBrowserLoginResponse BeginBrowserLoginResponse;
 typedef struct CompleteRequest CompleteRequest;
 typedef struct LoginResponse LoginResponse;
 typedef struct CliTokenResponse CliTokenResponse;
@@ -543,6 +545,16 @@ typedef struct Identity {
 typedef struct LoginRequest {
     char *signed_assertion;
 } LoginRequest;
+
+/* BeginBrowserLoginRequest is a structured data type. */
+typedef struct BeginBrowserLoginRequest {
+    char *login;
+} BeginBrowserLoginRequest;
+
+/* BeginBrowserLoginResponse is a structured data type. */
+typedef struct BeginBrowserLoginResponse {
+    char *redirect_url;
+} BeginBrowserLoginResponse;
 
 /* CompleteRequest is a structured data type. */
 typedef struct CompleteRequest {

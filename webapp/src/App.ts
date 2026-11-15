@@ -12,6 +12,7 @@ import { AccountPage } from '~/pages/Account';
 import { MorePage } from '~/pages/More';
 import { ActivityTrashPage } from '~/pages/ActivityTrash';
 import { AuthCallback } from '~/pages/AuthCallback';
+import { SignInPage } from '~/pages/SignIn';
 import { Stub } from '~/pages/Stub';
 import { CliAuthorizePage } from '~/pages/CliAuthorize';
 import { outlet, locationState, type PageRoute } from '~/ui/router';
@@ -26,6 +27,7 @@ export const routes: PageRoute[] = [
   { path: '/skills', page: SkillsPage }, { path: '/settings', page: SettingsPage },
   { path: '/admin/activity', page: ActivityTrashPage },
   { path: '/auth/callback', page: AuthCallback }, { path: '/cli/authorize', page: CliAuthorizePage },
+  { path: '/sign-in', page: SignInPage },
   { path: '/shares', page: Stub }, { path: '/more', page: MorePage }, { path: '/account', page: AccountPage },
 ];
 // Prefix matching lets the project page select the detail view without a second router.

@@ -78,7 +78,7 @@ if [[ -n "${DOCKER_HOST:-}" ]]; then
         sleep 1
     done
 
-    docker build -t "${INTERNAL_IMAGE}:${VERSION}" -f Dockerfile.web .
+    docker build --build-arg "LONGHOUSE_APP_VERSION=${VERSION}" -t "${INTERNAL_IMAGE}:${VERSION}" -f Dockerfile.web .
 
     IMAGE_TAR="/tmp/image.tar"
     docker save "${INTERNAL_IMAGE}:${VERSION}" -o "${IMAGE_TAR}"
@@ -125,6 +125,7 @@ else
         --local context=. \
         --local dockerfile=. \
         --opt filename=Dockerfile.web \
+        --opt "build-arg:LONGHOUSE_APP_VERSION=${VERSION}" \
         --output "type=image,name=${INTERNAL_IMAGE}:${VERSION},push=true"
 
     buildctl build \
@@ -132,6 +133,7 @@ else
         --local context=. \
         --local dockerfile=. \
         --opt filename=Dockerfile.web \
+        --opt "build-arg:LONGHOUSE_APP_VERSION=${VERSION}" \
         --output "type=image,name=${INTERNAL_IMAGE}:latest,push=true"
 
     echo "Pushing to external registry..."
@@ -140,12 +142,14 @@ else
         --local context=. \
         --local dockerfile=. \
         --opt filename=Dockerfile.web \
+        --opt "build-arg:LONGHOUSE_APP_VERSION=${VERSION}" \
         --output "type=image,name=${EXTERNAL_IMAGE}:${VERSION},push=true" 2>/dev/null && \
        buildctl build \
         --frontend dockerfile.v0 \
         --local context=. \
         --local dockerfile=. \
         --opt filename=Dockerfile.web \
+        --opt "build-arg:LONGHOUSE_APP_VERSION=${VERSION}" \
         --output "type=image,name=${EXTERNAL_IMAGE}:latest,push=true" 2>/dev/null; then
         echo "External push succeeded"
     else

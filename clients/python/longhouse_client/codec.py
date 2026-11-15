@@ -1357,6 +1357,54 @@ def _login_request_from_cbor(data: bytes) -> "LoginRequest":
 LoginRequest.to_cbor = _login_request_to_cbor
 LoginRequest.from_cbor = staticmethod(_login_request_from_cbor)
 
+def _encode_begin_browser_login_request_value(v: "BeginBrowserLoginRequest") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_x = v.login
+    if csil_x is not None:
+        csil_m["login"] = csil_x
+    return csil_m
+
+def _decode_begin_browser_login_request_value(tree: Any) -> "BeginBrowserLoginRequest":
+    tree = _csil_expect_map(tree)
+    return BeginBrowserLoginRequest(
+        login=(None if tree.get("login") is None else _csil_expect_text(tree["login"])),
+    )
+
+
+def _begin_browser_login_request_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_begin_browser_login_request_value(self))
+
+
+def _begin_browser_login_request_from_cbor(data: bytes) -> "BeginBrowserLoginRequest":
+    return _decode_begin_browser_login_request_value(cbor_decode(data))
+
+
+BeginBrowserLoginRequest.to_cbor = _begin_browser_login_request_to_cbor
+BeginBrowserLoginRequest.from_cbor = staticmethod(_begin_browser_login_request_from_cbor)
+
+def _encode_begin_browser_login_response_value(v: "BeginBrowserLoginResponse") -> Dict[Any, Any]:
+    csil_m: Dict[Any, Any] = {}
+    csil_m["redirect_url"] = v.redirect_url
+    return csil_m
+
+def _decode_begin_browser_login_response_value(tree: Any) -> "BeginBrowserLoginResponse":
+    tree = _csil_expect_map(tree)
+    return BeginBrowserLoginResponse(
+        redirect_url=_csil_expect_text(tree["redirect_url"]),
+    )
+
+
+def _begin_browser_login_response_to_cbor(self) -> bytes:
+    return cbor_encode(_encode_begin_browser_login_response_value(self))
+
+
+def _begin_browser_login_response_from_cbor(data: bytes) -> "BeginBrowserLoginResponse":
+    return _decode_begin_browser_login_response_value(cbor_decode(data))
+
+
+BeginBrowserLoginResponse.to_cbor = _begin_browser_login_response_to_cbor
+BeginBrowserLoginResponse.from_cbor = staticmethod(_begin_browser_login_response_from_cbor)
+
 def _encode_complete_request_value(v: "CompleteRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["encrypted_token"] = v.encrypted_token

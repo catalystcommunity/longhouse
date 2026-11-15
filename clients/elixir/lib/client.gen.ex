@@ -30,6 +30,20 @@ defmodule Csilgen.Generated.AuthClient do
   @spec new(Csilgen.Generated.Transport.t()) :: t()
   def new(transport), do: %__MODULE__{transport: transport}
 
+  @spec begin_browser_login(t(), Csilgen.Generated.BeginBrowserLoginRequest.t()) ::
+          Csilgen.Generated.BeginBrowserLoginResponse.t()
+  def begin_browser_login(%__MODULE__{transport: transport}, req) do
+    resp =
+      Csilgen.Generated.Transport.call(
+        transport,
+        "AuthService",
+        "begin-browser-login",
+        Csilgen.Generated.BeginBrowserLoginRequest.to_cbor(req)
+      )
+
+    Csilgen.Generated.BeginBrowserLoginResponse.from_cbor(resp)
+  end
+
   @spec get_act_as_scope_set(t(), Csilgen.Generated.ActAsScopeSetRequest.t()) ::
           Csilgen.Generated.ActAsScopeSetResponse.t()
   def get_act_as_scope_set(%__MODULE__{transport: transport}, req) do

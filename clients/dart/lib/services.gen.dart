@@ -15,6 +15,7 @@ abstract interface class CsilCodec {
 /// The AuthService service contract. A host `implements` this; the router
 /// dispatches decoded requests/messages to it.
 abstract interface class AuthServiceHandler {
+  BeginBrowserLoginResponse beginBrowserLogin(BeginBrowserLoginRequest request);
   ActAsScopeSetResponse getActAsScopeSet(ActAsScopeSetRequest request);
   ActAsTokenResponse exchangeActAsCredential(
     ExchangeActAsCredentialRequest request,

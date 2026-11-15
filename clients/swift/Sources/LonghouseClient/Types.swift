@@ -1152,6 +1152,35 @@ public struct LoginRequest: Equatable, Sendable {
     ]
 }
 
+/// BeginBrowserLoginRequest is a generated CSIL record type.
+public struct BeginBrowserLoginRequest: Equatable, Sendable {
+    public let login: String?
+
+    public init(login: String? = nil) {
+        self.login = login
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "login": "login"
+    ]
+}
+
+/// BeginBrowserLoginResponse is a generated CSIL record type.
+public struct BeginBrowserLoginResponse: Equatable, Sendable {
+    /// wire key: redirect_url
+    public let redirectUrl: String
+
+    public init(redirectUrl: String) {
+        self.redirectUrl = redirectUrl
+    }
+
+    /// CBOR wire keys (verbatim) keyed by Swift property name.
+    public static let wireKeys: [String: String] = [
+        "redirectUrl": "redirect_url"
+    ]
+}
+
 /// CompleteRequest is a generated CSIL record type.
 public struct CompleteRequest: Equatable, Sendable {
     /// wire key: encrypted_token

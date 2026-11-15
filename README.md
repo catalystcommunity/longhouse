@@ -87,6 +87,32 @@ as the identity provider. Longhouse keeps a local member record that caches the
 identity data linkkeys releases; who may sign in is controlled by trusted
 domains and explicit user lists.
 
+The **Sign in** button uses the instance's home IDP. Select **Sign in with
+another domain** to enter `name@domain.com`. The browser saves this login
+on the device and keeps it after sign-out. The saved login is only a form
+value. It does not give access to Longhouse.
+
+`AuthService.BeginBrowserLogin` checks the domain before it calls DNS or
+LinkKeys. The home domain is permitted. Any other domain must be trusted by
+at least one house. Longhouse reads the `https=` address from the domain's
+`_linkkeys_apis` TXT record. It shows an error if the record is absent or
+invalid, or if the lookup fails. It sends the local username to the IDP as
+the `username` form value.
+
+A signed, httpOnly `longhouse_login` cookie binds the domain and nonce to
+the browser for ten minutes. The callback checks this cookie, current domain
+trust, the assertion domain, nonce, and RP audience. Sign-in does not select
+a house. The verified identity gets its active memberships across houses.
+An unfinished sign-in from an older server version must start again after
+this update.
+
+The UI version comes from the release image's Git tag during CI builds.
+CI passes it through the `LONGHOUSE_APP_VERSION` Docker build argument.
+Local builds use `version/VERSION.txt` when that argument is absent. The
+tag can precede the automatic update to that file. No UI file needs a manual
+version change. Page responses require cache validation; hashed assets can
+stay in the browser cache.
+
 Longhouse sends its own claim request in `Rp/sign-request`
 (`linkkeys.LonghouseClaimRequest` in `api/internal/linkkeys/tcp.go`). The
 `handle` claim is required. A user who declines it cannot sign in. The

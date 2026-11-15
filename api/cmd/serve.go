@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
-	"github.com/catalystcommunity/longhouse/api/internal/auth"
 	calendarbridge "github.com/catalystcommunity/longhouse/api/internal/calendar"
 	"github.com/catalystcommunity/longhouse/api/internal/config"
+	"github.com/catalystcommunity/longhouse/api/internal/csil"
 	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
 	"github.com/catalystcommunity/longhouse/api/internal/csilservices"
 	"github.com/catalystcommunity/longhouse/api/internal/linkkeys"
@@ -170,7 +169,7 @@ func buildHTTPHandlerWithContext(workerCtx context.Context) (http.Handler, error
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", healthHandler)
 	if authSvc != nil && authSvc.IDPURL != "" && authSvc.CallbackURL != "" {
-		mux.Handle("GET /api/v1/auth/start", browserAuthStartHandler(jwtSecret, authSvc))
+		mux.Handle("GET /api/v1/auth/start", browserAuthStartHandler(authSvc))
 	} else {
 		mux.Handle("GET /api/v1/auth/start", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			http.Error(w, "browser login is not configured on this server", http.StatusInternalServerError)
@@ -206,22 +205,24 @@ func buildHTTPHandlerWithContext(workerCtx context.Context) (http.Handler, error
 // signs an auth request bound to the SPA's callback URL, then we 302 the
 // browser to the IDP authorize page. The nonce round-trips inside the
 // assertion and is re-checked at AuthService.Complete.
-func browserAuthStartHandler(jwtSecret []byte, s *csilservices.AuthService) http.Handler {
+func browserAuthStartHandler(s *csilservices.AuthService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.PKI == nil || s.IDPURL == "" || s.CallbackURL == "" {
 			http.Error(w, "browser login is not configured on this server", http.StatusInternalServerError)
 			return
 		}
-		nonce := auth.MintNonce(jwtSecret)
-		signedRequest, err := s.PKI.SignRequest(s.CallbackURL, nonce)
+		ctx := csilrpc.WithHTTPRequest(r.Context(), r)
+		result, err := s.BeginBrowserLogin(ctx, csil.BeginBrowserLoginRequest{})
 		if err != nil {
-			log.WithError(err).Error("auth/start: RP sign-request failed")
-			http.Error(w, "could not reach identity service", http.StatusBadGateway)
+			// Keep navigation failures in the SPA, where the user can retry.
+			http.Redirect(w, r, "/sign-in?error=start", http.StatusFound)
 			return
 		}
-		q := url.Values{}
-		q.Set("signed_request", signedRequest)
-		http.Redirect(w, r, s.IDPURL+"/auth/authorize?"+q.Encode(), http.StatusFound)
+		for _, cookie := range csilrpc.QueuedCookies(ctx) {
+			http.SetCookie(w, cookie)
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		http.Redirect(w, r, result.RedirectUrl, http.StatusFound)
 	})
 }
 

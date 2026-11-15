@@ -3602,6 +3602,82 @@ func DecodeLoginRequest(csilData []byte) (LoginRequest, error) {
 	return csilDecLoginRequest(csilRoot)
 }
 
+// csilEncBeginBrowserLoginRequest builds the canonical CBOR value tree for a BeginBrowserLoginRequest.
+func csilEncBeginBrowserLoginRequest(csilV BeginBrowserLoginRequest) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	if csilV.Login != nil {
+		csilEntries = append(csilEntries, cborEntry{cborText("login"), cborText((*csilV.Login))})
+	}
+	return csilEntries
+}
+
+// csilDecBeginBrowserLoginRequest reconstructs a BeginBrowserLoginRequest from a decoded CBOR value tree.
+func csilDecBeginBrowserLoginRequest(csilRoot cborValue) (BeginBrowserLoginRequest, error) {
+	var csilOut BeginBrowserLoginRequest
+	if csilField, csilOk := cborMapGet(csilRoot, "login"); csilOk {
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.Login = &csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeBeginBrowserLoginRequest encodes a BeginBrowserLoginRequest to canonical CSIL CBOR bytes.
+func EncodeBeginBrowserLoginRequest(csilV BeginBrowserLoginRequest) []byte {
+	return cborEncode(csilEncBeginBrowserLoginRequest(csilV))
+}
+
+// DecodeBeginBrowserLoginRequest decodes canonical CSIL CBOR bytes into a BeginBrowserLoginRequest.
+func DecodeBeginBrowserLoginRequest(csilData []byte) (BeginBrowserLoginRequest, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero BeginBrowserLoginRequest
+		return csilZero, csilErr
+	}
+	return csilDecBeginBrowserLoginRequest(csilRoot)
+}
+
+// csilEncBeginBrowserLoginResponse builds the canonical CBOR value tree for a BeginBrowserLoginResponse.
+func csilEncBeginBrowserLoginResponse(csilV BeginBrowserLoginResponse) cborValue {
+	csilEntries := make(cborMap, 0, 1)
+	csilEntries = append(csilEntries, cborEntry{cborText("redirect_url"), cborText(csilV.RedirectUrl)})
+	return csilEntries
+}
+
+// csilDecBeginBrowserLoginResponse reconstructs a BeginBrowserLoginResponse from a decoded CBOR value tree.
+func csilDecBeginBrowserLoginResponse(csilRoot cborValue) (BeginBrowserLoginResponse, error) {
+	var csilOut BeginBrowserLoginResponse
+	{
+		csilField, csilErr := cborRequire(csilRoot, "redirect_url")
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilVal, csilErr := (cborAsText)(csilField)
+		if csilErr != nil {
+			return csilOut, csilErr
+		}
+		csilOut.RedirectUrl = csilVal
+	}
+	return csilOut, nil
+}
+
+// EncodeBeginBrowserLoginResponse encodes a BeginBrowserLoginResponse to canonical CSIL CBOR bytes.
+func EncodeBeginBrowserLoginResponse(csilV BeginBrowserLoginResponse) []byte {
+	return cborEncode(csilEncBeginBrowserLoginResponse(csilV))
+}
+
+// DecodeBeginBrowserLoginResponse decodes canonical CSIL CBOR bytes into a BeginBrowserLoginResponse.
+func DecodeBeginBrowserLoginResponse(csilData []byte) (BeginBrowserLoginResponse, error) {
+	csilRoot, csilErr := cborDecode(csilData)
+	if csilErr != nil {
+		var csilZero BeginBrowserLoginResponse
+		return csilZero, csilErr
+	}
+	return csilDecBeginBrowserLoginResponse(csilRoot)
+}
+
 // csilEncCompleteRequest builds the canonical CBOR value tree for a CompleteRequest.
 func csilEncCompleteRequest(csilV CompleteRequest) cborValue {
 	csilEntries := make(cborMap, 0, 1)

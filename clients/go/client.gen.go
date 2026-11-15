@@ -43,6 +43,15 @@ func NewAuthClient(transport Transport) *AuthClient {
 	return &AuthClient{transport: transport}
 }
 
+func (c *AuthClient) BeginBrowserLogin(ctx context.Context, req BeginBrowserLoginRequest) (BeginBrowserLoginResponse, error) {
+	var csilZero BeginBrowserLoginResponse
+	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "begin-browser-login", EncodeBeginBrowserLoginRequest(req))
+	if csilErr != nil {
+		return csilZero, csilErr
+	}
+	return DecodeBeginBrowserLoginResponse(csilResp)
+}
+
 func (c *AuthClient) GetActAsScopeSet(ctx context.Context, req ActAsScopeSetRequest) (ActAsScopeSetResponse, error) {
 	var csilZero ActAsScopeSetResponse
 	csilResp, csilErr := c.transport.Call(ctx, "AuthService", "get-act-as-scope-set", EncodeActAsScopeSetRequest(req))

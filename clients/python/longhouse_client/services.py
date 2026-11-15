@@ -20,6 +20,11 @@ class AuthServiceHandlers(ABC):
     """Server-side handlers for AuthService service operations."""
 
     @abstractmethod
+    def begin_browser_login(self, req: BeginBrowserLoginRequest, ctx: dict) -> Union[BeginBrowserLoginResponse, ServiceError]:
+        """begin-browser-login"""
+        ...
+
+    @abstractmethod
     def get_act_as_scope_set(self, req: ActAsScopeSetRequest, ctx: dict) -> Union[ActAsScopeSetResponse, ServiceError]:
         """get-act-as-scope-set"""
         ...

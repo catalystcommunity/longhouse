@@ -67,7 +67,7 @@ export function setUnauthenticatedHandler(fn: () => Promise<boolean>): void {
 
 // Ops that must not trigger a resume-and-retry: the resume itself, and the
 // sign-out that clears the cookie.
-const NO_RETRY_OPS = new Set(["resume-session", "end-session"]);
+const NO_RETRY_OPS = new Set(["resume-session", "end-session", "begin-browser-login", "complete"]);
 
 /**
  * cborTransport is the singleton carrier every generated client shares. Each call

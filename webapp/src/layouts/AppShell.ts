@@ -1,8 +1,7 @@
 import { type ParentView, live, el } from "~/ui/dom";
 import { Header } from "~/components/Header";
 import { Tabbar } from "~/components/Tabbar";
-// Injected by vite.config.ts from version/VERSION.txt — the repo's source
-// of truth for the release version, owned by CI.
+// Vite uses the release image version from CI, or VERSION.txt for local builds.
 declare const __APP_VERSION__: string;
 export const AppShell: ParentView = (props) => ([
     el("div", {
