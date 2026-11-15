@@ -38,6 +38,7 @@
 	# fall through to /index.html so the Zest router can take over
 	# (covers /auth/callback, /dev-login, /projects/:slug, etc.)
 	handle {
+		header Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server
 	}

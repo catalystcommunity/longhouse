@@ -21,6 +21,17 @@ final class AuthAsyncClient {
   final AsyncCsilTransport transport;
   const AuthAsyncClient(this.transport);
 
+  Future<BeginBrowserLoginResponse> beginBrowserLogin(
+    BeginBrowserLoginRequest request,
+  ) async {
+    final csilResp = await transport.call(
+      'AuthService',
+      'begin-browser-login',
+      request.toCbor(),
+    );
+    return BeginBrowserLoginResponse.fromCborValue(CsilCbor.decode(csilResp));
+  }
+
   Future<ActAsScopeSetResponse> getActAsScopeSet(
     ActAsScopeSetRequest request,
   ) async {

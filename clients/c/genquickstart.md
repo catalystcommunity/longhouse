@@ -172,13 +172,13 @@ int main(void) {
     CsilgenTransport transport = { .call = csil_rpc_call, .self = &carrier };
 
     CsilCodecArena *owner = NULL;
-    ActAsScopeSetResponse resp;
-    ActAsScopeSetRequest req = { .scopes = {0} };
-    if (csil_auth_get_act_as_scope_set(&transport, &req, &resp, &owner) != 0) {
-        fprintf(stderr, "csil-rpc AuthService/get-act-as-scope-set failed\n");
+    BeginBrowserLoginResponse resp;
+    BeginBrowserLoginRequest req = {0};
+    if (csil_auth_begin_browser_login(&transport, &req, &resp, &owner) != 0) {
+        fprintf(stderr, "csil-rpc AuthService/begin-browser-login failed\n");
         return 1;
     }
-    printf("AuthService/get-act-as-scope-set ok\n");
+    printf("AuthService/begin-browser-login -> %s\n", resp.redirect_url);
     csil_codec_arena_free(owner); // frees everything `resp` borrows
     return 0;
 }
@@ -346,9 +346,9 @@ int main(void) {
 
     // Fire-and-forget: encode the `->` request via the generated codec, wrap it in
     // the library's Datagram, and send it. seq 0 marks an unsequenced datagram.
-    ActAsScopeSetRequest req = { .scopes = {0} };
+    BeginBrowserLoginRequest req = {0};
     uint8_t *payload = NULL; size_t payload_len = 0;
-    if (csil_encode_ActAsScopeSetRequest(&req, &payload, &payload_len)) { close(fd); return 1; }
+    if (csil_encode_BeginBrowserLoginRequest(&req, &payload, &payload_len)) { close(fd); return 1; }
     csil_datagram dg;
     csil_datagram_init(&dg, OP_ORD, 0, payload, payload_len);
     uint8_t *frame = NULL; size_t frame_len = 0;
@@ -365,9 +365,9 @@ int main(void) {
     if (carrier.recv_datagram(carrier.userdata, &inb, &inn) == CSIL_OK && inb) {
         csil_datagram in_dg;
         if (csil_datagram_decode(inb, inn, &in_dg) == 0) {
-            ActAsScopeSetResponse resp;
+            BeginBrowserLoginResponse resp;
             CsilCodecArena *owner = NULL;
-            if (csil_decode_ActAsScopeSetResponse(in_dg.payload, in_dg.payload_len, &resp, &owner) == 0) {
+            if (csil_decode_BeginBrowserLoginResponse(in_dg.payload, in_dg.payload_len, &resp, &owner) == 0) {
                 printf("late response\n");
                 csil_codec_arena_free(owner);
             }

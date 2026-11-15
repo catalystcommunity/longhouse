@@ -2,6 +2,8 @@ package csilservices
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/catalystcommunity/longhouse/api/internal/auth"
@@ -70,7 +72,10 @@ func completeSvc(t *testing.T, assertion *linkkeys.Assertion) *AuthService {
 
 func callComplete(t *testing.T, svc *AuthService) (any, error) {
 	t.Helper()
-	return svc.Complete(context.Background(), csil.CompleteRequest{EncryptedToken: "ENC"})
+	a := svc.PKI.(fakeCompletePKI).assertion
+	r := httptest.NewRequest(http.MethodPost, "https://longhouse.example/api/csil/v1/rpc", nil)
+	r.AddCookie(&http.Cookie{Name: browserLoginCookie, Value: auth.BrowserLoginState(svc.JWTSecret, testIDPDomain, a.Nonce)})
+	return svc.Complete(csilrpc.WithHTTPRequest(context.Background(), r), csil.CompleteRequest{EncryptedToken: "ENC"})
 }
 
 // TestComplete_AcceptsRPDomainAudience: an assertion whose audience equals the

@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AccessLevel, ActAsDelegation, ActAsScopeSetRequest, ActAsScopeSetResponse, ActAsTokenResponse, ApproveCliLoginRequest, AuditEntry, AuditID, AuditPage, AuditQuery, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarConnectResponse, CalendarMigrationRow, CalendarStatus, CalendarSubscription, CalendarTrashEntry, CalendarView, CliLoginRequestInfo, CliLoginStatus, CliSessionID, CliSessionSummary, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteCalendarConnectRequest, CompleteRequest, ConfigureCalendarRequest, DenyCliLoginRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventDecision, EventID, EventListRequest, ExchangeActAsCredentialRequest, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectDeadline, ProjectDeadlineList, ProjectDeadlineRequest, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, RefreshSessionRequest, ResourceRef, ResourceType, RestoreCalendarEventRequest, RestoreRequest, RevokeSessionRequest, Role, RoleID, ServiceError, SessionKind, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskListRequest, TaskState, TaskStatus, Timestamp, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import type { AccessLevel, ActAsDelegation, ActAsScopeSetRequest, ActAsScopeSetResponse, ActAsTokenResponse, ApproveCliLoginRequest, AuditEntry, AuditID, AuditPage, AuditQuery, BeginBrowserLoginRequest, BeginBrowserLoginResponse, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarConnectResponse, CalendarMigrationRow, CalendarStatus, CalendarSubscription, CalendarTrashEntry, CalendarView, CliLoginRequestInfo, CliLoginStatus, CliSessionID, CliSessionSummary, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteCalendarConnectRequest, CompleteRequest, ConfigureCalendarRequest, DenyCliLoginRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventDecision, EventID, EventListRequest, ExchangeActAsCredentialRequest, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectDeadline, ProjectDeadlineList, ProjectDeadlineRequest, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, RefreshSessionRequest, ResourceRef, ResourceType, RestoreCalendarEventRequest, RestoreRequest, RevokeSessionRequest, Role, RoleID, ServiceError, SessionKind, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskListRequest, TaskState, TaskStatus, Timestamp, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -1142,6 +1142,46 @@ export function toLoginRequestCbor(v: LoginRequest): Uint8Array {
 
 export function fromLoginRequestCbor(bytes: Uint8Array): LoginRequest {
   return fromLoginRequestCborValue(decode(bytes));
+}
+
+export function toBeginBrowserLoginRequestCborValue(v: BeginBrowserLoginRequest): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  if (v.login !== undefined) csilMap.set("login", v.login);
+  return csilMap;
+}
+
+export function fromBeginBrowserLoginRequestCborValue(value: CborValue): BeginBrowserLoginRequest {
+  return {
+    login: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "login")),
+  };
+}
+
+export function toBeginBrowserLoginRequestCbor(v: BeginBrowserLoginRequest): Uint8Array {
+  return encodeValue(toBeginBrowserLoginRequestCborValue(v));
+}
+
+export function fromBeginBrowserLoginRequestCbor(bytes: Uint8Array): BeginBrowserLoginRequest {
+  return fromBeginBrowserLoginRequestCborValue(decode(bytes));
+}
+
+export function toBeginBrowserLoginResponseCborValue(v: BeginBrowserLoginResponse): CborValue {
+  const csilMap = new Map<CborValue, CborValue>();
+  csilMap.set("redirect_url", v.redirectUrl);
+  return csilMap;
+}
+
+export function fromBeginBrowserLoginResponseCborValue(value: CborValue): BeginBrowserLoginResponse {
+  return {
+    redirectUrl: asString(requireKey(value, "redirect_url")),
+  };
+}
+
+export function toBeginBrowserLoginResponseCbor(v: BeginBrowserLoginResponse): Uint8Array {
+  return encodeValue(toBeginBrowserLoginResponseCborValue(v));
+}
+
+export function fromBeginBrowserLoginResponseCbor(bytes: Uint8Array): BeginBrowserLoginResponse {
+  return fromBeginBrowserLoginResponseCborValue(decode(bytes));
 }
 
 export function toCompleteRequestCborValue(v: CompleteRequest): CborValue {

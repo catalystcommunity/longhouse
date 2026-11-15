@@ -394,6 +394,16 @@ end
 # signed_assertion [String]
 LoginRequest = Data.define(:signed_assertion)
 
+# login [String]
+BeginBrowserLoginRequest = Data.define(:login) do
+  def initialize(login: nil)
+    super
+  end
+end
+
+# redirect_url [String]
+BeginBrowserLoginResponse = Data.define(:redirect_url)
+
 # encrypted_token [String]
 CompleteRequest = Data.define(:encrypted_token)
 

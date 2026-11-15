@@ -22,6 +22,17 @@ pub const AuthClient = struct {
         return .{ .transport = transport };
     }
 
+    /// Invoke AuthService/begin-browser-login with a typed request, returning the decoded
+    /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
+    /// and free it once when done.
+    pub fn begin_browser_login(self: AuthClient, alloc: std.mem.Allocator, req: *const types.BeginBrowserLoginRequest, out: *types.BeginBrowserLoginResponse) anyerror!void {
+        const csil_reqb = try codec.encode_BeginBrowserLoginRequest(alloc, req);
+        defer alloc.free(csil_reqb);
+        const csil_respb = try self.transport.call(self.transport.ptr, alloc, "AuthService", "begin-browser-login", csil_reqb);
+        defer alloc.free(csil_respb);
+        try codec.decode_BeginBrowserLoginResponse(alloc, csil_respb, out);
+    }
+
     /// Invoke AuthService/get-act-as-scope-set with a typed request, returning the decoded
     /// typed response. Everything in `out` is allocated from `alloc`; pass an arena
     /// and free it once when done.

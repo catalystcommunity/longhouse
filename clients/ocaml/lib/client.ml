@@ -13,6 +13,11 @@ type client = {
 let make_client ~call = { call }
 
 module Auth_service = struct
+  let begin_browser_login (c : client) (req : begin_browser_login_request) : (begin_browser_login_response, string) result =
+    match c.call ~service:"AuthService" ~op:"begin-browser-login" ~payload:(Codec.encode_begin_browser_login_request_bytes req) with
+    | Ok payload -> Ok (Codec.decode_begin_browser_login_response_bytes payload)
+    | Error _ as e -> e
+
   let get_act_as_scope_set (c : client) (req : act_as_scope_set_request) : (act_as_scope_set_response, string) result =
     match c.call ~service:"AuthService" ~op:"get-act-as-scope-set" ~payload:(Codec.encode_act_as_scope_set_request_bytes req) with
     | Ok payload -> Ok (Codec.decode_act_as_scope_set_response_bytes payload)

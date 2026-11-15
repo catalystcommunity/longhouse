@@ -19,6 +19,7 @@ typedef struct CsilgenCodec {
 
 /* AuthHandlers is the host's implementation of the AuthService service. */
 typedef struct AuthHandlers {
+    int (*begin_browser_login)(void *ctx, const BeginBrowserLoginRequest *req, BeginBrowserLoginResponse *resp);
     int (*get_act_as_scope_set)(void *ctx, const ActAsScopeSetRequest *req, ActAsScopeSetResponse *resp);
     int (*exchange_act_as_credential)(void *ctx, const ExchangeActAsCredentialRequest *req, ActAsTokenResponse *resp);
     int (*login)(void *ctx, const LoginRequest *req, LoginResponse *resp);

@@ -5,6 +5,12 @@ use super::types::*;
 /// AuthService service trait
 pub trait AuthService {
     type Context;
+    /// begin-browser-login (request/response).
+    fn begin_browser_login(
+        &self,
+        ctx: &Self::Context,
+        input: BeginBrowserLoginRequest,
+    ) -> Result<BeginBrowserLoginResponse, ServiceError>;
     /// get-act-as-scope-set (request/response).
     fn get_act_as_scope_set(
         &self,

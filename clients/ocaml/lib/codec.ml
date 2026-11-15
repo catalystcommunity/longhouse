@@ -395,6 +395,22 @@ and encode_login_request (v : login_request) : Cbor.t =
          Some (Cbor.Text "signed_assertion", (Cbor.Text v.signed_assertion));
        ])
 
+and encode_begin_browser_login_request (v : begin_browser_login_request) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         (match v.login with Some csil_x -> Some (Cbor.Text "login", (Cbor.Text csil_x)) | None -> None);
+       ])
+
+and encode_begin_browser_login_response (v : begin_browser_login_response) : Cbor.t =
+  Cbor.Map
+    (List.filter_map
+       (fun x -> x)
+       [
+         Some (Cbor.Text "redirect_url", (Cbor.Text v.redirect_url));
+       ])
+
 and encode_complete_request (v : complete_request) : Cbor.t =
   Cbor.Map
     (List.filter_map
@@ -1744,6 +1760,32 @@ and decode_login_request (csil_c : Cbor.t) : login_request =
         signed_assertion = (Cbor.to_text (csil_req "signed_assertion"));
       }
   | _ -> failwith "csilgen: expected map for login_request"
+
+and decode_begin_browser_login_request (csil_c : Cbor.t) : begin_browser_login_request =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        login = (match csil_field "login" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
+      }
+  | _ -> failwith "csilgen: expected map for begin_browser_login_request"
+
+and decode_begin_browser_login_response (csil_c : Cbor.t) : begin_browser_login_response =
+  match csil_c with
+  | Cbor.Map csil_kvs ->
+      let csil_field k = List.assoc_opt (Cbor.Text k) csil_kvs in
+      let csil_req k =
+        match csil_field k with Some v -> v | None -> failwith ("csilgen: missing field " ^ k)
+      in
+      ignore csil_req;
+      {
+        redirect_url = (Cbor.to_text (csil_req "redirect_url"));
+      }
+  | _ -> failwith "csilgen: expected map for begin_browser_login_response"
 
 and decode_complete_request (csil_c : Cbor.t) : complete_request =
   match csil_c with
@@ -3131,6 +3173,14 @@ let decode_identity_bytes (b : bytes) : identity =
 let encode_login_request_bytes (v : login_request) : bytes = Cbor.encode (encode_login_request v)
 let decode_login_request_bytes (b : bytes) : login_request =
   match Cbor.decode b with Ok c -> decode_login_request c | Error e -> failwith e
+
+let encode_begin_browser_login_request_bytes (v : begin_browser_login_request) : bytes = Cbor.encode (encode_begin_browser_login_request v)
+let decode_begin_browser_login_request_bytes (b : bytes) : begin_browser_login_request =
+  match Cbor.decode b with Ok c -> decode_begin_browser_login_request c | Error e -> failwith e
+
+let encode_begin_browser_login_response_bytes (v : begin_browser_login_response) : bytes = Cbor.encode (encode_begin_browser_login_response v)
+let decode_begin_browser_login_response_bytes (b : bytes) : begin_browser_login_response =
+  match Cbor.decode b with Ok c -> decode_begin_browser_login_response c | Error e -> failwith e
 
 let encode_complete_request_bytes (v : complete_request) : bytes = Cbor.encode (encode_complete_request v)
 let decode_complete_request_bytes (b : bytes) : complete_request =

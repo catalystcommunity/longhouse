@@ -367,6 +367,16 @@ type LoginRequest struct {
 	SignedAssertion string `json:"signed_assertion" yaml:"signed_assertion"`
 }
 
+// BeginBrowserLoginRequest represents a structured data type
+type BeginBrowserLoginRequest struct {
+	Login *string `json:"login,omitempty" yaml:"login,omitempty"`
+}
+
+// BeginBrowserLoginResponse represents a structured data type
+type BeginBrowserLoginResponse struct {
+	RedirectUrl string `json:"redirect_url" yaml:"redirect_url"`
+}
+
 // CompleteRequest represents a structured data type
 type CompleteRequest struct {
 	EncryptedToken string `json:"encrypted_token" yaml:"encrypted_token"`

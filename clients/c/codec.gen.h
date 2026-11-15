@@ -705,6 +705,10 @@ static inline int csilc_enc_Identity(csilc_buf *b, const Identity *v);
 static inline int csilc_dec_Identity(const csilc_value *m, CsilCodecArena *a, Identity *out);
 static inline int csilc_enc_LoginRequest(csilc_buf *b, const LoginRequest *v);
 static inline int csilc_dec_LoginRequest(const csilc_value *m, CsilCodecArena *a, LoginRequest *out);
+static inline int csilc_enc_BeginBrowserLoginRequest(csilc_buf *b, const BeginBrowserLoginRequest *v);
+static inline int csilc_dec_BeginBrowserLoginRequest(const csilc_value *m, CsilCodecArena *a, BeginBrowserLoginRequest *out);
+static inline int csilc_enc_BeginBrowserLoginResponse(csilc_buf *b, const BeginBrowserLoginResponse *v);
+static inline int csilc_dec_BeginBrowserLoginResponse(const csilc_value *m, CsilCodecArena *a, BeginBrowserLoginResponse *out);
 static inline int csilc_enc_CompleteRequest(csilc_buf *b, const CompleteRequest *v);
 static inline int csilc_dec_CompleteRequest(const csilc_value *m, CsilCodecArena *a, CompleteRequest *out);
 static inline int csilc_enc_LoginResponse(csilc_buf *b, const LoginResponse *v);
@@ -2746,6 +2750,47 @@ static inline int csilc_dec_LoginRequest(const csilc_value *m, CsilCodecArena *a
     if (!m || m->kind != CSILC_MAP) return -1;
     csilc_f = csilc_map_get(m, "signed_assertion");
     if (!csilc_get_text(csilc_f, &(out->signed_assertion))) return -1;
+    return 0;
+}
+
+/* csilc_enc_BeginBrowserLoginRequest writes BeginBrowserLoginRequest as a canonical CBOR map. */
+static inline int csilc_enc_BeginBrowserLoginRequest(csilc_buf *b, const BeginBrowserLoginRequest *v) {
+    size_t csilc_n = 0;
+    if (v->login) csilc_n++;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (v->login) {
+        if (csilc_w_text(b, "login", 5)) return -1;
+        if (csilc_w_text(b, (v->login), (v->login) ? strlen(v->login) : 0)) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_BeginBrowserLoginRequest reads BeginBrowserLoginRequest from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_BeginBrowserLoginRequest(const csilc_value *m, CsilCodecArena *a, BeginBrowserLoginRequest *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "login");
+    out->login = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
+    return 0;
+}
+
+/* csilc_enc_BeginBrowserLoginResponse writes BeginBrowserLoginResponse as a canonical CBOR map. */
+static inline int csilc_enc_BeginBrowserLoginResponse(csilc_buf *b, const BeginBrowserLoginResponse *v) {
+    size_t csilc_n = 1;
+    if (csilc_w_map_head(b, csilc_n)) return -1;
+    if (csilc_w_text(b, "redirect_url", 12)) return -1;
+    if (csilc_w_text(b, (v->redirect_url), (v->redirect_url) ? strlen(v->redirect_url) : 0)) return -1;
+    return 0;
+}
+
+/* csilc_dec_BeginBrowserLoginResponse reads BeginBrowserLoginResponse from a decoded CBOR map (arena-borrowed). */
+static inline int csilc_dec_BeginBrowserLoginResponse(const csilc_value *m, CsilCodecArena *a, BeginBrowserLoginResponse *out) {
+    (void)a;
+    const csilc_value *csilc_f;
+    if (!m || m->kind != CSILC_MAP) return -1;
+    csilc_f = csilc_map_get(m, "redirect_url");
+    if (!csilc_get_text(csilc_f, &(out->redirect_url))) return -1;
     return 0;
 }
 
@@ -7226,6 +7271,52 @@ static inline int csil_decode_LoginRequest(const uint8_t *in, size_t len, LoginR
     const csilc_value *root;
     if (csilc_decode(in, len, &a, &root)) return -1;
     if (csilc_dec_LoginRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a BeginBrowserLoginRequest to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_BeginBrowserLoginRequest(const BeginBrowserLoginRequest *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_BeginBrowserLoginRequest(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a BeginBrowserLoginRequest. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_BeginBrowserLoginRequest(const uint8_t *in, size_t len, BeginBrowserLoginRequest *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_BeginBrowserLoginRequest(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a BeginBrowserLoginResponse to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_BeginBrowserLoginResponse(const BeginBrowserLoginResponse *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_BeginBrowserLoginResponse(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a BeginBrowserLoginResponse. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_BeginBrowserLoginResponse(const uint8_t *in, size_t len, BeginBrowserLoginResponse *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_BeginBrowserLoginResponse(root, a, out)) { csil_codec_arena_free(a); return -1; }
     *owner = a;
     return 0;
 }

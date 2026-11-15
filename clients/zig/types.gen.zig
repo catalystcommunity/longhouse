@@ -261,6 +261,16 @@ pub const LoginRequest = struct {
     signed_assertion: []const u8,
 };
 
+/// BeginBrowserLoginRequest is a structured data type.
+pub const BeginBrowserLoginRequest = struct {
+    login: ?[]const u8 = null,
+};
+
+/// BeginBrowserLoginResponse is a structured data type.
+pub const BeginBrowserLoginResponse = struct {
+    redirect_url: []const u8,
+};
+
 /// CompleteRequest is a structured data type.
 pub const CompleteRequest = struct {
     encrypted_token: []const u8,

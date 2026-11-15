@@ -3,6 +3,12 @@
 defmodule Csilgen.Generated.AuthServer do
   @moduledoc "Server handler behaviour + routers for the AuthService service."
 
+  @callback begin_browser_login(
+              req :: Csilgen.Generated.BeginBrowserLoginRequest.t(),
+              ctx :: map()
+            ) ::
+              {:ok, Csilgen.Generated.BeginBrowserLoginResponse.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback get_act_as_scope_set(req :: Csilgen.Generated.ActAsScopeSetRequest.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.ActAsScopeSetResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}

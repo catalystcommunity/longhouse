@@ -13,7 +13,7 @@ shared repository — then depend on it alongside the transport library:
 
 ```kotlin
 dependencies {
-    implementation("com.catalystcommunity.longhouse.client:longhouse-client:0.16.0")
+    implementation("com.catalystcommunity.longhouse.client:longhouse-client:0.16.2")
     implementation("community.catalyst.csilgen:csilgen-transport:0.1.0")
 }
 ```
@@ -71,7 +71,7 @@ class HttpRpcTransport(baseUrl: String) : Transport {
 
 fun main() {
     val client = AuthClient(HttpRpcTransport("http://localhost:5080"))
-    val resp = client.getActAsScopeSet(ActAsScopeSetRequest(scopes = emptyList()))
+    val resp = client.beginBrowserLogin(BeginBrowserLoginRequest())
     println(resp)
 }
 ```
@@ -177,7 +177,7 @@ fun main() {
     val carrier = UdpDatagramCarrier("localhost", 9000)
 
     // Fire-and-forget: encode the `->` request and send it. seq 0 marks an unsequenced datagram.
-    val req: ActAsScopeSetRequest = ActAsScopeSetRequest(scopes = emptyList())
+    val req: BeginBrowserLoginRequest = BeginBrowserLoginRequest()
     carrier.sendDatagram(Datagram(OP_ORD, 0uL, req.toCbor()).encode())
 
     // Recv path: a datagram of the RESPONSE type MAY arrive later — or never. There is NO
@@ -186,7 +186,7 @@ fun main() {
     val inbound = carrier.recvDatagram()
     if (inbound != null) {
         val dg = Datagram.decode(inbound)
-        val resp: ActAsScopeSetResponse = actAsScopeSetResponseFromCbor(dg.payload)
+        val resp: BeginBrowserLoginResponse = beginBrowserLoginResponseFromCbor(dg.payload)
         println("late response: $resp")
     }
 }

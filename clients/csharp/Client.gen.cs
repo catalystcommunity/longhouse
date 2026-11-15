@@ -29,6 +29,8 @@ public sealed class CsilClientException : System.Exception
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class AuthClient(ICsilTransport transport)
 {
+    public BeginBrowserLoginResponse BeginBrowserLogin(BeginBrowserLoginRequest beginBrowserLoginRequest) =>
+        Codec.Decode<BeginBrowserLoginResponse>(transport.Call("AuthService", "begin-browser-login", Codec.Encode(beginBrowserLoginRequest)));
     public ActAsScopeSetResponse GetActAsScopeSet(ActAsScopeSetRequest actAsScopeSetRequest) =>
         Codec.Decode<ActAsScopeSetResponse>(transport.Call("AuthService", "get-act-as-scope-set", Codec.Encode(actAsScopeSetRequest)));
     public ActAsTokenResponse ExchangeActAsCredential(ExchangeActAsCredentialRequest exchangeActAsCredentialRequest) =>

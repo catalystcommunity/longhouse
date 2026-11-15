@@ -717,6 +717,18 @@ public sealed record LoginRequest
     public required string SignedAssertion { get; init; }
 }
 
+public sealed record BeginBrowserLoginRequest
+{
+    // CBOR key: login
+    public string? Login { get; init; }
+}
+
+public sealed record BeginBrowserLoginResponse
+{
+    // CBOR key: redirect_url
+    public required string RedirectUrl { get; init; }
+}
+
 public sealed record CompleteRequest
 {
     // CBOR key: encrypted_token

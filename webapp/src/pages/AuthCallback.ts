@@ -72,8 +72,7 @@ export const AuthCallback = () => {
                             }),
                             el("a", {
                                 "class": "btn btn-primary",
-                                "href": "/api/v1/auth/start",
-                                "rel": "external",
+                                "href": "/sign-in",
                                 get children() {
                                     return "Try again";
                                 }

@@ -76,7 +76,10 @@ const SignedOutCTA = () => (el("section", {
                 get children() {
                     return "Sign in";
                 }
-            })
+            }),
+            el('p', { style: 'margin:20px 0 0', children: el('a', {
+                href: '/sign-in', children: 'Sign in with another domain',
+            }) }),
         ];
     }
 }));

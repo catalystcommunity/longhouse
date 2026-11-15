@@ -18,7 +18,8 @@ COPY version/ ./version/
 # alias to ../clients/typescript (see webapp/{vite,tsconfig}). That sibling
 # package must be in the build context for `tsc`/`vite build` to resolve it.
 COPY clients/typescript/ ./clients/typescript/
-RUN cd webapp && npm run build
+ARG LONGHOUSE_APP_VERSION
+RUN cd webapp && LONGHOUSE_APP_VERSION="$LONGHOUSE_APP_VERSION" npm run build
 
 FROM caddy:2-alpine
 COPY --from=builder /build/webapp/dist /usr/share/caddy

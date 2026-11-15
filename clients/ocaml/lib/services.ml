@@ -11,6 +11,8 @@ let transport_error ~status ~message = Transport_error { status; message }
 
 module Auth_service = struct
   type handler = {
+    (* request payload decodes to: begin_browser_login_request *)
+    begin_browser_login : bytes -> outcome;
     (* request payload decodes to: act_as_scope_set_request *)
     get_act_as_scope_set : bytes -> outcome;
     (* request payload decodes to: exchange_act_as_credential_request *)
@@ -51,6 +53,7 @@ module Auth_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
+    | "begin-browser-login" -> h.begin_browser_login payload
     | "get-act-as-scope-set" -> h.get_act_as_scope_set payload
     | "exchange-act-as-credential" -> h.exchange_act_as_credential payload
     | "login" -> h.login payload

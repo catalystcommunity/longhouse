@@ -78,7 +78,7 @@ struct HttpRpcCarrier: CsilTransport {
 }
 
 let client = AuthClient(transport: HttpRpcCarrier(baseURL: "http://localhost:5080"))
-let result = try client.getActAsScopeSet(ActAsScopeSetRequest(scopes: []))
+let result = try client.beginBrowserLogin(BeginBrowserLoginRequest())
 print(result)
 ```
 
@@ -241,7 +241,7 @@ func main() throws {
 
     // Fire-and-forget: encode the `->` request and send it. seq 0 marks an unsequenced
     // datagram.
-    let req: ActAsScopeSetRequest = ActAsScopeSetRequest(scopes: [])
+    let req: BeginBrowserLoginRequest = BeginBrowserLoginRequest()
     try carrier.sendDatagram(Datagram(opOrd: opOrd, seq: 0, payload: req.toCbor()).encode())
 
     // Recv path: a datagram of the RESPONSE type MAY arrive later — or never. There is NO
@@ -249,7 +249,7 @@ func main() throws {
     // whenever (if ever) it shows up.
     if let inbound = try carrier.recvDatagram() {
         let dg = try Datagram.decode(inbound)
-        let resp = try ActAsScopeSetResponse.fromCbor(dg.payload)
+        let resp = try BeginBrowserLoginResponse.fromCbor(dg.payload)
         print("late response", resp)
     }
 }

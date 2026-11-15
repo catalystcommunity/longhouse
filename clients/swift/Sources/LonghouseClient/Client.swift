@@ -28,6 +28,11 @@ public struct AuthClient {
         self.transport = transport
     }
 
+    public func beginBrowserLogin(_ request: BeginBrowserLoginRequest) throws -> BeginBrowserLoginResponse {
+        let csilResp = try transport.call(service: "AuthService", op: "begin-browser-login", request: request.toCbor())
+        return try BeginBrowserLoginResponse.fromCbor(csilResp)
+    }
+
     public func getActAsScopeSet(_ request: ActAsScopeSetRequest) throws -> ActAsScopeSetResponse {
         let csilResp = try transport.call(service: "AuthService", op: "get-act-as-scope-set", request: request.toCbor())
         return try ActAsScopeSetResponse.fromCbor(csilResp)

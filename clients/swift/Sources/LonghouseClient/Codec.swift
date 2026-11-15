@@ -1334,6 +1334,48 @@ public extension LoginRequest {
     static func fromCbor(_ bytes: [UInt8]) throws -> LoginRequest { try LoginRequest(cborValue: CsilCbor.decode(bytes)) }
 }
 
+public extension BeginBrowserLoginRequest {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        if let csilV = self.login { csilEntries.append((.text("login"), .text(csilV))) }
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let login: String? = if let csilV = CsilCbor.mapGet(cborValue, "login") { try CsilCbor.asText(csilV) } else { nil }
+        self.init(login: login)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> BeginBrowserLoginRequest { try BeginBrowserLoginRequest(cborValue: CsilCbor.decode(bytes)) }
+}
+
+public extension BeginBrowserLoginResponse {
+    /// The CBOR value tree for this record (deep, canonical key order).
+    func toCborValue() -> CsilCborValue {
+        var csilEntries: [(CsilCborValue, CsilCborValue)] = []
+        csilEntries.append((.text("redirect_url"), .text(self.redirectUrl)))
+        return .map(csilEntries)
+    }
+
+    /// Reconstruct this record from a decoded CBOR value tree.
+    init(cborValue: CsilCborValue) throws {
+        let redirectUrl = try CsilCbor.asText((try CsilCbor.require(cborValue, "redirect_url")))
+        self.init(redirectUrl: redirectUrl)
+    }
+
+    /// Encode this record to canonical CSIL CBOR bytes.
+    func toCbor() -> [UInt8] { CsilCbor.encode(toCborValue()) }
+
+    /// Decode a CSIL CBOR byte payload into this record.
+    static func fromCbor(_ bytes: [UInt8]) throws -> BeginBrowserLoginResponse { try BeginBrowserLoginResponse(cborValue: CsilCbor.decode(bytes)) }
+}
+
 public extension CompleteRequest {
     /// The CBOR value tree for this record (deep, canonical key order).
     func toCborValue() -> CsilCborValue {

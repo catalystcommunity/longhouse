@@ -87,7 +87,11 @@ export const CliAuthorizePage = () => {
                                         get children() {
                                             return "Sign in";
                                         }
-                                    })
+                                    }),
+                                    el('p', { children: el('a', {
+                                        href: '/sign-in', onClick: signIn,
+                                        children: 'Sign in with another domain',
+                                    }) }),
                                 ];
                             }
                         }),

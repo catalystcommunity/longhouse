@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.catalystcommunity.longhouse.client"
-version = "0.16.0"
+version = "0.16.2"
 
 repositories {
     mavenCentral()

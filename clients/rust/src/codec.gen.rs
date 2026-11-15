@@ -2548,6 +2548,74 @@ pub fn decode_login_request(csil_data: &[u8]) -> Result<LoginRequest, CsilCborEr
     csil_dec_login_request(&csil_root)
 }
 
+/// Build the canonical CBOR value tree for a BeginBrowserLoginRequest.
+fn csil_enc_begin_browser_login_request(csil_v: &BeginBrowserLoginRequest) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
+    if let Some(csil_inner) = &csil_v.login {
+        csil_entries.push((cbor_text("login"), cbor_text(csil_inner)));
+    }
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a BeginBrowserLoginRequest from a decoded CBOR value tree.
+fn csil_dec_begin_browser_login_request(
+    csil_root: &CsilCborValue,
+) -> Result<BeginBrowserLoginRequest, CsilCborError> {
+    let login = match cbor_map_get(csil_root, "login") {
+        Some(csil_field) => {
+            let csil_decode = cbor_as_text;
+            Some(csil_decode(csil_field)?)
+        }
+        None => None,
+    };
+    Ok(BeginBrowserLoginRequest { login })
+}
+
+/// Encode a BeginBrowserLoginRequest to canonical CSIL CBOR bytes.
+pub fn encode_begin_browser_login_request(csil_v: &BeginBrowserLoginRequest) -> Vec<u8> {
+    cbor_encode(&csil_enc_begin_browser_login_request(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a BeginBrowserLoginRequest.
+pub fn decode_begin_browser_login_request(
+    csil_data: &[u8],
+) -> Result<BeginBrowserLoginRequest, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_begin_browser_login_request(&csil_root)
+}
+
+/// Build the canonical CBOR value tree for a BeginBrowserLoginResponse.
+fn csil_enc_begin_browser_login_response(csil_v: &BeginBrowserLoginResponse) -> CsilCborValue {
+    let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);
+    csil_entries.push((cbor_text("redirect_url"), cbor_text(&csil_v.redirect_url)));
+    CsilCborValue::Map(csil_entries)
+}
+
+/// Reconstruct a BeginBrowserLoginResponse from a decoded CBOR value tree.
+fn csil_dec_begin_browser_login_response(
+    csil_root: &CsilCborValue,
+) -> Result<BeginBrowserLoginResponse, CsilCborError> {
+    let redirect_url = {
+        let csil_field = cbor_require(csil_root, "redirect_url")?;
+        let csil_decode = cbor_as_text;
+        csil_decode(csil_field)?
+    };
+    Ok(BeginBrowserLoginResponse { redirect_url })
+}
+
+/// Encode a BeginBrowserLoginResponse to canonical CSIL CBOR bytes.
+pub fn encode_begin_browser_login_response(csil_v: &BeginBrowserLoginResponse) -> Vec<u8> {
+    cbor_encode(&csil_enc_begin_browser_login_response(csil_v))
+}
+
+/// Decode canonical CSIL CBOR bytes into a BeginBrowserLoginResponse.
+pub fn decode_begin_browser_login_response(
+    csil_data: &[u8],
+) -> Result<BeginBrowserLoginResponse, CsilCborError> {
+    let csil_root = cbor_decode(csil_data)?;
+    csil_dec_begin_browser_login_response(&csil_root)
+}
+
 /// Build the canonical CBOR value tree for a CompleteRequest.
 fn csil_enc_complete_request(csil_v: &CompleteRequest) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(1);

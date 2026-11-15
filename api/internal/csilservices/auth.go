@@ -34,18 +34,13 @@ type AuthService struct {
 	RefreshTokenTTL time.Duration
 	PKI             PKIClient
 	IDPDomain       string
+	LoginResolver   linkkeys.TXTResolver
 
-	// RPDomain is our relying-party DNS identity — the value linkkeys binds
-	// each assertion to via its `audience` claim. We compare it against
-	// assertion.Audience in complete(). In this single-IDP self-RP deploy it
-	// equals IDPDomain. (linkkeys used to put the callback URL here; it now
-	// emits the RP domain, which is why complete() no longer compares against
-	// CallbackURL.)
+	// RPDomain is the relying-party DNS identity. The assertion audience must
+	// match it even when the user signs in through a different IDP.
 	RPDomain string
 
-	// Browser-flow config; used only by the GET /api/v1/auth/start handler
-	// in serve.go (kept as a 302 endpoint outside the dispatcher). Stashed
-	// here so a single struct carries everything the auth layer needs.
+	// IDPURL is the home IDP browser address. Other domains use DNS discovery.
 	IDPURL      string
 	CallbackURL string
 }
@@ -123,6 +118,7 @@ func resolveDisplayName(claims map[string]string, a *linkkeys.Assertion) string 
 }
 
 func (s *AuthService) Register(d *csilrpc.Dispatcher) {
+	d.RegisterTypedPublic("auth", "BeginBrowserLogin", csilrpc.Route(s.BeginBrowserLogin, csil.DecodeBeginBrowserLoginRequest, csil.EncodeBeginBrowserLoginResponse))
 	d.SetDelegationVerifier(s.VerifyDelegation)
 	d.RegisterTypedPublic("auth", "GetActAsScopeSet", csilrpc.Route(s.GetActAsScopeSet, csil.DecodeActAsScopeSetRequest, csil.EncodeActAsScopeSetResponse))
 	d.RegisterTypedPublic("auth", "ExchangeActAsCredential", csilrpc.Route(s.ExchangeActAsCredential, csil.DecodeExchangeActAsCredentialRequest, csil.EncodeActAsTokenResponse))
@@ -235,13 +231,21 @@ func (s *AuthService) Complete(ctx context.Context, req csil.CompleteRequest) (c
 	if req.EncryptedToken == "" {
 		return csil.LoginResponse{}, csilrpc.BadRequest("encrypted_token is required")
 	}
+	domain, nonce, err := auth.VerifyBrowserLoginState(s.JWTSecret, csilrpc.RequestCookie(ctx, browserLoginCookie))
+	if err != nil {
+		return csil.LoginResponse{}, csilrpc.Unauthorized("sign-in expired or was started in another browser; start again")
+	}
+	s.setLoginCookie(ctx, "", -1)
+	if err := s.checkLoginDomain(ctx, domain); err != nil {
+		return csil.LoginResponse{}, err
+	}
 	signed, err := s.PKI.DecryptToken(req.EncryptedToken)
 	if err != nil {
 		log.WithError(err).Error("auth.Complete: RP decrypt-token failed")
 		s.recordSecurityFailure(ctx, "", "", "complete: token decrypt failed")
 		return csil.LoginResponse{}, csilrpc.NewError(502, "could not decrypt token")
 	}
-	assertion, err := s.PKI.VerifyAssertion(signed, s.IDPDomain)
+	assertion, err := s.PKI.VerifyAssertion(signed, domain)
 	if err != nil {
 		log.WithError(err).Info("auth.Complete: assertion verification failed")
 		s.recordSecurityFailure(ctx, "", "", "complete: assertion verification failed")
@@ -252,9 +256,9 @@ func (s *AuthService) Complete(ctx context.Context, req csil.CompleteRequest) (c
 		s.recordSecurityFailure(ctx, assertion.Domain, assertion.UserID, "complete: nonce invalid or expired")
 		return csil.LoginResponse{}, csilrpc.Unauthorized("login nonce invalid or expired")
 	}
-	if assertion.Domain != s.IDPDomain {
+	if assertion.Domain != domain || assertion.Nonce != nonce {
 		s.recordSecurityFailure(ctx, assertion.Domain, assertion.UserID, "complete: assertion from unexpected domain")
-		return csil.LoginResponse{}, csilrpc.Unauthorized("assertion from unexpected domain")
+		return csil.LoginResponse{}, csilrpc.Unauthorized("assertion does not match this sign-in")
 	}
 	// The audience binds the assertion to our RP domain (NOT the callback
 	// URL — linkkeys changed that contract). Tolerate an empty audience for
