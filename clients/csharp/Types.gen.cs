@@ -19,7 +19,6 @@ global using MilestoneID = string;
 global using NotificationID = string;
 global using NotificationEventID = string;
 global using CliSessionID = string;
-global using Timestamp = string;
 global using AuditID = string;
 
 namespace Longhouse.Client;
@@ -155,9 +154,9 @@ public sealed record House
     // CBOR key: description
     public string? Description { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: updated_at
-    public required Timestamp UpdatedAt { get; init; }
+    public required System.DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>Throws System.ArgumentException when a field violates a CSIL constraint.</summary>
     public void Validate()
@@ -194,13 +193,13 @@ public sealed record Member
     // CBOR key: cached_public_key
     public byte[]? CachedPublicKey { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: updated_at
-    public required Timestamp UpdatedAt { get; init; }
+    public required System.DateTimeOffset UpdatedAt { get; init; }
     // CBOR key: last_seen_at
-    public Timestamp? LastSeenAt { get; init; }
+    public System.DateTimeOffset? LastSeenAt { get; init; }
     // CBOR key: deactivated_at
-    public Timestamp? DeactivatedAt { get; init; }
+    public System.DateTimeOffset? DeactivatedAt { get; init; }
 }
 
 public sealed record TrustedDomain
@@ -212,7 +211,7 @@ public sealed record TrustedDomain
     // CBOR key: domain
     public required string Domain { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
 }
 
 public sealed record Role
@@ -226,9 +225,9 @@ public sealed record Role
     // CBOR key: description
     public string? Description { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: updated_at
-    public required Timestamp UpdatedAt { get; init; }
+    public required System.DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>Throws System.ArgumentException when a field violates a CSIL constraint.</summary>
     public void Validate()
@@ -251,7 +250,7 @@ public sealed record MemberRole
     // CBOR key: role_id
     public required RoleID RoleId { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
 }
 
 public sealed record MemberAudit
@@ -273,7 +272,7 @@ public sealed record MemberAudit
     // CBOR key: detail
     public string? Detail { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
 }
 
 public sealed record Skill
@@ -287,9 +286,9 @@ public sealed record Skill
     // CBOR key: description
     public string? Description { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: updated_at
-    public required Timestamp UpdatedAt { get; init; }
+    public required System.DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>Throws System.ArgumentException when a field violates a CSIL constraint.</summary>
     public void Validate()
@@ -312,7 +311,7 @@ public sealed record MemberSkill
     // CBOR key: skill_id
     public required SkillID SkillId { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
 }
 
 public sealed record GroupSkill
@@ -322,7 +321,7 @@ public sealed record GroupSkill
     // CBOR key: skill_id
     public required SkillID SkillId { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
 }
 
 public sealed record Group
@@ -336,9 +335,9 @@ public sealed record Group
     // CBOR key: description
     public string? Description { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: updated_at
-    public required Timestamp UpdatedAt { get; init; }
+    public required System.DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>Throws System.ArgumentException when a field violates a CSIL constraint.</summary>
     public void Validate()
@@ -361,7 +360,7 @@ public sealed record GroupMember
     // CBOR key: member_id
     public required MemberID MemberId { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
 }
 
 public sealed record Project
@@ -385,9 +384,9 @@ public sealed record Project
     // CBOR key: personal
     public bool? Personal { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: updated_at
-    public required Timestamp UpdatedAt { get; init; }
+    public required System.DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>Throws System.ArgumentException when a field violates a CSIL constraint.</summary>
     public void Validate()
@@ -412,7 +411,7 @@ public sealed record ProjectTask
     // CBOR key: position
     public required long Position { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
 }
 
 public sealed record ProjectMember
@@ -422,7 +421,7 @@ public sealed record ProjectMember
     // CBOR key: member_id
     public required MemberID MemberId { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
 }
 
 public sealed record ProjectOwner
@@ -432,7 +431,7 @@ public sealed record ProjectOwner
     // CBOR key: member_id
     public required MemberID MemberId { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
 }
 
 public sealed record Milestone
@@ -450,9 +449,9 @@ public sealed record Milestone
     // CBOR key: position
     public required long Position { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: updated_at
-    public required Timestamp UpdatedAt { get; init; }
+    public required System.DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>Throws System.ArgumentException when a field violates a CSIL constraint.</summary>
     public void Validate()
@@ -483,9 +482,9 @@ public sealed record Event
     // CBOR key: location
     public string? Location { get; init; }
     // CBOR key: starts_at
-    public Timestamp? StartsAt { get; init; }
+    public System.DateTimeOffset? StartsAt { get; init; }
     // CBOR key: ends_at
-    public Timestamp? EndsAt { get; init; }
+    public System.DateTimeOffset? EndsAt { get; init; }
     // CBOR key: all_day
     public bool? AllDay { get; init; }
     // CBOR key: timezone
@@ -503,7 +502,7 @@ public sealed record Event
     // CBOR key: recurrence_by_setpos
     public long? RecurrenceBySetpos { get; init; }
     // CBOR key: next_recurrence_at
-    public Timestamp? NextRecurrenceAt { get; init; }
+    public System.DateTimeOffset? NextRecurrenceAt { get; init; }
     // CBOR key: recurrence_root_event_id
     public EventID? RecurrenceRootEventId { get; init; }
     // CBOR key: calendar_state
@@ -521,9 +520,9 @@ public sealed record Event
     // CBOR key: edit_scope
     public string? EditScope { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: updated_at
-    public required Timestamp UpdatedAt { get; init; }
+    public required System.DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>Throws System.ArgumentException when a field violates a CSIL constraint.</summary>
     public void Validate()
@@ -562,7 +561,7 @@ public sealed record Task
     // CBOR key: status
     public TaskStatus? Status { get; init; }
     // CBOR key: due_at
-    public Timestamp? DueAt { get; init; }
+    public System.DateTimeOffset? DueAt { get; init; }
     // CBOR key: tag
     public string? Tag { get; init; }
     // CBOR key: estimate_minutes
@@ -578,15 +577,15 @@ public sealed record Task
     // CBOR key: recurrence_by_setpos
     public long? RecurrenceBySetpos { get; init; }
     // CBOR key: next_recurrence_at
-    public Timestamp? NextRecurrenceAt { get; init; }
+    public System.DateTimeOffset? NextRecurrenceAt { get; init; }
     // CBOR key: recurrence_root_task_id
     public TaskID? RecurrenceRootTaskId { get; init; }
     // CBOR key: deleted_at
-    public Timestamp? DeletedAt { get; init; }
+    public System.DateTimeOffset? DeletedAt { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: updated_at
-    public required Timestamp UpdatedAt { get; init; }
+    public required System.DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>Throws System.ArgumentException when a field violates a CSIL constraint.</summary>
     public void Validate()
@@ -617,9 +616,9 @@ public sealed record Comment
     // CBOR key: body
     public required string Body { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: updated_at
-    public required Timestamp UpdatedAt { get; init; }
+    public required System.DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>Throws System.ArgumentException when a field violates a CSIL constraint.</summary>
     public void Validate()
@@ -654,9 +653,9 @@ public sealed record Share
     // CBOR key: access_level
     public AccessLevel? AccessLevel { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: expires_at
-    public Timestamp? ExpiresAt { get; init; }
+    public System.DateTimeOffset? ExpiresAt { get; init; }
 }
 
 public sealed record HouseSummary
@@ -746,7 +745,7 @@ public sealed record LoginResponse
     // CBOR key: display_name
     public string? DisplayName { get; init; }
     // CBOR key: expires_at
-    public required Timestamp ExpiresAt { get; init; }
+    public required System.DateTimeOffset ExpiresAt { get; init; }
 }
 
 public sealed record CliTokenResponse
@@ -760,11 +759,11 @@ public sealed record CliTokenResponse
     // CBOR key: display_name
     public string? DisplayName { get; init; }
     // CBOR key: expires_at
-    public required Timestamp ExpiresAt { get; init; }
+    public required System.DateTimeOffset ExpiresAt { get; init; }
     // CBOR key: refresh_token
     public required string RefreshToken { get; init; }
     // CBOR key: refresh_expires_at
-    public required Timestamp RefreshExpiresAt { get; init; }
+    public required System.DateTimeOffset RefreshExpiresAt { get; init; }
     // CBOR key: session_id
     public required CliSessionID SessionId { get; init; }
 }
@@ -797,7 +796,7 @@ public sealed record BeginCliLoginResponse
     // CBOR key: verification_url
     public required string VerificationUrl { get; init; }
     // CBOR key: expires_at
-    public required Timestamp ExpiresAt { get; init; }
+    public required System.DateTimeOffset ExpiresAt { get; init; }
     // CBOR key: interval_seconds
     public required ulong IntervalSeconds { get; init; }
 }
@@ -815,7 +814,7 @@ public sealed record CliLoginRequestInfo
     // CBOR key: client_name
     public required string ClientName { get; init; }
     // CBOR key: expires_at
-    public required Timestamp ExpiresAt { get; init; }
+    public required System.DateTimeOffset ExpiresAt { get; init; }
 }
 
 public sealed record DenyCliLoginRequest
@@ -851,13 +850,13 @@ public sealed record CliSessionSummary
     // CBOR key: client_name
     public required string ClientName { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
     // CBOR key: last_used_at
-    public required Timestamp LastUsedAt { get; init; }
+    public required System.DateTimeOffset LastUsedAt { get; init; }
     // CBOR key: expires_at
-    public required Timestamp ExpiresAt { get; init; }
+    public required System.DateTimeOffset ExpiresAt { get; init; }
     // CBOR key: revoked_at
-    public Timestamp? RevokedAt { get; init; }
+    public System.DateTimeOffset? RevokedAt { get; init; }
     // CBOR key: kind
     public SessionKind? Kind { get; init; }
     // CBOR key: current
@@ -915,7 +914,7 @@ public sealed record MeResponse
     // CBOR key: display_name
     public string? DisplayName { get; init; }
     // CBOR key: expires_at
-    public required Timestamp ExpiresAt { get; init; }
+    public required System.DateTimeOffset ExpiresAt { get; init; }
     // CBOR key: houses
     public required System.Collections.Generic.List<HouseSummary> Houses { get; init; }
 }
@@ -957,9 +956,9 @@ public sealed record EventListRequest
     // CBOR key: house_id
     public required HouseID HouseId { get; init; }
     // CBOR key: range_start
-    public Timestamp? RangeStart { get; init; }
+    public System.DateTimeOffset? RangeStart { get; init; }
     // CBOR key: range_end
-    public Timestamp? RangeEnd { get; init; }
+    public System.DateTimeOffset? RangeEnd { get; init; }
     // CBOR key: limit
     public ulong? Limit { get; init; }
     // CBOR key: offset
@@ -981,11 +980,11 @@ public sealed record TaskListRequest
     // CBOR key: loose
     public bool? Loose { get; init; }
     // CBOR key: due_from
-    public Timestamp? DueFrom { get; init; }
+    public System.DateTimeOffset? DueFrom { get; init; }
     // CBOR key: due_to
-    public Timestamp? DueTo { get; init; }
+    public System.DateTimeOffset? DueTo { get; init; }
     // CBOR key: due_before
-    public System.Collections.Generic.List<Timestamp>? DueBefore { get; init; }
+    public System.Collections.Generic.List<System.DateTimeOffset>? DueBefore { get; init; }
 }
 
 public sealed record TaskList
@@ -1071,9 +1070,9 @@ public sealed record Notification
     // CBOR key: read
     public required bool Read { get; init; }
     // CBOR key: read_at
-    public Timestamp? ReadAt { get; init; }
+    public System.DateTimeOffset? ReadAt { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
 }
 
 public sealed record NotificationListRequest
@@ -1376,7 +1375,7 @@ public sealed record ActAsTokenResponse
     // CBOR key: user_id
     public required string UserId { get; init; }
     // CBOR key: expires_at
-    public required Timestamp ExpiresAt { get; init; }
+    public required System.DateTimeOffset ExpiresAt { get; init; }
     // CBOR key: grant_id
     public required string GrantId { get; init; }
     // CBOR key: grantee
@@ -1426,7 +1425,7 @@ public sealed record CalendarStatus
     // CBOR key: last_error
     public string? LastError { get; init; }
     // CBOR key: sync_pending_since
-    public Timestamp? SyncPendingSince { get; init; }
+    public System.DateTimeOffset? SyncPendingSince { get; init; }
 }
 
 public sealed record ConfigureCalendarRequest
@@ -1460,9 +1459,9 @@ public sealed record CalendarTrashEntry
     // CBOR key: event
     public required Event Event { get; init; }
     // CBOR key: deleted_at
-    public required Timestamp DeletedAt { get; init; }
+    public required System.DateTimeOffset DeletedAt { get; init; }
     // CBOR key: expires_at
-    public required Timestamp ExpiresAt { get; init; }
+    public required System.DateTimeOffset ExpiresAt { get; init; }
 }
 
 public sealed record RestoreCalendarEventRequest
@@ -1490,9 +1489,9 @@ public sealed record ProjectDeadlineRequest
     // CBOR key: project_id
     public required ProjectID ProjectId { get; init; }
     // CBOR key: range_start
-    public required Timestamp RangeStart { get; init; }
+    public required System.DateTimeOffset RangeStart { get; init; }
     // CBOR key: range_end
-    public required Timestamp RangeEnd { get; init; }
+    public required System.DateTimeOffset RangeEnd { get; init; }
 }
 
 public sealed record ProjectDeadline
@@ -1502,7 +1501,7 @@ public sealed record ProjectDeadline
     // CBOR key: title
     public required string Title { get; init; }
     // CBOR key: due_at
-    public required Timestamp DueAt { get; init; }
+    public required System.DateTimeOffset DueAt { get; init; }
 }
 
 public sealed record ProjectDeadlineList
@@ -1550,7 +1549,7 @@ public sealed record AuditEntry
     // CBOR key: detail
     public string? Detail { get; init; }
     // CBOR key: created_at
-    public required Timestamp CreatedAt { get; init; }
+    public required System.DateTimeOffset CreatedAt { get; init; }
 }
 
 public sealed record AuditQuery
@@ -1564,9 +1563,9 @@ public sealed record AuditQuery
     // CBOR key: action
     public string? Action { get; init; }
     // CBOR key: since
-    public Timestamp? Since { get; init; }
+    public System.DateTimeOffset? Since { get; init; }
     // CBOR key: until
-    public Timestamp? Until { get; init; }
+    public System.DateTimeOffset? Until { get; init; }
     // CBOR key: cursor
     public string? Cursor { get; init; }
     // CBOR key: limit
@@ -1592,7 +1591,7 @@ public sealed record TrashItem
     // CBOR key: title
     public string? Title { get; init; }
     // CBOR key: deleted_at
-    public required Timestamp DeletedAt { get; init; }
+    public required System.DateTimeOffset DeletedAt { get; init; }
     // CBOR key: deleted_by_member_id
     public MemberID? DeletedByMemberId { get; init; }
     // CBOR key: deleted_op_id

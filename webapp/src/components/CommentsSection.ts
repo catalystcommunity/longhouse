@@ -26,12 +26,8 @@ interface Props {
     /** House members, for resolving author names + avatars. */
     members: Member[];
 }
-const localStamp = (iso: string): string => {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime()))
-        return iso;
-    return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-};
+const localStamp = (date: Date): string =>
+    date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 export const CommentsSection = (props: Props) => {
     const [comments, { refetch, mutate }] = query(() => ({ t: props.targetType, id: props.targetId }), async ({ t, id }) => id ? await commentClient.listComments({ targetType: t as any, targetId: id }) : []);
     const memberById = computed(() => {

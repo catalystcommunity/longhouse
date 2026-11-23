@@ -15,7 +15,7 @@ TODO: publish to a shared repository). Depend on it and on the transport library
 <dependency>
     <groupId>com.catalystcommunity.longhouse.client</groupId>
     <artifactId>longhouse-client</artifactId>
-    <version>0.16.2</version>
+    <version>0.16.3</version>
 </dependency>
 <dependency>
     <groupId>community.catalyst.csilgen</groupId>
@@ -82,12 +82,7 @@ final class HttpRpcCarrier implements Transport {
         if (te != null) {
             throw new ClientException("csil-rpc " + service + "/" + op + ": " + te.getMessage(), te);
         }
-        // A typed application error rides as a status-0 "ServiceError" variant; surface it
-        // so the typed client decodes success only.
-        if ("ServiceError".equals(decoded.variant())) {
-            throw new ClientException("csil-rpc " + service + "/" + op + ": ServiceError");
-        }
-        return decoded.payload();
+        return CsilCbor.resolveRpcReply(service, op, decoded.variant(), decoded.payload());
     }
 }
 

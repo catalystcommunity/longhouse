@@ -182,9 +182,13 @@ func (s *CalendarService) syncDeadlineHouse(ctx context.Context, house string) e
 			}
 		}
 		if changed {
-			want.EventId = current.EventId
-			if _, err = events.UpdateEvent(ctx, cal.UpdateEventRequest{Event: want}); err != nil {
-				return err
+			// A stored body can differ only because the old codec wrote date text.
+			previous, decodeErr := decodeSavedEvent(row.AppliedBody)
+			if decodeErr != nil || !bytes.Equal(body, cal.EncodeEvent(previous)) {
+				want.EventId = current.EventId
+				if _, err = events.UpdateEvent(ctx, cal.UpdateEventRequest{Event: want}); err != nil {
+					return err
+				}
 			}
 			if err = s.DB.WithContext(ctx).Model(&taskDeadline{}).Where("house_id=? AND category=? AND task_id=?", row.HouseID, row.Category, row.TaskID).Update("applied_body", body).Error; err != nil {
 				return err
@@ -221,8 +225,8 @@ func categoryLabel(category string) string {
 	return category
 }
 func deadlineEvent(source deadlineSource, calendar string) cal.Event {
-	start := cal.Timestamp(source.DueAt.UTC().Truncate(time.Second).Format(time.RFC3339))
-	end := cal.Timestamp(source.DueAt.UTC().Truncate(time.Second).Add(time.Minute).Format(time.RFC3339))
+	start := source.DueAt.UTC().Truncate(time.Second)
+	end := source.DueAt.UTC().Truncate(time.Second).Add(time.Minute)
 	transparent := cal.EventTransparency("transparent")
 	title := source.Title
 	switch source.Status {
@@ -311,7 +315,7 @@ func (s *CalendarService) resolveDeadlineCreate(ctx context.Context, row *taskDe
 	if row.RemoteEventID != "" {
 		return nil
 	}
-	event, err := cal.DecodeEvent(row.CreateRequest)
+	event, err := decodeSavedEvent(row.CreateRequest)
 	if err != nil {
 		return err
 	}
@@ -328,7 +332,7 @@ func (s *CalendarService) resolveDeadlineCreate(ctx context.Context, row *taskDe
 		return fmt.Errorf("%w: task deadline receipt is not live in its category calendar", errDeadlineReview)
 	}
 	row.RemoteEventID = string(receipt.EventId)
-	row.AppliedBody = row.CreateRequest
+	row.AppliedBody = cal.EncodeEvent(event)
 	// The original payload is needed only until receipt recovery completes.
 	row.CreateRequest = []byte{}
 	return s.DB.WithContext(ctx).Model(&taskDeadline{}).Where("house_id=? AND category=? AND task_id=?", row.HouseID, row.Category, row.TaskID).Updates(map[string]any{
@@ -390,9 +394,8 @@ func (s *CalendarService) ListProjectDeadlines(ctx context.Context, in csil.Proj
 	if !canRead(pol.projectAccess(ctx, project, g)) {
 		return out, csilrpc.NotFound("project not found")
 	}
-	start, e1 := time.Parse(time.RFC3339Nano, string(in.RangeStart))
-	end, e2 := time.Parse(time.RFC3339Nano, string(in.RangeEnd))
-	if e1 != nil || e2 != nil || !end.After(start) || end.Sub(start) > 93*24*time.Hour {
+	start, end := in.RangeStart, in.RangeEnd
+	if !end.After(start) || end.Sub(start) > 93*24*time.Hour {
 		return out, csilrpc.BadRequest("deadline range must be greater than zero and at most 93 days")
 	}
 	category := strings.Trim(derefStr(project.Category), " ")
@@ -442,7 +445,7 @@ func (s *CalendarService) ListProjectDeadlines(ctx context.Context, in csil.Proj
 		}
 	}
 	no := false
-	result, err := cal.NewEventClient(s.Remote.ApplicationTransport()).ListEvents(ctx, cal.ListEventsRequest{RangeStart: cal.Timestamp(in.RangeStart), RangeEnd: cal.Timestamp(in.RangeEnd), CalendarIds: []cal.CalendarID{cal.CalendarID(c.CalendarID)}, IncludeInvitations: &no})
+	result, err := cal.NewEventClient(s.Remote.ApplicationTransport()).ListEvents(ctx, cal.ListEventsRequest{RangeStart: start, RangeEnd: end, CalendarIds: []cal.CalendarID{cal.CalendarID(c.CalendarID)}, IncludeInvitations: &no})
 	if err != nil {
 		return out, remoteError(err)
 	}
@@ -451,8 +454,8 @@ func (s *CalendarService) ListProjectDeadlines(ctx context.Context, in csil.Proj
 	}
 	for _, occ := range result.Occurrences {
 		task, ok := ids[string(occ.Event.EventId)]
-		at, parseErr := time.Parse(time.RFC3339Nano, string(occ.Start))
-		if !ok || occ.Event.CalendarId != cal.CalendarID(c.CalendarID) || parseErr != nil || at.Before(start) || !at.Before(end) {
+		at := occ.Start
+		if !ok || occ.Event.CalendarId != cal.CalendarID(c.CalendarID) || at.Before(start) || !at.Before(end) {
 			continue
 		}
 		// Do not show an old date while a deadline change is waiting for sync.
@@ -460,7 +463,7 @@ func (s *CalendarService) ListProjectDeadlines(ctx context.Context, in csil.Proj
 			out.Pending = true
 			continue
 		}
-		out.Deadlines = append(out.Deadlines, csil.ProjectDeadline{TaskId: csil.TaskID(task.TaskID), Title: task.Title, DueAt: csil.Timestamp(occ.Start)})
+		out.Deadlines = append(out.Deadlines, csil.ProjectDeadline{TaskId: csil.TaskID(task.TaskID), Title: task.Title, DueAt: occ.Start})
 	}
 	if !out.Pending && job.LastError == "" {
 		expected := 0
@@ -474,6 +477,6 @@ func (s *CalendarService) ListProjectDeadlines(ctx context.Context, in csil.Proj
 			out.LastError = strPtrCopy("Some deadlines are unavailable in the calendar. Ask a house administrator to check the calendar status.")
 		}
 	}
-	sort.Slice(out.Deadlines, func(i, j int) bool { return out.Deadlines[i].DueAt < out.Deadlines[j].DueAt })
+	sort.Slice(out.Deadlines, func(i, j int) bool { return out.Deadlines[i].DueAt.Before(out.Deadlines[j].DueAt) })
 	return out, nil
 }

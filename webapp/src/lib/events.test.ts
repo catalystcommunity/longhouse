@@ -4,14 +4,14 @@ import { loadEvents, viewRange } from "./events";
 
 const event = (i: number): ApiEvent => ({
   eventId: `event-${i}`, houseId: "house-1", ownerMemberId: "member-1",
-  title: `Event ${i}`, createdAt: "", updatedAt: "",
+  title: `Event ${i}`, createdAt: new Date(0), updatedAt: new Date(0),
 });
 
 describe("loadEvents", () => {
   it("loads every page, including more than 500 matches", async () => {
     const rows = Array.from({ length: 1005 }, (_, i) => event(i));
     const listEvents = vi.fn(async (req: EventListRequest) => rows.slice(Number(req.offset), Number(req.offset) + Number(req.limit)));
-    const range = { houseId: "house-1", rangeStart: "2026-11-01T06:00:00Z", rangeEnd: "2026-11-02T07:00:00Z" };
+    const range = { houseId: "house-1", rangeStart: new Date("2026-11-01T06:00:00Z"), rangeEnd: new Date("2026-11-02T07:00:00Z") };
     expect(await loadEvents({ listEvents }, range)).toEqual(rows);
     expect(listEvents.mock.calls.map(([req]) => req.offset)).toEqual([0, 500, 1000]);
     for (const [req] of listEvents.mock.calls) expect(req).toMatchObject(range);
@@ -20,7 +20,7 @@ describe("loadEvents", () => {
   it("checks for another page after an exactly full page", async () => {
     const rows = Array.from({ length: 500 }, (_, i) => event(i));
     const listEvents = vi.fn(async (req: EventListRequest) => req.offset === 0 ? rows : []);
-    expect(await loadEvents({ listEvents }, { houseId: "house-1", rangeStart: "2026-11-01T00:00:00Z" })).toEqual(rows);
+    expect(await loadEvents({ listEvents }, { houseId: "house-1", rangeStart: new Date("2026-11-01T00:00:00Z") })).toEqual(rows);
     expect(listEvents).toHaveBeenCalledTimes(2);
     expect(listEvents.mock.calls[1][0].rangeEnd).toBeUndefined();
   });

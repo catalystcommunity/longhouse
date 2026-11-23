@@ -136,7 +136,7 @@ class HouseClient
 
   # get-house: -> House
   def get_house(req)
-    House.from_cbor(@transport.call("HouseService", "get-house", req.to_cbor))
+    House.from_cbor(@transport.call("HouseService", "get-house", CsilCbor.encode(req)))
   end
 
   # update-house: -> House
@@ -146,7 +146,7 @@ class HouseClient
 
   # delete-house: -> EmptyResponse
   def delete_house(req)
-    EmptyResponse.from_cbor(@transport.call("HouseService", "delete-house", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("HouseService", "delete-house", CsilCbor.encode(req)))
   end
 
   # list-houses: -> Array<House>
@@ -168,7 +168,7 @@ class MemberClient
 
   # get-member: -> Member
   def get_member(req)
-    Member.from_cbor(@transport.call("MemberService", "get-member", req.to_cbor))
+    Member.from_cbor(@transport.call("MemberService", "get-member", CsilCbor.encode(req)))
   end
 
   # get-member-by-identity: -> Member
@@ -183,12 +183,12 @@ class MemberClient
 
   # deactivate-member: -> EmptyResponse
   def deactivate_member(req)
-    EmptyResponse.from_cbor(@transport.call("MemberService", "deactivate-member", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("MemberService", "deactivate-member", CsilCbor.encode(req)))
   end
 
   # reactivate-member: -> EmptyResponse
   def reactivate_member(req)
-    EmptyResponse.from_cbor(@transport.call("MemberService", "reactivate-member", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("MemberService", "reactivate-member", CsilCbor.encode(req)))
   end
 
   # list-members: -> Array<Member>
@@ -210,7 +210,7 @@ class TrustedDomainClient
 
   # remove-trusted-domain: -> EmptyResponse
   def remove_trusted_domain(req)
-    EmptyResponse.from_cbor(@transport.call("TrustedDomainService", "remove-trusted-domain", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("TrustedDomainService", "remove-trusted-domain", CsilCbor.encode(req)))
   end
 
   # list-trusted-domains: -> Array<TrustedDomain>
@@ -242,7 +242,7 @@ class RoleClient
 
   # delete-role: -> EmptyResponse
   def delete_role(req)
-    EmptyResponse.from_cbor(@transport.call("RoleService", "delete-role", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("RoleService", "delete-role", CsilCbor.encode(req)))
   end
 
   # list-roles: -> Array<Role>
@@ -284,7 +284,7 @@ class SkillClient
 
   # delete-skill: -> EmptyResponse
   def delete_skill(req)
-    EmptyResponse.from_cbor(@transport.call("SkillService", "delete-skill", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("SkillService", "delete-skill", CsilCbor.encode(req)))
   end
 
   # list-skills: -> Array<Skill>
@@ -341,7 +341,7 @@ class GroupClient
 
   # delete-group: -> EmptyResponse
   def delete_group(req)
-    EmptyResponse.from_cbor(@transport.call("GroupService", "delete-group", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("GroupService", "delete-group", CsilCbor.encode(req)))
   end
 
   # list-groups: -> Array<Group>
@@ -378,7 +378,7 @@ class ProjectClient
 
   # get-project: -> Project
   def get_project(req)
-    Project.from_cbor(@transport.call("ProjectService", "get-project", req.to_cbor))
+    Project.from_cbor(@transport.call("ProjectService", "get-project", CsilCbor.encode(req)))
   end
 
   # update-project: -> Project
@@ -388,7 +388,7 @@ class ProjectClient
 
   # delete-project: -> EmptyResponse
   def delete_project(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "delete-project", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "delete-project", CsilCbor.encode(req)))
   end
 
   # list-projects: -> ProjectList
@@ -463,7 +463,7 @@ class ProjectClient
 
   # delete-milestone: -> EmptyResponse
   def delete_milestone(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "delete-milestone", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ProjectService", "delete-milestone", CsilCbor.encode(req)))
   end
 
   # set-project-visibility: -> Project
@@ -500,7 +500,7 @@ class EventClient
 
   # get-event: -> Event
   def get_event(req)
-    Event.from_cbor(@transport.call("EventService", "get-event", req.to_cbor))
+    Event.from_cbor(@transport.call("EventService", "get-event", CsilCbor.encode(req)))
   end
 
   # update-event: -> Event
@@ -510,12 +510,12 @@ class EventClient
 
   # delete-event: -> EmptyResponse
   def delete_event(req)
-    EmptyResponse.from_cbor(@transport.call("EventService", "delete-event", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("EventService", "delete-event", CsilCbor.encode(req)))
   end
 
   # delete-event-and-future: -> EmptyResponse
   def delete_event_and_future(req)
-    EmptyResponse.from_cbor(@transport.call("EventService", "delete-event-and-future", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("EventService", "delete-event-and-future", CsilCbor.encode(req)))
   end
 
   # list-events: -> Array<Event>
@@ -525,7 +525,7 @@ class EventClient
 
   # get-calendar-view: -> CalendarView
   def get_calendar_view(req)
-    CalendarView.from_cbor(@transport.call("EventService", "get-calendar-view", req.to_cbor))
+    CalendarView.from_cbor(@transport.call("EventService", "get-calendar-view", CsilCbor.encode(req)))
   end
 
   # set-calendar-view: -> CalendarView
@@ -540,7 +540,7 @@ class EventClient
 
   # recover-edit: -> Event
   def recover_edit(req)
-    Event.from_cbor(@transport.call("EventService", "recover-edit", req.to_cbor))
+    Event.from_cbor(@transport.call("EventService", "recover-edit", CsilCbor.encode(req)))
   end
 
   # decline-event: -> Event
@@ -567,7 +567,7 @@ class CalendarClient
 
   # get-status: -> CalendarStatus
   def get_status(req)
-    CalendarStatus.from_cbor(@transport.call("CalendarService", "get-status", req.to_cbor))
+    CalendarStatus.from_cbor(@transport.call("CalendarService", "get-status", CsilCbor.encode(req)))
   end
 
   # configure-calendar: -> CalendarStatus
@@ -577,7 +577,7 @@ class CalendarClient
 
   # begin-connect: -> CalendarConnectResponse
   def begin_connect(req)
-    CalendarConnectResponse.from_cbor(@transport.call("CalendarService", "begin-connect", req.to_cbor))
+    CalendarConnectResponse.from_cbor(@transport.call("CalendarService", "begin-connect", CsilCbor.encode(req)))
   end
 
   # complete-connect: -> CalendarStatus
@@ -587,7 +587,7 @@ class CalendarClient
 
   # disconnect: -> EmptyResponse
   def disconnect(req)
-    EmptyResponse.from_cbor(@transport.call("CalendarService", "disconnect", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("CalendarService", "disconnect", CsilCbor.encode(req)))
   end
 
   # preview-migration: -> Array<CalendarMigrationRow>
@@ -619,7 +619,7 @@ class TaskClient
 
   # get-task: -> Task
   def get_task(req)
-    Task.from_cbor(@transport.call("TaskService", "get-task", req.to_cbor))
+    Task.from_cbor(@transport.call("TaskService", "get-task", CsilCbor.encode(req)))
   end
 
   # update-task: -> Task
@@ -629,7 +629,7 @@ class TaskClient
 
   # delete-task: -> EmptyResponse
   def delete_task(req)
-    EmptyResponse.from_cbor(@transport.call("TaskService", "delete-task", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("TaskService", "delete-task", CsilCbor.encode(req)))
   end
 
   # list-tasks: -> TaskList
@@ -698,7 +698,7 @@ class CommentClient
 
   # get-comment: -> Comment
   def get_comment(req)
-    Comment.from_cbor(@transport.call("CommentService", "get-comment", req.to_cbor))
+    Comment.from_cbor(@transport.call("CommentService", "get-comment", CsilCbor.encode(req)))
   end
 
   # update-comment: -> Comment
@@ -708,7 +708,7 @@ class CommentClient
 
   # delete-comment: -> EmptyResponse
   def delete_comment(req)
-    EmptyResponse.from_cbor(@transport.call("CommentService", "delete-comment", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("CommentService", "delete-comment", CsilCbor.encode(req)))
   end
 
   # list-comments: -> Array<Comment>
@@ -730,17 +730,17 @@ class NotificationClient
 
   # unread-count: -> NotificationUnreadCount
   def unread_count(req)
-    NotificationUnreadCount.from_cbor(@transport.call("NotificationService", "unread-count", req.to_cbor))
+    NotificationUnreadCount.from_cbor(@transport.call("NotificationService", "unread-count", CsilCbor.encode(req)))
   end
 
   # mark-read: -> Notification
   def mark_read(req)
-    Notification.from_cbor(@transport.call("NotificationService", "mark-read", req.to_cbor))
+    Notification.from_cbor(@transport.call("NotificationService", "mark-read", CsilCbor.encode(req)))
   end
 
   # mark-all-read: -> EmptyResponse
   def mark_all_read(req)
-    EmptyResponse.from_cbor(@transport.call("NotificationService", "mark-all-read", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("NotificationService", "mark-all-read", CsilCbor.encode(req)))
   end
 end
 
@@ -757,7 +757,7 @@ class ShareClient
 
   # delete-share: -> EmptyResponse
   def delete_share(req)
-    EmptyResponse.from_cbor(@transport.call("ShareService", "delete-share", req.to_cbor))
+    EmptyResponse.from_cbor(@transport.call("ShareService", "delete-share", CsilCbor.encode(req)))
   end
 
   # list-shares-by-resource: -> Array<Share>
@@ -791,7 +791,7 @@ class SettingsClient
 
   # get-settings: -> EffectiveSettings
   def get_settings(req)
-    EffectiveSettings.from_cbor(@transport.call("SettingsService", "get-settings", req.to_cbor))
+    EffectiveSettings.from_cbor(@transport.call("SettingsService", "get-settings", CsilCbor.encode(req)))
   end
 
   # update-settings: -> EffectiveSettings

@@ -252,7 +252,7 @@ func Occurrences(ctx context.Context, transport cal.Transport, calendarID string
 			return errors.New("calendar range is too dense; use a smaller range")
 		}
 		no := false
-		rows, err := cal.NewEventClient(transport).ListEvents(ctx, cal.ListEventsRequest{RangeStart: cal.Timestamp(a.UTC().Format(time.RFC3339Nano)), RangeEnd: cal.Timestamp(b.UTC().Format(time.RFC3339Nano)), CalendarIds: []cal.CalendarID{cal.CalendarID(calendarID)}, IncludeInvitations: &no})
+		rows, err := cal.NewEventClient(transport).ListEvents(ctx, cal.ListEventsRequest{RangeStart: a.UTC(), RangeEnd: b.UTC(), CalendarIds: []cal.CalendarID{cal.CalendarID(calendarID)}, IncludeInvitations: &no})
 		if err != nil {
 			return err
 		}
@@ -272,7 +272,7 @@ func Occurrences(ctx context.Context, transport cal.Transport, calendarID string
 			}
 			key := string(row.Event.EventId)
 			if row.RecurrenceId != nil {
-				key += "/" + string(*row.RecurrenceId)
+				key += "/" + row.RecurrenceId.UTC().Format(time.RFC3339Nano)
 			}
 			if !seen[key] {
 				seen[key] = true

@@ -39,7 +39,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
             )
             .await?;
         decode_begin_browser_login_response(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+            .map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-act-as-scope-set (request/response).
@@ -55,8 +55,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
                 &encode_act_as_scope_set_request(&req),
             )
             .await?;
-        decode_act_as_scope_set_response(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+        decode_act_as_scope_set_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// exchange-act-as-credential (request/response).
@@ -72,7 +71,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
                 &encode_exchange_act_as_credential_request(&req),
             )
             .await?;
-        decode_act_as_token_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_act_as_token_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// login (request/response).
@@ -81,7 +80,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
             .transport
             .call("AuthService", "login", &encode_login_request(&req))
             .await?;
-        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// complete (request/response).
@@ -90,7 +89,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
             .transport
             .call("AuthService", "complete", &encode_complete_request(&req))
             .await?;
-        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// refresh (request/response).
@@ -99,7 +98,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
             .transport
             .call("AuthService", "refresh", &encode_empty_request(&req))
             .await?;
-        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// logout (request/response).
@@ -108,7 +107,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
             .transport
             .call("AuthService", "logout", &encode_empty_request(&req))
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// resume-session (request/response).
@@ -117,7 +116,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
             .transport
             .call("AuthService", "resume-session", &encode_empty_request(&req))
             .await?;
-        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// end-session (request/response).
@@ -126,7 +125,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
             .transport
             .call("AuthService", "end-session", &encode_empty_request(&req))
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// me (request/response).
@@ -135,7 +134,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
             .transport
             .call("AuthService", "me", &encode_empty_request(&req))
             .await?;
-        decode_me_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_me_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// begin-cli-login (request/response).
@@ -151,8 +150,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
                 &encode_begin_cli_login_request(&req),
             )
             .await?;
-        decode_begin_cli_login_response(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+        decode_begin_cli_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// inspect-cli-login (request/response).
@@ -168,7 +166,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
                 &encode_approve_cli_login_request(&req),
             )
             .await?;
-        decode_cli_login_request_info(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_cli_login_request_info(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// approve-cli-login (request/response).
@@ -184,7 +182,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
                 &encode_approve_cli_login_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// deny-cli-login (request/response).
@@ -200,7 +198,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
                 &encode_deny_cli_login_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// exchange-cli-login (request/response).
@@ -217,7 +215,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
             )
             .await?;
         decode_exchange_cli_login_response(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+            .map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// refresh-session (request/response).
@@ -233,7 +231,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
                 &encode_refresh_session_request(&req),
             )
             .await?;
-        decode_cli_token_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_cli_token_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-sessions (request/response).
@@ -245,7 +243,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
             .transport
             .call("AuthService", "list-sessions", &encode_empty_request(&req))
             .await?;
-        decode_cli_sessions_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_cli_sessions_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// revoke-session (request/response).
@@ -261,7 +259,7 @@ impl<T: AsyncTransport> AuthAsyncClient<T> {
                 &encode_revoke_session_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -286,7 +284,7 @@ impl<T: AsyncTransport> DevAuthAsyncClient<T> {
                 &encode_empty_request(&req),
             )
             .await?;
-        decode_dev_users_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_dev_users_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// dev-login (request/response).
@@ -299,7 +297,7 @@ impl<T: AsyncTransport> DevAuthAsyncClient<T> {
                 &encode_dev_login_request(&req),
             )
             .await?;
-        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -320,7 +318,7 @@ impl<T: AsyncTransport> HouseAsyncClient<T> {
             .transport
             .call("HouseService", "create-house", &encode_house(&req))
             .await?;
-        decode_house(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_house(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-house (request/response).
@@ -333,7 +331,7 @@ impl<T: AsyncTransport> HouseAsyncClient<T> {
                 &encode_house_get_house_request(&req),
             )
             .await?;
-        decode_house(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_house(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-house (request/response).
@@ -342,7 +340,7 @@ impl<T: AsyncTransport> HouseAsyncClient<T> {
             .transport
             .call("HouseService", "update-house", &encode_house(&req))
             .await?;
-        decode_house(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_house(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-house (request/response).
@@ -355,7 +353,7 @@ impl<T: AsyncTransport> HouseAsyncClient<T> {
                 &encode_house_delete_house_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-houses (request/response).
@@ -390,7 +388,7 @@ impl<T: AsyncTransport> MemberAsyncClient<T> {
             .transport
             .call("MemberService", "create-member", &encode_member(&req))
             .await?;
-        decode_member(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_member(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-member (request/response).
@@ -403,7 +401,7 @@ impl<T: AsyncTransport> MemberAsyncClient<T> {
                 &encode_member_get_member_request(&req),
             )
             .await?;
-        decode_member(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_member(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-member-by-identity (request/response).
@@ -416,7 +414,7 @@ impl<T: AsyncTransport> MemberAsyncClient<T> {
                 &encode_member(&req),
             )
             .await?;
-        decode_member(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_member(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-member (request/response).
@@ -425,7 +423,7 @@ impl<T: AsyncTransport> MemberAsyncClient<T> {
             .transport
             .call("MemberService", "update-member", &encode_member(&req))
             .await?;
-        decode_member(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_member(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// deactivate-member (request/response).
@@ -438,7 +436,7 @@ impl<T: AsyncTransport> MemberAsyncClient<T> {
                 &encode_member_deactivate_member_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// reactivate-member (request/response).
@@ -451,7 +449,7 @@ impl<T: AsyncTransport> MemberAsyncClient<T> {
                 &encode_member_reactivate_member_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-members (request/response).
@@ -496,7 +494,7 @@ impl<T: AsyncTransport> TrustedDomainAsyncClient<T> {
                 &encode_trusted_domain(&req),
             )
             .await?;
-        decode_trusted_domain(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_trusted_domain(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-trusted-domain (request/response).
@@ -512,7 +510,7 @@ impl<T: AsyncTransport> TrustedDomainAsyncClient<T> {
                 &encode_trusted_domain_remove_trusted_domain_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-trusted-domains (request/response).
@@ -542,7 +540,7 @@ impl<T: AsyncTransport> TrustedDomainAsyncClient<T> {
                 &encode_trusted_domain(&req),
             )
             .await?;
-        decode_bool_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_bool_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -563,7 +561,7 @@ impl<T: AsyncTransport> RoleAsyncClient<T> {
             .transport
             .call("RoleService", "create-role", &encode_role(&req))
             .await?;
-        decode_role(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_role(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-role (request/response).
@@ -572,7 +570,7 @@ impl<T: AsyncTransport> RoleAsyncClient<T> {
             .transport
             .call("RoleService", "update-role", &encode_role(&req))
             .await?;
-        decode_role(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_role(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-role (request/response).
@@ -585,7 +583,7 @@ impl<T: AsyncTransport> RoleAsyncClient<T> {
                 &encode_role_delete_role_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-roles (request/response).
@@ -608,7 +606,7 @@ impl<T: AsyncTransport> RoleAsyncClient<T> {
             .transport
             .call("RoleService", "grant-role", &encode_member_role_ref(&req))
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// revoke-role (request/response).
@@ -617,7 +615,7 @@ impl<T: AsyncTransport> RoleAsyncClient<T> {
             .transport
             .call("RoleService", "revoke-role", &encode_member_role_ref(&req))
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-member-roles (request/response).
@@ -655,7 +653,7 @@ impl<T: AsyncTransport> SkillAsyncClient<T> {
             .transport
             .call("SkillService", "create-skill", &encode_skill(&req))
             .await?;
-        decode_skill(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_skill(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-skill (request/response).
@@ -664,7 +662,7 @@ impl<T: AsyncTransport> SkillAsyncClient<T> {
             .transport
             .call("SkillService", "update-skill", &encode_skill(&req))
             .await?;
-        decode_skill(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_skill(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-skill (request/response).
@@ -677,7 +675,7 @@ impl<T: AsyncTransport> SkillAsyncClient<T> {
                 &encode_skill_delete_skill_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-skills (request/response).
@@ -710,7 +708,7 @@ impl<T: AsyncTransport> SkillAsyncClient<T> {
                 &encode_member_skill_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-member-skill (request/response).
@@ -726,7 +724,7 @@ impl<T: AsyncTransport> SkillAsyncClient<T> {
                 &encode_member_skill_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-member-skills (request/response).
@@ -756,7 +754,7 @@ impl<T: AsyncTransport> SkillAsyncClient<T> {
                 &encode_group_skill_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-group-skill (request/response).
@@ -772,7 +770,7 @@ impl<T: AsyncTransport> SkillAsyncClient<T> {
                 &encode_group_skill_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-group-skills (request/response).
@@ -807,7 +805,7 @@ impl<T: AsyncTransport> GroupAsyncClient<T> {
             .transport
             .call("GroupService", "create-group", &encode_group(&req))
             .await?;
-        decode_group(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_group(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-group (request/response).
@@ -816,7 +814,7 @@ impl<T: AsyncTransport> GroupAsyncClient<T> {
             .transport
             .call("GroupService", "update-group", &encode_group(&req))
             .await?;
-        decode_group(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_group(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-group (request/response).
@@ -829,7 +827,7 @@ impl<T: AsyncTransport> GroupAsyncClient<T> {
                 &encode_group_delete_group_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-groups (request/response).
@@ -862,7 +860,7 @@ impl<T: AsyncTransport> GroupAsyncClient<T> {
                 &encode_group_member_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-group-member (request/response).
@@ -878,7 +876,7 @@ impl<T: AsyncTransport> GroupAsyncClient<T> {
                 &encode_group_member_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-group-members (request/response).
@@ -916,7 +914,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
             .transport
             .call("ProjectService", "create-project", &encode_project(&req))
             .await?;
-        decode_project(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-project (request/response).
@@ -929,7 +927,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_get_project_request(&req),
             )
             .await?;
-        decode_project(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-project (request/response).
@@ -938,7 +936,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
             .transport
             .call("ProjectService", "update-project", &encode_project(&req))
             .await?;
-        decode_project(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-project (request/response).
@@ -951,7 +949,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_delete_project_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-projects (request/response).
@@ -967,7 +965,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_house_scoped_list_request(&req),
             )
             .await?;
-        decode_project_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project_list(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-project-tasks (request/response).
@@ -983,7 +981,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_scoped_list_request(&req),
             )
             .await?;
-        decode_task_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task_list(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// add-project-task (request/response).
@@ -999,7 +997,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_task_order_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-project-task (request/response).
@@ -1015,7 +1013,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_task_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// set-project-task-position (request/response).
@@ -1031,7 +1029,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_task_order_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-project-members (request/response).
@@ -1061,7 +1059,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_member_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-project-member (request/response).
@@ -1077,7 +1075,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_member_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-project-owners (request/response).
@@ -1107,7 +1105,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_owner_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-project-owner (request/response).
@@ -1123,7 +1121,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_owner_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-milestones (request/response).
@@ -1150,7 +1148,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_milestone(&req),
             )
             .await?;
-        decode_milestone(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_milestone(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-milestone (request/response).
@@ -1163,7 +1161,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_milestone(&req),
             )
             .await?;
-        decode_milestone(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_milestone(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-milestone (request/response).
@@ -1176,7 +1174,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_delete_milestone_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// set-project-visibility (request/response).
@@ -1192,7 +1190,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_set_project_visibility_request(&req),
             )
             .await?;
-        decode_project(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-project-grants (request/response).
@@ -1222,7 +1220,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_put_project_grant_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-project-grant (request/response).
@@ -1238,7 +1236,7 @@ impl<T: AsyncTransport> ProjectAsyncClient<T> {
                 &encode_project_grant_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1259,7 +1257,7 @@ impl<T: AsyncTransport> EventAsyncClient<T> {
             .transport
             .call("EventService", "create-event", &encode_event(&req))
             .await?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-event (request/response).
@@ -1272,7 +1270,7 @@ impl<T: AsyncTransport> EventAsyncClient<T> {
                 &encode_event_get_event_request(&req),
             )
             .await?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-event (request/response).
@@ -1281,7 +1279,7 @@ impl<T: AsyncTransport> EventAsyncClient<T> {
             .transport
             .call("EventService", "update-event", &encode_event(&req))
             .await?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-event (request/response).
@@ -1294,7 +1292,7 @@ impl<T: AsyncTransport> EventAsyncClient<T> {
                 &encode_event_delete_event_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-event-and-future (request/response).
@@ -1310,7 +1308,7 @@ impl<T: AsyncTransport> EventAsyncClient<T> {
                 &encode_event_delete_event_and_future_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-events (request/response).
@@ -1337,7 +1335,7 @@ impl<T: AsyncTransport> EventAsyncClient<T> {
                 &encode_event_get_calendar_view_request(&req),
             )
             .await?;
-        decode_calendar_view(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_view(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// set-calendar-view (request/response).
@@ -1350,7 +1348,7 @@ impl<T: AsyncTransport> EventAsyncClient<T> {
                 &encode_calendar_view(&req),
             )
             .await?;
-        decode_calendar_view(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_view(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// accept-event (request/response).
@@ -1359,7 +1357,7 @@ impl<T: AsyncTransport> EventAsyncClient<T> {
             .transport
             .call("EventService", "accept-event", &encode_event_decision(&req))
             .await?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// recover-edit (request/response).
@@ -1372,7 +1370,7 @@ impl<T: AsyncTransport> EventAsyncClient<T> {
                 &encode_event_recover_edit_request(&req),
             )
             .await?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// decline-event (request/response).
@@ -1385,7 +1383,7 @@ impl<T: AsyncTransport> EventAsyncClient<T> {
                 &encode_event_decision(&req),
             )
             .await?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-local-events (request/response).
@@ -1427,7 +1425,7 @@ impl<T: AsyncTransport> CalendarAsyncClient<T> {
                 &encode_project_deadline_request(&req),
             )
             .await?;
-        decode_project_deadline_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project_deadline_list(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-status (request/response).
@@ -1440,7 +1438,7 @@ impl<T: AsyncTransport> CalendarAsyncClient<T> {
                 &encode_calendar_get_status_request(&req),
             )
             .await?;
-        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// configure-calendar (request/response).
@@ -1456,7 +1454,7 @@ impl<T: AsyncTransport> CalendarAsyncClient<T> {
                 &encode_configure_calendar_request(&req),
             )
             .await?;
-        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// begin-connect (request/response).
@@ -1472,8 +1470,7 @@ impl<T: AsyncTransport> CalendarAsyncClient<T> {
                 &encode_calendar_begin_connect_request(&req),
             )
             .await?;
-        decode_calendar_connect_response(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_connect_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// complete-connect (request/response).
@@ -1489,7 +1486,7 @@ impl<T: AsyncTransport> CalendarAsyncClient<T> {
                 &encode_complete_calendar_connect_request(&req),
             )
             .await?;
-        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// disconnect (request/response).
@@ -1502,7 +1499,7 @@ impl<T: AsyncTransport> CalendarAsyncClient<T> {
                 &encode_calendar_disconnect_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// preview-migration (request/response).
@@ -1549,7 +1546,7 @@ impl<T: AsyncTransport> CalendarAsyncClient<T> {
                 &encode_restore_calendar_event_request(&req),
             )
             .await?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1570,7 +1567,7 @@ impl<T: AsyncTransport> TaskAsyncClient<T> {
             .transport
             .call("TaskService", "create-task", &encode_task(&req))
             .await?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-task (request/response).
@@ -1583,7 +1580,7 @@ impl<T: AsyncTransport> TaskAsyncClient<T> {
                 &encode_task_get_task_request(&req),
             )
             .await?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-task (request/response).
@@ -1592,7 +1589,7 @@ impl<T: AsyncTransport> TaskAsyncClient<T> {
             .transport
             .call("TaskService", "update-task", &encode_task(&req))
             .await?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-task (request/response).
@@ -1605,7 +1602,7 @@ impl<T: AsyncTransport> TaskAsyncClient<T> {
                 &encode_task_delete_task_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-tasks (request/response).
@@ -1614,7 +1611,7 @@ impl<T: AsyncTransport> TaskAsyncClient<T> {
             .transport
             .call("TaskService", "list-tasks", &encode_task_list_request(&req))
             .await?;
-        decode_task_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task_list(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// create-personal-task (request/response).
@@ -1623,7 +1620,7 @@ impl<T: AsyncTransport> TaskAsyncClient<T> {
             .transport
             .call("TaskService", "create-personal-task", &encode_task(&req))
             .await?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// set-task-visibility (request/response).
@@ -1639,7 +1636,7 @@ impl<T: AsyncTransport> TaskAsyncClient<T> {
                 &encode_set_task_visibility_request(&req),
             )
             .await?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-task-grants (request/response).
@@ -1669,7 +1666,7 @@ impl<T: AsyncTransport> TaskAsyncClient<T> {
                 &encode_put_task_grant_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-task-grant (request/response).
@@ -1682,7 +1679,7 @@ impl<T: AsyncTransport> TaskAsyncClient<T> {
                 &encode_task_grant_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1707,7 +1704,7 @@ impl<T: AsyncTransport> DependencyAsyncClient<T> {
                 &encode_dependency_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-dependency (request/response).
@@ -1723,7 +1720,7 @@ impl<T: AsyncTransport> DependencyAsyncClient<T> {
                 &encode_dependency_ref(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-dependencies (request/response).
@@ -1739,7 +1736,7 @@ impl<T: AsyncTransport> DependencyAsyncClient<T> {
                 &encode_dependency_target(&req),
             )
             .await?;
-        decode_dependency_graph(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_dependency_graph(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1760,7 +1757,7 @@ impl<T: AsyncTransport> CommentAsyncClient<T> {
             .transport
             .call("CommentService", "create-comment", &encode_comment(&req))
             .await?;
-        decode_comment(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_comment(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-comment (request/response).
@@ -1773,7 +1770,7 @@ impl<T: AsyncTransport> CommentAsyncClient<T> {
                 &encode_comment_get_comment_request(&req),
             )
             .await?;
-        decode_comment(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_comment(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-comment (request/response).
@@ -1782,7 +1779,7 @@ impl<T: AsyncTransport> CommentAsyncClient<T> {
             .transport
             .call("CommentService", "update-comment", &encode_comment(&req))
             .await?;
-        decode_comment(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_comment(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-comment (request/response).
@@ -1795,7 +1792,7 @@ impl<T: AsyncTransport> CommentAsyncClient<T> {
                 &encode_comment_delete_comment_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-comments (request/response).
@@ -1854,8 +1851,7 @@ impl<T: AsyncTransport> NotificationAsyncClient<T> {
                 &encode_notification_unread_count_request(&req),
             )
             .await?;
-        decode_notification_unread_count(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+        decode_notification_unread_count(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// mark-read (request/response).
@@ -1868,7 +1864,7 @@ impl<T: AsyncTransport> NotificationAsyncClient<T> {
                 &encode_notification_mark_read_request(&req),
             )
             .await?;
-        decode_notification(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_notification(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// mark-all-read (request/response).
@@ -1881,7 +1877,7 @@ impl<T: AsyncTransport> NotificationAsyncClient<T> {
                 &encode_notification_mark_all_read_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1902,7 +1898,7 @@ impl<T: AsyncTransport> ShareAsyncClient<T> {
             .transport
             .call("ShareService", "create-share", &encode_share(&req))
             .await?;
-        decode_share(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_share(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-share (request/response).
@@ -1915,7 +1911,7 @@ impl<T: AsyncTransport> ShareAsyncClient<T> {
                 &encode_share_delete_share_request(&req),
             )
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-shares-by-resource (request/response).
@@ -1945,7 +1941,7 @@ impl<T: AsyncTransport> ShareAsyncClient<T> {
                 &encode_share_access_request(&req),
             )
             .await?;
-        decode_share(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_share(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1999,7 +1995,7 @@ impl<T: AsyncTransport> SettingsAsyncClient<T> {
                 &encode_settings_get_settings_request(&req),
             )
             .await?;
-        decode_effective_settings(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_effective_settings(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-settings (request/response).
@@ -2015,7 +2011,7 @@ impl<T: AsyncTransport> SettingsAsyncClient<T> {
                 &encode_update_settings_request(&req),
             )
             .await?;
-        decode_effective_settings(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_effective_settings(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -2036,7 +2032,7 @@ impl<T: AsyncTransport> BugAsyncClient<T> {
             .transport
             .call("BugService", "report-bug", &encode_bug_report_request(&req))
             .await?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -2057,7 +2053,7 @@ impl<T: AsyncTransport> AuditAsyncClient<T> {
             .transport
             .call("AuditService", "query-audit", &encode_audit_query(&req))
             .await?;
-        decode_audit_page(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_audit_page(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -2082,7 +2078,7 @@ impl<T: AsyncTransport> TrashAsyncClient<T> {
                 &encode_house_scoped_list_request(&req),
             )
             .await?;
-        decode_trash_page(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_trash_page(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// restore (request/response).
@@ -2091,7 +2087,7 @@ impl<T: AsyncTransport> TrashAsyncClient<T> {
             .transport
             .call("TrashService", "restore", &encode_restore_request(&req))
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// purge (request/response).
@@ -2100,6 +2096,6 @@ impl<T: AsyncTransport> TrashAsyncClient<T> {
             .transport
             .call("TrashService", "purge", &encode_purge_request(&req))
             .await?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }

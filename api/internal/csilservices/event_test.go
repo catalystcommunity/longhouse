@@ -112,17 +112,14 @@ func TestEventsRejectOtherHouseBeforeStoreAccess(t *testing.T) {
 }
 
 func TestListEventsRejectsInvalidRange(t *testing.T) {
-	ts := func(s string) *csil.Timestamp { v := csil.Timestamp(s); return &v }
+	start := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 0, 1)
 	for _, tt := range []struct {
 		name       string
-		start, end *csil.Timestamp
+		start, end *time.Time
 	}{
-		{"invalid start", ts("not a date"), nil},
-		{"empty start", ts(""), nil},
-		{"invalid end", nil, ts("2026-11-01")},
-		{"empty end", nil, ts("")},
-		{"equal", ts("2026-11-01T00:00:00Z"), ts("2026-11-01T00:00:00Z")},
-		{"reversed", ts("2026-11-02T00:00:00Z"), ts("2026-11-01T00:00:00Z")},
+		{"equal", &start, &start},
+		{"reversed", &end, &start},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			st := &eventTestStore{}
@@ -152,8 +149,9 @@ func TestListEventsRangeAndLegacyPaging(t *testing.T) {
 	if st.limit != 500 || st.offset != 500 || st.filter.RangeStart != nil || st.filter.RangeEnd != nil {
 		t.Fatalf("legacy page: %+v", st)
 	}
-	start, end := csil.Timestamp("2026-11-01T00:00:00-06:00"), csil.Timestamp("2026-11-02T00:00:00-07:00")
-	for _, bounds := range [][2]*csil.Timestamp{{&start, &end}, {&start, nil}, {nil, &end}} {
+	start, _ := time.Parse(time.RFC3339, "2026-11-01T00:00:00-06:00")
+	end, _ := time.Parse(time.RFC3339, "2026-11-02T00:00:00-07:00")
+	for _, bounds := range [][2]*time.Time{{&start, &end}, {&start, nil}, {nil, &end}} {
 		req.RangeStart, req.RangeEnd = bounds[0], bounds[1]
 		if _, err := svc.ListEvents(eventMemberContext("member"), req); err != nil {
 			t.Fatal(err)

@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AccessLevel, ActAsDelegation, ActAsScopeSetRequest, ActAsScopeSetResponse, ActAsTokenResponse, ApproveCliLoginRequest, AuditEntry, AuditID, AuditPage, AuditQuery, BeginBrowserLoginRequest, BeginBrowserLoginResponse, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarConnectResponse, CalendarMigrationRow, CalendarStatus, CalendarSubscription, CalendarTrashEntry, CalendarView, CliLoginRequestInfo, CliLoginStatus, CliSessionID, CliSessionSummary, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteCalendarConnectRequest, CompleteRequest, ConfigureCalendarRequest, DenyCliLoginRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventDecision, EventID, EventListRequest, ExchangeActAsCredentialRequest, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectDeadline, ProjectDeadlineList, ProjectDeadlineRequest, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, RefreshSessionRequest, ResourceRef, ResourceType, RestoreCalendarEventRequest, RestoreRequest, RevokeSessionRequest, Role, RoleID, ServiceError, SessionKind, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskListRequest, TaskState, TaskStatus, Timestamp, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import type { AccessLevel, ActAsDelegation, ActAsScopeSetRequest, ActAsScopeSetResponse, ActAsTokenResponse, ApproveCliLoginRequest, AuditEntry, AuditID, AuditPage, AuditQuery, BeginBrowserLoginRequest, BeginBrowserLoginResponse, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarConnectResponse, CalendarMigrationRow, CalendarStatus, CalendarSubscription, CalendarTrashEntry, CalendarView, CliLoginRequestInfo, CliLoginStatus, CliSessionID, CliSessionSummary, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteCalendarConnectRequest, CompleteRequest, ConfigureCalendarRequest, DenyCliLoginRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventDecision, EventID, EventListRequest, ExchangeActAsCredentialRequest, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectDeadline, ProjectDeadlineList, ProjectDeadlineRequest, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, RefreshSessionRequest, ResourceRef, ResourceType, RestoreCalendarEventRequest, RestoreRequest, RevokeSessionRequest, Role, RoleID, ServiceError, SessionKind, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskListRequest, TaskState, TaskStatus, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -278,6 +278,32 @@ export function asLiteral<T extends CborValue>(value: CborValue, expected: T): T
 /** Validate a decoded scalar against a literal-enum's declared vocabulary, erroring
  * on an unknown value. The caller reads through `asNumber`/`asString`/`asBool`, which
  * already normalize a decoded `bigint` to `number`, so a plain membership check suffices. */
+/** CBOR orders unsigned integer keys first, then negative keys by magnitude. */
+export function enumNumberMap(entries: [bigint, CborValue][]): Map<CborValue, CborValue> {
+  return new Map(entries.sort(([a], [b]) => {
+    if (a === b) return 0;
+    if ((a < 0n) !== (b < 0n)) return a < 0n ? 1 : -1;
+    if (a < 0n) return a > b ? -1 : 1;
+    return a < b ? -1 : 1;
+  }));
+}
+
+export function enumToNumber(label: string, entries: readonly (readonly [string, bigint])[]): bigint {
+  for (const [name, number] of entries) {
+    if (name === label) return number;
+  }
+  throw new Error("unknown enum label");
+}
+
+export function enumFromNumber(value: CborValue, entries: readonly (readonly [string, bigint])[]): string {
+  if (typeof value === "bigint" || (typeof value === "number" && Number.isSafeInteger(value))) {
+    for (const [name, number] of entries) {
+      if (BigInt(value) === number) return name;
+    }
+  }
+  throw new Error("unknown enum number");
+}
+
 export function asEnumMember<T extends number | string | boolean | null>(
   value: T,
   members: readonly T[],
@@ -344,8 +370,8 @@ export function toHouseCborValue(v: House): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("name", v.name);
   csilMap.set("house_id", v.houseId);
-  csilMap.set("created_at", v.createdAt);
-  csilMap.set("updated_at", v.updatedAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
+  csilMap.set("updated_at", { tag: 0, value: csilTsToText(v.updatedAt) });
   if (v.description !== undefined) csilMap.set("description", v.description);
   return csilMap;
 }
@@ -355,8 +381,8 @@ export function fromHouseCborValue(value: CborValue): House {
     houseId: asString(requireKey(value, "house_id")),
     name: asString(requireKey(value, "name")),
     description: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "description")),
-    createdAt: asString(requireKey(value, "created_at")),
-    updatedAt: asString(requireKey(value, "updated_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    updatedAt: asTimestamp(requireKey(value, "updated_at")),
   };
 }
 
@@ -375,11 +401,11 @@ export function toMemberCborValue(v: Member): CborValue {
   csilMap.set("house_id", v.houseId);
   csilMap.set("member_id", v.memberId);
   if (v.avatarUrl !== undefined) csilMap.set("avatar_url", v.avatarUrl);
-  csilMap.set("created_at", v.createdAt);
-  csilMap.set("updated_at", v.updatedAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
+  csilMap.set("updated_at", { tag: 0, value: csilTsToText(v.updatedAt) });
   if (v.displayName !== undefined) csilMap.set("display_name", v.displayName);
-  if (v.lastSeenAt !== undefined) csilMap.set("last_seen_at", v.lastSeenAt);
-  if (v.deactivatedAt !== undefined) csilMap.set("deactivated_at", v.deactivatedAt);
+  if (v.lastSeenAt !== undefined) csilMap.set("last_seen_at", { tag: 0, value: csilTsToText(v.lastSeenAt) });
+  if (v.deactivatedAt !== undefined) csilMap.set("deactivated_at", { tag: 0, value: csilTsToText(v.deactivatedAt) });
   csilMap.set("linkkeys_domain", v.linkkeysDomain);
   csilMap.set("linkkeys_user_id", v.linkkeysUserId);
   if (v.cachedPublicKey !== undefined) csilMap.set("cached_public_key", v.cachedPublicKey);
@@ -397,10 +423,10 @@ export function fromMemberCborValue(value: CborValue): Member {
     avatarUrl: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "avatar_url")),
     handle: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "handle")),
     cachedPublicKey: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBytes(csilV))(mapGet(value, "cached_public_key")),
-    createdAt: asString(requireKey(value, "created_at")),
-    updatedAt: asString(requireKey(value, "updated_at")),
-    lastSeenAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "last_seen_at")),
-    deactivatedAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "deactivated_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    updatedAt: asTimestamp(requireKey(value, "updated_at")),
+    lastSeenAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "last_seen_at")),
+    deactivatedAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "deactivated_at")),
   };
 }
 
@@ -416,7 +442,7 @@ export function toTrustedDomainCborValue(v: TrustedDomain): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("domain", v.domain);
   csilMap.set("house_id", v.houseId);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   csilMap.set("trusted_domain_id", v.trustedDomainId);
   return csilMap;
 }
@@ -426,7 +452,7 @@ export function fromTrustedDomainCborValue(value: CborValue): TrustedDomain {
     trustedDomainId: asString(requireKey(value, "trusted_domain_id")),
     houseId: asString(requireKey(value, "house_id")),
     domain: asString(requireKey(value, "domain")),
-    createdAt: asString(requireKey(value, "created_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
   };
 }
 
@@ -443,8 +469,8 @@ export function toRoleCborValue(v: Role): CborValue {
   csilMap.set("name", v.name);
   csilMap.set("role_id", v.roleId);
   csilMap.set("house_id", v.houseId);
-  csilMap.set("created_at", v.createdAt);
-  csilMap.set("updated_at", v.updatedAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
+  csilMap.set("updated_at", { tag: 0, value: csilTsToText(v.updatedAt) });
   if (v.description !== undefined) csilMap.set("description", v.description);
   return csilMap;
 }
@@ -455,8 +481,8 @@ export function fromRoleCborValue(value: CborValue): Role {
     houseId: asString(requireKey(value, "house_id")),
     name: asString(requireKey(value, "name")),
     description: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "description")),
-    createdAt: asString(requireKey(value, "created_at")),
-    updatedAt: asString(requireKey(value, "updated_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    updatedAt: asTimestamp(requireKey(value, "updated_at")),
   };
 }
 
@@ -472,7 +498,7 @@ export function toMemberRoleCborValue(v: MemberRole): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("role_id", v.roleId);
   csilMap.set("member_id", v.memberId);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   return csilMap;
 }
 
@@ -480,7 +506,7 @@ export function fromMemberRoleCborValue(value: CborValue): MemberRole {
   return {
     memberId: asString(requireKey(value, "member_id")),
     roleId: asString(requireKey(value, "role_id")),
-    createdAt: asString(requireKey(value, "created_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
   };
 }
 
@@ -499,7 +525,7 @@ export function toMemberAuditCborValue(v: MemberAudit): CborValue {
   csilMap.set("audit_id", v.auditId);
   csilMap.set("house_id", v.houseId);
   if (v.targetId !== undefined) csilMap.set("target_id", v.targetId);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   if (v.targetType !== undefined) csilMap.set("target_type", v.targetType);
   if (v.actorMemberId !== undefined) csilMap.set("actor_member_id", v.actorMemberId);
   csilMap.set("subject_member_id", v.subjectMemberId);
@@ -516,7 +542,7 @@ export function fromMemberAuditCborValue(value: CborValue): MemberAudit {
     targetType: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "target_type")),
     targetId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "target_id")),
     detail: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "detail")),
-    createdAt: asString(requireKey(value, "created_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
   };
 }
 
@@ -533,8 +559,8 @@ export function toSkillCborValue(v: Skill): CborValue {
   csilMap.set("name", v.name);
   csilMap.set("house_id", v.houseId);
   csilMap.set("skill_id", v.skillId);
-  csilMap.set("created_at", v.createdAt);
-  csilMap.set("updated_at", v.updatedAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
+  csilMap.set("updated_at", { tag: 0, value: csilTsToText(v.updatedAt) });
   if (v.description !== undefined) csilMap.set("description", v.description);
   return csilMap;
 }
@@ -545,8 +571,8 @@ export function fromSkillCborValue(value: CborValue): Skill {
     houseId: asString(requireKey(value, "house_id")),
     name: asString(requireKey(value, "name")),
     description: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "description")),
-    createdAt: asString(requireKey(value, "created_at")),
-    updatedAt: asString(requireKey(value, "updated_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    updatedAt: asTimestamp(requireKey(value, "updated_at")),
   };
 }
 
@@ -562,7 +588,7 @@ export function toMemberSkillCborValue(v: MemberSkill): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("skill_id", v.skillId);
   csilMap.set("member_id", v.memberId);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   return csilMap;
 }
 
@@ -570,7 +596,7 @@ export function fromMemberSkillCborValue(value: CborValue): MemberSkill {
   return {
     memberId: asString(requireKey(value, "member_id")),
     skillId: asString(requireKey(value, "skill_id")),
-    createdAt: asString(requireKey(value, "created_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
   };
 }
 
@@ -586,7 +612,7 @@ export function toGroupSkillCborValue(v: GroupSkill): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("group_id", v.groupId);
   csilMap.set("skill_id", v.skillId);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   return csilMap;
 }
 
@@ -594,7 +620,7 @@ export function fromGroupSkillCborValue(value: CborValue): GroupSkill {
   return {
     groupId: asString(requireKey(value, "group_id")),
     skillId: asString(requireKey(value, "skill_id")),
-    createdAt: asString(requireKey(value, "created_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
   };
 }
 
@@ -611,8 +637,8 @@ export function toGroupCborValue(v: Group): CborValue {
   csilMap.set("name", v.name);
   csilMap.set("group_id", v.groupId);
   csilMap.set("house_id", v.houseId);
-  csilMap.set("created_at", v.createdAt);
-  csilMap.set("updated_at", v.updatedAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
+  csilMap.set("updated_at", { tag: 0, value: csilTsToText(v.updatedAt) });
   if (v.description !== undefined) csilMap.set("description", v.description);
   return csilMap;
 }
@@ -623,8 +649,8 @@ export function fromGroupCborValue(value: CborValue): Group {
     houseId: asString(requireKey(value, "house_id")),
     name: asString(requireKey(value, "name")),
     description: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "description")),
-    createdAt: asString(requireKey(value, "created_at")),
-    updatedAt: asString(requireKey(value, "updated_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    updatedAt: asTimestamp(requireKey(value, "updated_at")),
   };
 }
 
@@ -640,7 +666,7 @@ export function toGroupMemberCborValue(v: GroupMember): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("group_id", v.groupId);
   csilMap.set("member_id", v.memberId);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   return csilMap;
 }
 
@@ -648,7 +674,7 @@ export function fromGroupMemberCborValue(value: CborValue): GroupMember {
   return {
     groupId: asString(requireKey(value, "group_id")),
     memberId: asString(requireKey(value, "member_id")),
-    createdAt: asString(requireKey(value, "created_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
   };
 }
 
@@ -667,9 +693,9 @@ export function toProjectCborValue(v: Project): CborValue {
   if (v.category !== undefined) csilMap.set("category", v.category);
   csilMap.set("house_id", v.houseId);
   if (v.personal !== undefined) csilMap.set("personal", v.personal);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   csilMap.set("project_id", v.projectId);
-  csilMap.set("updated_at", v.updatedAt);
+  csilMap.set("updated_at", { tag: 0, value: csilTsToText(v.updatedAt) });
   if (v.visibility !== undefined) csilMap.set("visibility", v.visibility);
   if (v.description !== undefined) csilMap.set("description", v.description);
   if (v.createdByMemberId !== undefined) csilMap.set("created_by_member_id", v.createdByMemberId);
@@ -687,8 +713,8 @@ export function fromProjectCborValue(value: CborValue): Project {
     visibility: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"))(mapGet(value, "visibility")),
     createdByMemberId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "created_by_member_id")),
     personal: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "personal")),
-    createdAt: asString(requireKey(value, "created_at")),
-    updatedAt: asString(requireKey(value, "updated_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    updatedAt: asTimestamp(requireKey(value, "updated_at")),
   };
 }
 
@@ -704,7 +730,7 @@ export function toProjectTaskCborValue(v: ProjectTask): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("task_id", v.taskId);
   csilMap.set("position", v.position);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   csilMap.set("project_id", v.projectId);
   return csilMap;
 }
@@ -714,7 +740,7 @@ export function fromProjectTaskCborValue(value: CborValue): ProjectTask {
     projectId: asString(requireKey(value, "project_id")),
     taskId: asString(requireKey(value, "task_id")),
     position: asNumber(requireKey(value, "position")),
-    createdAt: asString(requireKey(value, "created_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
   };
 }
 
@@ -729,7 +755,7 @@ export function fromProjectTaskCbor(bytes: Uint8Array): ProjectTask {
 export function toProjectMemberCborValue(v: ProjectMember): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("member_id", v.memberId);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   csilMap.set("project_id", v.projectId);
   return csilMap;
 }
@@ -738,7 +764,7 @@ export function fromProjectMemberCborValue(value: CborValue): ProjectMember {
   return {
     projectId: asString(requireKey(value, "project_id")),
     memberId: asString(requireKey(value, "member_id")),
-    createdAt: asString(requireKey(value, "created_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
   };
 }
 
@@ -753,7 +779,7 @@ export function fromProjectMemberCbor(bytes: Uint8Array): ProjectMember {
 export function toProjectOwnerCborValue(v: ProjectOwner): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("member_id", v.memberId);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   csilMap.set("project_id", v.projectId);
   return csilMap;
 }
@@ -762,7 +788,7 @@ export function fromProjectOwnerCborValue(value: CborValue): ProjectOwner {
   return {
     projectId: asString(requireKey(value, "project_id")),
     memberId: asString(requireKey(value, "member_id")),
-    createdAt: asString(requireKey(value, "created_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
   };
 }
 
@@ -779,9 +805,9 @@ export function toMilestoneCborValue(v: Milestone): CborValue {
   csilMap.set("label", v.label);
   csilMap.set("state", v.state);
   csilMap.set("position", v.position);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   csilMap.set("project_id", v.projectId);
-  csilMap.set("updated_at", v.updatedAt);
+  csilMap.set("updated_at", { tag: 0, value: csilTsToText(v.updatedAt) });
   csilMap.set("when_label", v.whenLabel);
   csilMap.set("milestone_id", v.milestoneId);
   return csilMap;
@@ -795,8 +821,8 @@ export function fromMilestoneCborValue(value: CborValue): Milestone {
     whenLabel: asString(requireKey(value, "when_label")),
     state: (asEnumMember(asString(requireKey(value, "state")), ["done", "current", "future"]) as "done" | "current" | "future"),
     position: asNumber(requireKey(value, "position")),
-    createdAt: asString(requireKey(value, "created_at")),
-    updatedAt: asString(requireKey(value, "updated_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    updatedAt: asTimestamp(requireKey(value, "updated_at")),
   };
 }
 
@@ -812,16 +838,16 @@ export function toEventCborValue(v: Event): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("title", v.title);
   if (v.allDay !== undefined) csilMap.set("all_day", v.allDay);
-  if (v.endsAt !== undefined) csilMap.set("ends_at", v.endsAt);
+  if (v.endsAt !== undefined) csilMap.set("ends_at", { tag: 0, value: csilTsToText(v.endsAt) });
   csilMap.set("event_id", v.eventId);
   csilMap.set("house_id", v.houseId);
   if (v.location !== undefined) csilMap.set("location", v.location);
   if (v.revision !== undefined) csilMap.set("revision", v.revision);
   if (v.timezone !== undefined) csilMap.set("timezone", v.timezone);
-  if (v.startsAt !== undefined) csilMap.set("starts_at", v.startsAt);
-  csilMap.set("created_at", v.createdAt);
+  if (v.startsAt !== undefined) csilMap.set("starts_at", { tag: 0, value: csilTsToText(v.startsAt) });
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   if (v.editScope !== undefined) csilMap.set("edit_scope", v.editScope);
-  csilMap.set("updated_at", v.updatedAt);
+  csilMap.set("updated_at", { tag: 0, value: csilTsToText(v.updatedAt) });
   if (v.description !== undefined) csilMap.set("description", v.description);
   if (v.calendarState !== undefined) csilMap.set("calendar_state", v.calendarState);
   csilMap.set("owner_member_id", v.ownerMemberId);
@@ -830,7 +856,7 @@ export function toEventCborValue(v: Event): CborValue {
   if (v.calendarUnbound !== undefined) csilMap.set("calendar_unbound", v.calendarUnbound);
   if (v.clearRecurrence !== undefined) csilMap.set("clear_recurrence", v.clearRecurrence);
   if (v.publicationError !== undefined) csilMap.set("publication_error", v.publicationError);
-  if (v.nextRecurrenceAt !== undefined) csilMap.set("next_recurrence_at", v.nextRecurrenceAt);
+  if (v.nextRecurrenceAt !== undefined) csilMap.set("next_recurrence_at", { tag: 0, value: csilTsToText(v.nextRecurrenceAt) });
   if (v.recurrenceInterval !== undefined) csilMap.set("recurrence_interval", v.recurrenceInterval);
   if (v.recurrenceBySetpos !== undefined) csilMap.set("recurrence_by_setpos", v.recurrenceBySetpos);
   if (v.proposedByMemberId !== undefined) csilMap.set("proposed_by_member_id", v.proposedByMemberId);
@@ -848,8 +874,8 @@ export function fromEventCborValue(value: CborValue): Event {
     title: asString(requireKey(value, "title")),
     description: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "description")),
     location: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "location")),
-    startsAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "starts_at")),
-    endsAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "ends_at")),
+    startsAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "starts_at")),
+    endsAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "ends_at")),
     allDay: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "all_day")),
     timezone: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "timezone")),
     recurrenceRule: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "recurrence_rule")),
@@ -858,7 +884,7 @@ export function fromEventCborValue(value: CborValue): Event {
     recurrenceInterval: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_interval")),
     recurrenceByWeekday: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asNumber(csilE)))(mapGet(value, "recurrence_by_weekday")),
     recurrenceBySetpos: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_by_setpos")),
-    nextRecurrenceAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "next_recurrence_at")),
+    nextRecurrenceAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "next_recurrence_at")),
     recurrenceRootEventId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "recurrence_root_event_id")),
     calendarState: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "calendar_state")),
     revision: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "revision")),
@@ -867,8 +893,8 @@ export function fromEventCborValue(value: CborValue): Event {
     editPendingMemberId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "edit_pending_member_id")),
     calendarUnbound: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "calendar_unbound")),
     editScope: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "edit_scope")),
-    createdAt: asString(requireKey(value, "created_at")),
-    updatedAt: asString(requireKey(value, "updated_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    updatedAt: asTimestamp(requireKey(value, "updated_at")),
   };
 }
 
@@ -884,14 +910,14 @@ export function toTaskCborValue(v: Task): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   if (v.tag !== undefined) csilMap.set("tag", v.tag);
   csilMap.set("title", v.title);
-  if (v.dueAt !== undefined) csilMap.set("due_at", v.dueAt);
+  if (v.dueAt !== undefined) csilMap.set("due_at", { tag: 0, value: csilTsToText(v.dueAt) });
   if (v.status !== undefined) csilMap.set("status", v.status);
   csilMap.set("task_id", v.taskId);
   csilMap.set("house_id", v.houseId);
   if (v.assignees !== undefined) csilMap.set("assignees", v.assignees);
-  csilMap.set("created_at", v.createdAt);
-  if (v.deletedAt !== undefined) csilMap.set("deleted_at", v.deletedAt);
-  csilMap.set("updated_at", v.updatedAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
+  if (v.deletedAt !== undefined) csilMap.set("deleted_at", { tag: 0, value: csilTsToText(v.deletedAt) });
+  csilMap.set("updated_at", { tag: 0, value: csilTsToText(v.updatedAt) });
   if (v.visibility !== undefined) csilMap.set("visibility", v.visibility);
   if (v.description !== undefined) csilMap.set("description", v.description);
   if (v.parentTaskId !== undefined) csilMap.set("parent_task_id", v.parentTaskId);
@@ -899,7 +925,7 @@ export function toTaskCborValue(v: Task): CborValue {
   if (v.recurrenceFreq !== undefined) csilMap.set("recurrence_freq", v.recurrenceFreq);
   if (v.clearRecurrence !== undefined) csilMap.set("clear_recurrence", v.clearRecurrence);
   if (v.estimateMinutes !== undefined) csilMap.set("estimate_minutes", v.estimateMinutes);
-  if (v.nextRecurrenceAt !== undefined) csilMap.set("next_recurrence_at", v.nextRecurrenceAt);
+  if (v.nextRecurrenceAt !== undefined) csilMap.set("next_recurrence_at", { tag: 0, value: csilTsToText(v.nextRecurrenceAt) });
   if (v.recurrenceInterval !== undefined) csilMap.set("recurrence_interval", v.recurrenceInterval);
   if (v.assignedToSkillId !== undefined) csilMap.set("assigned_to_skill_id", v.assignedToSkillId);
   if (v.recurrenceBySetpos !== undefined) csilMap.set("recurrence_by_setpos", v.recurrenceBySetpos);
@@ -920,7 +946,7 @@ export function fromTaskCborValue(value: CborValue): Task {
     title: asString(requireKey(value, "title")),
     description: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "description")),
     status: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["open", "in_progress", "done", "cancelled"]) as "open" | "in_progress" | "done" | "cancelled"))(mapGet(value, "status")),
-    dueAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "due_at")),
+    dueAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "due_at")),
     tag: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "tag")),
     estimateMinutes: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "estimate_minutes")),
     recurrenceFreq: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["hourly", "daily", "weekly", "monthly", "quarterly", "yearly"]) as "hourly" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly"))(mapGet(value, "recurrence_freq")),
@@ -928,11 +954,11 @@ export function fromTaskCborValue(value: CborValue): Task {
     recurrenceInterval: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_interval")),
     recurrenceByWeekday: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asNumber(csilE)))(mapGet(value, "recurrence_by_weekday")),
     recurrenceBySetpos: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "recurrence_by_setpos")),
-    nextRecurrenceAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "next_recurrence_at")),
+    nextRecurrenceAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "next_recurrence_at")),
     recurrenceRootTaskId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "recurrence_root_task_id")),
-    deletedAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "deleted_at")),
-    createdAt: asString(requireKey(value, "created_at")),
-    updatedAt: asString(requireKey(value, "updated_at")),
+    deletedAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "deleted_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    updatedAt: asTimestamp(requireKey(value, "updated_at")),
   };
 }
 
@@ -951,8 +977,8 @@ export function toCommentCborValue(v: Comment): CborValue {
   csilMap.set("member_id", v.memberId);
   csilMap.set("target_id", v.targetId);
   csilMap.set("comment_id", v.commentId);
-  csilMap.set("created_at", v.createdAt);
-  csilMap.set("updated_at", v.updatedAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
+  csilMap.set("updated_at", { tag: 0, value: csilTsToText(v.updatedAt) });
   csilMap.set("target_type", v.targetType);
   return csilMap;
 }
@@ -965,8 +991,8 @@ export function fromCommentCborValue(value: CborValue): Comment {
     targetType: (asEnumMember(asString(requireKey(value, "target_type")), ["event", "task", "project"]) as "event" | "task" | "project"),
     targetId: asString(requireKey(value, "target_id")),
     body: asString(requireKey(value, "body")),
-    createdAt: asString(requireKey(value, "created_at")),
-    updatedAt: asString(requireKey(value, "updated_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    updatedAt: asTimestamp(requireKey(value, "updated_at")),
   };
 }
 
@@ -983,8 +1009,8 @@ export function toShareCborValue(v: Share): CborValue {
   csilMap.set("house_id", v.houseId);
   csilMap.set("share_id", v.shareId);
   csilMap.set("shared_by", v.sharedBy);
-  csilMap.set("created_at", v.createdAt);
-  if (v.expiresAt !== undefined) csilMap.set("expires_at", v.expiresAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
+  if (v.expiresAt !== undefined) csilMap.set("expires_at", { tag: 0, value: csilTsToText(v.expiresAt) });
   csilMap.set("resource_id", v.resourceId);
   if (v.accessLevel !== undefined) csilMap.set("access_level", v.accessLevel);
   csilMap.set("resource_type", v.resourceType);
@@ -1003,8 +1029,8 @@ export function fromShareCborValue(value: CborValue): Share {
     resourceType: (asEnumMember(asString(requireKey(value, "resource_type")), ["event", "task", "house"]) as "event" | "task" | "house"),
     resourceId: asString(requireKey(value, "resource_id")),
     accessLevel: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"))(mapGet(value, "access_level")),
-    createdAt: asString(requireKey(value, "created_at")),
-    expiresAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "expires_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    expiresAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "expires_at")),
   };
 }
 
@@ -1209,7 +1235,7 @@ export function toLoginResponseCborValue(v: LoginResponse): CborValue {
   csilMap.set("token", v.token);
   csilMap.set("domain", v.domain);
   csilMap.set("user_id", v.userId);
-  csilMap.set("expires_at", v.expiresAt);
+  csilMap.set("expires_at", { tag: 0, value: csilTsToText(v.expiresAt) });
   if (v.displayName !== undefined) csilMap.set("display_name", v.displayName);
   return csilMap;
 }
@@ -1220,7 +1246,7 @@ export function fromLoginResponseCborValue(value: CborValue): LoginResponse {
     domain: asString(requireKey(value, "domain")),
     userId: asString(requireKey(value, "user_id")),
     displayName: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "display_name")),
-    expiresAt: asString(requireKey(value, "expires_at")),
+    expiresAt: asTimestamp(requireKey(value, "expires_at")),
   };
 }
 
@@ -1237,11 +1263,11 @@ export function toCliTokenResponseCborValue(v: CliTokenResponse): CborValue {
   csilMap.set("token", v.token);
   csilMap.set("domain", v.domain);
   csilMap.set("user_id", v.userId);
-  csilMap.set("expires_at", v.expiresAt);
+  csilMap.set("expires_at", { tag: 0, value: csilTsToText(v.expiresAt) });
   csilMap.set("session_id", v.sessionId);
   if (v.displayName !== undefined) csilMap.set("display_name", v.displayName);
   csilMap.set("refresh_token", v.refreshToken);
-  csilMap.set("refresh_expires_at", v.refreshExpiresAt);
+  csilMap.set("refresh_expires_at", { tag: 0, value: csilTsToText(v.refreshExpiresAt) });
   return csilMap;
 }
 
@@ -1251,9 +1277,9 @@ export function fromCliTokenResponseCborValue(value: CborValue): CliTokenRespons
     domain: asString(requireKey(value, "domain")),
     userId: asString(requireKey(value, "user_id")),
     displayName: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "display_name")),
-    expiresAt: asString(requireKey(value, "expires_at")),
+    expiresAt: asTimestamp(requireKey(value, "expires_at")),
     refreshToken: asString(requireKey(value, "refresh_token")),
-    refreshExpiresAt: asString(requireKey(value, "refresh_expires_at")),
+    refreshExpiresAt: asTimestamp(requireKey(value, "refresh_expires_at")),
     sessionId: asString(requireKey(value, "session_id")),
   };
 }
@@ -1289,7 +1315,7 @@ export function fromBeginCliLoginRequestCbor(bytes: Uint8Array): BeginCliLoginRe
 export function toBeginCliLoginResponseCborValue(v: BeginCliLoginResponse): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("user_code", v.userCode);
-  csilMap.set("expires_at", v.expiresAt);
+  csilMap.set("expires_at", { tag: 0, value: csilTsToText(v.expiresAt) });
   csilMap.set("device_code", v.deviceCode);
   csilMap.set("interval_seconds", v.intervalSeconds);
   csilMap.set("verification_url", v.verificationUrl);
@@ -1301,7 +1327,7 @@ export function fromBeginCliLoginResponseCborValue(value: CborValue): BeginCliLo
     deviceCode: asString(requireKey(value, "device_code")),
     userCode: asString(requireKey(value, "user_code")),
     verificationUrl: asString(requireKey(value, "verification_url")),
-    expiresAt: asString(requireKey(value, "expires_at")),
+    expiresAt: asTimestamp(requireKey(value, "expires_at")),
     intervalSeconds: asNumber(requireKey(value, "interval_seconds")),
   };
 }
@@ -1337,7 +1363,7 @@ export function fromApproveCliLoginRequestCbor(bytes: Uint8Array): ApproveCliLog
 export function toCliLoginRequestInfoCborValue(v: CliLoginRequestInfo): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("user_code", v.userCode);
-  csilMap.set("expires_at", v.expiresAt);
+  csilMap.set("expires_at", { tag: 0, value: csilTsToText(v.expiresAt) });
   csilMap.set("client_name", v.clientName);
   return csilMap;
 }
@@ -1346,7 +1372,7 @@ export function fromCliLoginRequestInfoCborValue(value: CborValue): CliLoginRequ
   return {
     userCode: asString(requireKey(value, "user_code")),
     clientName: asString(requireKey(value, "client_name")),
-    expiresAt: asString(requireKey(value, "expires_at")),
+    expiresAt: asTimestamp(requireKey(value, "expires_at")),
   };
 }
 
@@ -1444,12 +1470,12 @@ export function toCliSessionSummaryCborValue(v: CliSessionSummary): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   if (v.kind !== undefined) csilMap.set("kind", v.kind);
   if (v.current !== undefined) csilMap.set("current", v.current);
-  csilMap.set("created_at", v.createdAt);
-  csilMap.set("expires_at", v.expiresAt);
-  if (v.revokedAt !== undefined) csilMap.set("revoked_at", v.revokedAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
+  csilMap.set("expires_at", { tag: 0, value: csilTsToText(v.expiresAt) });
+  if (v.revokedAt !== undefined) csilMap.set("revoked_at", { tag: 0, value: csilTsToText(v.revokedAt) });
   csilMap.set("session_id", v.sessionId);
   csilMap.set("client_name", v.clientName);
-  csilMap.set("last_used_at", v.lastUsedAt);
+  csilMap.set("last_used_at", { tag: 0, value: csilTsToText(v.lastUsedAt) });
   return csilMap;
 }
 
@@ -1457,10 +1483,10 @@ export function fromCliSessionSummaryCborValue(value: CborValue): CliSessionSumm
   return {
     sessionId: asString(requireKey(value, "session_id")),
     clientName: asString(requireKey(value, "client_name")),
-    createdAt: asString(requireKey(value, "created_at")),
-    lastUsedAt: asString(requireKey(value, "last_used_at")),
-    expiresAt: asString(requireKey(value, "expires_at")),
-    revokedAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "revoked_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
+    lastUsedAt: asTimestamp(requireKey(value, "last_used_at")),
+    expiresAt: asTimestamp(requireKey(value, "expires_at")),
+    revokedAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "revoked_at")),
     kind: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["cli", "browser"]) as "cli" | "browser"))(mapGet(value, "kind")),
     current: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "current")),
   };
@@ -1591,7 +1617,7 @@ export function toMeResponseCborValue(v: MeResponse): CborValue {
   csilMap.set("domain", v.domain);
   csilMap.set("houses", v.houses.map((csilE): CborValue => toHouseSummaryCborValue(csilE)));
   csilMap.set("user_id", v.userId);
-  csilMap.set("expires_at", v.expiresAt);
+  csilMap.set("expires_at", { tag: 0, value: csilTsToText(v.expiresAt) });
   if (v.displayName !== undefined) csilMap.set("display_name", v.displayName);
   return csilMap;
 }
@@ -1601,7 +1627,7 @@ export function fromMeResponseCborValue(value: CborValue): MeResponse {
     domain: asString(requireKey(value, "domain")),
     userId: asString(requireKey(value, "user_id")),
     displayName: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "display_name")),
-    expiresAt: asString(requireKey(value, "expires_at")),
+    expiresAt: asTimestamp(requireKey(value, "expires_at")),
     houses: asArray(requireKey(value, "houses")).map((csilE) => fromHouseSummaryCborValue(csilE)),
   };
 }
@@ -1721,16 +1747,16 @@ export function toEventListRequestCborValue(v: EventListRequest): CborValue {
   if (v.limit !== undefined) csilMap.set("limit", v.limit);
   if (v.offset !== undefined) csilMap.set("offset", v.offset);
   csilMap.set("house_id", v.houseId);
-  if (v.rangeEnd !== undefined) csilMap.set("range_end", v.rangeEnd);
-  if (v.rangeStart !== undefined) csilMap.set("range_start", v.rangeStart);
+  if (v.rangeEnd !== undefined) csilMap.set("range_end", { tag: 0, value: csilTsToText(v.rangeEnd) });
+  if (v.rangeStart !== undefined) csilMap.set("range_start", { tag: 0, value: csilTsToText(v.rangeStart) });
   return csilMap;
 }
 
 export function fromEventListRequestCborValue(value: CborValue): EventListRequest {
   return {
     houseId: asString(requireKey(value, "house_id")),
-    rangeStart: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "range_start")),
-    rangeEnd: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "range_end")),
+    rangeStart: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "range_start")),
+    rangeEnd: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "range_end")),
     limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
     offset: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "offset")),
   };
@@ -1750,11 +1776,11 @@ export function toTaskListRequestCborValue(v: TaskListRequest): CborValue {
   if (v.limit !== undefined) csilMap.set("limit", v.limit);
   if (v.loose !== undefined) csilMap.set("loose", v.loose);
   if (v.state !== undefined) csilMap.set("state", v.state);
-  if (v.dueTo !== undefined) csilMap.set("due_to", v.dueTo);
+  if (v.dueTo !== undefined) csilMap.set("due_to", { tag: 0, value: csilTsToText(v.dueTo) });
   if (v.offset !== undefined) csilMap.set("offset", v.offset);
-  if (v.dueFrom !== undefined) csilMap.set("due_from", v.dueFrom);
+  if (v.dueFrom !== undefined) csilMap.set("due_from", { tag: 0, value: csilTsToText(v.dueFrom) });
   csilMap.set("house_id", v.houseId);
-  if (v.dueBefore !== undefined) csilMap.set("due_before", v.dueBefore);
+  if (v.dueBefore !== undefined) csilMap.set("due_before", v.dueBefore.map((csilE): CborValue => ({ tag: 0, value: csilTsToText(csilE) })));
   return csilMap;
 }
 
@@ -1766,9 +1792,9 @@ export function fromTaskListRequestCborValue(value: CborValue): TaskListRequest 
     state: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : (asEnumMember(asString(csilV), ["open", "closed"]) as "open" | "closed"))(mapGet(value, "state")),
     mine: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "mine")),
     loose: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "loose")),
-    dueFrom: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "due_from")),
-    dueTo: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "due_to")),
-    dueBefore: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asString(csilE)))(mapGet(value, "due_before")),
+    dueFrom: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "due_from")),
+    dueTo: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "due_to")),
+    dueBefore: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asArray(csilV).map((csilE) => asTimestamp(csilE)))(mapGet(value, "due_before")),
   };
 }
 
@@ -1913,12 +1939,12 @@ export function toNotificationCborValue(v: Notification): CborValue {
   csilMap.set("body", v.body);
   csilMap.set("kind", v.kind);
   csilMap.set("read", v.read);
-  if (v.readAt !== undefined) csilMap.set("read_at", v.readAt);
+  if (v.readAt !== undefined) csilMap.set("read_at", { tag: 0, value: csilTsToText(v.readAt) });
   csilMap.set("house_id", v.houseId);
   csilMap.set("member_id", v.memberId);
   if (v.targetId !== undefined) csilMap.set("target_id", v.targetId);
   csilMap.set("actor_name", v.actorName);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   if (v.targetType !== undefined) csilMap.set("target_type", v.targetType);
   csilMap.set("target_title", v.targetTitle);
   if (v.actorMemberId !== undefined) csilMap.set("actor_member_id", v.actorMemberId);
@@ -1939,8 +1965,8 @@ export function fromNotificationCborValue(value: CborValue): Notification {
     targetTitle: asString(requireKey(value, "target_title")),
     body: asString(requireKey(value, "body")),
     read: asBool(requireKey(value, "read")),
-    readAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "read_at")),
-    createdAt: asString(requireKey(value, "created_at")),
+    readAt: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "read_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
   };
 }
 
@@ -2658,7 +2684,7 @@ export function toActAsTokenResponseCborValue(v: ActAsTokenResponse): CborValue 
   csilMap.set("grantee", v.grantee);
   csilMap.set("user_id", v.userId);
   csilMap.set("grant_id", v.grantId);
-  csilMap.set("expires_at", v.expiresAt);
+  csilMap.set("expires_at", { tag: 0, value: csilTsToText(v.expiresAt) });
   return csilMap;
 }
 
@@ -2667,7 +2693,7 @@ export function fromActAsTokenResponseCborValue(value: CborValue): ActAsTokenRes
     token: asString(requireKey(value, "token")),
     domain: asString(requireKey(value, "domain")),
     userId: asString(requireKey(value, "user_id")),
-    expiresAt: asString(requireKey(value, "expires_at")),
+    expiresAt: asTimestamp(requireKey(value, "expires_at")),
     grantId: asString(requireKey(value, "grant_id")),
     grantee: asString(requireKey(value, "grantee")),
     scopes: asArray(requireKey(value, "scopes")).map((csilE) => asString(csilE)),
@@ -2758,7 +2784,7 @@ export function toCalendarStatusCborValue(v: CalendarStatus): CborValue {
   csilMap.set("available", v.available);
   csilMap.set("connected", v.connected);
   if (v.lastError !== undefined) csilMap.set("last_error", v.lastError);
-  if (v.syncPendingSince !== undefined) csilMap.set("sync_pending_since", v.syncPendingSince);
+  if (v.syncPendingSince !== undefined) csilMap.set("sync_pending_since", { tag: 0, value: csilTsToText(v.syncPendingSince) });
   return csilMap;
 }
 
@@ -2770,7 +2796,7 @@ export function fromCalendarStatusCborValue(value: CborValue): CalendarStatus {
     ready: asBool(requireKey(value, "ready")),
     connected: asBool(requireKey(value, "connected")),
     lastError: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "last_error")),
-    syncPendingSince: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "sync_pending_since")),
+    syncPendingSince: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "sync_pending_since")),
   };
 }
 
@@ -2852,8 +2878,8 @@ export function toCalendarTrashEntryCborValue(v: CalendarTrashEntry): CborValue 
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("event", toEventCborValue(v.event));
   csilMap.set("trash_id", v.trashId);
-  csilMap.set("deleted_at", v.deletedAt);
-  csilMap.set("expires_at", v.expiresAt);
+  csilMap.set("deleted_at", { tag: 0, value: csilTsToText(v.deletedAt) });
+  csilMap.set("expires_at", { tag: 0, value: csilTsToText(v.expiresAt) });
   return csilMap;
 }
 
@@ -2861,8 +2887,8 @@ export function fromCalendarTrashEntryCborValue(value: CborValue): CalendarTrash
   return {
     trashId: asString(requireKey(value, "trash_id")),
     event: fromEventCborValue(requireKey(value, "event")),
-    deletedAt: asString(requireKey(value, "deleted_at")),
-    expiresAt: asString(requireKey(value, "expires_at")),
+    deletedAt: asTimestamp(requireKey(value, "deleted_at")),
+    expiresAt: asTimestamp(requireKey(value, "expires_at")),
   };
 }
 
@@ -2924,17 +2950,17 @@ export function fromCalendarMigrationRowCbor(bytes: Uint8Array): CalendarMigrati
 
 export function toProjectDeadlineRequestCborValue(v: ProjectDeadlineRequest): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
-  csilMap.set("range_end", v.rangeEnd);
+  csilMap.set("range_end", { tag: 0, value: csilTsToText(v.rangeEnd) });
   csilMap.set("project_id", v.projectId);
-  csilMap.set("range_start", v.rangeStart);
+  csilMap.set("range_start", { tag: 0, value: csilTsToText(v.rangeStart) });
   return csilMap;
 }
 
 export function fromProjectDeadlineRequestCborValue(value: CborValue): ProjectDeadlineRequest {
   return {
     projectId: asString(requireKey(value, "project_id")),
-    rangeStart: asString(requireKey(value, "range_start")),
-    rangeEnd: asString(requireKey(value, "range_end")),
+    rangeStart: asTimestamp(requireKey(value, "range_start")),
+    rangeEnd: asTimestamp(requireKey(value, "range_end")),
   };
 }
 
@@ -2949,7 +2975,7 @@ export function fromProjectDeadlineRequestCbor(bytes: Uint8Array): ProjectDeadli
 export function toProjectDeadlineCborValue(v: ProjectDeadline): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   csilMap.set("title", v.title);
-  csilMap.set("due_at", v.dueAt);
+  csilMap.set("due_at", { tag: 0, value: csilTsToText(v.dueAt) });
   csilMap.set("task_id", v.taskId);
   return csilMap;
 }
@@ -2958,7 +2984,7 @@ export function fromProjectDeadlineCborValue(value: CborValue): ProjectDeadline 
   return {
     taskId: asString(requireKey(value, "task_id")),
     title: asString(requireKey(value, "title")),
-    dueAt: asString(requireKey(value, "due_at")),
+    dueAt: asTimestamp(requireKey(value, "due_at")),
   };
 }
 
@@ -3008,7 +3034,7 @@ export function toAuditEntryCborValue(v: AuditEntry): CborValue {
   csilMap.set("outcome", v.outcome);
   csilMap.set("audit_id", v.auditId);
   if (v.houseId !== undefined) csilMap.set("house_id", v.houseId);
-  csilMap.set("created_at", v.createdAt);
+  csilMap.set("created_at", { tag: 0, value: csilTsToText(v.createdAt) });
   if (v.resourceId !== undefined) csilMap.set("resource_id", v.resourceId);
   csilMap.set("actor_domain", v.actorDomain);
   csilMap.set("service_name", v.serviceName);
@@ -3034,7 +3060,7 @@ export function fromAuditEntryCborValue(value: CborValue): AuditEntry {
     before: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "before")),
     after: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "after")),
     detail: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "detail")),
-    createdAt: asString(requireKey(value, "created_at")),
+    createdAt: asTimestamp(requireKey(value, "created_at")),
   };
 }
 
@@ -3049,8 +3075,8 @@ export function fromAuditEntryCbor(bytes: Uint8Array): AuditEntry {
 export function toAuditQueryCborValue(v: AuditQuery): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   if (v.limit !== undefined) csilMap.set("limit", v.limit);
-  if (v.since !== undefined) csilMap.set("since", v.since);
-  if (v.until !== undefined) csilMap.set("until", v.until);
+  if (v.since !== undefined) csilMap.set("since", { tag: 0, value: csilTsToText(v.since) });
+  if (v.until !== undefined) csilMap.set("until", { tag: 0, value: csilTsToText(v.until) });
   if (v.action !== undefined) csilMap.set("action", v.action);
   if (v.cursor !== undefined) csilMap.set("cursor", v.cursor);
   csilMap.set("house_id", v.houseId);
@@ -3065,8 +3091,8 @@ export function fromAuditQueryCborValue(value: CborValue): AuditQuery {
     actorMemberId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "actor_member_id")),
     resourceType: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "resource_type")),
     action: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "action")),
-    since: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "since")),
-    until: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "until")),
+    since: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "since")),
+    until: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "until")),
     cursor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "cursor")),
     limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
   };
@@ -3106,7 +3132,7 @@ export function toTrashItemCborValue(v: TrashItem): CborValue {
   const csilMap = new Map<CborValue, CborValue>();
   if (v.title !== undefined) csilMap.set("title", v.title);
   csilMap.set("house_id", v.houseId);
-  csilMap.set("deleted_at", v.deletedAt);
+  csilMap.set("deleted_at", { tag: 0, value: csilTsToText(v.deletedAt) });
   csilMap.set("resource_id", v.resourceId);
   csilMap.set("deleted_op_id", v.deletedOpId);
   csilMap.set("resource_type", v.resourceType);
@@ -3120,7 +3146,7 @@ export function fromTrashItemCborValue(value: CborValue): TrashItem {
     resourceId: asString(requireKey(value, "resource_id")),
     houseId: asString(requireKey(value, "house_id")),
     title: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "title")),
-    deletedAt: asString(requireKey(value, "deleted_at")),
+    deletedAt: asTimestamp(requireKey(value, "deleted_at")),
     deletedByMemberId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "deleted_by_member_id")),
     deletedOpId: asString(requireKey(value, "deleted_op_id")),
   };
@@ -3206,3 +3232,1972 @@ export function fromPurgeRequestCbor(bytes: Uint8Array): PurgeRequest {
   return fromPurgeRequestCborValue(decode(bytes));
 }
 
+export interface RpcReply { variant: string; payload: Uint8Array }
+
+export class ServiceErrorRefusal extends Error {
+  readonly value: ServiceError;
+
+  constructor(value: ServiceError) {
+    super("ServiceError");
+    this.value = value;
+  }
+}
+
+export async function encodeAuthServiceBeginBrowserLoginReply(handler: () => Promise<BeginBrowserLoginResponse> | BeginBrowserLoginResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "BeginBrowserLoginResponse", payload: encodeValue(toBeginBrowserLoginResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceGetActAsScopeSetReply(handler: () => Promise<ActAsScopeSetResponse> | ActAsScopeSetResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "ActAsScopeSetResponse", payload: encodeValue(toActAsScopeSetResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceExchangeActAsCredentialReply(handler: () => Promise<ActAsTokenResponse> | ActAsTokenResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "ActAsTokenResponse", payload: encodeValue(toActAsTokenResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceLoginReply(handler: () => Promise<LoginResponse> | LoginResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "LoginResponse", payload: encodeValue(toLoginResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceCompleteReply(handler: () => Promise<LoginResponse> | LoginResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "LoginResponse", payload: encodeValue(toLoginResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceRefreshReply(handler: () => Promise<LoginResponse> | LoginResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "LoginResponse", payload: encodeValue(toLoginResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceLogoutReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceResumeSessionReply(handler: () => Promise<LoginResponse> | LoginResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "LoginResponse", payload: encodeValue(toLoginResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceEndSessionReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceMeReply(handler: () => Promise<MeResponse> | MeResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "MeResponse", payload: encodeValue(toMeResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceBeginCliLoginReply(handler: () => Promise<BeginCliLoginResponse> | BeginCliLoginResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "BeginCliLoginResponse", payload: encodeValue(toBeginCliLoginResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceInspectCliLoginReply(handler: () => Promise<CliLoginRequestInfo> | CliLoginRequestInfo): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CliLoginRequestInfo", payload: encodeValue(toCliLoginRequestInfoCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceApproveCliLoginReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceDenyCliLoginReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceExchangeCliLoginReply(handler: () => Promise<ExchangeCliLoginResponse> | ExchangeCliLoginResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "ExchangeCliLoginResponse", payload: encodeValue(toExchangeCliLoginResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceRefreshSessionReply(handler: () => Promise<CliTokenResponse> | CliTokenResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CliTokenResponse", payload: encodeValue(toCliTokenResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceListSessionsReply(handler: () => Promise<CliSessionsResponse> | CliSessionsResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CliSessionsResponse", payload: encodeValue(toCliSessionsResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuthServiceRevokeSessionReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeDevAuthServiceListDevUsersReply(handler: () => Promise<DevUsersResponse> | DevUsersResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "DevUsersResponse", payload: encodeValue(toDevUsersResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeDevAuthServiceDevLoginReply(handler: () => Promise<LoginResponse> | LoginResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "LoginResponse", payload: encodeValue(toLoginResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeHouseServiceCreateHouseReply(handler: () => Promise<House> | House): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "House", payload: encodeValue(toHouseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeHouseServiceGetHouseReply(handler: () => Promise<House> | House): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "House", payload: encodeValue(toHouseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeHouseServiceUpdateHouseReply(handler: () => Promise<House> | House): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "House", payload: encodeValue(toHouseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeHouseServiceDeleteHouseReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeMemberServiceCreateMemberReply(handler: () => Promise<Member> | Member): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Member", payload: encodeValue(toMemberCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeMemberServiceGetMemberReply(handler: () => Promise<Member> | Member): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Member", payload: encodeValue(toMemberCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeMemberServiceGetMemberByIdentityReply(handler: () => Promise<Member> | Member): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Member", payload: encodeValue(toMemberCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeMemberServiceUpdateMemberReply(handler: () => Promise<Member> | Member): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Member", payload: encodeValue(toMemberCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeMemberServiceDeactivateMemberReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeMemberServiceReactivateMemberReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTrustedDomainServiceAddTrustedDomainReply(handler: () => Promise<TrustedDomain> | TrustedDomain): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "TrustedDomain", payload: encodeValue(toTrustedDomainCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTrustedDomainServiceRemoveTrustedDomainReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTrustedDomainServiceIsDomainTrustedReply(handler: () => Promise<BoolResponse> | BoolResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "BoolResponse", payload: encodeValue(toBoolResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeRoleServiceCreateRoleReply(handler: () => Promise<Role> | Role): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Role", payload: encodeValue(toRoleCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeRoleServiceUpdateRoleReply(handler: () => Promise<Role> | Role): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Role", payload: encodeValue(toRoleCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeRoleServiceDeleteRoleReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeRoleServiceGrantRoleReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeRoleServiceRevokeRoleReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeSkillServiceCreateSkillReply(handler: () => Promise<Skill> | Skill): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Skill", payload: encodeValue(toSkillCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeSkillServiceUpdateSkillReply(handler: () => Promise<Skill> | Skill): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Skill", payload: encodeValue(toSkillCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeSkillServiceDeleteSkillReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeSkillServiceAddMemberSkillReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeSkillServiceRemoveMemberSkillReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeSkillServiceAddGroupSkillReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeSkillServiceRemoveGroupSkillReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeGroupServiceCreateGroupReply(handler: () => Promise<Group> | Group): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Group", payload: encodeValue(toGroupCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeGroupServiceUpdateGroupReply(handler: () => Promise<Group> | Group): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Group", payload: encodeValue(toGroupCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeGroupServiceDeleteGroupReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeGroupServiceAddGroupMemberReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeGroupServiceRemoveGroupMemberReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceCreateProjectReply(handler: () => Promise<Project> | Project): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Project", payload: encodeValue(toProjectCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceGetProjectReply(handler: () => Promise<Project> | Project): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Project", payload: encodeValue(toProjectCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceUpdateProjectReply(handler: () => Promise<Project> | Project): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Project", payload: encodeValue(toProjectCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceDeleteProjectReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceListProjectsReply(handler: () => Promise<ProjectList> | ProjectList): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "ProjectList", payload: encodeValue(toProjectListCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceListProjectTasksReply(handler: () => Promise<TaskList> | TaskList): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "TaskList", payload: encodeValue(toTaskListCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceAddProjectTaskReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceRemoveProjectTaskReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceSetProjectTaskPositionReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceAddProjectMemberReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceRemoveProjectMemberReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceAddProjectOwnerReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceRemoveProjectOwnerReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceCreateMilestoneReply(handler: () => Promise<Milestone> | Milestone): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Milestone", payload: encodeValue(toMilestoneCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceUpdateMilestoneReply(handler: () => Promise<Milestone> | Milestone): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Milestone", payload: encodeValue(toMilestoneCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceDeleteMilestoneReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceSetProjectVisibilityReply(handler: () => Promise<Project> | Project): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Project", payload: encodeValue(toProjectCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServicePutProjectGrantReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceDeleteProjectGrantReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeEventServiceCreateEventReply(handler: () => Promise<Event> | Event): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Event", payload: encodeValue(toEventCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeEventServiceGetEventReply(handler: () => Promise<Event> | Event): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Event", payload: encodeValue(toEventCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeEventServiceUpdateEventReply(handler: () => Promise<Event> | Event): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Event", payload: encodeValue(toEventCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeEventServiceDeleteEventReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeEventServiceDeleteEventAndFutureReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeEventServiceGetCalendarViewReply(handler: () => Promise<CalendarView> | CalendarView): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CalendarView", payload: encodeValue(toCalendarViewCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeEventServiceSetCalendarViewReply(handler: () => Promise<CalendarView> | CalendarView): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CalendarView", payload: encodeValue(toCalendarViewCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeEventServiceAcceptEventReply(handler: () => Promise<Event> | Event): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Event", payload: encodeValue(toEventCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeEventServiceRecoverEditReply(handler: () => Promise<Event> | Event): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Event", payload: encodeValue(toEventCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeEventServiceDeclineEventReply(handler: () => Promise<Event> | Event): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Event", payload: encodeValue(toEventCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCalendarServiceListProjectDeadlinesReply(handler: () => Promise<ProjectDeadlineList> | ProjectDeadlineList): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "ProjectDeadlineList", payload: encodeValue(toProjectDeadlineListCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCalendarServiceGetStatusReply(handler: () => Promise<CalendarStatus> | CalendarStatus): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CalendarStatus", payload: encodeValue(toCalendarStatusCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCalendarServiceConfigureCalendarReply(handler: () => Promise<CalendarStatus> | CalendarStatus): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CalendarStatus", payload: encodeValue(toCalendarStatusCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCalendarServiceBeginConnectReply(handler: () => Promise<CalendarConnectResponse> | CalendarConnectResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CalendarConnectResponse", payload: encodeValue(toCalendarConnectResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCalendarServiceCompleteConnectReply(handler: () => Promise<CalendarStatus> | CalendarStatus): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CalendarStatus", payload: encodeValue(toCalendarStatusCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCalendarServiceDisconnectReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCalendarServiceRestoreEventReply(handler: () => Promise<Event> | Event): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Event", payload: encodeValue(toEventCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTaskServiceCreateTaskReply(handler: () => Promise<Task> | Task): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Task", payload: encodeValue(toTaskCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTaskServiceGetTaskReply(handler: () => Promise<Task> | Task): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Task", payload: encodeValue(toTaskCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTaskServiceUpdateTaskReply(handler: () => Promise<Task> | Task): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Task", payload: encodeValue(toTaskCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTaskServiceDeleteTaskReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTaskServiceListTasksReply(handler: () => Promise<TaskList> | TaskList): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "TaskList", payload: encodeValue(toTaskListCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTaskServiceCreatePersonalTaskReply(handler: () => Promise<Task> | Task): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Task", payload: encodeValue(toTaskCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTaskServiceSetTaskVisibilityReply(handler: () => Promise<Task> | Task): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Task", payload: encodeValue(toTaskCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTaskServicePutTaskGrantReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTaskServiceDeleteTaskGrantReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeDependencyServiceAddDependencyReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeDependencyServiceRemoveDependencyReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeDependencyServiceGetDependenciesReply(handler: () => Promise<DependencyGraph> | DependencyGraph): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "DependencyGraph", payload: encodeValue(toDependencyGraphCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCommentServiceCreateCommentReply(handler: () => Promise<Comment> | Comment): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Comment", payload: encodeValue(toCommentCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCommentServiceGetCommentReply(handler: () => Promise<Comment> | Comment): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Comment", payload: encodeValue(toCommentCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCommentServiceUpdateCommentReply(handler: () => Promise<Comment> | Comment): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Comment", payload: encodeValue(toCommentCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCommentServiceDeleteCommentReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeNotificationServiceUnreadCountReply(handler: () => Promise<NotificationUnreadCount> | NotificationUnreadCount): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "NotificationUnreadCount", payload: encodeValue(toNotificationUnreadCountCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeNotificationServiceMarkReadReply(handler: () => Promise<Notification> | Notification): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Notification", payload: encodeValue(toNotificationCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeNotificationServiceMarkAllReadReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeShareServiceCreateShareReply(handler: () => Promise<Share> | Share): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Share", payload: encodeValue(toShareCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeShareServiceDeleteShareReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeShareServiceCheckAccessReply(handler: () => Promise<Share> | Share): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Share", payload: encodeValue(toShareCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeSettingsServiceGetSettingsReply(handler: () => Promise<EffectiveSettings> | EffectiveSettings): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EffectiveSettings", payload: encodeValue(toEffectiveSettingsCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeSettingsServiceUpdateSettingsReply(handler: () => Promise<EffectiveSettings> | EffectiveSettings): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EffectiveSettings", payload: encodeValue(toEffectiveSettingsCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeBugServiceReportBugReply(handler: () => Promise<Task> | Task): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "Task", payload: encodeValue(toTaskCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeAuditServiceQueryAuditReply(handler: () => Promise<AuditPage> | AuditPage): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "AuditPage", payload: encodeValue(toAuditPageCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTrashServiceListTrashReply(handler: () => Promise<TrashPage> | TrashPage): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "TrashPage", payload: encodeValue(toTrashPageCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTrashServiceRestoreReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTrashServicePurgeReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export function resolveRpcReply(service: string, op: string, variant: string | null | undefined, payload: Uint8Array): Uint8Array {
+  if (service === "AuthService" && op === "begin-browser-login") {
+    switch (variant) {
+      case "BeginBrowserLoginResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "get-act-as-scope-set") {
+    switch (variant) {
+      case "ActAsScopeSetResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "exchange-act-as-credential") {
+    switch (variant) {
+      case "ActAsTokenResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "login") {
+    switch (variant) {
+      case "LoginResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "complete") {
+    switch (variant) {
+      case "LoginResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "refresh") {
+    switch (variant) {
+      case "LoginResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "logout") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "resume-session") {
+    switch (variant) {
+      case "LoginResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "end-session") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "me") {
+    switch (variant) {
+      case "MeResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "begin-cli-login") {
+    switch (variant) {
+      case "BeginCliLoginResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "inspect-cli-login") {
+    switch (variant) {
+      case "CliLoginRequestInfo": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "approve-cli-login") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "deny-cli-login") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "exchange-cli-login") {
+    switch (variant) {
+      case "ExchangeCliLoginResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "refresh-session") {
+    switch (variant) {
+      case "CliTokenResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "list-sessions") {
+    switch (variant) {
+      case "CliSessionsResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuthService" && op === "revoke-session") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "DevAuthService" && op === "list-dev-users") {
+    switch (variant) {
+      case "DevUsersResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "DevAuthService" && op === "dev-login") {
+    switch (variant) {
+      case "LoginResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "HouseService" && op === "create-house") {
+    switch (variant) {
+      case "House": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "HouseService" && op === "get-house") {
+    switch (variant) {
+      case "House": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "HouseService" && op === "update-house") {
+    switch (variant) {
+      case "House": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "HouseService" && op === "delete-house") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "MemberService" && op === "create-member") {
+    switch (variant) {
+      case "Member": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "MemberService" && op === "get-member") {
+    switch (variant) {
+      case "Member": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "MemberService" && op === "get-member-by-identity") {
+    switch (variant) {
+      case "Member": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "MemberService" && op === "update-member") {
+    switch (variant) {
+      case "Member": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "MemberService" && op === "deactivate-member") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "MemberService" && op === "reactivate-member") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TrustedDomainService" && op === "add-trusted-domain") {
+    switch (variant) {
+      case "TrustedDomain": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TrustedDomainService" && op === "remove-trusted-domain") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TrustedDomainService" && op === "is-domain-trusted") {
+    switch (variant) {
+      case "BoolResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "RoleService" && op === "create-role") {
+    switch (variant) {
+      case "Role": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "RoleService" && op === "update-role") {
+    switch (variant) {
+      case "Role": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "RoleService" && op === "delete-role") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "RoleService" && op === "grant-role") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "RoleService" && op === "revoke-role") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "SkillService" && op === "create-skill") {
+    switch (variant) {
+      case "Skill": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "SkillService" && op === "update-skill") {
+    switch (variant) {
+      case "Skill": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "SkillService" && op === "delete-skill") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "SkillService" && op === "add-member-skill") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "SkillService" && op === "remove-member-skill") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "SkillService" && op === "add-group-skill") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "SkillService" && op === "remove-group-skill") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "GroupService" && op === "create-group") {
+    switch (variant) {
+      case "Group": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "GroupService" && op === "update-group") {
+    switch (variant) {
+      case "Group": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "GroupService" && op === "delete-group") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "GroupService" && op === "add-group-member") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "GroupService" && op === "remove-group-member") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "create-project") {
+    switch (variant) {
+      case "Project": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "get-project") {
+    switch (variant) {
+      case "Project": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "update-project") {
+    switch (variant) {
+      case "Project": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "delete-project") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "list-projects") {
+    switch (variant) {
+      case "ProjectList": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "list-project-tasks") {
+    switch (variant) {
+      case "TaskList": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "add-project-task") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "remove-project-task") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "set-project-task-position") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "add-project-member") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "remove-project-member") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "add-project-owner") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "remove-project-owner") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "create-milestone") {
+    switch (variant) {
+      case "Milestone": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "update-milestone") {
+    switch (variant) {
+      case "Milestone": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "delete-milestone") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "set-project-visibility") {
+    switch (variant) {
+      case "Project": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "put-project-grant") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "delete-project-grant") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "EventService" && op === "create-event") {
+    switch (variant) {
+      case "Event": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "EventService" && op === "get-event") {
+    switch (variant) {
+      case "Event": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "EventService" && op === "update-event") {
+    switch (variant) {
+      case "Event": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "EventService" && op === "delete-event") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "EventService" && op === "delete-event-and-future") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "EventService" && op === "get-calendar-view") {
+    switch (variant) {
+      case "CalendarView": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "EventService" && op === "set-calendar-view") {
+    switch (variant) {
+      case "CalendarView": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "EventService" && op === "accept-event") {
+    switch (variant) {
+      case "Event": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "EventService" && op === "recover-edit") {
+    switch (variant) {
+      case "Event": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "EventService" && op === "decline-event") {
+    switch (variant) {
+      case "Event": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CalendarService" && op === "list-project-deadlines") {
+    switch (variant) {
+      case "ProjectDeadlineList": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CalendarService" && op === "get-status") {
+    switch (variant) {
+      case "CalendarStatus": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CalendarService" && op === "configure-calendar") {
+    switch (variant) {
+      case "CalendarStatus": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CalendarService" && op === "begin-connect") {
+    switch (variant) {
+      case "CalendarConnectResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CalendarService" && op === "complete-connect") {
+    switch (variant) {
+      case "CalendarStatus": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CalendarService" && op === "disconnect") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CalendarService" && op === "restore-event") {
+    switch (variant) {
+      case "Event": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TaskService" && op === "create-task") {
+    switch (variant) {
+      case "Task": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TaskService" && op === "get-task") {
+    switch (variant) {
+      case "Task": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TaskService" && op === "update-task") {
+    switch (variant) {
+      case "Task": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TaskService" && op === "delete-task") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TaskService" && op === "list-tasks") {
+    switch (variant) {
+      case "TaskList": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TaskService" && op === "create-personal-task") {
+    switch (variant) {
+      case "Task": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TaskService" && op === "set-task-visibility") {
+    switch (variant) {
+      case "Task": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TaskService" && op === "put-task-grant") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TaskService" && op === "delete-task-grant") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "DependencyService" && op === "add-dependency") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "DependencyService" && op === "remove-dependency") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "DependencyService" && op === "get-dependencies") {
+    switch (variant) {
+      case "DependencyGraph": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CommentService" && op === "create-comment") {
+    switch (variant) {
+      case "Comment": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CommentService" && op === "get-comment") {
+    switch (variant) {
+      case "Comment": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CommentService" && op === "update-comment") {
+    switch (variant) {
+      case "Comment": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CommentService" && op === "delete-comment") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "NotificationService" && op === "unread-count") {
+    switch (variant) {
+      case "NotificationUnreadCount": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "NotificationService" && op === "mark-read") {
+    switch (variant) {
+      case "Notification": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "NotificationService" && op === "mark-all-read") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ShareService" && op === "create-share") {
+    switch (variant) {
+      case "Share": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ShareService" && op === "delete-share") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ShareService" && op === "check-access") {
+    switch (variant) {
+      case "Share": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "SettingsService" && op === "get-settings") {
+    switch (variant) {
+      case "EffectiveSettings": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "SettingsService" && op === "update-settings") {
+    switch (variant) {
+      case "EffectiveSettings": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "BugService" && op === "report-bug") {
+    switch (variant) {
+      case "Task": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "AuditService" && op === "query-audit") {
+    switch (variant) {
+      case "AuditPage": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TrashService" && op === "list-trash") {
+    switch (variant) {
+      case "TrashPage": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TrashService" && op === "restore") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TrashService" && op === "purge") {
+    switch (variant) {
+      case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  return payload;
+}

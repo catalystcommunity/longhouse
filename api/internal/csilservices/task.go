@@ -3,7 +3,6 @@ package csilservices
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
 	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
@@ -38,7 +37,7 @@ func (s *TaskService) ListTasks(ctx context.Context, req csil.TaskListRequest) (
 		return csil.TaskList{}, err
 	}
 	limit, offset := normalizePaging(req.Limit, req.Offset)
-	f := store.TaskFilter{HouseID: string(req.HouseId), DueFrom: tsToTimePtr(req.DueFrom), DueTo: tsToTimePtr(req.DueTo)}
+	f := store.TaskFilter{HouseID: string(req.HouseId), DueFrom: req.DueFrom, DueTo: req.DueTo}
 	if req.State != nil {
 		switch string(*req.State) {
 		case store.TaskStateOpen, store.TaskStateClosed:
@@ -54,13 +53,7 @@ func (s *TaskService) ListTasks(ctx context.Context, req csil.TaskListRequest) (
 	if len(req.DueBefore) > 8 {
 		return csil.TaskList{}, csilrpc.BadRequest("due_before takes at most 8 timestamps")
 	}
-	for _, ts := range req.DueBefore {
-		t := tsToTimePtr(&ts)
-		if t == nil {
-			return csil.TaskList{}, csilrpc.BadRequest("due_before has an invalid timestamp")
-		}
-		f.DueBefore = append(f.DueBefore, *t)
-	}
+	f.DueBefore = req.DueBefore
 	page, err := s.Store.ListTasks(ctx, f, limit, offset)
 	if err != nil {
 		return csil.TaskList{}, csilrpc.Internal("internal error")
@@ -204,7 +197,7 @@ func (s *TaskService) CreateTask(ctx context.Context, in csil.Task) (csil.Task, 
 		Description:   derefStr(in.Description),
 		Status:        derefTaskStatus(in.Status, "open"),
 		Tag:           in.Tag,
-		DueAt:         tsToTimePtr(in.DueAt),
+		DueAt:         in.DueAt,
 	}
 	if in.EstimateMinutes != nil {
 		v := int(*in.EstimateMinutes)
@@ -259,7 +252,7 @@ func (s *TaskService) CreateTask(ctx context.Context, in csil.Task) (csil.Task, 
 		t.RecurrenceBySetpos = &v
 	}
 	if in.NextRecurrenceAt != nil {
-		t.NextRecurrenceAt = tsToTimePtr(in.NextRecurrenceAt)
+		t.NextRecurrenceAt = in.NextRecurrenceAt
 	} else if t.RecurrenceFreq != nil && t.DueAt != nil {
 		anchor := *t.DueAt
 		t.NextRecurrenceAt = &anchor
@@ -333,7 +326,7 @@ func (s *TaskService) UpdateTask(ctx context.Context, in csil.Task) (csil.Task, 
 		v := int(*in.EstimateMinutes)
 		existing.EstimateMinutes = &v
 	}
-	existing.DueAt = tsToTimePtr(in.DueAt)
+	existing.DueAt = in.DueAt
 	// A frequency starts recurrence. Use due_at as the initial anchor when
 	// no anchor is supplied. The clear_recurrence block below removes it.
 	wasRecurring := existing.RecurrenceFreq != nil
@@ -375,7 +368,7 @@ func (s *TaskService) UpdateTask(ctx context.Context, in csil.Task) (csil.Task, 
 		}
 	}
 	if in.NextRecurrenceAt != nil {
-		existing.NextRecurrenceAt = tsToTimePtr(in.NextRecurrenceAt)
+		existing.NextRecurrenceAt = in.NextRecurrenceAt
 	}
 	if in.ClearRecurrence != nil && *in.ClearRecurrence {
 		existing.RecurrenceFreq = nil
@@ -588,15 +581,4 @@ func derefTaskStatus(p *csil.TaskStatus, fallback string) string {
 		return s
 	}
 	return fallback
-}
-
-func tsToTimePtr(p *csil.Timestamp) *time.Time {
-	if p == nil || *p == "" {
-		return nil
-	}
-	t, err := time.Parse(time.RFC3339, string(*p))
-	if err != nil {
-		return nil
-	}
-	return &t
 }

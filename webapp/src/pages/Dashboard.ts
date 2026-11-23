@@ -58,7 +58,7 @@ export const Dashboard = () => {
         from.setHours(0, 0, 0, 0);
         const to = new Date(from);
         to.setDate(to.getDate() + 1);
-        return list({ houseId: h, state: "open", mine: true, dueFrom: from.toISOString(), dueTo: to.toISOString(), limit: 1 });
+        return list({ houseId: h, state: "open", mine: true, dueFrom: from, dueTo: to, limit: 1 });
     });
     const allDueToday = () => (dueToday.state === "ready" ? Number(dueToday().total ?? dueToday().tasks.length) : 0);
     const tasksRecent = () => (recent.state === "ready" ? recent().tasks : []);
@@ -68,7 +68,7 @@ export const Dashboard = () => {
         const start = startOfRange(new Date(), "day");
         const end = new Date(start);
         end.setFullYear(end.getFullYear() + 2);
-        return loadEvents(eventClient, { houseId: h, rangeStart: start.toISOString(), rangeEnd: end.toISOString() });
+        return loadEvents(eventClient, { houseId: h, rangeStart: start, rangeEnd: end });
     });
     const [projects, { refetch: refetchProjects }] = query(() => houseId(), async (h) => (await projectClient.listProjects({ houseId: h, limit: PROJECT_LIST_LIMIT })).projects);
     // Which projects are mine (owner via created_by, explicit owner, or
@@ -134,7 +134,7 @@ export const Dashboard = () => {
         const now = Date.now();
         return (events() ?? []).filter((e) => {
             const ref = e.endsAt ?? e.startsAt;
-            return ref ? Date.parse(ref) >= now : false;
+            return ref ? ref.getTime() >= now : false;
         });
     });
     // Next event = the earliest upcoming event. Falls back to undefined when
@@ -142,8 +142,8 @@ export const Dashboard = () => {
     const nextEvent = computed(() => {
         const futures = [...upcomingEvents()];
         futures.sort((a, b) => {
-            const ka = Date.parse(a.startsAt ?? a.endsAt ?? "");
-            const kb = Date.parse(b.startsAt ?? b.endsAt ?? "");
+            const ka = (a.startsAt ?? a.endsAt)?.getTime() ?? NaN;
+            const kb = (b.startsAt ?? b.endsAt)?.getTime() ?? NaN;
             return ka - kb;
         });
         return futures[0];
@@ -1029,13 +1029,8 @@ const nextEventCopy = (n: number): string => {
         return "one event on the calendar";
     return `${n} events on the calendar`;
 };
-const relativeWhen = (iso?: string): string => {
-    if (!iso)
-        return "—";
-    const t = Date.parse(iso);
-    if (Number.isNaN(t))
-        return iso;
-    const d = new Date(t);
+const relativeWhen = (d?: Date): string => {
+    if (!d) return "—";
     const now = new Date();
     const sameDay = d.toDateString() === now.toDateString();
     if (sameDay)
@@ -1074,8 +1069,8 @@ const PersonalTaskComposer = (props: {
                 ownerMemberId: "",
                 title: t,
                 assignees: [],
-                createdAt: "",
-                updatedAt: "",
+                createdAt: new Date(0),
+                updatedAt: new Date(0),
             } as unknown as Task);
             setTitle("");
             await props.onCreated();

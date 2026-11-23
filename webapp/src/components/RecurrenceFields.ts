@@ -402,7 +402,7 @@ export function toRecurrence(freq: RecurrenceFreq, interval: number, nextAtIso: 
     const out: Record<string, unknown> = {
         recurrenceFreq: freq,
         recurrenceInterval: interval,
-        nextRecurrenceAt: firstIso || undefined,
+        nextRecurrenceAt: firstIso ? new Date(firstIso) : undefined,
     };
     if (byWeekday.length > 0) {
         out.recurrenceByWeekday = byWeekday;

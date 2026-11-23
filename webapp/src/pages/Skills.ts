@@ -269,8 +269,8 @@ const SkillForm = (props: {
                     houseId: props.houseId,
                     name: name().trim(),
                     description: description().trim() || undefined,
-                    createdAt: "",
-                    updatedAt: "",
+                    createdAt: new Date(0),
+                    updatedAt: new Date(0),
                 } as any);
             }
             await props.onSaved();

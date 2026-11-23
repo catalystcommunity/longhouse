@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "types.gen.h"
+#include "csil_timestamp.gen.h"
 
 /* ===== self-contained canonical CBOR codec (RFC 8949 subset) ===== */
 
@@ -587,6 +588,23 @@ static inline bool csilc_get_tagged_text(const csilc_value *v, uint64_t num, con
     }
     *out = (const char *)v->as.tag.content->as.bytes.ptr;
     return true;
+}
+
+static inline bool csilc_valid_date(const char *s) {
+    if (!s || strlen(s) != 10 || s[4] != '-' || s[7] != '-') return false;
+    for (int i = 0; i < 10; ++i)
+        if (i != 4 && i != 7 && (s[i] < '0' || s[i] > '9')) return false;
+    int year = (s[0]-'0')*1000 + (s[1]-'0')*100 + (s[2]-'0')*10 + (s[3]-'0');
+    int month = (s[5]-'0')*10 + (s[6]-'0');
+    int day = (s[8]-'0')*10 + (s[9]-'0');
+    const int days[] = {31, 28 + (year%4 == 0 && (year%100 != 0 || year%400 == 0)),
+                        31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    return month >= 1 && month <= 12 && day >= 1 && day <= days[month-1];
+}
+
+static inline bool csilc_get_date(const csilc_value *v, const char **out) {
+    return csilc_get_tagged_text(v, 1004, out) && v->as.tag.content->as.bytes.len == 10
+        && csilc_valid_date(*out);
 }
 
 static inline bool csilc_get_decimal(const csilc_value *v, int64_t *exp, int64_t *mant) {
@@ -1185,9 +1203,11 @@ static inline int csilc_enc_House(csilc_buf *b, const House *v) {
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_text(b, (v->updated_at), (v->updated_at) ? strlen(v->updated_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
     if (v->description) {
         if (csilc_w_text(b, "description", 11)) return -1;
         if (csilc_w_text(b, (v->description), (v->description) ? strlen(v->description) : 0)) return -1;
@@ -1205,9 +1225,11 @@ static inline int csilc_dec_House(const csilc_value *m, CsilCodecArena *a, House
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_text(csilc_f, &(out->updated_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
+    (out->updated_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "description");
     out->description = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -1241,20 +1263,24 @@ static inline int csilc_enc_Member(csilc_buf *b, const Member *v) {
         if (csilc_w_text(b, (v->avatar_url), (v->avatar_url) ? strlen(v->avatar_url) : 0)) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_text(b, (v->updated_at), (v->updated_at) ? strlen(v->updated_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
     if (v->display_name) {
         if (csilc_w_text(b, "display_name", 12)) return -1;
         if (csilc_w_text(b, (v->display_name), (v->display_name) ? strlen(v->display_name) : 0)) return -1;
     }
     if (v->last_seen_at) {
         if (csilc_w_text(b, "last_seen_at", 12)) return -1;
-        if (csilc_w_text(b, ((*v->last_seen_at)), ((*v->last_seen_at)) ? strlen((*v->last_seen_at)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->last_seen_at)).rfc3339, ((*v->last_seen_at)).rfc3339 ? strlen(((*v->last_seen_at)).rfc3339) : 0)) return -1;
     }
     if (v->deactivated_at) {
         if (csilc_w_text(b, "deactivated_at", 14)) return -1;
-        if (csilc_w_text(b, ((*v->deactivated_at)), ((*v->deactivated_at)) ? strlen((*v->deactivated_at)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->deactivated_at)).rfc3339, ((*v->deactivated_at)).rfc3339 ? strlen(((*v->deactivated_at)).rfc3339) : 0)) return -1;
     }
     if (csilc_w_text(b, "linkkeys_domain", 15)) return -1;
     if (csilc_w_text(b, (v->linkkeys_domain), (v->linkkeys_domain) ? strlen(v->linkkeys_domain) : 0)) return -1;
@@ -1283,25 +1309,29 @@ static inline int csilc_dec_Member(const csilc_value *m, CsilCodecArena *a, Memb
     csilc_f = csilc_map_get(m, "avatar_url");
     out->avatar_url = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_text(csilc_f, &(out->updated_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
+    (out->updated_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "display_name");
     out->display_name = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "last_seen_at");
     out->last_seen_at = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->last_seen_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "deactivated_at");
     out->deactivated_at = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->deactivated_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "linkkeys_domain");
@@ -1328,7 +1358,8 @@ static inline int csilc_enc_TrustedDomain(csilc_buf *b, const TrustedDomain *v) 
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "trusted_domain_id", 17)) return -1;
     if (csilc_w_text(b, (v->trusted_domain_id), (v->trusted_domain_id) ? strlen(v->trusted_domain_id) : 0)) return -1;
     return 0;
@@ -1344,7 +1375,8 @@ static inline int csilc_dec_TrustedDomain(const csilc_value *m, CsilCodecArena *
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "trusted_domain_id");
     if (!csilc_get_text(csilc_f, &(out->trusted_domain_id))) return -1;
     return 0;
@@ -1362,9 +1394,11 @@ static inline int csilc_enc_Role(csilc_buf *b, const Role *v) {
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_text(b, (v->updated_at), (v->updated_at) ? strlen(v->updated_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
     if (v->description) {
         if (csilc_w_text(b, "description", 11)) return -1;
         if (csilc_w_text(b, (v->description), (v->description) ? strlen(v->description) : 0)) return -1;
@@ -1384,9 +1418,11 @@ static inline int csilc_dec_Role(const csilc_value *m, CsilCodecArena *a, Role *
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_text(csilc_f, &(out->updated_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
+    (out->updated_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "description");
     out->description = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -1401,7 +1437,8 @@ static inline int csilc_enc_MemberRole(csilc_buf *b, const MemberRole *v) {
     if (csilc_w_text(b, "member_id", 9)) return -1;
     if (csilc_w_text(b, (v->member_id), (v->member_id) ? strlen(v->member_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     return 0;
 }
 
@@ -1415,7 +1452,8 @@ static inline int csilc_dec_MemberRole(const csilc_value *m, CsilCodecArena *a, 
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     return 0;
 }
 
@@ -1442,7 +1480,8 @@ static inline int csilc_enc_MemberAudit(csilc_buf *b, const MemberAudit *v) {
         if (csilc_w_text(b, (v->target_id), (v->target_id) ? strlen(v->target_id) : 0)) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (v->target_type) {
         if (csilc_w_text(b, "target_type", 11)) return -1;
         if (csilc_w_text(b, (v->target_type), (v->target_type) ? strlen(v->target_type) : 0)) return -1;
@@ -1472,7 +1511,8 @@ static inline int csilc_dec_MemberAudit(const csilc_value *m, CsilCodecArena *a,
     csilc_f = csilc_map_get(m, "target_id");
     out->target_id = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "target_type");
     out->target_type = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "actor_member_id");
@@ -1500,9 +1540,11 @@ static inline int csilc_enc_Skill(csilc_buf *b, const Skill *v) {
     if (csilc_w_text(b, "skill_id", 8)) return -1;
     if (csilc_w_text(b, (v->skill_id), (v->skill_id) ? strlen(v->skill_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_text(b, (v->updated_at), (v->updated_at) ? strlen(v->updated_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
     if (v->description) {
         if (csilc_w_text(b, "description", 11)) return -1;
         if (csilc_w_text(b, (v->description), (v->description) ? strlen(v->description) : 0)) return -1;
@@ -1522,9 +1564,11 @@ static inline int csilc_dec_Skill(const csilc_value *m, CsilCodecArena *a, Skill
     csilc_f = csilc_map_get(m, "skill_id");
     if (!csilc_get_text(csilc_f, &(out->skill_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_text(csilc_f, &(out->updated_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
+    (out->updated_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "description");
     out->description = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -1539,7 +1583,8 @@ static inline int csilc_enc_MemberSkill(csilc_buf *b, const MemberSkill *v) {
     if (csilc_w_text(b, "member_id", 9)) return -1;
     if (csilc_w_text(b, (v->member_id), (v->member_id) ? strlen(v->member_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     return 0;
 }
 
@@ -1553,7 +1598,8 @@ static inline int csilc_dec_MemberSkill(const csilc_value *m, CsilCodecArena *a,
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     return 0;
 }
 
@@ -1566,7 +1612,8 @@ static inline int csilc_enc_GroupSkill(csilc_buf *b, const GroupSkill *v) {
     if (csilc_w_text(b, "skill_id", 8)) return -1;
     if (csilc_w_text(b, (v->skill_id), (v->skill_id) ? strlen(v->skill_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     return 0;
 }
 
@@ -1580,7 +1627,8 @@ static inline int csilc_dec_GroupSkill(const csilc_value *m, CsilCodecArena *a, 
     csilc_f = csilc_map_get(m, "skill_id");
     if (!csilc_get_text(csilc_f, &(out->skill_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     return 0;
 }
 
@@ -1596,9 +1644,11 @@ static inline int csilc_enc_Group(csilc_buf *b, const Group *v) {
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_text(b, (v->updated_at), (v->updated_at) ? strlen(v->updated_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
     if (v->description) {
         if (csilc_w_text(b, "description", 11)) return -1;
         if (csilc_w_text(b, (v->description), (v->description) ? strlen(v->description) : 0)) return -1;
@@ -1618,9 +1668,11 @@ static inline int csilc_dec_Group(const csilc_value *m, CsilCodecArena *a, Group
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_text(csilc_f, &(out->updated_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
+    (out->updated_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "description");
     out->description = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -1635,7 +1687,8 @@ static inline int csilc_enc_GroupMember(csilc_buf *b, const GroupMember *v) {
     if (csilc_w_text(b, "member_id", 9)) return -1;
     if (csilc_w_text(b, (v->member_id), (v->member_id) ? strlen(v->member_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     return 0;
 }
 
@@ -1649,7 +1702,8 @@ static inline int csilc_dec_GroupMember(const csilc_value *m, CsilCodecArena *a,
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     return 0;
 }
 
@@ -1680,11 +1734,13 @@ static inline int csilc_enc_Project(csilc_buf *b, const Project *v) {
         if (csilc_w_bool(b, ((*v->personal)))) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_text(b, (v->updated_at), (v->updated_at) ? strlen(v->updated_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
     if (v->visibility) {
         if (csilc_w_text(b, "visibility", 10)) return -1;
         if (csilc_enc_AccessLevel(b, &((*v->visibility)))) return -1;
@@ -1728,11 +1784,13 @@ static inline int csilc_dec_Project(const csilc_value *m, CsilCodecArena *a, Pro
         out->personal = csilc_p;
     }
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_text(csilc_f, &(out->updated_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
+    (out->updated_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "visibility");
     out->visibility = NULL;
     if (csilc_f) {
@@ -1763,7 +1821,8 @@ static inline int csilc_enc_ProjectTask(csilc_buf *b, const ProjectTask *v) {
     if (csilc_w_text(b, "position", 8)) return -1;
     if (csilc_w_int(b, (int64_t)(v->position))) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     return 0;
@@ -1779,7 +1838,8 @@ static inline int csilc_dec_ProjectTask(const csilc_value *m, CsilCodecArena *a,
     csilc_f = csilc_map_get(m, "position");
     if (!csilc_as_i64(csilc_f, &(out->position))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     return 0;
@@ -1792,7 +1852,8 @@ static inline int csilc_enc_ProjectMember(csilc_buf *b, const ProjectMember *v) 
     if (csilc_w_text(b, "member_id", 9)) return -1;
     if (csilc_w_text(b, (v->member_id), (v->member_id) ? strlen(v->member_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     return 0;
@@ -1806,7 +1867,8 @@ static inline int csilc_dec_ProjectMember(const csilc_value *m, CsilCodecArena *
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     return 0;
@@ -1819,7 +1881,8 @@ static inline int csilc_enc_ProjectOwner(csilc_buf *b, const ProjectOwner *v) {
     if (csilc_w_text(b, "member_id", 9)) return -1;
     if (csilc_w_text(b, (v->member_id), (v->member_id) ? strlen(v->member_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     return 0;
@@ -1833,7 +1896,8 @@ static inline int csilc_dec_ProjectOwner(const csilc_value *m, CsilCodecArena *a
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     return 0;
@@ -1850,11 +1914,13 @@ static inline int csilc_enc_Milestone(csilc_buf *b, const Milestone *v) {
     if (csilc_w_text(b, "position", 8)) return -1;
     if (csilc_w_int(b, (int64_t)(v->position))) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_text(b, (v->updated_at), (v->updated_at) ? strlen(v->updated_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "when_label", 10)) return -1;
     if (csilc_w_text(b, (v->when_label), (v->when_label) ? strlen(v->when_label) : 0)) return -1;
     if (csilc_w_text(b, "milestone_id", 12)) return -1;
@@ -1874,11 +1940,13 @@ static inline int csilc_dec_Milestone(const csilc_value *m, CsilCodecArena *a, M
     csilc_f = csilc_map_get(m, "position");
     if (!csilc_as_i64(csilc_f, &(out->position))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_text(csilc_f, &(out->updated_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
+    (out->updated_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "when_label");
     if (!csilc_get_text(csilc_f, &(out->when_label))) return -1;
     csilc_f = csilc_map_get(m, "milestone_id");
@@ -1919,7 +1987,8 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
     }
     if (v->ends_at) {
         if (csilc_w_text(b, "ends_at", 7)) return -1;
-        if (csilc_w_text(b, ((*v->ends_at)), ((*v->ends_at)) ? strlen((*v->ends_at)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->ends_at)).rfc3339, ((*v->ends_at)).rfc3339 ? strlen(((*v->ends_at)).rfc3339) : 0)) return -1;
     }
     if (csilc_w_text(b, "event_id", 8)) return -1;
     if (csilc_w_text(b, (v->event_id), (v->event_id) ? strlen(v->event_id) : 0)) return -1;
@@ -1939,16 +2008,19 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
     }
     if (v->starts_at) {
         if (csilc_w_text(b, "starts_at", 9)) return -1;
-        if (csilc_w_text(b, ((*v->starts_at)), ((*v->starts_at)) ? strlen((*v->starts_at)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->starts_at)).rfc3339, ((*v->starts_at)).rfc3339 ? strlen(((*v->starts_at)).rfc3339) : 0)) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (v->edit_scope) {
         if (csilc_w_text(b, "edit_scope", 10)) return -1;
         if (csilc_w_text(b, (v->edit_scope), (v->edit_scope) ? strlen(v->edit_scope) : 0)) return -1;
     }
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_text(b, (v->updated_at), (v->updated_at) ? strlen(v->updated_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
     if (v->description) {
         if (csilc_w_text(b, "description", 11)) return -1;
         if (csilc_w_text(b, (v->description), (v->description) ? strlen(v->description) : 0)) return -1;
@@ -1981,7 +2053,8 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
     }
     if (v->next_recurrence_at) {
         if (csilc_w_text(b, "next_recurrence_at", 18)) return -1;
-        if (csilc_w_text(b, ((*v->next_recurrence_at)), ((*v->next_recurrence_at)) ? strlen((*v->next_recurrence_at)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->next_recurrence_at)).rfc3339, ((*v->next_recurrence_at)).rfc3339 ? strlen(((*v->next_recurrence_at)).rfc3339) : 0)) return -1;
     }
     if (v->recurrence_interval) {
         if (csilc_w_text(b, "recurrence_interval", 19)) return -1;
@@ -2031,9 +2104,10 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
     csilc_f = csilc_map_get(m, "ends_at");
     out->ends_at = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->ends_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "event_id");
@@ -2055,17 +2129,20 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
     csilc_f = csilc_map_get(m, "starts_at");
     out->starts_at = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->starts_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "edit_scope");
     out->edit_scope = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_text(csilc_f, &(out->updated_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
+    (out->updated_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "description");
     out->description = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "calendar_state");
@@ -2103,9 +2180,10 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
     csilc_f = csilc_map_get(m, "next_recurrence_at");
     out->next_recurrence_at = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->next_recurrence_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "recurrence_interval");
@@ -2191,7 +2269,8 @@ static inline int csilc_enc_Task(csilc_buf *b, const Task *v) {
     if (csilc_w_text(b, (v->title), (v->title) ? strlen(v->title) : 0)) return -1;
     if (v->due_at) {
         if (csilc_w_text(b, "due_at", 6)) return -1;
-        if (csilc_w_text(b, ((*v->due_at)), ((*v->due_at)) ? strlen((*v->due_at)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->due_at)).rfc3339, ((*v->due_at)).rfc3339 ? strlen(((*v->due_at)).rfc3339) : 0)) return -1;
     }
     if (v->status) {
         if (csilc_w_text(b, "status", 6)) return -1;
@@ -2209,13 +2288,16 @@ static inline int csilc_enc_Task(csilc_buf *b, const Task *v) {
         }
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (v->deleted_at) {
         if (csilc_w_text(b, "deleted_at", 10)) return -1;
-        if (csilc_w_text(b, ((*v->deleted_at)), ((*v->deleted_at)) ? strlen((*v->deleted_at)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->deleted_at)).rfc3339, ((*v->deleted_at)).rfc3339 ? strlen(((*v->deleted_at)).rfc3339) : 0)) return -1;
     }
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_text(b, (v->updated_at), (v->updated_at) ? strlen(v->updated_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
     if (v->visibility) {
         if (csilc_w_text(b, "visibility", 10)) return -1;
         if (csilc_enc_AccessLevel(b, &((*v->visibility)))) return -1;
@@ -2244,7 +2326,8 @@ static inline int csilc_enc_Task(csilc_buf *b, const Task *v) {
     }
     if (v->next_recurrence_at) {
         if (csilc_w_text(b, "next_recurrence_at", 18)) return -1;
-        if (csilc_w_text(b, ((*v->next_recurrence_at)), ((*v->next_recurrence_at)) ? strlen((*v->next_recurrence_at)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->next_recurrence_at)).rfc3339, ((*v->next_recurrence_at)).rfc3339 ? strlen(((*v->next_recurrence_at)).rfc3339) : 0)) return -1;
     }
     if (v->recurrence_interval) {
         if (csilc_w_text(b, "recurrence_interval", 19)) return -1;
@@ -2284,9 +2367,10 @@ static inline int csilc_dec_Task(const csilc_value *m, CsilCodecArena *a, Task *
     csilc_f = csilc_map_get(m, "due_at");
     out->due_at = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->due_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "status");
@@ -2313,17 +2397,20 @@ static inline int csilc_dec_Task(const csilc_value *m, CsilCodecArena *a, Task *
         }
     }
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "deleted_at");
     out->deleted_at = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->deleted_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_text(csilc_f, &(out->updated_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
+    (out->updated_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "visibility");
     out->visibility = NULL;
     if (csilc_f) {
@@ -2371,9 +2458,10 @@ static inline int csilc_dec_Task(const csilc_value *m, CsilCodecArena *a, Task *
     csilc_f = csilc_map_get(m, "next_recurrence_at");
     out->next_recurrence_at = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->next_recurrence_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "recurrence_interval");
@@ -2437,9 +2525,11 @@ static inline int csilc_enc_Comment(csilc_buf *b, const Comment *v) {
     if (csilc_w_text(b, "comment_id", 10)) return -1;
     if (csilc_w_text(b, (v->comment_id), (v->comment_id) ? strlen(v->comment_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_text(b, (v->updated_at), (v->updated_at) ? strlen(v->updated_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "target_type", 11)) return -1;
     if (csilc_enc_TargetType(b, &(v->target_type))) return -1;
     return 0;
@@ -2461,9 +2551,11 @@ static inline int csilc_dec_Comment(const csilc_value *m, CsilCodecArena *a, Com
     csilc_f = csilc_map_get(m, "comment_id");
     if (!csilc_get_text(csilc_f, &(out->comment_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_text(csilc_f, &(out->updated_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
+    (out->updated_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "target_type");
     if (csilc_dec_TargetType(csilc_f, a, &(out->target_type))) return -1;
     return 0;
@@ -2482,10 +2574,12 @@ static inline int csilc_enc_Share(csilc_buf *b, const Share *v) {
     if (csilc_w_text(b, "shared_by", 9)) return -1;
     if (csilc_w_text(b, (v->shared_by), (v->shared_by) ? strlen(v->shared_by) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (v->expires_at) {
         if (csilc_w_text(b, "expires_at", 10)) return -1;
-        if (csilc_w_text(b, ((*v->expires_at)), ((*v->expires_at)) ? strlen((*v->expires_at)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->expires_at)).rfc3339, ((*v->expires_at)).rfc3339 ? strlen(((*v->expires_at)).rfc3339) : 0)) return -1;
     }
     if (csilc_w_text(b, "resource_id", 11)) return -1;
     if (csilc_w_text(b, (v->resource_id), (v->resource_id) ? strlen(v->resource_id) : 0)) return -1;
@@ -2514,13 +2608,15 @@ static inline int csilc_dec_Share(const csilc_value *m, CsilCodecArena *a, Share
     csilc_f = csilc_map_get(m, "shared_by");
     if (!csilc_get_text(csilc_f, &(out->shared_by))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "expires_at");
     out->expires_at = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->expires_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "resource_id");
@@ -2825,7 +2921,8 @@ static inline int csilc_enc_LoginResponse(csilc_buf *b, const LoginResponse *v) 
     if (csilc_w_text(b, "user_id", 7)) return -1;
     if (csilc_w_text(b, (v->user_id), (v->user_id) ? strlen(v->user_id) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
     if (v->display_name) {
         if (csilc_w_text(b, "display_name", 12)) return -1;
         if (csilc_w_text(b, (v->display_name), (v->display_name) ? strlen(v->display_name) : 0)) return -1;
@@ -2845,7 +2942,8 @@ static inline int csilc_dec_LoginResponse(const csilc_value *m, CsilCodecArena *
     csilc_f = csilc_map_get(m, "user_id");
     if (!csilc_get_text(csilc_f, &(out->user_id))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
+    (out->expires_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "display_name");
     out->display_name = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -2863,7 +2961,8 @@ static inline int csilc_enc_CliTokenResponse(csilc_buf *b, const CliTokenRespons
     if (csilc_w_text(b, "user_id", 7)) return -1;
     if (csilc_w_text(b, (v->user_id), (v->user_id) ? strlen(v->user_id) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "session_id", 10)) return -1;
     if (csilc_w_text(b, (v->session_id), (v->session_id) ? strlen(v->session_id) : 0)) return -1;
     if (v->display_name) {
@@ -2873,7 +2972,8 @@ static inline int csilc_enc_CliTokenResponse(csilc_buf *b, const CliTokenRespons
     if (csilc_w_text(b, "refresh_token", 13)) return -1;
     if (csilc_w_text(b, (v->refresh_token), (v->refresh_token) ? strlen(v->refresh_token) : 0)) return -1;
     if (csilc_w_text(b, "refresh_expires_at", 18)) return -1;
-    if (csilc_w_text(b, (v->refresh_expires_at), (v->refresh_expires_at) ? strlen(v->refresh_expires_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->refresh_expires_at).rfc3339, (v->refresh_expires_at).rfc3339 ? strlen((v->refresh_expires_at).rfc3339) : 0)) return -1;
     return 0;
 }
 
@@ -2889,7 +2989,8 @@ static inline int csilc_dec_CliTokenResponse(const csilc_value *m, CsilCodecAren
     csilc_f = csilc_map_get(m, "user_id");
     if (!csilc_get_text(csilc_f, &(out->user_id))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
+    (out->expires_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "session_id");
     if (!csilc_get_text(csilc_f, &(out->session_id))) return -1;
     csilc_f = csilc_map_get(m, "display_name");
@@ -2897,7 +2998,8 @@ static inline int csilc_dec_CliTokenResponse(const csilc_value *m, CsilCodecAren
     csilc_f = csilc_map_get(m, "refresh_token");
     if (!csilc_get_text(csilc_f, &(out->refresh_token))) return -1;
     csilc_f = csilc_map_get(m, "refresh_expires_at");
-    if (!csilc_get_text(csilc_f, &(out->refresh_expires_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->refresh_expires_at).rfc3339)) return -1;
+    (out->refresh_expires_at).epoch_seconds = 0;
     return 0;
 }
 
@@ -2927,7 +3029,8 @@ static inline int csilc_enc_BeginCliLoginResponse(csilc_buf *b, const BeginCliLo
     if (csilc_w_text(b, "user_code", 9)) return -1;
     if (csilc_w_text(b, (v->user_code), (v->user_code) ? strlen(v->user_code) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "device_code", 11)) return -1;
     if (csilc_w_text(b, (v->device_code), (v->device_code) ? strlen(v->device_code) : 0)) return -1;
     if (csilc_w_text(b, "interval_seconds", 16)) return -1;
@@ -2945,7 +3048,8 @@ static inline int csilc_dec_BeginCliLoginResponse(const csilc_value *m, CsilCode
     csilc_f = csilc_map_get(m, "user_code");
     if (!csilc_get_text(csilc_f, &(out->user_code))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
+    (out->expires_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "device_code");
     if (!csilc_get_text(csilc_f, &(out->device_code))) return -1;
     csilc_f = csilc_map_get(m, "interval_seconds");
@@ -2981,7 +3085,8 @@ static inline int csilc_enc_CliLoginRequestInfo(csilc_buf *b, const CliLoginRequ
     if (csilc_w_text(b, "user_code", 9)) return -1;
     if (csilc_w_text(b, (v->user_code), (v->user_code) ? strlen(v->user_code) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "client_name", 11)) return -1;
     if (csilc_w_text(b, (v->client_name), (v->client_name) ? strlen(v->client_name) : 0)) return -1;
     return 0;
@@ -2995,7 +3100,8 @@ static inline int csilc_dec_CliLoginRequestInfo(const csilc_value *m, CsilCodecA
     csilc_f = csilc_map_get(m, "user_code");
     if (!csilc_get_text(csilc_f, &(out->user_code))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
+    (out->expires_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "client_name");
     if (!csilc_get_text(csilc_f, &(out->client_name))) return -1;
     return 0;
@@ -3106,19 +3212,23 @@ static inline int csilc_enc_CliSessionSummary(csilc_buf *b, const CliSessionSumm
         if (csilc_w_bool(b, ((*v->current)))) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
     if (v->revoked_at) {
         if (csilc_w_text(b, "revoked_at", 10)) return -1;
-        if (csilc_w_text(b, ((*v->revoked_at)), ((*v->revoked_at)) ? strlen((*v->revoked_at)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->revoked_at)).rfc3339, ((*v->revoked_at)).rfc3339 ? strlen(((*v->revoked_at)).rfc3339) : 0)) return -1;
     }
     if (csilc_w_text(b, "session_id", 10)) return -1;
     if (csilc_w_text(b, (v->session_id), (v->session_id) ? strlen(v->session_id) : 0)) return -1;
     if (csilc_w_text(b, "client_name", 11)) return -1;
     if (csilc_w_text(b, (v->client_name), (v->client_name) ? strlen(v->client_name) : 0)) return -1;
     if (csilc_w_text(b, "last_used_at", 12)) return -1;
-    if (csilc_w_text(b, (v->last_used_at), (v->last_used_at) ? strlen(v->last_used_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->last_used_at).rfc3339, (v->last_used_at).rfc3339 ? strlen((v->last_used_at).rfc3339) : 0)) return -1;
     return 0;
 }
 
@@ -3144,15 +3254,18 @@ static inline int csilc_dec_CliSessionSummary(const csilc_value *m, CsilCodecAre
         out->current = csilc_p;
     }
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
+    (out->expires_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "revoked_at");
     out->revoked_at = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->revoked_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "session_id");
@@ -3160,7 +3273,8 @@ static inline int csilc_dec_CliSessionSummary(const csilc_value *m, CsilCodecAre
     csilc_f = csilc_map_get(m, "client_name");
     if (!csilc_get_text(csilc_f, &(out->client_name))) return -1;
     csilc_f = csilc_map_get(m, "last_used_at");
-    if (!csilc_get_text(csilc_f, &(out->last_used_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->last_used_at).rfc3339)) return -1;
+    (out->last_used_at).epoch_seconds = 0;
     return 0;
 }
 
@@ -3343,7 +3457,8 @@ static inline int csilc_enc_MeResponse(csilc_buf *b, const MeResponse *v) {
     if (csilc_w_text(b, "user_id", 7)) return -1;
     if (csilc_w_text(b, (v->user_id), (v->user_id) ? strlen(v->user_id) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
     if (v->display_name) {
         if (csilc_w_text(b, "display_name", 12)) return -1;
         if (csilc_w_text(b, (v->display_name), (v->display_name) ? strlen(v->display_name) : 0)) return -1;
@@ -3372,7 +3487,8 @@ static inline int csilc_dec_MeResponse(const csilc_value *m, CsilCodecArena *a, 
     csilc_f = csilc_map_get(m, "user_id");
     if (!csilc_get_text(csilc_f, &(out->user_id))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
+    (out->expires_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "display_name");
     out->display_name = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -3535,11 +3651,13 @@ static inline int csilc_enc_EventListRequest(csilc_buf *b, const EventListReques
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (v->range_end) {
         if (csilc_w_text(b, "range_end", 9)) return -1;
-        if (csilc_w_text(b, ((*v->range_end)), ((*v->range_end)) ? strlen((*v->range_end)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->range_end)).rfc3339, ((*v->range_end)).rfc3339 ? strlen(((*v->range_end)).rfc3339) : 0)) return -1;
     }
     if (v->range_start) {
         if (csilc_w_text(b, "range_start", 11)) return -1;
-        if (csilc_w_text(b, ((*v->range_start)), ((*v->range_start)) ? strlen((*v->range_start)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->range_start)).rfc3339, ((*v->range_start)).rfc3339 ? strlen(((*v->range_start)).rfc3339) : 0)) return -1;
     }
     return 0;
 }
@@ -3570,17 +3688,19 @@ static inline int csilc_dec_EventListRequest(const csilc_value *m, CsilCodecAren
     csilc_f = csilc_map_get(m, "range_end");
     out->range_end = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->range_end = csilc_p;
     }
     csilc_f = csilc_map_get(m, "range_start");
     out->range_start = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->range_start = csilc_p;
     }
     return 0;
@@ -3616,7 +3736,8 @@ static inline int csilc_enc_TaskListRequest(csilc_buf *b, const TaskListRequest 
     }
     if (v->due_to) {
         if (csilc_w_text(b, "due_to", 6)) return -1;
-        if (csilc_w_text(b, ((*v->due_to)), ((*v->due_to)) ? strlen((*v->due_to)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->due_to)).rfc3339, ((*v->due_to)).rfc3339 ? strlen(((*v->due_to)).rfc3339) : 0)) return -1;
     }
     if (v->offset) {
         if (csilc_w_text(b, "offset", 6)) return -1;
@@ -3624,7 +3745,8 @@ static inline int csilc_enc_TaskListRequest(csilc_buf *b, const TaskListRequest 
     }
     if (v->due_from) {
         if (csilc_w_text(b, "due_from", 8)) return -1;
-        if (csilc_w_text(b, ((*v->due_from)), ((*v->due_from)) ? strlen((*v->due_from)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->due_from)).rfc3339, ((*v->due_from)).rfc3339 ? strlen(((*v->due_from)).rfc3339) : 0)) return -1;
     }
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
@@ -3632,7 +3754,8 @@ static inline int csilc_enc_TaskListRequest(csilc_buf *b, const TaskListRequest 
         if (csilc_w_text(b, "due_before", 10)) return -1;
         if (csilc_w_array_head(b, v->due_before_count)) return -1;
         for (size_t csilc_i = 0; csilc_i < v->due_before_count; csilc_i++) {
-            if (csilc_w_text(b, (v->due_before[csilc_i]), (v->due_before[csilc_i]) ? strlen(v->due_before[csilc_i]) : 0)) return -1;
+            if (csilc_w_tag(b, 0)) return -1;
+            if (csilc_w_text(b, (v->due_before[csilc_i]).rfc3339, (v->due_before[csilc_i]).rfc3339 ? strlen((v->due_before[csilc_i]).rfc3339) : 0)) return -1;
         }
     }
     return 0;
@@ -3678,9 +3801,10 @@ static inline int csilc_dec_TaskListRequest(const csilc_value *m, CsilCodecArena
     csilc_f = csilc_map_get(m, "due_to");
     out->due_to = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->due_to = csilc_p;
     }
     csilc_f = csilc_map_get(m, "offset");
@@ -3694,9 +3818,10 @@ static inline int csilc_dec_TaskListRequest(const csilc_value *m, CsilCodecArena
     csilc_f = csilc_map_get(m, "due_from");
     out->due_from = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->due_from = csilc_p;
     }
     csilc_f = csilc_map_get(m, "house_id");
@@ -3706,10 +3831,11 @@ static inline int csilc_dec_TaskListRequest(const csilc_value *m, CsilCodecArena
     out->due_before_count = csilc_f->as.array.count;
     out->due_before = NULL;
     if (out->due_before_count) {
-        out->due_before = (Timestamp *)csilc_arena_alloc(a, out->due_before_count * sizeof(Timestamp));
+        out->due_before = (CsilTimestamp *)csilc_arena_alloc(a, out->due_before_count * sizeof(CsilTimestamp));
         if (!out->due_before) return -1;
         for (size_t csilc_i = 0; csilc_i < out->due_before_count; csilc_i++) {
-            if (!csilc_get_text(&csilc_f->as.array.items[csilc_i], &(out->due_before[csilc_i]))) return -1;
+            if (!csilc_get_tagged_text(&csilc_f->as.array.items[csilc_i], 0, &(out->due_before[csilc_i]).rfc3339)) return -1;
+            (out->due_before[csilc_i]).epoch_seconds = 0;
         }
     }
     return 0;
@@ -3993,7 +4119,8 @@ static inline int csilc_enc_Notification(csilc_buf *b, const Notification *v) {
     if (csilc_w_bool(b, (v->read))) return -1;
     if (v->read_at) {
         if (csilc_w_text(b, "read_at", 7)) return -1;
-        if (csilc_w_text(b, ((*v->read_at)), ((*v->read_at)) ? strlen((*v->read_at)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->read_at)).rfc3339, ((*v->read_at)).rfc3339 ? strlen(((*v->read_at)).rfc3339) : 0)) return -1;
     }
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
@@ -4006,7 +4133,8 @@ static inline int csilc_enc_Notification(csilc_buf *b, const Notification *v) {
     if (csilc_w_text(b, "actor_name", 10)) return -1;
     if (csilc_w_text(b, (v->actor_name), (v->actor_name) ? strlen(v->actor_name) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (v->target_type) {
         if (csilc_w_text(b, "target_type", 11)) return -1;
         if (csilc_w_text(b, (v->target_type), (v->target_type) ? strlen(v->target_type) : 0)) return -1;
@@ -4036,9 +4164,10 @@ static inline int csilc_dec_Notification(const csilc_value *m, CsilCodecArena *a
     csilc_f = csilc_map_get(m, "read_at");
     out->read_at = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->read_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "house_id");
@@ -4050,7 +4179,8 @@ static inline int csilc_dec_Notification(const csilc_value *m, CsilCodecArena *a
     csilc_f = csilc_map_get(m, "actor_name");
     if (!csilc_get_text(csilc_f, &(out->actor_name))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "target_type");
     out->target_type = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "target_title");
@@ -4971,7 +5101,8 @@ static inline int csilc_enc_ActAsTokenResponse(csilc_buf *b, const ActAsTokenRes
     if (csilc_w_text(b, "grant_id", 8)) return -1;
     if (csilc_w_text(b, (v->grant_id), (v->grant_id) ? strlen(v->grant_id) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
     return 0;
 }
 
@@ -5002,7 +5133,8 @@ static inline int csilc_dec_ActAsTokenResponse(const csilc_value *m, CsilCodecAr
     csilc_f = csilc_map_get(m, "grant_id");
     if (!csilc_get_text(csilc_f, &(out->grant_id))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
+    (out->expires_at).epoch_seconds = 0;
     return 0;
 }
 
@@ -5116,7 +5248,8 @@ static inline int csilc_enc_CalendarStatus(csilc_buf *b, const CalendarStatus *v
     }
     if (v->sync_pending_since) {
         if (csilc_w_text(b, "sync_pending_since", 18)) return -1;
-        if (csilc_w_text(b, ((*v->sync_pending_since)), ((*v->sync_pending_since)) ? strlen((*v->sync_pending_since)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->sync_pending_since)).rfc3339, ((*v->sync_pending_since)).rfc3339 ? strlen(((*v->sync_pending_since)).rfc3339) : 0)) return -1;
     }
     return 0;
 }
@@ -5141,9 +5274,10 @@ static inline int csilc_dec_CalendarStatus(const csilc_value *m, CsilCodecArena 
     csilc_f = csilc_map_get(m, "sync_pending_since");
     out->sync_pending_since = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->sync_pending_since = csilc_p;
     }
     return 0;
@@ -5227,9 +5361,11 @@ static inline int csilc_enc_CalendarTrashEntry(csilc_buf *b, const CalendarTrash
     if (csilc_w_text(b, "trash_id", 8)) return -1;
     if (csilc_w_text(b, (v->trash_id), (v->trash_id) ? strlen(v->trash_id) : 0)) return -1;
     if (csilc_w_text(b, "deleted_at", 10)) return -1;
-    if (csilc_w_text(b, (v->deleted_at), (v->deleted_at) ? strlen(v->deleted_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->deleted_at).rfc3339, (v->deleted_at).rfc3339 ? strlen((v->deleted_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_text(b, (v->expires_at), (v->expires_at) ? strlen(v->expires_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
     return 0;
 }
 
@@ -5243,9 +5379,11 @@ static inline int csilc_dec_CalendarTrashEntry(const csilc_value *m, CsilCodecAr
     csilc_f = csilc_map_get(m, "trash_id");
     if (!csilc_get_text(csilc_f, &(out->trash_id))) return -1;
     csilc_f = csilc_map_get(m, "deleted_at");
-    if (!csilc_get_text(csilc_f, &(out->deleted_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->deleted_at).rfc3339)) return -1;
+    (out->deleted_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_text(csilc_f, &(out->expires_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
+    (out->expires_at).epoch_seconds = 0;
     return 0;
 }
 
@@ -5308,11 +5446,13 @@ static inline int csilc_enc_ProjectDeadlineRequest(csilc_buf *b, const ProjectDe
     size_t csilc_n = 3;
     if (csilc_w_map_head(b, csilc_n)) return -1;
     if (csilc_w_text(b, "range_end", 9)) return -1;
-    if (csilc_w_text(b, (v->range_end), (v->range_end) ? strlen(v->range_end) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->range_end).rfc3339, (v->range_end).rfc3339 ? strlen((v->range_end).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     if (csilc_w_text(b, "range_start", 11)) return -1;
-    if (csilc_w_text(b, (v->range_start), (v->range_start) ? strlen(v->range_start) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->range_start).rfc3339, (v->range_start).rfc3339 ? strlen((v->range_start).rfc3339) : 0)) return -1;
     return 0;
 }
 
@@ -5322,11 +5462,13 @@ static inline int csilc_dec_ProjectDeadlineRequest(const csilc_value *m, CsilCod
     const csilc_value *csilc_f;
     if (!m || m->kind != CSILC_MAP) return -1;
     csilc_f = csilc_map_get(m, "range_end");
-    if (!csilc_get_text(csilc_f, &(out->range_end))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->range_end).rfc3339)) return -1;
+    (out->range_end).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     csilc_f = csilc_map_get(m, "range_start");
-    if (!csilc_get_text(csilc_f, &(out->range_start))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->range_start).rfc3339)) return -1;
+    (out->range_start).epoch_seconds = 0;
     return 0;
 }
 
@@ -5337,7 +5479,8 @@ static inline int csilc_enc_ProjectDeadline(csilc_buf *b, const ProjectDeadline 
     if (csilc_w_text(b, "title", 5)) return -1;
     if (csilc_w_text(b, (v->title), (v->title) ? strlen(v->title) : 0)) return -1;
     if (csilc_w_text(b, "due_at", 6)) return -1;
-    if (csilc_w_text(b, (v->due_at), (v->due_at) ? strlen(v->due_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->due_at).rfc3339, (v->due_at).rfc3339 ? strlen((v->due_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "task_id", 7)) return -1;
     if (csilc_w_text(b, (v->task_id), (v->task_id) ? strlen(v->task_id) : 0)) return -1;
     return 0;
@@ -5351,7 +5494,8 @@ static inline int csilc_dec_ProjectDeadline(const csilc_value *m, CsilCodecArena
     csilc_f = csilc_map_get(m, "title");
     if (!csilc_get_text(csilc_f, &(out->title))) return -1;
     csilc_f = csilc_map_get(m, "due_at");
-    if (!csilc_get_text(csilc_f, &(out->due_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->due_at).rfc3339)) return -1;
+    (out->due_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "task_id");
     if (!csilc_get_text(csilc_f, &(out->task_id))) return -1;
     return 0;
@@ -5443,7 +5587,8 @@ static inline int csilc_enc_AuditEntry(csilc_buf *b, const AuditEntry *v) {
         if (csilc_w_text(b, ((*v->house_id)), ((*v->house_id)) ? strlen((*v->house_id)) : 0)) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_text(b, (v->created_at), (v->created_at) ? strlen(v->created_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
     if (v->resource_id) {
         if (csilc_w_text(b, "resource_id", 11)) return -1;
         if (csilc_w_text(b, (v->resource_id), (v->resource_id) ? strlen(v->resource_id) : 0)) return -1;
@@ -5493,7 +5638,8 @@ static inline int csilc_dec_AuditEntry(const csilc_value *m, CsilCodecArena *a, 
         out->house_id = csilc_p;
     }
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_text(csilc_f, &(out->created_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
+    (out->created_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "resource_id");
     out->resource_id = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "actor_domain");
@@ -5532,11 +5678,13 @@ static inline int csilc_enc_AuditQuery(csilc_buf *b, const AuditQuery *v) {
     }
     if (v->since) {
         if (csilc_w_text(b, "since", 5)) return -1;
-        if (csilc_w_text(b, ((*v->since)), ((*v->since)) ? strlen((*v->since)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->since)).rfc3339, ((*v->since)).rfc3339 ? strlen(((*v->since)).rfc3339) : 0)) return -1;
     }
     if (v->until) {
         if (csilc_w_text(b, "until", 5)) return -1;
-        if (csilc_w_text(b, ((*v->until)), ((*v->until)) ? strlen((*v->until)) : 0)) return -1;
+        if (csilc_w_tag(b, 0)) return -1;
+        if (csilc_w_text(b, ((*v->until)).rfc3339, ((*v->until)).rfc3339 ? strlen(((*v->until)).rfc3339) : 0)) return -1;
     }
     if (v->action) {
         if (csilc_w_text(b, "action", 6)) return -1;
@@ -5575,17 +5723,19 @@ static inline int csilc_dec_AuditQuery(const csilc_value *m, CsilCodecArena *a, 
     csilc_f = csilc_map_get(m, "since");
     out->since = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->since = csilc_p;
     }
     csilc_f = csilc_map_get(m, "until");
     out->until = NULL;
     if (csilc_f) {
-        Timestamp *csilc_p = (Timestamp *)csilc_arena_alloc(a, sizeof(Timestamp));
+        CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_text(csilc_f, &((*csilc_p)))) return -1;
+        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
+        ((*csilc_p)).epoch_seconds = 0;
         out->until = csilc_p;
     }
     csilc_f = csilc_map_get(m, "action");
@@ -5658,7 +5808,8 @@ static inline int csilc_enc_TrashItem(csilc_buf *b, const TrashItem *v) {
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (csilc_w_text(b, "deleted_at", 10)) return -1;
-    if (csilc_w_text(b, (v->deleted_at), (v->deleted_at) ? strlen(v->deleted_at) : 0)) return -1;
+    if (csilc_w_tag(b, 0)) return -1;
+    if (csilc_w_text(b, (v->deleted_at).rfc3339, (v->deleted_at).rfc3339 ? strlen((v->deleted_at).rfc3339) : 0)) return -1;
     if (csilc_w_text(b, "resource_id", 11)) return -1;
     if (csilc_w_text(b, (v->resource_id), (v->resource_id) ? strlen(v->resource_id) : 0)) return -1;
     if (csilc_w_text(b, "deleted_op_id", 13)) return -1;
@@ -5682,7 +5833,8 @@ static inline int csilc_dec_TrashItem(const csilc_value *m, CsilCodecArena *a, T
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "deleted_at");
-    if (!csilc_get_text(csilc_f, &(out->deleted_at))) return -1;
+    if (!csilc_get_tagged_text(csilc_f, 0, &(out->deleted_at).rfc3339)) return -1;
+    (out->deleted_at).epoch_seconds = 0;
     csilc_f = csilc_map_get(m, "resource_id");
     if (!csilc_get_text(csilc_f, &(out->resource_id))) return -1;
     csilc_f = csilc_map_get(m, "deleted_op_id");
@@ -9849,6 +10001,2881 @@ static inline int csil_decode_CsilMemberAuditList(const uint8_t *in, size_t len,
     if (csilc_dec_CsilMemberAuditList(root, a, out)) { csil_codec_arena_free(a); return -1; }
     *owner = a;
     return 0;
+}
+
+static inline int csil_encode_AuthServiceBeginBrowserLoginReply(const AuthServiceBeginBrowserLoginReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceBeginBrowserLoginReply_as_begin_browser_login_response:
+        *variant = "BeginBrowserLoginResponse";
+        return csil_encode_BeginBrowserLoginResponse(&reply->value.as_begin_browser_login_response, payload, len);
+    case AuthServiceBeginBrowserLoginReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceBeginBrowserLoginReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceBeginBrowserLoginReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "BeginBrowserLoginResponse") == 0) {
+        reply->kind = AuthServiceBeginBrowserLoginReply_as_begin_browser_login_response;
+        return csil_decode_BeginBrowserLoginResponse(payload, len, &reply->value.as_begin_browser_login_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceBeginBrowserLoginReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceGetActAsScopeSetReply(const AuthServiceGetActAsScopeSetReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceGetActAsScopeSetReply_as_act_as_scope_set_response:
+        *variant = "ActAsScopeSetResponse";
+        return csil_encode_ActAsScopeSetResponse(&reply->value.as_act_as_scope_set_response, payload, len);
+    case AuthServiceGetActAsScopeSetReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceGetActAsScopeSetReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceGetActAsScopeSetReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "ActAsScopeSetResponse") == 0) {
+        reply->kind = AuthServiceGetActAsScopeSetReply_as_act_as_scope_set_response;
+        return csil_decode_ActAsScopeSetResponse(payload, len, &reply->value.as_act_as_scope_set_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceGetActAsScopeSetReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceExchangeActAsCredentialReply(const AuthServiceExchangeActAsCredentialReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceExchangeActAsCredentialReply_as_act_as_token_response:
+        *variant = "ActAsTokenResponse";
+        return csil_encode_ActAsTokenResponse(&reply->value.as_act_as_token_response, payload, len);
+    case AuthServiceExchangeActAsCredentialReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceExchangeActAsCredentialReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceExchangeActAsCredentialReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "ActAsTokenResponse") == 0) {
+        reply->kind = AuthServiceExchangeActAsCredentialReply_as_act_as_token_response;
+        return csil_decode_ActAsTokenResponse(payload, len, &reply->value.as_act_as_token_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceExchangeActAsCredentialReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceLoginReply(const AuthServiceLoginReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceLoginReply_as_login_response:
+        *variant = "LoginResponse";
+        return csil_encode_LoginResponse(&reply->value.as_login_response, payload, len);
+    case AuthServiceLoginReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceLoginReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceLoginReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "LoginResponse") == 0) {
+        reply->kind = AuthServiceLoginReply_as_login_response;
+        return csil_decode_LoginResponse(payload, len, &reply->value.as_login_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceLoginReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceCompleteReply(const AuthServiceCompleteReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceCompleteReply_as_login_response:
+        *variant = "LoginResponse";
+        return csil_encode_LoginResponse(&reply->value.as_login_response, payload, len);
+    case AuthServiceCompleteReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceCompleteReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceCompleteReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "LoginResponse") == 0) {
+        reply->kind = AuthServiceCompleteReply_as_login_response;
+        return csil_decode_LoginResponse(payload, len, &reply->value.as_login_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceCompleteReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceRefreshReply(const AuthServiceRefreshReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceRefreshReply_as_login_response:
+        *variant = "LoginResponse";
+        return csil_encode_LoginResponse(&reply->value.as_login_response, payload, len);
+    case AuthServiceRefreshReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceRefreshReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceRefreshReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "LoginResponse") == 0) {
+        reply->kind = AuthServiceRefreshReply_as_login_response;
+        return csil_decode_LoginResponse(payload, len, &reply->value.as_login_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceRefreshReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceLogoutReply(const AuthServiceLogoutReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceLogoutReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case AuthServiceLogoutReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceLogoutReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceLogoutReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = AuthServiceLogoutReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceLogoutReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceResumeSessionReply(const AuthServiceResumeSessionReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceResumeSessionReply_as_login_response:
+        *variant = "LoginResponse";
+        return csil_encode_LoginResponse(&reply->value.as_login_response, payload, len);
+    case AuthServiceResumeSessionReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceResumeSessionReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceResumeSessionReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "LoginResponse") == 0) {
+        reply->kind = AuthServiceResumeSessionReply_as_login_response;
+        return csil_decode_LoginResponse(payload, len, &reply->value.as_login_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceResumeSessionReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceEndSessionReply(const AuthServiceEndSessionReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceEndSessionReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case AuthServiceEndSessionReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceEndSessionReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceEndSessionReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = AuthServiceEndSessionReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceEndSessionReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceMeReply(const AuthServiceMeReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceMeReply_as_me_response:
+        *variant = "MeResponse";
+        return csil_encode_MeResponse(&reply->value.as_me_response, payload, len);
+    case AuthServiceMeReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceMeReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceMeReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "MeResponse") == 0) {
+        reply->kind = AuthServiceMeReply_as_me_response;
+        return csil_decode_MeResponse(payload, len, &reply->value.as_me_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceMeReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceBeginCliLoginReply(const AuthServiceBeginCliLoginReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceBeginCliLoginReply_as_begin_cli_login_response:
+        *variant = "BeginCliLoginResponse";
+        return csil_encode_BeginCliLoginResponse(&reply->value.as_begin_cli_login_response, payload, len);
+    case AuthServiceBeginCliLoginReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceBeginCliLoginReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceBeginCliLoginReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "BeginCliLoginResponse") == 0) {
+        reply->kind = AuthServiceBeginCliLoginReply_as_begin_cli_login_response;
+        return csil_decode_BeginCliLoginResponse(payload, len, &reply->value.as_begin_cli_login_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceBeginCliLoginReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceInspectCliLoginReply(const AuthServiceInspectCliLoginReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceInspectCliLoginReply_as_cli_login_request_info:
+        *variant = "CliLoginRequestInfo";
+        return csil_encode_CliLoginRequestInfo(&reply->value.as_cli_login_request_info, payload, len);
+    case AuthServiceInspectCliLoginReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceInspectCliLoginReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceInspectCliLoginReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CliLoginRequestInfo") == 0) {
+        reply->kind = AuthServiceInspectCliLoginReply_as_cli_login_request_info;
+        return csil_decode_CliLoginRequestInfo(payload, len, &reply->value.as_cli_login_request_info, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceInspectCliLoginReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceApproveCliLoginReply(const AuthServiceApproveCliLoginReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceApproveCliLoginReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case AuthServiceApproveCliLoginReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceApproveCliLoginReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceApproveCliLoginReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = AuthServiceApproveCliLoginReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceApproveCliLoginReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceDenyCliLoginReply(const AuthServiceDenyCliLoginReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceDenyCliLoginReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case AuthServiceDenyCliLoginReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceDenyCliLoginReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceDenyCliLoginReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = AuthServiceDenyCliLoginReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceDenyCliLoginReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceExchangeCliLoginReply(const AuthServiceExchangeCliLoginReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceExchangeCliLoginReply_as_exchange_cli_login_response:
+        *variant = "ExchangeCliLoginResponse";
+        return csil_encode_ExchangeCliLoginResponse(&reply->value.as_exchange_cli_login_response, payload, len);
+    case AuthServiceExchangeCliLoginReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceExchangeCliLoginReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceExchangeCliLoginReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "ExchangeCliLoginResponse") == 0) {
+        reply->kind = AuthServiceExchangeCliLoginReply_as_exchange_cli_login_response;
+        return csil_decode_ExchangeCliLoginResponse(payload, len, &reply->value.as_exchange_cli_login_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceExchangeCliLoginReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceRefreshSessionReply(const AuthServiceRefreshSessionReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceRefreshSessionReply_as_cli_token_response:
+        *variant = "CliTokenResponse";
+        return csil_encode_CliTokenResponse(&reply->value.as_cli_token_response, payload, len);
+    case AuthServiceRefreshSessionReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceRefreshSessionReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceRefreshSessionReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CliTokenResponse") == 0) {
+        reply->kind = AuthServiceRefreshSessionReply_as_cli_token_response;
+        return csil_decode_CliTokenResponse(payload, len, &reply->value.as_cli_token_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceRefreshSessionReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceListSessionsReply(const AuthServiceListSessionsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceListSessionsReply_as_cli_sessions_response:
+        *variant = "CliSessionsResponse";
+        return csil_encode_CliSessionsResponse(&reply->value.as_cli_sessions_response, payload, len);
+    case AuthServiceListSessionsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceListSessionsReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceListSessionsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CliSessionsResponse") == 0) {
+        reply->kind = AuthServiceListSessionsReply_as_cli_sessions_response;
+        return csil_decode_CliSessionsResponse(payload, len, &reply->value.as_cli_sessions_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceListSessionsReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuthServiceRevokeSessionReply(const AuthServiceRevokeSessionReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuthServiceRevokeSessionReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case AuthServiceRevokeSessionReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuthServiceRevokeSessionReply(const char *variant, const uint8_t *payload, size_t len, AuthServiceRevokeSessionReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = AuthServiceRevokeSessionReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuthServiceRevokeSessionReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_DevAuthServiceListDevUsersReply(const DevAuthServiceListDevUsersReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case DevAuthServiceListDevUsersReply_as_dev_users_response:
+        *variant = "DevUsersResponse";
+        return csil_encode_DevUsersResponse(&reply->value.as_dev_users_response, payload, len);
+    case DevAuthServiceListDevUsersReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_DevAuthServiceListDevUsersReply(const char *variant, const uint8_t *payload, size_t len, DevAuthServiceListDevUsersReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "DevUsersResponse") == 0) {
+        reply->kind = DevAuthServiceListDevUsersReply_as_dev_users_response;
+        return csil_decode_DevUsersResponse(payload, len, &reply->value.as_dev_users_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = DevAuthServiceListDevUsersReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_DevAuthServiceDevLoginReply(const DevAuthServiceDevLoginReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case DevAuthServiceDevLoginReply_as_login_response:
+        *variant = "LoginResponse";
+        return csil_encode_LoginResponse(&reply->value.as_login_response, payload, len);
+    case DevAuthServiceDevLoginReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_DevAuthServiceDevLoginReply(const char *variant, const uint8_t *payload, size_t len, DevAuthServiceDevLoginReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "LoginResponse") == 0) {
+        reply->kind = DevAuthServiceDevLoginReply_as_login_response;
+        return csil_decode_LoginResponse(payload, len, &reply->value.as_login_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = DevAuthServiceDevLoginReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_HouseServiceCreateHouseReply(const HouseServiceCreateHouseReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case HouseServiceCreateHouseReply_as_house:
+        *variant = "House";
+        return csil_encode_House(&reply->value.as_house, payload, len);
+    case HouseServiceCreateHouseReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_HouseServiceCreateHouseReply(const char *variant, const uint8_t *payload, size_t len, HouseServiceCreateHouseReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "House") == 0) {
+        reply->kind = HouseServiceCreateHouseReply_as_house;
+        return csil_decode_House(payload, len, &reply->value.as_house, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = HouseServiceCreateHouseReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_HouseServiceGetHouseReply(const HouseServiceGetHouseReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case HouseServiceGetHouseReply_as_house:
+        *variant = "House";
+        return csil_encode_House(&reply->value.as_house, payload, len);
+    case HouseServiceGetHouseReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_HouseServiceGetHouseReply(const char *variant, const uint8_t *payload, size_t len, HouseServiceGetHouseReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "House") == 0) {
+        reply->kind = HouseServiceGetHouseReply_as_house;
+        return csil_decode_House(payload, len, &reply->value.as_house, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = HouseServiceGetHouseReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_HouseServiceUpdateHouseReply(const HouseServiceUpdateHouseReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case HouseServiceUpdateHouseReply_as_house:
+        *variant = "House";
+        return csil_encode_House(&reply->value.as_house, payload, len);
+    case HouseServiceUpdateHouseReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_HouseServiceUpdateHouseReply(const char *variant, const uint8_t *payload, size_t len, HouseServiceUpdateHouseReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "House") == 0) {
+        reply->kind = HouseServiceUpdateHouseReply_as_house;
+        return csil_decode_House(payload, len, &reply->value.as_house, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = HouseServiceUpdateHouseReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_HouseServiceDeleteHouseReply(const HouseServiceDeleteHouseReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case HouseServiceDeleteHouseReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case HouseServiceDeleteHouseReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_HouseServiceDeleteHouseReply(const char *variant, const uint8_t *payload, size_t len, HouseServiceDeleteHouseReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = HouseServiceDeleteHouseReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = HouseServiceDeleteHouseReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_MemberServiceCreateMemberReply(const MemberServiceCreateMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case MemberServiceCreateMemberReply_as_member:
+        *variant = "Member";
+        return csil_encode_Member(&reply->value.as_member, payload, len);
+    case MemberServiceCreateMemberReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_MemberServiceCreateMemberReply(const char *variant, const uint8_t *payload, size_t len, MemberServiceCreateMemberReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Member") == 0) {
+        reply->kind = MemberServiceCreateMemberReply_as_member;
+        return csil_decode_Member(payload, len, &reply->value.as_member, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = MemberServiceCreateMemberReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_MemberServiceGetMemberReply(const MemberServiceGetMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case MemberServiceGetMemberReply_as_member:
+        *variant = "Member";
+        return csil_encode_Member(&reply->value.as_member, payload, len);
+    case MemberServiceGetMemberReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_MemberServiceGetMemberReply(const char *variant, const uint8_t *payload, size_t len, MemberServiceGetMemberReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Member") == 0) {
+        reply->kind = MemberServiceGetMemberReply_as_member;
+        return csil_decode_Member(payload, len, &reply->value.as_member, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = MemberServiceGetMemberReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_MemberServiceGetMemberByIdentityReply(const MemberServiceGetMemberByIdentityReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case MemberServiceGetMemberByIdentityReply_as_member:
+        *variant = "Member";
+        return csil_encode_Member(&reply->value.as_member, payload, len);
+    case MemberServiceGetMemberByIdentityReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_MemberServiceGetMemberByIdentityReply(const char *variant, const uint8_t *payload, size_t len, MemberServiceGetMemberByIdentityReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Member") == 0) {
+        reply->kind = MemberServiceGetMemberByIdentityReply_as_member;
+        return csil_decode_Member(payload, len, &reply->value.as_member, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = MemberServiceGetMemberByIdentityReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_MemberServiceUpdateMemberReply(const MemberServiceUpdateMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case MemberServiceUpdateMemberReply_as_member:
+        *variant = "Member";
+        return csil_encode_Member(&reply->value.as_member, payload, len);
+    case MemberServiceUpdateMemberReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_MemberServiceUpdateMemberReply(const char *variant, const uint8_t *payload, size_t len, MemberServiceUpdateMemberReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Member") == 0) {
+        reply->kind = MemberServiceUpdateMemberReply_as_member;
+        return csil_decode_Member(payload, len, &reply->value.as_member, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = MemberServiceUpdateMemberReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_MemberServiceDeactivateMemberReply(const MemberServiceDeactivateMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case MemberServiceDeactivateMemberReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case MemberServiceDeactivateMemberReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_MemberServiceDeactivateMemberReply(const char *variant, const uint8_t *payload, size_t len, MemberServiceDeactivateMemberReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = MemberServiceDeactivateMemberReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = MemberServiceDeactivateMemberReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_MemberServiceReactivateMemberReply(const MemberServiceReactivateMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case MemberServiceReactivateMemberReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case MemberServiceReactivateMemberReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_MemberServiceReactivateMemberReply(const char *variant, const uint8_t *payload, size_t len, MemberServiceReactivateMemberReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = MemberServiceReactivateMemberReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = MemberServiceReactivateMemberReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TrustedDomainServiceAddTrustedDomainReply(const TrustedDomainServiceAddTrustedDomainReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TrustedDomainServiceAddTrustedDomainReply_as_trusted_domain:
+        *variant = "TrustedDomain";
+        return csil_encode_TrustedDomain(&reply->value.as_trusted_domain, payload, len);
+    case TrustedDomainServiceAddTrustedDomainReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TrustedDomainServiceAddTrustedDomainReply(const char *variant, const uint8_t *payload, size_t len, TrustedDomainServiceAddTrustedDomainReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "TrustedDomain") == 0) {
+        reply->kind = TrustedDomainServiceAddTrustedDomainReply_as_trusted_domain;
+        return csil_decode_TrustedDomain(payload, len, &reply->value.as_trusted_domain, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TrustedDomainServiceAddTrustedDomainReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TrustedDomainServiceRemoveTrustedDomainReply(const TrustedDomainServiceRemoveTrustedDomainReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TrustedDomainServiceRemoveTrustedDomainReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case TrustedDomainServiceRemoveTrustedDomainReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TrustedDomainServiceRemoveTrustedDomainReply(const char *variant, const uint8_t *payload, size_t len, TrustedDomainServiceRemoveTrustedDomainReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = TrustedDomainServiceRemoveTrustedDomainReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TrustedDomainServiceRemoveTrustedDomainReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TrustedDomainServiceIsDomainTrustedReply(const TrustedDomainServiceIsDomainTrustedReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TrustedDomainServiceIsDomainTrustedReply_as_bool_response:
+        *variant = "BoolResponse";
+        return csil_encode_BoolResponse(&reply->value.as_bool_response, payload, len);
+    case TrustedDomainServiceIsDomainTrustedReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TrustedDomainServiceIsDomainTrustedReply(const char *variant, const uint8_t *payload, size_t len, TrustedDomainServiceIsDomainTrustedReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "BoolResponse") == 0) {
+        reply->kind = TrustedDomainServiceIsDomainTrustedReply_as_bool_response;
+        return csil_decode_BoolResponse(payload, len, &reply->value.as_bool_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TrustedDomainServiceIsDomainTrustedReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_RoleServiceCreateRoleReply(const RoleServiceCreateRoleReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case RoleServiceCreateRoleReply_as_role:
+        *variant = "Role";
+        return csil_encode_Role(&reply->value.as_role, payload, len);
+    case RoleServiceCreateRoleReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_RoleServiceCreateRoleReply(const char *variant, const uint8_t *payload, size_t len, RoleServiceCreateRoleReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Role") == 0) {
+        reply->kind = RoleServiceCreateRoleReply_as_role;
+        return csil_decode_Role(payload, len, &reply->value.as_role, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = RoleServiceCreateRoleReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_RoleServiceUpdateRoleReply(const RoleServiceUpdateRoleReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case RoleServiceUpdateRoleReply_as_role:
+        *variant = "Role";
+        return csil_encode_Role(&reply->value.as_role, payload, len);
+    case RoleServiceUpdateRoleReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_RoleServiceUpdateRoleReply(const char *variant, const uint8_t *payload, size_t len, RoleServiceUpdateRoleReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Role") == 0) {
+        reply->kind = RoleServiceUpdateRoleReply_as_role;
+        return csil_decode_Role(payload, len, &reply->value.as_role, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = RoleServiceUpdateRoleReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_RoleServiceDeleteRoleReply(const RoleServiceDeleteRoleReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case RoleServiceDeleteRoleReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case RoleServiceDeleteRoleReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_RoleServiceDeleteRoleReply(const char *variant, const uint8_t *payload, size_t len, RoleServiceDeleteRoleReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = RoleServiceDeleteRoleReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = RoleServiceDeleteRoleReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_RoleServiceGrantRoleReply(const RoleServiceGrantRoleReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case RoleServiceGrantRoleReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case RoleServiceGrantRoleReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_RoleServiceGrantRoleReply(const char *variant, const uint8_t *payload, size_t len, RoleServiceGrantRoleReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = RoleServiceGrantRoleReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = RoleServiceGrantRoleReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_RoleServiceRevokeRoleReply(const RoleServiceRevokeRoleReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case RoleServiceRevokeRoleReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case RoleServiceRevokeRoleReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_RoleServiceRevokeRoleReply(const char *variant, const uint8_t *payload, size_t len, RoleServiceRevokeRoleReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = RoleServiceRevokeRoleReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = RoleServiceRevokeRoleReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_SkillServiceCreateSkillReply(const SkillServiceCreateSkillReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SkillServiceCreateSkillReply_as_skill:
+        *variant = "Skill";
+        return csil_encode_Skill(&reply->value.as_skill, payload, len);
+    case SkillServiceCreateSkillReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SkillServiceCreateSkillReply(const char *variant, const uint8_t *payload, size_t len, SkillServiceCreateSkillReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Skill") == 0) {
+        reply->kind = SkillServiceCreateSkillReply_as_skill;
+        return csil_decode_Skill(payload, len, &reply->value.as_skill, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SkillServiceCreateSkillReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_SkillServiceUpdateSkillReply(const SkillServiceUpdateSkillReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SkillServiceUpdateSkillReply_as_skill:
+        *variant = "Skill";
+        return csil_encode_Skill(&reply->value.as_skill, payload, len);
+    case SkillServiceUpdateSkillReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SkillServiceUpdateSkillReply(const char *variant, const uint8_t *payload, size_t len, SkillServiceUpdateSkillReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Skill") == 0) {
+        reply->kind = SkillServiceUpdateSkillReply_as_skill;
+        return csil_decode_Skill(payload, len, &reply->value.as_skill, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SkillServiceUpdateSkillReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_SkillServiceDeleteSkillReply(const SkillServiceDeleteSkillReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SkillServiceDeleteSkillReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case SkillServiceDeleteSkillReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SkillServiceDeleteSkillReply(const char *variant, const uint8_t *payload, size_t len, SkillServiceDeleteSkillReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = SkillServiceDeleteSkillReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SkillServiceDeleteSkillReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_SkillServiceAddMemberSkillReply(const SkillServiceAddMemberSkillReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SkillServiceAddMemberSkillReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case SkillServiceAddMemberSkillReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SkillServiceAddMemberSkillReply(const char *variant, const uint8_t *payload, size_t len, SkillServiceAddMemberSkillReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = SkillServiceAddMemberSkillReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SkillServiceAddMemberSkillReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_SkillServiceRemoveMemberSkillReply(const SkillServiceRemoveMemberSkillReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SkillServiceRemoveMemberSkillReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case SkillServiceRemoveMemberSkillReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SkillServiceRemoveMemberSkillReply(const char *variant, const uint8_t *payload, size_t len, SkillServiceRemoveMemberSkillReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = SkillServiceRemoveMemberSkillReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SkillServiceRemoveMemberSkillReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_SkillServiceAddGroupSkillReply(const SkillServiceAddGroupSkillReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SkillServiceAddGroupSkillReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case SkillServiceAddGroupSkillReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SkillServiceAddGroupSkillReply(const char *variant, const uint8_t *payload, size_t len, SkillServiceAddGroupSkillReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = SkillServiceAddGroupSkillReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SkillServiceAddGroupSkillReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_SkillServiceRemoveGroupSkillReply(const SkillServiceRemoveGroupSkillReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SkillServiceRemoveGroupSkillReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case SkillServiceRemoveGroupSkillReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SkillServiceRemoveGroupSkillReply(const char *variant, const uint8_t *payload, size_t len, SkillServiceRemoveGroupSkillReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = SkillServiceRemoveGroupSkillReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SkillServiceRemoveGroupSkillReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_GroupServiceCreateGroupReply(const GroupServiceCreateGroupReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case GroupServiceCreateGroupReply_as_group:
+        *variant = "Group";
+        return csil_encode_Group(&reply->value.as_group, payload, len);
+    case GroupServiceCreateGroupReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_GroupServiceCreateGroupReply(const char *variant, const uint8_t *payload, size_t len, GroupServiceCreateGroupReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Group") == 0) {
+        reply->kind = GroupServiceCreateGroupReply_as_group;
+        return csil_decode_Group(payload, len, &reply->value.as_group, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = GroupServiceCreateGroupReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_GroupServiceUpdateGroupReply(const GroupServiceUpdateGroupReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case GroupServiceUpdateGroupReply_as_group:
+        *variant = "Group";
+        return csil_encode_Group(&reply->value.as_group, payload, len);
+    case GroupServiceUpdateGroupReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_GroupServiceUpdateGroupReply(const char *variant, const uint8_t *payload, size_t len, GroupServiceUpdateGroupReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Group") == 0) {
+        reply->kind = GroupServiceUpdateGroupReply_as_group;
+        return csil_decode_Group(payload, len, &reply->value.as_group, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = GroupServiceUpdateGroupReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_GroupServiceDeleteGroupReply(const GroupServiceDeleteGroupReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case GroupServiceDeleteGroupReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case GroupServiceDeleteGroupReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_GroupServiceDeleteGroupReply(const char *variant, const uint8_t *payload, size_t len, GroupServiceDeleteGroupReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = GroupServiceDeleteGroupReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = GroupServiceDeleteGroupReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_GroupServiceAddGroupMemberReply(const GroupServiceAddGroupMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case GroupServiceAddGroupMemberReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case GroupServiceAddGroupMemberReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_GroupServiceAddGroupMemberReply(const char *variant, const uint8_t *payload, size_t len, GroupServiceAddGroupMemberReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = GroupServiceAddGroupMemberReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = GroupServiceAddGroupMemberReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_GroupServiceRemoveGroupMemberReply(const GroupServiceRemoveGroupMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case GroupServiceRemoveGroupMemberReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case GroupServiceRemoveGroupMemberReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_GroupServiceRemoveGroupMemberReply(const char *variant, const uint8_t *payload, size_t len, GroupServiceRemoveGroupMemberReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = GroupServiceRemoveGroupMemberReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = GroupServiceRemoveGroupMemberReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceCreateProjectReply(const ProjectServiceCreateProjectReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceCreateProjectReply_as_project:
+        *variant = "Project";
+        return csil_encode_Project(&reply->value.as_project, payload, len);
+    case ProjectServiceCreateProjectReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceCreateProjectReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceCreateProjectReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Project") == 0) {
+        reply->kind = ProjectServiceCreateProjectReply_as_project;
+        return csil_decode_Project(payload, len, &reply->value.as_project, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceCreateProjectReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceGetProjectReply(const ProjectServiceGetProjectReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceGetProjectReply_as_project:
+        *variant = "Project";
+        return csil_encode_Project(&reply->value.as_project, payload, len);
+    case ProjectServiceGetProjectReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceGetProjectReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceGetProjectReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Project") == 0) {
+        reply->kind = ProjectServiceGetProjectReply_as_project;
+        return csil_decode_Project(payload, len, &reply->value.as_project, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceGetProjectReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceUpdateProjectReply(const ProjectServiceUpdateProjectReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceUpdateProjectReply_as_project:
+        *variant = "Project";
+        return csil_encode_Project(&reply->value.as_project, payload, len);
+    case ProjectServiceUpdateProjectReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceUpdateProjectReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceUpdateProjectReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Project") == 0) {
+        reply->kind = ProjectServiceUpdateProjectReply_as_project;
+        return csil_decode_Project(payload, len, &reply->value.as_project, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceUpdateProjectReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceDeleteProjectReply(const ProjectServiceDeleteProjectReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceDeleteProjectReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ProjectServiceDeleteProjectReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceDeleteProjectReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceDeleteProjectReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ProjectServiceDeleteProjectReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceDeleteProjectReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceListProjectsReply(const ProjectServiceListProjectsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceListProjectsReply_as_project_list:
+        *variant = "ProjectList";
+        return csil_encode_ProjectList(&reply->value.as_project_list, payload, len);
+    case ProjectServiceListProjectsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceListProjectsReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceListProjectsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "ProjectList") == 0) {
+        reply->kind = ProjectServiceListProjectsReply_as_project_list;
+        return csil_decode_ProjectList(payload, len, &reply->value.as_project_list, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceListProjectsReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceListProjectTasksReply(const ProjectServiceListProjectTasksReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceListProjectTasksReply_as_task_list:
+        *variant = "TaskList";
+        return csil_encode_TaskList(&reply->value.as_task_list, payload, len);
+    case ProjectServiceListProjectTasksReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceListProjectTasksReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceListProjectTasksReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "TaskList") == 0) {
+        reply->kind = ProjectServiceListProjectTasksReply_as_task_list;
+        return csil_decode_TaskList(payload, len, &reply->value.as_task_list, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceListProjectTasksReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceAddProjectTaskReply(const ProjectServiceAddProjectTaskReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceAddProjectTaskReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ProjectServiceAddProjectTaskReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceAddProjectTaskReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceAddProjectTaskReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ProjectServiceAddProjectTaskReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceAddProjectTaskReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceRemoveProjectTaskReply(const ProjectServiceRemoveProjectTaskReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceRemoveProjectTaskReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ProjectServiceRemoveProjectTaskReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceRemoveProjectTaskReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceRemoveProjectTaskReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ProjectServiceRemoveProjectTaskReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceRemoveProjectTaskReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceSetProjectTaskPositionReply(const ProjectServiceSetProjectTaskPositionReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceSetProjectTaskPositionReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ProjectServiceSetProjectTaskPositionReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceSetProjectTaskPositionReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceSetProjectTaskPositionReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ProjectServiceSetProjectTaskPositionReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceSetProjectTaskPositionReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceAddProjectMemberReply(const ProjectServiceAddProjectMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceAddProjectMemberReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ProjectServiceAddProjectMemberReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceAddProjectMemberReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceAddProjectMemberReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ProjectServiceAddProjectMemberReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceAddProjectMemberReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceRemoveProjectMemberReply(const ProjectServiceRemoveProjectMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceRemoveProjectMemberReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ProjectServiceRemoveProjectMemberReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceRemoveProjectMemberReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceRemoveProjectMemberReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ProjectServiceRemoveProjectMemberReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceRemoveProjectMemberReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceAddProjectOwnerReply(const ProjectServiceAddProjectOwnerReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceAddProjectOwnerReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ProjectServiceAddProjectOwnerReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceAddProjectOwnerReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceAddProjectOwnerReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ProjectServiceAddProjectOwnerReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceAddProjectOwnerReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceRemoveProjectOwnerReply(const ProjectServiceRemoveProjectOwnerReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceRemoveProjectOwnerReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ProjectServiceRemoveProjectOwnerReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceRemoveProjectOwnerReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceRemoveProjectOwnerReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ProjectServiceRemoveProjectOwnerReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceRemoveProjectOwnerReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceCreateMilestoneReply(const ProjectServiceCreateMilestoneReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceCreateMilestoneReply_as_milestone:
+        *variant = "Milestone";
+        return csil_encode_Milestone(&reply->value.as_milestone, payload, len);
+    case ProjectServiceCreateMilestoneReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceCreateMilestoneReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceCreateMilestoneReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Milestone") == 0) {
+        reply->kind = ProjectServiceCreateMilestoneReply_as_milestone;
+        return csil_decode_Milestone(payload, len, &reply->value.as_milestone, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceCreateMilestoneReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceUpdateMilestoneReply(const ProjectServiceUpdateMilestoneReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceUpdateMilestoneReply_as_milestone:
+        *variant = "Milestone";
+        return csil_encode_Milestone(&reply->value.as_milestone, payload, len);
+    case ProjectServiceUpdateMilestoneReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceUpdateMilestoneReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceUpdateMilestoneReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Milestone") == 0) {
+        reply->kind = ProjectServiceUpdateMilestoneReply_as_milestone;
+        return csil_decode_Milestone(payload, len, &reply->value.as_milestone, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceUpdateMilestoneReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceDeleteMilestoneReply(const ProjectServiceDeleteMilestoneReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceDeleteMilestoneReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ProjectServiceDeleteMilestoneReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceDeleteMilestoneReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceDeleteMilestoneReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ProjectServiceDeleteMilestoneReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceDeleteMilestoneReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceSetProjectVisibilityReply(const ProjectServiceSetProjectVisibilityReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceSetProjectVisibilityReply_as_project:
+        *variant = "Project";
+        return csil_encode_Project(&reply->value.as_project, payload, len);
+    case ProjectServiceSetProjectVisibilityReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceSetProjectVisibilityReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceSetProjectVisibilityReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Project") == 0) {
+        reply->kind = ProjectServiceSetProjectVisibilityReply_as_project;
+        return csil_decode_Project(payload, len, &reply->value.as_project, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceSetProjectVisibilityReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServicePutProjectGrantReply(const ProjectServicePutProjectGrantReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServicePutProjectGrantReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ProjectServicePutProjectGrantReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServicePutProjectGrantReply(const char *variant, const uint8_t *payload, size_t len, ProjectServicePutProjectGrantReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ProjectServicePutProjectGrantReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServicePutProjectGrantReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceDeleteProjectGrantReply(const ProjectServiceDeleteProjectGrantReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceDeleteProjectGrantReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ProjectServiceDeleteProjectGrantReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceDeleteProjectGrantReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceDeleteProjectGrantReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ProjectServiceDeleteProjectGrantReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceDeleteProjectGrantReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_EventServiceCreateEventReply(const EventServiceCreateEventReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceCreateEventReply_as_event:
+        *variant = "Event";
+        return csil_encode_Event(&reply->value.as_event, payload, len);
+    case EventServiceCreateEventReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceCreateEventReply(const char *variant, const uint8_t *payload, size_t len, EventServiceCreateEventReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Event") == 0) {
+        reply->kind = EventServiceCreateEventReply_as_event;
+        return csil_decode_Event(payload, len, &reply->value.as_event, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceCreateEventReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_EventServiceGetEventReply(const EventServiceGetEventReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceGetEventReply_as_event:
+        *variant = "Event";
+        return csil_encode_Event(&reply->value.as_event, payload, len);
+    case EventServiceGetEventReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceGetEventReply(const char *variant, const uint8_t *payload, size_t len, EventServiceGetEventReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Event") == 0) {
+        reply->kind = EventServiceGetEventReply_as_event;
+        return csil_decode_Event(payload, len, &reply->value.as_event, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceGetEventReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_EventServiceUpdateEventReply(const EventServiceUpdateEventReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceUpdateEventReply_as_event:
+        *variant = "Event";
+        return csil_encode_Event(&reply->value.as_event, payload, len);
+    case EventServiceUpdateEventReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceUpdateEventReply(const char *variant, const uint8_t *payload, size_t len, EventServiceUpdateEventReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Event") == 0) {
+        reply->kind = EventServiceUpdateEventReply_as_event;
+        return csil_decode_Event(payload, len, &reply->value.as_event, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceUpdateEventReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_EventServiceDeleteEventReply(const EventServiceDeleteEventReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceDeleteEventReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case EventServiceDeleteEventReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceDeleteEventReply(const char *variant, const uint8_t *payload, size_t len, EventServiceDeleteEventReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = EventServiceDeleteEventReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceDeleteEventReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_EventServiceDeleteEventAndFutureReply(const EventServiceDeleteEventAndFutureReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceDeleteEventAndFutureReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case EventServiceDeleteEventAndFutureReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceDeleteEventAndFutureReply(const char *variant, const uint8_t *payload, size_t len, EventServiceDeleteEventAndFutureReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = EventServiceDeleteEventAndFutureReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceDeleteEventAndFutureReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_EventServiceGetCalendarViewReply(const EventServiceGetCalendarViewReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceGetCalendarViewReply_as_calendar_view:
+        *variant = "CalendarView";
+        return csil_encode_CalendarView(&reply->value.as_calendar_view, payload, len);
+    case EventServiceGetCalendarViewReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceGetCalendarViewReply(const char *variant, const uint8_t *payload, size_t len, EventServiceGetCalendarViewReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CalendarView") == 0) {
+        reply->kind = EventServiceGetCalendarViewReply_as_calendar_view;
+        return csil_decode_CalendarView(payload, len, &reply->value.as_calendar_view, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceGetCalendarViewReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_EventServiceSetCalendarViewReply(const EventServiceSetCalendarViewReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceSetCalendarViewReply_as_calendar_view:
+        *variant = "CalendarView";
+        return csil_encode_CalendarView(&reply->value.as_calendar_view, payload, len);
+    case EventServiceSetCalendarViewReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceSetCalendarViewReply(const char *variant, const uint8_t *payload, size_t len, EventServiceSetCalendarViewReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CalendarView") == 0) {
+        reply->kind = EventServiceSetCalendarViewReply_as_calendar_view;
+        return csil_decode_CalendarView(payload, len, &reply->value.as_calendar_view, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceSetCalendarViewReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_EventServiceAcceptEventReply(const EventServiceAcceptEventReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceAcceptEventReply_as_event:
+        *variant = "Event";
+        return csil_encode_Event(&reply->value.as_event, payload, len);
+    case EventServiceAcceptEventReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceAcceptEventReply(const char *variant, const uint8_t *payload, size_t len, EventServiceAcceptEventReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Event") == 0) {
+        reply->kind = EventServiceAcceptEventReply_as_event;
+        return csil_decode_Event(payload, len, &reply->value.as_event, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceAcceptEventReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_EventServiceRecoverEditReply(const EventServiceRecoverEditReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceRecoverEditReply_as_event:
+        *variant = "Event";
+        return csil_encode_Event(&reply->value.as_event, payload, len);
+    case EventServiceRecoverEditReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceRecoverEditReply(const char *variant, const uint8_t *payload, size_t len, EventServiceRecoverEditReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Event") == 0) {
+        reply->kind = EventServiceRecoverEditReply_as_event;
+        return csil_decode_Event(payload, len, &reply->value.as_event, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceRecoverEditReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_EventServiceDeclineEventReply(const EventServiceDeclineEventReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceDeclineEventReply_as_event:
+        *variant = "Event";
+        return csil_encode_Event(&reply->value.as_event, payload, len);
+    case EventServiceDeclineEventReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceDeclineEventReply(const char *variant, const uint8_t *payload, size_t len, EventServiceDeclineEventReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Event") == 0) {
+        reply->kind = EventServiceDeclineEventReply_as_event;
+        return csil_decode_Event(payload, len, &reply->value.as_event, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceDeclineEventReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CalendarServiceListProjectDeadlinesReply(const CalendarServiceListProjectDeadlinesReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CalendarServiceListProjectDeadlinesReply_as_project_deadline_list:
+        *variant = "ProjectDeadlineList";
+        return csil_encode_ProjectDeadlineList(&reply->value.as_project_deadline_list, payload, len);
+    case CalendarServiceListProjectDeadlinesReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CalendarServiceListProjectDeadlinesReply(const char *variant, const uint8_t *payload, size_t len, CalendarServiceListProjectDeadlinesReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "ProjectDeadlineList") == 0) {
+        reply->kind = CalendarServiceListProjectDeadlinesReply_as_project_deadline_list;
+        return csil_decode_ProjectDeadlineList(payload, len, &reply->value.as_project_deadline_list, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CalendarServiceListProjectDeadlinesReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CalendarServiceGetStatusReply(const CalendarServiceGetStatusReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CalendarServiceGetStatusReply_as_calendar_status:
+        *variant = "CalendarStatus";
+        return csil_encode_CalendarStatus(&reply->value.as_calendar_status, payload, len);
+    case CalendarServiceGetStatusReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CalendarServiceGetStatusReply(const char *variant, const uint8_t *payload, size_t len, CalendarServiceGetStatusReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CalendarStatus") == 0) {
+        reply->kind = CalendarServiceGetStatusReply_as_calendar_status;
+        return csil_decode_CalendarStatus(payload, len, &reply->value.as_calendar_status, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CalendarServiceGetStatusReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CalendarServiceConfigureCalendarReply(const CalendarServiceConfigureCalendarReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CalendarServiceConfigureCalendarReply_as_calendar_status:
+        *variant = "CalendarStatus";
+        return csil_encode_CalendarStatus(&reply->value.as_calendar_status, payload, len);
+    case CalendarServiceConfigureCalendarReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CalendarServiceConfigureCalendarReply(const char *variant, const uint8_t *payload, size_t len, CalendarServiceConfigureCalendarReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CalendarStatus") == 0) {
+        reply->kind = CalendarServiceConfigureCalendarReply_as_calendar_status;
+        return csil_decode_CalendarStatus(payload, len, &reply->value.as_calendar_status, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CalendarServiceConfigureCalendarReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CalendarServiceBeginConnectReply(const CalendarServiceBeginConnectReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CalendarServiceBeginConnectReply_as_calendar_connect_response:
+        *variant = "CalendarConnectResponse";
+        return csil_encode_CalendarConnectResponse(&reply->value.as_calendar_connect_response, payload, len);
+    case CalendarServiceBeginConnectReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CalendarServiceBeginConnectReply(const char *variant, const uint8_t *payload, size_t len, CalendarServiceBeginConnectReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CalendarConnectResponse") == 0) {
+        reply->kind = CalendarServiceBeginConnectReply_as_calendar_connect_response;
+        return csil_decode_CalendarConnectResponse(payload, len, &reply->value.as_calendar_connect_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CalendarServiceBeginConnectReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CalendarServiceCompleteConnectReply(const CalendarServiceCompleteConnectReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CalendarServiceCompleteConnectReply_as_calendar_status:
+        *variant = "CalendarStatus";
+        return csil_encode_CalendarStatus(&reply->value.as_calendar_status, payload, len);
+    case CalendarServiceCompleteConnectReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CalendarServiceCompleteConnectReply(const char *variant, const uint8_t *payload, size_t len, CalendarServiceCompleteConnectReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CalendarStatus") == 0) {
+        reply->kind = CalendarServiceCompleteConnectReply_as_calendar_status;
+        return csil_decode_CalendarStatus(payload, len, &reply->value.as_calendar_status, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CalendarServiceCompleteConnectReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CalendarServiceDisconnectReply(const CalendarServiceDisconnectReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CalendarServiceDisconnectReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case CalendarServiceDisconnectReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CalendarServiceDisconnectReply(const char *variant, const uint8_t *payload, size_t len, CalendarServiceDisconnectReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = CalendarServiceDisconnectReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CalendarServiceDisconnectReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CalendarServiceRestoreEventReply(const CalendarServiceRestoreEventReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CalendarServiceRestoreEventReply_as_event:
+        *variant = "Event";
+        return csil_encode_Event(&reply->value.as_event, payload, len);
+    case CalendarServiceRestoreEventReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CalendarServiceRestoreEventReply(const char *variant, const uint8_t *payload, size_t len, CalendarServiceRestoreEventReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Event") == 0) {
+        reply->kind = CalendarServiceRestoreEventReply_as_event;
+        return csil_decode_Event(payload, len, &reply->value.as_event, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CalendarServiceRestoreEventReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TaskServiceCreateTaskReply(const TaskServiceCreateTaskReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TaskServiceCreateTaskReply_as_task:
+        *variant = "Task";
+        return csil_encode_Task(&reply->value.as_task, payload, len);
+    case TaskServiceCreateTaskReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TaskServiceCreateTaskReply(const char *variant, const uint8_t *payload, size_t len, TaskServiceCreateTaskReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Task") == 0) {
+        reply->kind = TaskServiceCreateTaskReply_as_task;
+        return csil_decode_Task(payload, len, &reply->value.as_task, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TaskServiceCreateTaskReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TaskServiceGetTaskReply(const TaskServiceGetTaskReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TaskServiceGetTaskReply_as_task:
+        *variant = "Task";
+        return csil_encode_Task(&reply->value.as_task, payload, len);
+    case TaskServiceGetTaskReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TaskServiceGetTaskReply(const char *variant, const uint8_t *payload, size_t len, TaskServiceGetTaskReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Task") == 0) {
+        reply->kind = TaskServiceGetTaskReply_as_task;
+        return csil_decode_Task(payload, len, &reply->value.as_task, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TaskServiceGetTaskReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TaskServiceUpdateTaskReply(const TaskServiceUpdateTaskReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TaskServiceUpdateTaskReply_as_task:
+        *variant = "Task";
+        return csil_encode_Task(&reply->value.as_task, payload, len);
+    case TaskServiceUpdateTaskReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TaskServiceUpdateTaskReply(const char *variant, const uint8_t *payload, size_t len, TaskServiceUpdateTaskReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Task") == 0) {
+        reply->kind = TaskServiceUpdateTaskReply_as_task;
+        return csil_decode_Task(payload, len, &reply->value.as_task, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TaskServiceUpdateTaskReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TaskServiceDeleteTaskReply(const TaskServiceDeleteTaskReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TaskServiceDeleteTaskReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case TaskServiceDeleteTaskReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TaskServiceDeleteTaskReply(const char *variant, const uint8_t *payload, size_t len, TaskServiceDeleteTaskReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = TaskServiceDeleteTaskReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TaskServiceDeleteTaskReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TaskServiceListTasksReply(const TaskServiceListTasksReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TaskServiceListTasksReply_as_task_list:
+        *variant = "TaskList";
+        return csil_encode_TaskList(&reply->value.as_task_list, payload, len);
+    case TaskServiceListTasksReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TaskServiceListTasksReply(const char *variant, const uint8_t *payload, size_t len, TaskServiceListTasksReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "TaskList") == 0) {
+        reply->kind = TaskServiceListTasksReply_as_task_list;
+        return csil_decode_TaskList(payload, len, &reply->value.as_task_list, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TaskServiceListTasksReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TaskServiceCreatePersonalTaskReply(const TaskServiceCreatePersonalTaskReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TaskServiceCreatePersonalTaskReply_as_task:
+        *variant = "Task";
+        return csil_encode_Task(&reply->value.as_task, payload, len);
+    case TaskServiceCreatePersonalTaskReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TaskServiceCreatePersonalTaskReply(const char *variant, const uint8_t *payload, size_t len, TaskServiceCreatePersonalTaskReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Task") == 0) {
+        reply->kind = TaskServiceCreatePersonalTaskReply_as_task;
+        return csil_decode_Task(payload, len, &reply->value.as_task, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TaskServiceCreatePersonalTaskReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TaskServiceSetTaskVisibilityReply(const TaskServiceSetTaskVisibilityReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TaskServiceSetTaskVisibilityReply_as_task:
+        *variant = "Task";
+        return csil_encode_Task(&reply->value.as_task, payload, len);
+    case TaskServiceSetTaskVisibilityReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TaskServiceSetTaskVisibilityReply(const char *variant, const uint8_t *payload, size_t len, TaskServiceSetTaskVisibilityReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Task") == 0) {
+        reply->kind = TaskServiceSetTaskVisibilityReply_as_task;
+        return csil_decode_Task(payload, len, &reply->value.as_task, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TaskServiceSetTaskVisibilityReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TaskServicePutTaskGrantReply(const TaskServicePutTaskGrantReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TaskServicePutTaskGrantReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case TaskServicePutTaskGrantReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TaskServicePutTaskGrantReply(const char *variant, const uint8_t *payload, size_t len, TaskServicePutTaskGrantReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = TaskServicePutTaskGrantReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TaskServicePutTaskGrantReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TaskServiceDeleteTaskGrantReply(const TaskServiceDeleteTaskGrantReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TaskServiceDeleteTaskGrantReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case TaskServiceDeleteTaskGrantReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TaskServiceDeleteTaskGrantReply(const char *variant, const uint8_t *payload, size_t len, TaskServiceDeleteTaskGrantReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = TaskServiceDeleteTaskGrantReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TaskServiceDeleteTaskGrantReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_DependencyServiceAddDependencyReply(const DependencyServiceAddDependencyReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case DependencyServiceAddDependencyReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case DependencyServiceAddDependencyReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_DependencyServiceAddDependencyReply(const char *variant, const uint8_t *payload, size_t len, DependencyServiceAddDependencyReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = DependencyServiceAddDependencyReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = DependencyServiceAddDependencyReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_DependencyServiceRemoveDependencyReply(const DependencyServiceRemoveDependencyReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case DependencyServiceRemoveDependencyReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case DependencyServiceRemoveDependencyReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_DependencyServiceRemoveDependencyReply(const char *variant, const uint8_t *payload, size_t len, DependencyServiceRemoveDependencyReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = DependencyServiceRemoveDependencyReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = DependencyServiceRemoveDependencyReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_DependencyServiceGetDependenciesReply(const DependencyServiceGetDependenciesReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case DependencyServiceGetDependenciesReply_as_dependency_graph:
+        *variant = "DependencyGraph";
+        return csil_encode_DependencyGraph(&reply->value.as_dependency_graph, payload, len);
+    case DependencyServiceGetDependenciesReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_DependencyServiceGetDependenciesReply(const char *variant, const uint8_t *payload, size_t len, DependencyServiceGetDependenciesReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "DependencyGraph") == 0) {
+        reply->kind = DependencyServiceGetDependenciesReply_as_dependency_graph;
+        return csil_decode_DependencyGraph(payload, len, &reply->value.as_dependency_graph, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = DependencyServiceGetDependenciesReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CommentServiceCreateCommentReply(const CommentServiceCreateCommentReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CommentServiceCreateCommentReply_as_comment:
+        *variant = "Comment";
+        return csil_encode_Comment(&reply->value.as_comment, payload, len);
+    case CommentServiceCreateCommentReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CommentServiceCreateCommentReply(const char *variant, const uint8_t *payload, size_t len, CommentServiceCreateCommentReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Comment") == 0) {
+        reply->kind = CommentServiceCreateCommentReply_as_comment;
+        return csil_decode_Comment(payload, len, &reply->value.as_comment, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CommentServiceCreateCommentReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CommentServiceGetCommentReply(const CommentServiceGetCommentReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CommentServiceGetCommentReply_as_comment:
+        *variant = "Comment";
+        return csil_encode_Comment(&reply->value.as_comment, payload, len);
+    case CommentServiceGetCommentReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CommentServiceGetCommentReply(const char *variant, const uint8_t *payload, size_t len, CommentServiceGetCommentReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Comment") == 0) {
+        reply->kind = CommentServiceGetCommentReply_as_comment;
+        return csil_decode_Comment(payload, len, &reply->value.as_comment, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CommentServiceGetCommentReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CommentServiceUpdateCommentReply(const CommentServiceUpdateCommentReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CommentServiceUpdateCommentReply_as_comment:
+        *variant = "Comment";
+        return csil_encode_Comment(&reply->value.as_comment, payload, len);
+    case CommentServiceUpdateCommentReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CommentServiceUpdateCommentReply(const char *variant, const uint8_t *payload, size_t len, CommentServiceUpdateCommentReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Comment") == 0) {
+        reply->kind = CommentServiceUpdateCommentReply_as_comment;
+        return csil_decode_Comment(payload, len, &reply->value.as_comment, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CommentServiceUpdateCommentReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CommentServiceDeleteCommentReply(const CommentServiceDeleteCommentReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CommentServiceDeleteCommentReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case CommentServiceDeleteCommentReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CommentServiceDeleteCommentReply(const char *variant, const uint8_t *payload, size_t len, CommentServiceDeleteCommentReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = CommentServiceDeleteCommentReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CommentServiceDeleteCommentReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_NotificationServiceUnreadCountReply(const NotificationServiceUnreadCountReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case NotificationServiceUnreadCountReply_as_notification_unread_count:
+        *variant = "NotificationUnreadCount";
+        return csil_encode_NotificationUnreadCount(&reply->value.as_notification_unread_count, payload, len);
+    case NotificationServiceUnreadCountReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_NotificationServiceUnreadCountReply(const char *variant, const uint8_t *payload, size_t len, NotificationServiceUnreadCountReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "NotificationUnreadCount") == 0) {
+        reply->kind = NotificationServiceUnreadCountReply_as_notification_unread_count;
+        return csil_decode_NotificationUnreadCount(payload, len, &reply->value.as_notification_unread_count, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = NotificationServiceUnreadCountReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_NotificationServiceMarkReadReply(const NotificationServiceMarkReadReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case NotificationServiceMarkReadReply_as_notification:
+        *variant = "Notification";
+        return csil_encode_Notification(&reply->value.as_notification, payload, len);
+    case NotificationServiceMarkReadReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_NotificationServiceMarkReadReply(const char *variant, const uint8_t *payload, size_t len, NotificationServiceMarkReadReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Notification") == 0) {
+        reply->kind = NotificationServiceMarkReadReply_as_notification;
+        return csil_decode_Notification(payload, len, &reply->value.as_notification, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = NotificationServiceMarkReadReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_NotificationServiceMarkAllReadReply(const NotificationServiceMarkAllReadReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case NotificationServiceMarkAllReadReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case NotificationServiceMarkAllReadReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_NotificationServiceMarkAllReadReply(const char *variant, const uint8_t *payload, size_t len, NotificationServiceMarkAllReadReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = NotificationServiceMarkAllReadReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = NotificationServiceMarkAllReadReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ShareServiceCreateShareReply(const ShareServiceCreateShareReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ShareServiceCreateShareReply_as_share:
+        *variant = "Share";
+        return csil_encode_Share(&reply->value.as_share, payload, len);
+    case ShareServiceCreateShareReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ShareServiceCreateShareReply(const char *variant, const uint8_t *payload, size_t len, ShareServiceCreateShareReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Share") == 0) {
+        reply->kind = ShareServiceCreateShareReply_as_share;
+        return csil_decode_Share(payload, len, &reply->value.as_share, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ShareServiceCreateShareReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ShareServiceDeleteShareReply(const ShareServiceDeleteShareReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ShareServiceDeleteShareReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case ShareServiceDeleteShareReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ShareServiceDeleteShareReply(const char *variant, const uint8_t *payload, size_t len, ShareServiceDeleteShareReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = ShareServiceDeleteShareReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ShareServiceDeleteShareReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ShareServiceCheckAccessReply(const ShareServiceCheckAccessReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ShareServiceCheckAccessReply_as_share:
+        *variant = "Share";
+        return csil_encode_Share(&reply->value.as_share, payload, len);
+    case ShareServiceCheckAccessReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ShareServiceCheckAccessReply(const char *variant, const uint8_t *payload, size_t len, ShareServiceCheckAccessReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Share") == 0) {
+        reply->kind = ShareServiceCheckAccessReply_as_share;
+        return csil_decode_Share(payload, len, &reply->value.as_share, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ShareServiceCheckAccessReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_SettingsServiceGetSettingsReply(const SettingsServiceGetSettingsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SettingsServiceGetSettingsReply_as_effective_settings:
+        *variant = "EffectiveSettings";
+        return csil_encode_EffectiveSettings(&reply->value.as_effective_settings, payload, len);
+    case SettingsServiceGetSettingsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SettingsServiceGetSettingsReply(const char *variant, const uint8_t *payload, size_t len, SettingsServiceGetSettingsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EffectiveSettings") == 0) {
+        reply->kind = SettingsServiceGetSettingsReply_as_effective_settings;
+        return csil_decode_EffectiveSettings(payload, len, &reply->value.as_effective_settings, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SettingsServiceGetSettingsReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_SettingsServiceUpdateSettingsReply(const SettingsServiceUpdateSettingsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SettingsServiceUpdateSettingsReply_as_effective_settings:
+        *variant = "EffectiveSettings";
+        return csil_encode_EffectiveSettings(&reply->value.as_effective_settings, payload, len);
+    case SettingsServiceUpdateSettingsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SettingsServiceUpdateSettingsReply(const char *variant, const uint8_t *payload, size_t len, SettingsServiceUpdateSettingsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EffectiveSettings") == 0) {
+        reply->kind = SettingsServiceUpdateSettingsReply_as_effective_settings;
+        return csil_decode_EffectiveSettings(payload, len, &reply->value.as_effective_settings, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SettingsServiceUpdateSettingsReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_BugServiceReportBugReply(const BugServiceReportBugReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case BugServiceReportBugReply_as_task:
+        *variant = "Task";
+        return csil_encode_Task(&reply->value.as_task, payload, len);
+    case BugServiceReportBugReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_BugServiceReportBugReply(const char *variant, const uint8_t *payload, size_t len, BugServiceReportBugReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "Task") == 0) {
+        reply->kind = BugServiceReportBugReply_as_task;
+        return csil_decode_Task(payload, len, &reply->value.as_task, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = BugServiceReportBugReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_AuditServiceQueryAuditReply(const AuditServiceQueryAuditReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case AuditServiceQueryAuditReply_as_audit_page:
+        *variant = "AuditPage";
+        return csil_encode_AuditPage(&reply->value.as_audit_page, payload, len);
+    case AuditServiceQueryAuditReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_AuditServiceQueryAuditReply(const char *variant, const uint8_t *payload, size_t len, AuditServiceQueryAuditReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "AuditPage") == 0) {
+        reply->kind = AuditServiceQueryAuditReply_as_audit_page;
+        return csil_decode_AuditPage(payload, len, &reply->value.as_audit_page, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = AuditServiceQueryAuditReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TrashServiceListTrashReply(const TrashServiceListTrashReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TrashServiceListTrashReply_as_trash_page:
+        *variant = "TrashPage";
+        return csil_encode_TrashPage(&reply->value.as_trash_page, payload, len);
+    case TrashServiceListTrashReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TrashServiceListTrashReply(const char *variant, const uint8_t *payload, size_t len, TrashServiceListTrashReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "TrashPage") == 0) {
+        reply->kind = TrashServiceListTrashReply_as_trash_page;
+        return csil_decode_TrashPage(payload, len, &reply->value.as_trash_page, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TrashServiceListTrashReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TrashServiceRestoreReply(const TrashServiceRestoreReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TrashServiceRestoreReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case TrashServiceRestoreReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TrashServiceRestoreReply(const char *variant, const uint8_t *payload, size_t len, TrashServiceRestoreReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = TrashServiceRestoreReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TrashServiceRestoreReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TrashServicePurgeReply(const TrashServicePurgeReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TrashServicePurgeReply_as_empty_response:
+        *variant = "EmptyResponse";
+        return csil_encode_EmptyResponse(&reply->value.as_empty_response, payload, len);
+    case TrashServicePurgeReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TrashServicePurgeReply(const char *variant, const uint8_t *payload, size_t len, TrashServicePurgeReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EmptyResponse") == 0) {
+        reply->kind = TrashServicePurgeReply_as_empty_response;
+        return csil_decode_EmptyResponse(payload, len, &reply->value.as_empty_response, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TrashServicePurgeReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
 }
 
 #endif /* CSILGEN_CODEC_GEN_H */

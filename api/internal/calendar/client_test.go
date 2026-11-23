@@ -38,8 +38,8 @@ func TestOccurrencesSplitAndDeduplicate(t *testing.T) {
 		if len(req.CalendarIds) != 1 || req.CalendarIds[0] != "house-calendar" || req.IncludeInvitations == nil || *req.IncludeInvitations {
 			t.Fatal("house scope was not explicit")
 		}
-		a, _ := time.Parse(time.RFC3339, string(req.RangeStart))
-		z, _ := time.Parse(time.RFC3339, string(req.RangeEnd))
+		a := req.RangeStart
+		z := req.RangeEnd
 		if z.Sub(a) > 400*24*time.Hour {
 			t.Fatal("range exceeds catalystcal limit")
 		}
@@ -48,7 +48,7 @@ func TestOccurrencesSplitAndDeduplicate(t *testing.T) {
 			return cal.EncodeOccurrenceList(cal.OccurrenceList{Truncated: true}), nil
 		}
 		// One long event overlaps every subrange. It must occur once in the result.
-		return cal.EncodeOccurrenceList(cal.OccurrenceList{Occurrences: []cal.Occurrence{{Access: "owner", Event: cal.Event{EventId: "span", CalendarId: "house-calendar"}, Start: cal.Timestamp(start.Format(time.RFC3339)), End: cal.Timestamp(start.AddDate(2, 0, 0).Format(time.RFC3339))}}}), nil
+		return cal.EncodeOccurrenceList(cal.OccurrenceList{Occurrences: []cal.Occurrence{{Access: "owner", Event: cal.Event{EventId: "span", CalendarId: "house-calendar"}, Start: start, End: start.AddDate(2, 0, 0)}}}), nil
 	})
 	result, err := Occurrences(context.Background(), transport, "house-calendar", start, start.AddDate(2, 0, 0))
 	if err != nil {
@@ -201,7 +201,7 @@ func TestMemberReusesBearerButChecksGrantBeforeEveryWrite(t *testing.T) {
 			return
 		}
 		exchanges++
-		response := wire.NewRpcResponseOk("LoginResponse", cal.EncodeLoginResponse(cal.LoginResponse{Token: "test-bearer", ExpiresAt: cal.Timestamp(time.Now().Add(10 * time.Minute).UTC().Format(time.RFC3339)), Via: "act_as_grant"}))
+		response := wire.NewRpcResponseOk("LoginResponse", cal.EncodeLoginResponse(cal.LoginResponse{Token: "test-bearer", ExpiresAt: time.Now().Add(10 * time.Minute).UTC(), Via: "act_as_grant"}))
 		out, _ := response.Encode()
 		_, _ = w.Write(out)
 	}))

@@ -8,10 +8,7 @@ import type { AuditEntry, TrashItem } from "@longhouse/client";
 // trash bin (soft-deleted items an admin can restore or purge now). Both calls
 // are admin-gated server-side too; this page just hides the controls for
 // non-admins. Theming is via CSS vars, so dark mode comes for free.
-const when = (ts: string): string => {
-    const d = new Date(ts);
-    return isNaN(d.getTime()) ? ts : d.toLocaleString();
-};
+const when = (d: Date): string => d.toLocaleString();
 const actionTone = (action: string): string => {
     switch (action) {
         case "delete":

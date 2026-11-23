@@ -28,7 +28,7 @@ func (s *CalendarService) publishAccepted(ctx context.Context, conn *gorm.DB, e 
 		}
 		return err
 	}
-	request, err := cal.DecodeEvent(publication.Payload)
+	request, err := decodeSavedEvent(publication.Payload)
 	if err != nil {
 		return fmt.Errorf("decode accepted calendar request: %w", err)
 	}

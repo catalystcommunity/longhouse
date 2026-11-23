@@ -37,14 +37,14 @@ export const TaskDetailEditor = (props: Props) => {
     const [title, setTitle] = cell(props.task.title);
     const [description, setDesc] = cell(props.task.description ?? "");
     const [tag, setTag] = cell(props.task.tag ?? "");
-    const [due, setDue] = cell(props.task.dueAt ?? "");
+    const [due, setDue] = cell(props.task.dueAt?.toISOString() ?? "");
     const [estimate, setEstimate] = cell(props.task.estimateMinutes !== undefined ? String(props.task.estimateMinutes) : "");
     const [status, setStatus] = cell<string>(typeof props.task.status === "string" ? props.task.status : "open");
     const [assignees, setAssignees] = cell<string[]>((props.task.assignees ?? []).slice());
     const initRecFreq = (): RecurrenceFreq => (typeof props.task.recurrenceFreq === "string" ? props.task.recurrenceFreq : "") as RecurrenceFreq;
     const [recFreq, setRecFreq] = cell<RecurrenceFreq>(initRecFreq());
     const [recInterval, setRecInterval] = cell(props.task.recurrenceInterval ?? 1);
-    const [recNextAt, setRecNextAt] = cell(props.task.nextRecurrenceAt ?? "");
+    const [recNextAt, setRecNextAt] = cell(props.task.nextRecurrenceAt?.toISOString() ?? "");
     const [recByWeekday, setRecByWeekday] = cell<number[]>(Array.isArray(props.task.recurrenceByWeekday)
         ? props.task.recurrenceByWeekday.map((n) => Number(n))
         : []);
@@ -64,14 +64,14 @@ export const TaskDetailEditor = (props: Props) => {
                 title: title().trim() || props.task.title,
                 description: description(),
                 tag: tag().trim() || undefined,
-                dueAt: due() || undefined,
+                dueAt: due() ? new Date(due()) : undefined,
                 estimateMinutes: estimate() ? Number(estimate()) : undefined,
                 status: status(),
                 assignees: assignees(),
                 recurrenceFreq: recFreq() || undefined,
                 clearRecurrence: !recFreq(),
                 recurrenceInterval: recFreq() ? recInterval() : undefined,
-                nextRecurrenceAt: recNextAt() || undefined,
+                nextRecurrenceAt: recNextAt() ? new Date(recNextAt()) : undefined,
                 recurrenceByWeekday: recFreq() ? recByWeekday() : [],
                 recurrenceBySetpos: recFreq() === "monthly" || recFreq() === "quarterly" || recFreq() === "yearly"
                     ? recBySetpos()

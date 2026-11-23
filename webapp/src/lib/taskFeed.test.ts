@@ -1,8 +1,9 @@
+import { decode, mapGet, toTaskListRequestCbor, fromTaskListRequestCbor } from "@longhouse/client";
 import { observe, scope } from "~/ui/state";
 import { describe, expect, it, vi } from "vitest";
 import type { Task, TaskList } from "@longhouse/client";
 import { HIDDEN, MAX_PAGE_SIZE, createEntryBuilder, createTaskFeed, dueGroupStarts, listAllTasks, slotRange, } from "./taskFeed";
-const task = (n: number): Task => ({ taskId: `t${n}`, houseId: "h", ownerMemberId: "m", title: `Task ${n}`, assignees: [], createdAt: "", updatedAt: "" }) as Task;
+const task = (n: number): Task => ({ taskId: `t${n}`, houseId: "h", ownerMemberId: "m", title: `Task ${n}`, assignees: [], createdAt: new Date(0), updatedAt: new Date(0) }) as Task;
 /** A fake server: `count` rows in order; ids in `hiddenIds` are not
  *  readable. Reports the total before visibility, like the api. */
 const fakeServer = (count: number, hiddenIds: Set<number> = new Set(), dueCounts?: number[]) => {
@@ -160,4 +161,11 @@ describe("listAllTasks", () => {
         expect(all.length).toBe(MAX_PAGE_SIZE + 19);
         expect(calls.map((c) => c.offset)).toEqual([0, MAX_PAGE_SIZE]);
     });
+});
+
+it("encodes each due-count boundary as a tagged instant", () => {
+    const due = new Date("2026-11-22T18:00:00.123Z");
+    const bytes = toTaskListRequestCbor({ houseId: "house", dueBefore: [due] });
+    expect(mapGet(decode(bytes), "due_before")).toEqual([{ tag: 0, value: due.toISOString() }]);
+    expect(fromTaskListRequestCbor(bytes).dueBefore).toEqual([due]);
 });

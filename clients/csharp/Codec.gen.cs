@@ -335,6 +335,19 @@ public static partial class Cbor
         v is CborValue.Tag x && x.Number == num ? AsText(x.Inner) : throw new CborException("expected tagged text");
 }
 
+public static partial class Cbor
+{
+    public static CborValue EncTimestamp(System.DateTimeOffset value) =>
+        new CborValue.Tag(0, new CborValue.Text(
+            value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFFFFF'Z'", System.Globalization.CultureInfo.InvariantCulture)));
+
+    public static System.DateTimeOffset AsTimestamp(CborValue v) =>
+        System.DateTimeOffset.Parse(
+            AsTaggedText(v, 0),
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal);
+}
+
 /// <summary>The typed CBOR codec: encodes/decodes a generated record to and
 /// from canonical CSIL CBOR bytes. Static type dispatch, never reflection.</summary>
 public static class Codec
@@ -819,8 +832,8 @@ public static class Codec
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("name"), new CborValue.Text(value.Name)));
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
-        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("updated_at"), Cbor.EncTimestamp(value.UpdatedAt)));
         if (value.Description is { } csilV4)
         {
             csilEntries.Add((new CborValue.Text("description"), new CborValue.Text(csilV4)));
@@ -834,8 +847,8 @@ public static class Codec
         var csilField0 = Cbor.AsText(Cbor.Require(value, "house_id"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "name"));
         string? csilField2 = Cbor.MapGet(value, "description") is { } csilRaw2 ? Cbor.AsText(csilRaw2) : null;
-        var csilField3 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField4 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        var csilField3 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        var csilField4 = Cbor.AsTimestamp(Cbor.Require(value, "updated_at"));
         return new House
         {
             HouseId = csilField0,
@@ -864,19 +877,19 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("avatar_url"), new CborValue.Text(csilV4)));
         }
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
-        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("updated_at"), Cbor.EncTimestamp(value.UpdatedAt)));
         if (value.DisplayName is { } csilV7)
         {
             csilEntries.Add((new CborValue.Text("display_name"), new CborValue.Text(csilV7)));
         }
         if (value.LastSeenAt is { } csilV8)
         {
-            csilEntries.Add((new CborValue.Text("last_seen_at"), new CborValue.Text(csilV8)));
+            csilEntries.Add((new CborValue.Text("last_seen_at"), Cbor.EncTimestamp(csilV8)));
         }
         if (value.DeactivatedAt is { } csilV9)
         {
-            csilEntries.Add((new CborValue.Text("deactivated_at"), new CborValue.Text(csilV9)));
+            csilEntries.Add((new CborValue.Text("deactivated_at"), Cbor.EncTimestamp(csilV9)));
         }
         csilEntries.Add((new CborValue.Text("linkkeys_domain"), new CborValue.Text(value.LinkkeysDomain)));
         csilEntries.Add((new CborValue.Text("linkkeys_user_id"), new CborValue.Text(value.LinkkeysUserId)));
@@ -899,10 +912,10 @@ public static class Codec
         string? csilField6 = Cbor.MapGet(value, "avatar_url") is { } csilRaw6 ? Cbor.AsText(csilRaw6) : null;
         string? csilField7 = Cbor.MapGet(value, "handle") is { } csilRaw7 ? Cbor.AsText(csilRaw7) : null;
         byte[]? csilField8 = Cbor.MapGet(value, "cached_public_key") is { } csilRaw8 ? Cbor.AsBytes(csilRaw8) : null;
-        var csilField9 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField10 = Cbor.AsText(Cbor.Require(value, "updated_at"));
-        Timestamp? csilField11 = Cbor.MapGet(value, "last_seen_at") is { } csilRaw11 ? Cbor.AsText(csilRaw11) : null;
-        Timestamp? csilField12 = Cbor.MapGet(value, "deactivated_at") is { } csilRaw12 ? Cbor.AsText(csilRaw12) : null;
+        var csilField9 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        var csilField10 = Cbor.AsTimestamp(Cbor.Require(value, "updated_at"));
+        System.DateTimeOffset? csilField11 = Cbor.MapGet(value, "last_seen_at") is { } csilRaw11 ? Cbor.AsTimestamp(csilRaw11) : null;
+        System.DateTimeOffset? csilField12 = Cbor.MapGet(value, "deactivated_at") is { } csilRaw12 ? Cbor.AsTimestamp(csilRaw12) : null;
         return new Member
         {
             MemberId = csilField0,
@@ -927,7 +940,7 @@ public static class Codec
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("domain"), new CborValue.Text(value.Domain)));
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         csilEntries.Add((new CborValue.Text("trusted_domain_id"), new CborValue.Text(value.TrustedDomainId)));
         return new CborValue.Map(csilEntries);
     }
@@ -938,7 +951,7 @@ public static class Codec
         var csilField0 = Cbor.AsText(Cbor.Require(value, "trusted_domain_id"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "house_id"));
         var csilField2 = Cbor.AsText(Cbor.Require(value, "domain"));
-        var csilField3 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField3 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
         return new TrustedDomain
         {
             TrustedDomainId = csilField0,
@@ -955,8 +968,8 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("name"), new CborValue.Text(value.Name)));
         csilEntries.Add((new CborValue.Text("role_id"), new CborValue.Text(value.RoleId)));
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
-        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("updated_at"), Cbor.EncTimestamp(value.UpdatedAt)));
         if (value.Description is { } csilV5)
         {
             csilEntries.Add((new CborValue.Text("description"), new CborValue.Text(csilV5)));
@@ -971,8 +984,8 @@ public static class Codec
         var csilField1 = Cbor.AsText(Cbor.Require(value, "house_id"));
         var csilField2 = Cbor.AsText(Cbor.Require(value, "name"));
         string? csilField3 = Cbor.MapGet(value, "description") is { } csilRaw3 ? Cbor.AsText(csilRaw3) : null;
-        var csilField4 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField5 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        var csilField4 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        var csilField5 = Cbor.AsTimestamp(Cbor.Require(value, "updated_at"));
         return new Role
         {
             RoleId = csilField0,
@@ -990,7 +1003,7 @@ public static class Codec
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("role_id"), new CborValue.Text(value.RoleId)));
         csilEntries.Add((new CborValue.Text("member_id"), new CborValue.Text(value.MemberId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         return new CborValue.Map(csilEntries);
     }
 
@@ -999,7 +1012,7 @@ public static class Codec
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "member_id"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "role_id"));
-        var csilField2 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField2 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
         return new MemberRole
         {
             MemberId = csilField0,
@@ -1023,7 +1036,7 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("target_id"), new CborValue.Text(csilV4)));
         }
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         if (value.TargetType is { } csilV6)
         {
             csilEntries.Add((new CborValue.Text("target_type"), new CborValue.Text(csilV6)));
@@ -1047,7 +1060,7 @@ public static class Codec
         string? csilField5 = Cbor.MapGet(value, "target_type") is { } csilRaw5 ? Cbor.AsText(csilRaw5) : null;
         string? csilField6 = Cbor.MapGet(value, "target_id") is { } csilRaw6 ? Cbor.AsText(csilRaw6) : null;
         string? csilField7 = Cbor.MapGet(value, "detail") is { } csilRaw7 ? Cbor.AsText(csilRaw7) : null;
-        var csilField8 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField8 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
         return new MemberAudit
         {
             AuditId = csilField0,
@@ -1069,8 +1082,8 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("name"), new CborValue.Text(value.Name)));
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
         csilEntries.Add((new CborValue.Text("skill_id"), new CborValue.Text(value.SkillId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
-        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("updated_at"), Cbor.EncTimestamp(value.UpdatedAt)));
         if (value.Description is { } csilV5)
         {
             csilEntries.Add((new CborValue.Text("description"), new CborValue.Text(csilV5)));
@@ -1085,8 +1098,8 @@ public static class Codec
         var csilField1 = Cbor.AsText(Cbor.Require(value, "house_id"));
         var csilField2 = Cbor.AsText(Cbor.Require(value, "name"));
         string? csilField3 = Cbor.MapGet(value, "description") is { } csilRaw3 ? Cbor.AsText(csilRaw3) : null;
-        var csilField4 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField5 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        var csilField4 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        var csilField5 = Cbor.AsTimestamp(Cbor.Require(value, "updated_at"));
         return new Skill
         {
             SkillId = csilField0,
@@ -1104,7 +1117,7 @@ public static class Codec
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("skill_id"), new CborValue.Text(value.SkillId)));
         csilEntries.Add((new CborValue.Text("member_id"), new CborValue.Text(value.MemberId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         return new CborValue.Map(csilEntries);
     }
 
@@ -1113,7 +1126,7 @@ public static class Codec
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "member_id"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "skill_id"));
-        var csilField2 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField2 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
         return new MemberSkill
         {
             MemberId = csilField0,
@@ -1128,7 +1141,7 @@ public static class Codec
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("group_id"), new CborValue.Text(value.GroupId)));
         csilEntries.Add((new CborValue.Text("skill_id"), new CborValue.Text(value.SkillId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         return new CborValue.Map(csilEntries);
     }
 
@@ -1137,7 +1150,7 @@ public static class Codec
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "group_id"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "skill_id"));
-        var csilField2 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField2 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
         return new GroupSkill
         {
             GroupId = csilField0,
@@ -1153,8 +1166,8 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("name"), new CborValue.Text(value.Name)));
         csilEntries.Add((new CborValue.Text("group_id"), new CborValue.Text(value.GroupId)));
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
-        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("updated_at"), Cbor.EncTimestamp(value.UpdatedAt)));
         if (value.Description is { } csilV5)
         {
             csilEntries.Add((new CborValue.Text("description"), new CborValue.Text(csilV5)));
@@ -1169,8 +1182,8 @@ public static class Codec
         var csilField1 = Cbor.AsText(Cbor.Require(value, "house_id"));
         var csilField2 = Cbor.AsText(Cbor.Require(value, "name"));
         string? csilField3 = Cbor.MapGet(value, "description") is { } csilRaw3 ? Cbor.AsText(csilRaw3) : null;
-        var csilField4 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField5 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        var csilField4 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        var csilField5 = Cbor.AsTimestamp(Cbor.Require(value, "updated_at"));
         return new Group
         {
             GroupId = csilField0,
@@ -1188,7 +1201,7 @@ public static class Codec
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("group_id"), new CborValue.Text(value.GroupId)));
         csilEntries.Add((new CborValue.Text("member_id"), new CborValue.Text(value.MemberId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         return new CborValue.Map(csilEntries);
     }
 
@@ -1197,7 +1210,7 @@ public static class Codec
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "group_id"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "member_id"));
-        var csilField2 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField2 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
         return new GroupMember
         {
             GroupId = csilField0,
@@ -1224,9 +1237,9 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("personal"), new CborValue.Bool(csilV4)));
         }
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         csilEntries.Add((new CborValue.Text("project_id"), new CborValue.Text(value.ProjectId)));
-        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
+        csilEntries.Add((new CborValue.Text("updated_at"), Cbor.EncTimestamp(value.UpdatedAt)));
         if (value.Visibility is { } csilV8)
         {
             csilEntries.Add((new CborValue.Text("visibility"), AccessLevelToCborValue(csilV8)));
@@ -1254,8 +1267,8 @@ public static class Codec
         AccessLevel? csilField6 = Cbor.MapGet(value, "visibility") is { } csilRaw6 ? AccessLevelFromCborValue(csilRaw6) : null;
         MemberID? csilField7 = Cbor.MapGet(value, "created_by_member_id") is { } csilRaw7 ? Cbor.AsText(csilRaw7) : null;
         bool? csilField8 = Cbor.MapGet(value, "personal") is { } csilRaw8 ? Cbor.AsBool(csilRaw8) : null;
-        var csilField9 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField10 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        var csilField9 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        var csilField10 = Cbor.AsTimestamp(Cbor.Require(value, "updated_at"));
         return new Project
         {
             ProjectId = csilField0,
@@ -1278,7 +1291,7 @@ public static class Codec
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("task_id"), new CborValue.Text(value.TaskId)));
         csilEntries.Add((new CborValue.Text("position"), new CborValue.Int(value.Position)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         csilEntries.Add((new CborValue.Text("project_id"), new CborValue.Text(value.ProjectId)));
         return new CborValue.Map(csilEntries);
     }
@@ -1289,7 +1302,7 @@ public static class Codec
         var csilField0 = Cbor.AsText(Cbor.Require(value, "project_id"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "task_id"));
         var csilField2 = Cbor.AsI64(Cbor.Require(value, "position"));
-        var csilField3 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField3 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
         return new ProjectTask
         {
             ProjectId = csilField0,
@@ -1304,7 +1317,7 @@ public static class Codec
     {
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("member_id"), new CborValue.Text(value.MemberId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         csilEntries.Add((new CborValue.Text("project_id"), new CborValue.Text(value.ProjectId)));
         return new CborValue.Map(csilEntries);
     }
@@ -1314,7 +1327,7 @@ public static class Codec
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "project_id"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "member_id"));
-        var csilField2 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField2 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
         return new ProjectMember
         {
             ProjectId = csilField0,
@@ -1328,7 +1341,7 @@ public static class Codec
     {
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("member_id"), new CborValue.Text(value.MemberId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         csilEntries.Add((new CborValue.Text("project_id"), new CborValue.Text(value.ProjectId)));
         return new CborValue.Map(csilEntries);
     }
@@ -1338,7 +1351,7 @@ public static class Codec
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "project_id"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "member_id"));
-        var csilField2 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField2 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
         return new ProjectOwner
         {
             ProjectId = csilField0,
@@ -1354,9 +1367,9 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("label"), new CborValue.Text(value.Label)));
         csilEntries.Add((new CborValue.Text("state"), MilestoneStateToCborValue(value.State)));
         csilEntries.Add((new CborValue.Text("position"), new CborValue.Int(value.Position)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         csilEntries.Add((new CborValue.Text("project_id"), new CborValue.Text(value.ProjectId)));
-        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
+        csilEntries.Add((new CborValue.Text("updated_at"), Cbor.EncTimestamp(value.UpdatedAt)));
         csilEntries.Add((new CborValue.Text("when_label"), new CborValue.Text(value.WhenLabel)));
         csilEntries.Add((new CborValue.Text("milestone_id"), new CborValue.Text(value.MilestoneId)));
         return new CborValue.Map(csilEntries);
@@ -1371,8 +1384,8 @@ public static class Codec
         var csilField3 = Cbor.AsText(Cbor.Require(value, "when_label"));
         var csilField4 = MilestoneStateFromCborValue(Cbor.Require(value, "state"));
         var csilField5 = Cbor.AsI64(Cbor.Require(value, "position"));
-        var csilField6 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField7 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        var csilField6 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        var csilField7 = Cbor.AsTimestamp(Cbor.Require(value, "updated_at"));
         return new Milestone
         {
             MilestoneId = csilField0,
@@ -1397,7 +1410,7 @@ public static class Codec
         }
         if (value.EndsAt is { } csilV2)
         {
-            csilEntries.Add((new CborValue.Text("ends_at"), new CborValue.Text(csilV2)));
+            csilEntries.Add((new CborValue.Text("ends_at"), Cbor.EncTimestamp(csilV2)));
         }
         csilEntries.Add((new CborValue.Text("event_id"), new CborValue.Text(value.EventId)));
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
@@ -1415,14 +1428,14 @@ public static class Codec
         }
         if (value.StartsAt is { } csilV8)
         {
-            csilEntries.Add((new CborValue.Text("starts_at"), new CborValue.Text(csilV8)));
+            csilEntries.Add((new CborValue.Text("starts_at"), Cbor.EncTimestamp(csilV8)));
         }
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         if (value.EditScope is { } csilV10)
         {
             csilEntries.Add((new CborValue.Text("edit_scope"), new CborValue.Text(csilV10)));
         }
-        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
+        csilEntries.Add((new CborValue.Text("updated_at"), Cbor.EncTimestamp(value.UpdatedAt)));
         if (value.Description is { } csilV12)
         {
             csilEntries.Add((new CborValue.Text("description"), new CborValue.Text(csilV12)));
@@ -1454,7 +1467,7 @@ public static class Codec
         }
         if (value.NextRecurrenceAt is { } csilV20)
         {
-            csilEntries.Add((new CborValue.Text("next_recurrence_at"), new CborValue.Text(csilV20)));
+            csilEntries.Add((new CborValue.Text("next_recurrence_at"), Cbor.EncTimestamp(csilV20)));
         }
         if (value.RecurrenceInterval is { } csilV21)
         {
@@ -1492,8 +1505,8 @@ public static class Codec
         var csilField3 = Cbor.AsText(Cbor.Require(value, "title"));
         string? csilField4 = Cbor.MapGet(value, "description") is { } csilRaw4 ? Cbor.AsText(csilRaw4) : null;
         string? csilField5 = Cbor.MapGet(value, "location") is { } csilRaw5 ? Cbor.AsText(csilRaw5) : null;
-        Timestamp? csilField6 = Cbor.MapGet(value, "starts_at") is { } csilRaw6 ? Cbor.AsText(csilRaw6) : null;
-        Timestamp? csilField7 = Cbor.MapGet(value, "ends_at") is { } csilRaw7 ? Cbor.AsText(csilRaw7) : null;
+        System.DateTimeOffset? csilField6 = Cbor.MapGet(value, "starts_at") is { } csilRaw6 ? Cbor.AsTimestamp(csilRaw6) : null;
+        System.DateTimeOffset? csilField7 = Cbor.MapGet(value, "ends_at") is { } csilRaw7 ? Cbor.AsTimestamp(csilRaw7) : null;
         bool? csilField8 = Cbor.MapGet(value, "all_day") is { } csilRaw8 ? Cbor.AsBool(csilRaw8) : null;
         string? csilField9 = Cbor.MapGet(value, "timezone") is { } csilRaw9 ? Cbor.AsText(csilRaw9) : null;
         string? csilField10 = Cbor.MapGet(value, "recurrence_rule") is { } csilRaw10 ? Cbor.AsText(csilRaw10) : null;
@@ -1502,7 +1515,7 @@ public static class Codec
         long? csilField13 = Cbor.MapGet(value, "recurrence_interval") is { } csilRaw13 ? Cbor.AsI64(csilRaw13) : null;
         System.Collections.Generic.List<long>? csilField14 = Cbor.MapGet(value, "recurrence_by_weekday") is { } csilRaw14 ? Cbor.AsArray(csilRaw14).Select(csilElem => Cbor.AsI64(csilElem)).ToList() : null;
         long? csilField15 = Cbor.MapGet(value, "recurrence_by_setpos") is { } csilRaw15 ? Cbor.AsI64(csilRaw15) : null;
-        Timestamp? csilField16 = Cbor.MapGet(value, "next_recurrence_at") is { } csilRaw16 ? Cbor.AsText(csilRaw16) : null;
+        System.DateTimeOffset? csilField16 = Cbor.MapGet(value, "next_recurrence_at") is { } csilRaw16 ? Cbor.AsTimestamp(csilRaw16) : null;
         EventID? csilField17 = Cbor.MapGet(value, "recurrence_root_event_id") is { } csilRaw17 ? Cbor.AsText(csilRaw17) : null;
         string? csilField18 = Cbor.MapGet(value, "calendar_state") is { } csilRaw18 ? Cbor.AsText(csilRaw18) : null;
         ulong? csilField19 = Cbor.MapGet(value, "revision") is { } csilRaw19 ? Cbor.AsU64(csilRaw19) : null;
@@ -1511,8 +1524,8 @@ public static class Codec
         MemberID? csilField22 = Cbor.MapGet(value, "edit_pending_member_id") is { } csilRaw22 ? Cbor.AsText(csilRaw22) : null;
         bool? csilField23 = Cbor.MapGet(value, "calendar_unbound") is { } csilRaw23 ? Cbor.AsBool(csilRaw23) : null;
         string? csilField24 = Cbor.MapGet(value, "edit_scope") is { } csilRaw24 ? Cbor.AsText(csilRaw24) : null;
-        var csilField25 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField26 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        var csilField25 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        var csilField26 = Cbor.AsTimestamp(Cbor.Require(value, "updated_at"));
         return new Event
         {
             EventId = csilField0,
@@ -1556,7 +1569,7 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("title"), new CborValue.Text(value.Title)));
         if (value.DueAt is { } csilV2)
         {
-            csilEntries.Add((new CborValue.Text("due_at"), new CborValue.Text(csilV2)));
+            csilEntries.Add((new CborValue.Text("due_at"), Cbor.EncTimestamp(csilV2)));
         }
         if (value.Status is { } csilV3)
         {
@@ -1568,12 +1581,12 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("assignees"), new CborValue.Array(csilV6.Select(csilElem => (CborValue)new CborValue.Text(csilElem)).ToList())));
         }
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         if (value.DeletedAt is { } csilV8)
         {
-            csilEntries.Add((new CborValue.Text("deleted_at"), new CborValue.Text(csilV8)));
+            csilEntries.Add((new CborValue.Text("deleted_at"), Cbor.EncTimestamp(csilV8)));
         }
-        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
+        csilEntries.Add((new CborValue.Text("updated_at"), Cbor.EncTimestamp(value.UpdatedAt)));
         if (value.Visibility is { } csilV10)
         {
             csilEntries.Add((new CborValue.Text("visibility"), AccessLevelToCborValue(csilV10)));
@@ -1601,7 +1614,7 @@ public static class Codec
         }
         if (value.NextRecurrenceAt is { } csilV17)
         {
-            csilEntries.Add((new CborValue.Text("next_recurrence_at"), new CborValue.Text(csilV17)));
+            csilEntries.Add((new CborValue.Text("next_recurrence_at"), Cbor.EncTimestamp(csilV17)));
         }
         if (value.RecurrenceInterval is { } csilV18)
         {
@@ -1639,7 +1652,7 @@ public static class Codec
         var csilField7 = Cbor.AsText(Cbor.Require(value, "title"));
         string? csilField8 = Cbor.MapGet(value, "description") is { } csilRaw8 ? Cbor.AsText(csilRaw8) : null;
         TaskStatus? csilField9 = Cbor.MapGet(value, "status") is { } csilRaw9 ? TaskStatusFromCborValue(csilRaw9) : null;
-        Timestamp? csilField10 = Cbor.MapGet(value, "due_at") is { } csilRaw10 ? Cbor.AsText(csilRaw10) : null;
+        System.DateTimeOffset? csilField10 = Cbor.MapGet(value, "due_at") is { } csilRaw10 ? Cbor.AsTimestamp(csilRaw10) : null;
         string? csilField11 = Cbor.MapGet(value, "tag") is { } csilRaw11 ? Cbor.AsText(csilRaw11) : null;
         ulong? csilField12 = Cbor.MapGet(value, "estimate_minutes") is { } csilRaw12 ? Cbor.AsU64(csilRaw12) : null;
         RecurrenceFreq? csilField13 = Cbor.MapGet(value, "recurrence_freq") is { } csilRaw13 ? RecurrenceFreqFromCborValue(csilRaw13) : null;
@@ -1647,11 +1660,11 @@ public static class Codec
         long? csilField15 = Cbor.MapGet(value, "recurrence_interval") is { } csilRaw15 ? Cbor.AsI64(csilRaw15) : null;
         System.Collections.Generic.List<long>? csilField16 = Cbor.MapGet(value, "recurrence_by_weekday") is { } csilRaw16 ? Cbor.AsArray(csilRaw16).Select(csilElem => Cbor.AsI64(csilElem)).ToList() : null;
         long? csilField17 = Cbor.MapGet(value, "recurrence_by_setpos") is { } csilRaw17 ? Cbor.AsI64(csilRaw17) : null;
-        Timestamp? csilField18 = Cbor.MapGet(value, "next_recurrence_at") is { } csilRaw18 ? Cbor.AsText(csilRaw18) : null;
+        System.DateTimeOffset? csilField18 = Cbor.MapGet(value, "next_recurrence_at") is { } csilRaw18 ? Cbor.AsTimestamp(csilRaw18) : null;
         TaskID? csilField19 = Cbor.MapGet(value, "recurrence_root_task_id") is { } csilRaw19 ? Cbor.AsText(csilRaw19) : null;
-        Timestamp? csilField20 = Cbor.MapGet(value, "deleted_at") is { } csilRaw20 ? Cbor.AsText(csilRaw20) : null;
-        var csilField21 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField22 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        System.DateTimeOffset? csilField20 = Cbor.MapGet(value, "deleted_at") is { } csilRaw20 ? Cbor.AsTimestamp(csilRaw20) : null;
+        var csilField21 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        var csilField22 = Cbor.AsTimestamp(Cbor.Require(value, "updated_at"));
         return new Task
         {
             TaskId = csilField0,
@@ -1689,8 +1702,8 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("member_id"), new CborValue.Text(value.MemberId)));
         csilEntries.Add((new CborValue.Text("target_id"), new CborValue.Text(value.TargetId)));
         csilEntries.Add((new CborValue.Text("comment_id"), new CborValue.Text(value.CommentId)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
-        csilEntries.Add((new CborValue.Text("updated_at"), new CborValue.Text(value.UpdatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("updated_at"), Cbor.EncTimestamp(value.UpdatedAt)));
         csilEntries.Add((new CborValue.Text("target_type"), TargetTypeToCborValue(value.TargetType)));
         return new CborValue.Map(csilEntries);
     }
@@ -1704,8 +1717,8 @@ public static class Codec
         var csilField3 = TargetTypeFromCborValue(Cbor.Require(value, "target_type"));
         var csilField4 = Cbor.AsText(Cbor.Require(value, "target_id"));
         var csilField5 = Cbor.AsText(Cbor.Require(value, "body"));
-        var csilField6 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField7 = Cbor.AsText(Cbor.Require(value, "updated_at"));
+        var csilField6 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        var csilField7 = Cbor.AsTimestamp(Cbor.Require(value, "updated_at"));
         return new Comment
         {
             CommentId = csilField0,
@@ -1726,10 +1739,10 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
         csilEntries.Add((new CborValue.Text("share_id"), new CborValue.Text(value.ShareId)));
         csilEntries.Add((new CborValue.Text("shared_by"), new CborValue.Text(value.SharedBy)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         if (value.ExpiresAt is { } csilV4)
         {
-            csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(csilV4)));
+            csilEntries.Add((new CborValue.Text("expires_at"), Cbor.EncTimestamp(csilV4)));
         }
         csilEntries.Add((new CborValue.Text("resource_id"), new CborValue.Text(value.ResourceId)));
         if (value.AccessLevel is { } csilV6)
@@ -1753,8 +1766,8 @@ public static class Codec
         var csilField5 = ResourceTypeFromCborValue(Cbor.Require(value, "resource_type"));
         var csilField6 = Cbor.AsText(Cbor.Require(value, "resource_id"));
         AccessLevel? csilField7 = Cbor.MapGet(value, "access_level") is { } csilRaw7 ? AccessLevelFromCborValue(csilRaw7) : null;
-        var csilField8 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        Timestamp? csilField9 = Cbor.MapGet(value, "expires_at") is { } csilRaw9 ? Cbor.AsText(csilRaw9) : null;
+        var csilField8 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        System.DateTimeOffset? csilField9 = Cbor.MapGet(value, "expires_at") is { } csilRaw9 ? Cbor.AsTimestamp(csilRaw9) : null;
         return new Share
         {
             ShareId = csilField0,
@@ -1972,7 +1985,7 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("token"), new CborValue.Text(value.Token)));
         csilEntries.Add((new CborValue.Text("domain"), new CborValue.Text(value.Domain)));
         csilEntries.Add((new CborValue.Text("user_id"), new CborValue.Text(value.UserId)));
-        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        csilEntries.Add((new CborValue.Text("expires_at"), Cbor.EncTimestamp(value.ExpiresAt)));
         if (value.DisplayName is { } csilV4)
         {
             csilEntries.Add((new CborValue.Text("display_name"), new CborValue.Text(csilV4)));
@@ -1987,7 +2000,7 @@ public static class Codec
         var csilField1 = Cbor.AsText(Cbor.Require(value, "domain"));
         var csilField2 = Cbor.AsText(Cbor.Require(value, "user_id"));
         string? csilField3 = Cbor.MapGet(value, "display_name") is { } csilRaw3 ? Cbor.AsText(csilRaw3) : null;
-        var csilField4 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        var csilField4 = Cbor.AsTimestamp(Cbor.Require(value, "expires_at"));
         return new LoginResponse
         {
             Token = csilField0,
@@ -2005,14 +2018,14 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("token"), new CborValue.Text(value.Token)));
         csilEntries.Add((new CborValue.Text("domain"), new CborValue.Text(value.Domain)));
         csilEntries.Add((new CborValue.Text("user_id"), new CborValue.Text(value.UserId)));
-        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        csilEntries.Add((new CborValue.Text("expires_at"), Cbor.EncTimestamp(value.ExpiresAt)));
         csilEntries.Add((new CborValue.Text("session_id"), new CborValue.Text(value.SessionId)));
         if (value.DisplayName is { } csilV5)
         {
             csilEntries.Add((new CborValue.Text("display_name"), new CborValue.Text(csilV5)));
         }
         csilEntries.Add((new CborValue.Text("refresh_token"), new CborValue.Text(value.RefreshToken)));
-        csilEntries.Add((new CborValue.Text("refresh_expires_at"), new CborValue.Text(value.RefreshExpiresAt)));
+        csilEntries.Add((new CborValue.Text("refresh_expires_at"), Cbor.EncTimestamp(value.RefreshExpiresAt)));
         return new CborValue.Map(csilEntries);
     }
 
@@ -2023,9 +2036,9 @@ public static class Codec
         var csilField1 = Cbor.AsText(Cbor.Require(value, "domain"));
         var csilField2 = Cbor.AsText(Cbor.Require(value, "user_id"));
         string? csilField3 = Cbor.MapGet(value, "display_name") is { } csilRaw3 ? Cbor.AsText(csilRaw3) : null;
-        var csilField4 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        var csilField4 = Cbor.AsTimestamp(Cbor.Require(value, "expires_at"));
         var csilField5 = Cbor.AsText(Cbor.Require(value, "refresh_token"));
-        var csilField6 = Cbor.AsText(Cbor.Require(value, "refresh_expires_at"));
+        var csilField6 = Cbor.AsTimestamp(Cbor.Require(value, "refresh_expires_at"));
         var csilField7 = Cbor.AsText(Cbor.Require(value, "session_id"));
         return new CliTokenResponse
         {
@@ -2063,7 +2076,7 @@ public static class Codec
     {
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("user_code"), new CborValue.Text(value.UserCode)));
-        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        csilEntries.Add((new CborValue.Text("expires_at"), Cbor.EncTimestamp(value.ExpiresAt)));
         csilEntries.Add((new CborValue.Text("device_code"), new CborValue.Text(value.DeviceCode)));
         csilEntries.Add((new CborValue.Text("interval_seconds"), new CborValue.Uint(value.IntervalSeconds)));
         csilEntries.Add((new CborValue.Text("verification_url"), new CborValue.Text(value.VerificationUrl)));
@@ -2076,7 +2089,7 @@ public static class Codec
         var csilField0 = Cbor.AsText(Cbor.Require(value, "device_code"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "user_code"));
         var csilField2 = Cbor.AsText(Cbor.Require(value, "verification_url"));
-        var csilField3 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        var csilField3 = Cbor.AsTimestamp(Cbor.Require(value, "expires_at"));
         var csilField4 = Cbor.AsU64(Cbor.Require(value, "interval_seconds"));
         return new BeginCliLoginResponse
         {
@@ -2111,7 +2124,7 @@ public static class Codec
     {
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("user_code"), new CborValue.Text(value.UserCode)));
-        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        csilEntries.Add((new CborValue.Text("expires_at"), Cbor.EncTimestamp(value.ExpiresAt)));
         csilEntries.Add((new CborValue.Text("client_name"), new CborValue.Text(value.ClientName)));
         return new CborValue.Map(csilEntries);
     }
@@ -2121,7 +2134,7 @@ public static class Codec
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "user_code"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "client_name"));
-        var csilField2 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        var csilField2 = Cbor.AsTimestamp(Cbor.Require(value, "expires_at"));
         return new CliLoginRequestInfo
         {
             UserCode = csilField0,
@@ -2220,15 +2233,15 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("current"), new CborValue.Bool(csilV1)));
         }
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
-        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("expires_at"), Cbor.EncTimestamp(value.ExpiresAt)));
         if (value.RevokedAt is { } csilV4)
         {
-            csilEntries.Add((new CborValue.Text("revoked_at"), new CborValue.Text(csilV4)));
+            csilEntries.Add((new CborValue.Text("revoked_at"), Cbor.EncTimestamp(csilV4)));
         }
         csilEntries.Add((new CborValue.Text("session_id"), new CborValue.Text(value.SessionId)));
         csilEntries.Add((new CborValue.Text("client_name"), new CborValue.Text(value.ClientName)));
-        csilEntries.Add((new CborValue.Text("last_used_at"), new CborValue.Text(value.LastUsedAt)));
+        csilEntries.Add((new CborValue.Text("last_used_at"), Cbor.EncTimestamp(value.LastUsedAt)));
         return new CborValue.Map(csilEntries);
     }
 
@@ -2237,10 +2250,10 @@ public static class Codec
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "session_id"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "client_name"));
-        var csilField2 = Cbor.AsText(Cbor.Require(value, "created_at"));
-        var csilField3 = Cbor.AsText(Cbor.Require(value, "last_used_at"));
-        var csilField4 = Cbor.AsText(Cbor.Require(value, "expires_at"));
-        Timestamp? csilField5 = Cbor.MapGet(value, "revoked_at") is { } csilRaw5 ? Cbor.AsText(csilRaw5) : null;
+        var csilField2 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
+        var csilField3 = Cbor.AsTimestamp(Cbor.Require(value, "last_used_at"));
+        var csilField4 = Cbor.AsTimestamp(Cbor.Require(value, "expires_at"));
+        System.DateTimeOffset? csilField5 = Cbor.MapGet(value, "revoked_at") is { } csilRaw5 ? Cbor.AsTimestamp(csilRaw5) : null;
         SessionKind? csilField6 = Cbor.MapGet(value, "kind") is { } csilRaw6 ? SessionKindFromCborValue(csilRaw6) : null;
         bool? csilField7 = Cbor.MapGet(value, "current") is { } csilRaw7 ? Cbor.AsBool(csilRaw7) : null;
         return new CliSessionSummary
@@ -2380,7 +2393,7 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("domain"), new CborValue.Text(value.Domain)));
         csilEntries.Add((new CborValue.Text("houses"), new CborValue.Array(value.Houses.Select(csilElem => (CborValue)HouseSummaryToCborValue(csilElem)).ToList())));
         csilEntries.Add((new CborValue.Text("user_id"), new CborValue.Text(value.UserId)));
-        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        csilEntries.Add((new CborValue.Text("expires_at"), Cbor.EncTimestamp(value.ExpiresAt)));
         if (value.DisplayName is { } csilV4)
         {
             csilEntries.Add((new CborValue.Text("display_name"), new CborValue.Text(csilV4)));
@@ -2394,7 +2407,7 @@ public static class Codec
         var csilField0 = Cbor.AsText(Cbor.Require(value, "domain"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "user_id"));
         string? csilField2 = Cbor.MapGet(value, "display_name") is { } csilRaw2 ? Cbor.AsText(csilRaw2) : null;
-        var csilField3 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        var csilField3 = Cbor.AsTimestamp(Cbor.Require(value, "expires_at"));
         var csilField4 = Cbor.AsArray(Cbor.Require(value, "houses")).Select(csilElem => HouseSummaryFromCborValue(csilElem)).ToList();
         return new MeResponse
         {
@@ -2526,11 +2539,11 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
         if (value.RangeEnd is { } csilV3)
         {
-            csilEntries.Add((new CborValue.Text("range_end"), new CborValue.Text(csilV3)));
+            csilEntries.Add((new CborValue.Text("range_end"), Cbor.EncTimestamp(csilV3)));
         }
         if (value.RangeStart is { } csilV4)
         {
-            csilEntries.Add((new CborValue.Text("range_start"), new CborValue.Text(csilV4)));
+            csilEntries.Add((new CborValue.Text("range_start"), Cbor.EncTimestamp(csilV4)));
         }
         return new CborValue.Map(csilEntries);
     }
@@ -2539,8 +2552,8 @@ public static class Codec
     public static EventListRequest EventListRequestFromCborValue(CborValue value)
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "house_id"));
-        Timestamp? csilField1 = Cbor.MapGet(value, "range_start") is { } csilRaw1 ? Cbor.AsText(csilRaw1) : null;
-        Timestamp? csilField2 = Cbor.MapGet(value, "range_end") is { } csilRaw2 ? Cbor.AsText(csilRaw2) : null;
+        System.DateTimeOffset? csilField1 = Cbor.MapGet(value, "range_start") is { } csilRaw1 ? Cbor.AsTimestamp(csilRaw1) : null;
+        System.DateTimeOffset? csilField2 = Cbor.MapGet(value, "range_end") is { } csilRaw2 ? Cbor.AsTimestamp(csilRaw2) : null;
         ulong? csilField3 = Cbor.MapGet(value, "limit") is { } csilRaw3 ? Cbor.AsU64(csilRaw3) : null;
         ulong? csilField4 = Cbor.MapGet(value, "offset") is { } csilRaw4 ? Cbor.AsU64(csilRaw4) : null;
         return new EventListRequest
@@ -2575,7 +2588,7 @@ public static class Codec
         }
         if (value.DueTo is { } csilV4)
         {
-            csilEntries.Add((new CborValue.Text("due_to"), new CborValue.Text(csilV4)));
+            csilEntries.Add((new CborValue.Text("due_to"), Cbor.EncTimestamp(csilV4)));
         }
         if (value.Offset is { } csilV5)
         {
@@ -2583,12 +2596,12 @@ public static class Codec
         }
         if (value.DueFrom is { } csilV6)
         {
-            csilEntries.Add((new CborValue.Text("due_from"), new CborValue.Text(csilV6)));
+            csilEntries.Add((new CborValue.Text("due_from"), Cbor.EncTimestamp(csilV6)));
         }
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
         if (value.DueBefore is { } csilV8)
         {
-            csilEntries.Add((new CborValue.Text("due_before"), new CborValue.Array(csilV8.Select(csilElem => (CborValue)new CborValue.Text(csilElem)).ToList())));
+            csilEntries.Add((new CborValue.Text("due_before"), new CborValue.Array(csilV8.Select(csilElem => (CborValue)Cbor.EncTimestamp(csilElem)).ToList())));
         }
         return new CborValue.Map(csilEntries);
     }
@@ -2602,9 +2615,9 @@ public static class Codec
         TaskState? csilField3 = Cbor.MapGet(value, "state") is { } csilRaw3 ? TaskStateFromCborValue(csilRaw3) : null;
         bool? csilField4 = Cbor.MapGet(value, "mine") is { } csilRaw4 ? Cbor.AsBool(csilRaw4) : null;
         bool? csilField5 = Cbor.MapGet(value, "loose") is { } csilRaw5 ? Cbor.AsBool(csilRaw5) : null;
-        Timestamp? csilField6 = Cbor.MapGet(value, "due_from") is { } csilRaw6 ? Cbor.AsText(csilRaw6) : null;
-        Timestamp? csilField7 = Cbor.MapGet(value, "due_to") is { } csilRaw7 ? Cbor.AsText(csilRaw7) : null;
-        System.Collections.Generic.List<Timestamp>? csilField8 = Cbor.MapGet(value, "due_before") is { } csilRaw8 ? Cbor.AsArray(csilRaw8).Select(csilElem => Cbor.AsText(csilElem)).ToList() : null;
+        System.DateTimeOffset? csilField6 = Cbor.MapGet(value, "due_from") is { } csilRaw6 ? Cbor.AsTimestamp(csilRaw6) : null;
+        System.DateTimeOffset? csilField7 = Cbor.MapGet(value, "due_to") is { } csilRaw7 ? Cbor.AsTimestamp(csilRaw7) : null;
+        System.Collections.Generic.List<System.DateTimeOffset>? csilField8 = Cbor.MapGet(value, "due_before") is { } csilRaw8 ? Cbor.AsArray(csilRaw8).Select(csilElem => Cbor.AsTimestamp(csilElem)).ToList() : null;
         return new TaskListRequest
         {
             HouseId = csilField0,
@@ -2787,7 +2800,7 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("read"), new CborValue.Bool(value.Read)));
         if (value.ReadAt is { } csilV3)
         {
-            csilEntries.Add((new CborValue.Text("read_at"), new CborValue.Text(csilV3)));
+            csilEntries.Add((new CborValue.Text("read_at"), Cbor.EncTimestamp(csilV3)));
         }
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
         csilEntries.Add((new CborValue.Text("member_id"), new CborValue.Text(value.MemberId)));
@@ -2796,7 +2809,7 @@ public static class Codec
             csilEntries.Add((new CborValue.Text("target_id"), new CborValue.Text(csilV6)));
         }
         csilEntries.Add((new CborValue.Text("actor_name"), new CborValue.Text(value.ActorName)));
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         if (value.TargetType is { } csilV9)
         {
             csilEntries.Add((new CborValue.Text("target_type"), new CborValue.Text(csilV9)));
@@ -2824,8 +2837,8 @@ public static class Codec
         var csilField8 = Cbor.AsText(Cbor.Require(value, "target_title"));
         var csilField9 = Cbor.AsText(Cbor.Require(value, "body"));
         var csilField10 = Cbor.AsBool(Cbor.Require(value, "read"));
-        Timestamp? csilField11 = Cbor.MapGet(value, "read_at") is { } csilRaw11 ? Cbor.AsText(csilRaw11) : null;
-        var csilField12 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        System.DateTimeOffset? csilField11 = Cbor.MapGet(value, "read_at") is { } csilRaw11 ? Cbor.AsTimestamp(csilRaw11) : null;
+        var csilField12 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
         return new Notification
         {
             NotificationId = csilField0,
@@ -3580,7 +3593,7 @@ public static class Codec
         csilEntries.Add((new CborValue.Text("grantee"), new CborValue.Text(value.Grantee)));
         csilEntries.Add((new CborValue.Text("user_id"), new CborValue.Text(value.UserId)));
         csilEntries.Add((new CborValue.Text("grant_id"), new CborValue.Text(value.GrantId)));
-        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        csilEntries.Add((new CborValue.Text("expires_at"), Cbor.EncTimestamp(value.ExpiresAt)));
         return new CborValue.Map(csilEntries);
     }
 
@@ -3590,7 +3603,7 @@ public static class Codec
         var csilField0 = Cbor.AsText(Cbor.Require(value, "token"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "domain"));
         var csilField2 = Cbor.AsText(Cbor.Require(value, "user_id"));
-        var csilField3 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        var csilField3 = Cbor.AsTimestamp(Cbor.Require(value, "expires_at"));
         var csilField4 = Cbor.AsText(Cbor.Require(value, "grant_id"));
         var csilField5 = Cbor.AsText(Cbor.Require(value, "grantee"));
         var csilField6 = Cbor.AsArray(Cbor.Require(value, "scopes")).Select(csilElem => Cbor.AsText(csilElem)).ToList();
@@ -3690,7 +3703,7 @@ public static class Codec
         }
         if (value.SyncPendingSince is { } csilV6)
         {
-            csilEntries.Add((new CborValue.Text("sync_pending_since"), new CborValue.Text(csilV6)));
+            csilEntries.Add((new CborValue.Text("sync_pending_since"), Cbor.EncTimestamp(csilV6)));
         }
         return new CborValue.Map(csilEntries);
     }
@@ -3704,7 +3717,7 @@ public static class Codec
         var csilField3 = Cbor.AsBool(Cbor.Require(value, "ready"));
         var csilField4 = Cbor.AsBool(Cbor.Require(value, "connected"));
         string? csilField5 = Cbor.MapGet(value, "last_error") is { } csilRaw5 ? Cbor.AsText(csilRaw5) : null;
-        Timestamp? csilField6 = Cbor.MapGet(value, "sync_pending_since") is { } csilRaw6 ? Cbor.AsText(csilRaw6) : null;
+        System.DateTimeOffset? csilField6 = Cbor.MapGet(value, "sync_pending_since") is { } csilRaw6 ? Cbor.AsTimestamp(csilRaw6) : null;
         return new CalendarStatus
         {
             HouseId = csilField0,
@@ -3786,8 +3799,8 @@ public static class Codec
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("event"), EventToCborValue(value.Event)));
         csilEntries.Add((new CborValue.Text("trash_id"), new CborValue.Text(value.TrashId)));
-        csilEntries.Add((new CborValue.Text("deleted_at"), new CborValue.Text(value.DeletedAt)));
-        csilEntries.Add((new CborValue.Text("expires_at"), new CborValue.Text(value.ExpiresAt)));
+        csilEntries.Add((new CborValue.Text("deleted_at"), Cbor.EncTimestamp(value.DeletedAt)));
+        csilEntries.Add((new CborValue.Text("expires_at"), Cbor.EncTimestamp(value.ExpiresAt)));
         return new CborValue.Map(csilEntries);
     }
 
@@ -3796,8 +3809,8 @@ public static class Codec
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "trash_id"));
         var csilField1 = EventFromCborValue(Cbor.Require(value, "event"));
-        var csilField2 = Cbor.AsText(Cbor.Require(value, "deleted_at"));
-        var csilField3 = Cbor.AsText(Cbor.Require(value, "expires_at"));
+        var csilField2 = Cbor.AsTimestamp(Cbor.Require(value, "deleted_at"));
+        var csilField3 = Cbor.AsTimestamp(Cbor.Require(value, "expires_at"));
         return new CalendarTrashEntry
         {
             TrashId = csilField0,
@@ -3859,9 +3872,9 @@ public static class Codec
     public static CborValue ProjectDeadlineRequestToCborValue(ProjectDeadlineRequest value)
     {
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
-        csilEntries.Add((new CborValue.Text("range_end"), new CborValue.Text(value.RangeEnd)));
+        csilEntries.Add((new CborValue.Text("range_end"), Cbor.EncTimestamp(value.RangeEnd)));
         csilEntries.Add((new CborValue.Text("project_id"), new CborValue.Text(value.ProjectId)));
-        csilEntries.Add((new CborValue.Text("range_start"), new CborValue.Text(value.RangeStart)));
+        csilEntries.Add((new CborValue.Text("range_start"), Cbor.EncTimestamp(value.RangeStart)));
         return new CborValue.Map(csilEntries);
     }
 
@@ -3869,8 +3882,8 @@ public static class Codec
     public static ProjectDeadlineRequest ProjectDeadlineRequestFromCborValue(CborValue value)
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "project_id"));
-        var csilField1 = Cbor.AsText(Cbor.Require(value, "range_start"));
-        var csilField2 = Cbor.AsText(Cbor.Require(value, "range_end"));
+        var csilField1 = Cbor.AsTimestamp(Cbor.Require(value, "range_start"));
+        var csilField2 = Cbor.AsTimestamp(Cbor.Require(value, "range_end"));
         return new ProjectDeadlineRequest
         {
             ProjectId = csilField0,
@@ -3884,7 +3897,7 @@ public static class Codec
     {
         var csilEntries = new System.Collections.Generic.List<(CborValue, CborValue)>();
         csilEntries.Add((new CborValue.Text("title"), new CborValue.Text(value.Title)));
-        csilEntries.Add((new CborValue.Text("due_at"), new CborValue.Text(value.DueAt)));
+        csilEntries.Add((new CborValue.Text("due_at"), Cbor.EncTimestamp(value.DueAt)));
         csilEntries.Add((new CborValue.Text("task_id"), new CborValue.Text(value.TaskId)));
         return new CborValue.Map(csilEntries);
     }
@@ -3894,7 +3907,7 @@ public static class Codec
     {
         var csilField0 = Cbor.AsText(Cbor.Require(value, "task_id"));
         var csilField1 = Cbor.AsText(Cbor.Require(value, "title"));
-        var csilField2 = Cbor.AsText(Cbor.Require(value, "due_at"));
+        var csilField2 = Cbor.AsTimestamp(Cbor.Require(value, "due_at"));
         return new ProjectDeadline
         {
             TaskId = csilField0,
@@ -3960,7 +3973,7 @@ public static class Codec
         {
             csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(csilV7)));
         }
-        csilEntries.Add((new CborValue.Text("created_at"), new CborValue.Text(value.CreatedAt)));
+        csilEntries.Add((new CborValue.Text("created_at"), Cbor.EncTimestamp(value.CreatedAt)));
         if (value.ResourceId is { } csilV9)
         {
             csilEntries.Add((new CborValue.Text("resource_id"), new CborValue.Text(csilV9)));
@@ -3996,7 +4009,7 @@ public static class Codec
         string? csilField11 = Cbor.MapGet(value, "before") is { } csilRaw11 ? Cbor.AsText(csilRaw11) : null;
         string? csilField12 = Cbor.MapGet(value, "after") is { } csilRaw12 ? Cbor.AsText(csilRaw12) : null;
         string? csilField13 = Cbor.MapGet(value, "detail") is { } csilRaw13 ? Cbor.AsText(csilRaw13) : null;
-        var csilField14 = Cbor.AsText(Cbor.Require(value, "created_at"));
+        var csilField14 = Cbor.AsTimestamp(Cbor.Require(value, "created_at"));
         return new AuditEntry
         {
             AuditId = csilField0,
@@ -4027,11 +4040,11 @@ public static class Codec
         }
         if (value.Since is { } csilV1)
         {
-            csilEntries.Add((new CborValue.Text("since"), new CborValue.Text(csilV1)));
+            csilEntries.Add((new CborValue.Text("since"), Cbor.EncTimestamp(csilV1)));
         }
         if (value.Until is { } csilV2)
         {
-            csilEntries.Add((new CborValue.Text("until"), new CborValue.Text(csilV2)));
+            csilEntries.Add((new CborValue.Text("until"), Cbor.EncTimestamp(csilV2)));
         }
         if (value.Action is { } csilV3)
         {
@@ -4060,8 +4073,8 @@ public static class Codec
         MemberID? csilField1 = Cbor.MapGet(value, "actor_member_id") is { } csilRaw1 ? Cbor.AsText(csilRaw1) : null;
         string? csilField2 = Cbor.MapGet(value, "resource_type") is { } csilRaw2 ? Cbor.AsText(csilRaw2) : null;
         string? csilField3 = Cbor.MapGet(value, "action") is { } csilRaw3 ? Cbor.AsText(csilRaw3) : null;
-        Timestamp? csilField4 = Cbor.MapGet(value, "since") is { } csilRaw4 ? Cbor.AsText(csilRaw4) : null;
-        Timestamp? csilField5 = Cbor.MapGet(value, "until") is { } csilRaw5 ? Cbor.AsText(csilRaw5) : null;
+        System.DateTimeOffset? csilField4 = Cbor.MapGet(value, "since") is { } csilRaw4 ? Cbor.AsTimestamp(csilRaw4) : null;
+        System.DateTimeOffset? csilField5 = Cbor.MapGet(value, "until") is { } csilRaw5 ? Cbor.AsTimestamp(csilRaw5) : null;
         string? csilField6 = Cbor.MapGet(value, "cursor") is { } csilRaw6 ? Cbor.AsText(csilRaw6) : null;
         ulong? csilField7 = Cbor.MapGet(value, "limit") is { } csilRaw7 ? Cbor.AsU64(csilRaw7) : null;
         return new AuditQuery
@@ -4110,7 +4123,7 @@ public static class Codec
             csilEntries.Add((new CborValue.Text("title"), new CborValue.Text(csilV0)));
         }
         csilEntries.Add((new CborValue.Text("house_id"), new CborValue.Text(value.HouseId)));
-        csilEntries.Add((new CborValue.Text("deleted_at"), new CborValue.Text(value.DeletedAt)));
+        csilEntries.Add((new CborValue.Text("deleted_at"), Cbor.EncTimestamp(value.DeletedAt)));
         csilEntries.Add((new CborValue.Text("resource_id"), new CborValue.Text(value.ResourceId)));
         csilEntries.Add((new CborValue.Text("deleted_op_id"), new CborValue.Text(value.DeletedOpId)));
         csilEntries.Add((new CborValue.Text("resource_type"), new CborValue.Text(value.ResourceType)));
@@ -4128,7 +4141,7 @@ public static class Codec
         var csilField1 = Cbor.AsText(Cbor.Require(value, "resource_id"));
         var csilField2 = Cbor.AsText(Cbor.Require(value, "house_id"));
         string? csilField3 = Cbor.MapGet(value, "title") is { } csilRaw3 ? Cbor.AsText(csilRaw3) : null;
-        var csilField4 = Cbor.AsText(Cbor.Require(value, "deleted_at"));
+        var csilField4 = Cbor.AsTimestamp(Cbor.Require(value, "deleted_at"));
         MemberID? csilField5 = Cbor.MapGet(value, "deleted_by_member_id") is { } csilRaw5 ? Cbor.AsText(csilRaw5) : null;
         var csilField6 = Cbor.AsText(Cbor.Require(value, "deleted_op_id"));
         return new TrashItem
@@ -4598,4 +4611,2544 @@ public static class Codec
 
     /// <summary>Decode canonical CSIL CBOR bytes into the SettingsGetSettingsRequest op-boundary payload.</summary>
     public static HouseID DecodeSettingsGetSettingsRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
+
+    public sealed class ServiceErrorRefusal(ServiceError value) : System.Exception("ServiceError")
+    {
+        public ServiceError Value { get; } = value;
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthBeginBrowserLoginReply(System.Func<BeginBrowserLoginResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("BeginBrowserLoginResponse", Cbor.Encode(BeginBrowserLoginResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthGetActAsScopeSetReply(System.Func<ActAsScopeSetResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("ActAsScopeSetResponse", Cbor.Encode(ActAsScopeSetResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthExchangeActAsCredentialReply(System.Func<ActAsTokenResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("ActAsTokenResponse", Cbor.Encode(ActAsTokenResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthLoginReply(System.Func<LoginResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("LoginResponse", Cbor.Encode(LoginResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthCompleteReply(System.Func<LoginResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("LoginResponse", Cbor.Encode(LoginResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthRefreshReply(System.Func<LoginResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("LoginResponse", Cbor.Encode(LoginResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthLogoutReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthResumeSessionReply(System.Func<LoginResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("LoginResponse", Cbor.Encode(LoginResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthEndSessionReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthMeReply(System.Func<MeResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("MeResponse", Cbor.Encode(MeResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthBeginCliLoginReply(System.Func<BeginCliLoginResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("BeginCliLoginResponse", Cbor.Encode(BeginCliLoginResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthInspectCliLoginReply(System.Func<CliLoginRequestInfo> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CliLoginRequestInfo", Cbor.Encode(CliLoginRequestInfoToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthApproveCliLoginReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthDenyCliLoginReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthExchangeCliLoginReply(System.Func<ExchangeCliLoginResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("ExchangeCliLoginResponse", Cbor.Encode(ExchangeCliLoginResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthRefreshSessionReply(System.Func<CliTokenResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CliTokenResponse", Cbor.Encode(CliTokenResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthListSessionsReply(System.Func<CliSessionsResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CliSessionsResponse", Cbor.Encode(CliSessionsResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuthRevokeSessionReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeDevAuthListDevUsersReply(System.Func<DevUsersResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("DevUsersResponse", Cbor.Encode(DevUsersResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeDevAuthDevLoginReply(System.Func<LoginResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("LoginResponse", Cbor.Encode(LoginResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeHouseCreateHouseReply(System.Func<House> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("House", Cbor.Encode(HouseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeHouseGetHouseReply(System.Func<House> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("House", Cbor.Encode(HouseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeHouseUpdateHouseReply(System.Func<House> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("House", Cbor.Encode(HouseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeHouseDeleteHouseReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeMemberCreateMemberReply(System.Func<Member> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Member", Cbor.Encode(MemberToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeMemberGetMemberReply(System.Func<Member> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Member", Cbor.Encode(MemberToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeMemberGetMemberByIdentityReply(System.Func<Member> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Member", Cbor.Encode(MemberToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeMemberUpdateMemberReply(System.Func<Member> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Member", Cbor.Encode(MemberToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeMemberDeactivateMemberReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeMemberReactivateMemberReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTrustedDomainAddTrustedDomainReply(System.Func<TrustedDomain> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("TrustedDomain", Cbor.Encode(TrustedDomainToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTrustedDomainRemoveTrustedDomainReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTrustedDomainIsDomainTrustedReply(System.Func<BoolResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("BoolResponse", Cbor.Encode(BoolResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeRoleCreateRoleReply(System.Func<Role> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Role", Cbor.Encode(RoleToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeRoleUpdateRoleReply(System.Func<Role> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Role", Cbor.Encode(RoleToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeRoleDeleteRoleReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeRoleGrantRoleReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeRoleRevokeRoleReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeSkillCreateSkillReply(System.Func<Skill> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Skill", Cbor.Encode(SkillToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeSkillUpdateSkillReply(System.Func<Skill> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Skill", Cbor.Encode(SkillToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeSkillDeleteSkillReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeSkillAddMemberSkillReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeSkillRemoveMemberSkillReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeSkillAddGroupSkillReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeSkillRemoveGroupSkillReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeGroupCreateGroupReply(System.Func<Group> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Group", Cbor.Encode(GroupToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeGroupUpdateGroupReply(System.Func<Group> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Group", Cbor.Encode(GroupToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeGroupDeleteGroupReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeGroupAddGroupMemberReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeGroupRemoveGroupMemberReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectCreateProjectReply(System.Func<Project> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Project", Cbor.Encode(ProjectToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectGetProjectReply(System.Func<Project> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Project", Cbor.Encode(ProjectToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectUpdateProjectReply(System.Func<Project> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Project", Cbor.Encode(ProjectToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectDeleteProjectReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectListProjectsReply(System.Func<ProjectList> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("ProjectList", Cbor.Encode(ProjectListToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectListProjectTasksReply(System.Func<TaskList> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("TaskList", Cbor.Encode(TaskListToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectAddProjectTaskReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectRemoveProjectTaskReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectSetProjectTaskPositionReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectAddProjectMemberReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectRemoveProjectMemberReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectAddProjectOwnerReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectRemoveProjectOwnerReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectCreateMilestoneReply(System.Func<Milestone> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Milestone", Cbor.Encode(MilestoneToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectUpdateMilestoneReply(System.Func<Milestone> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Milestone", Cbor.Encode(MilestoneToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectDeleteMilestoneReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectSetProjectVisibilityReply(System.Func<Project> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Project", Cbor.Encode(ProjectToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectPutProjectGrantReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectDeleteProjectGrantReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeEventCreateEventReply(System.Func<Event> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Event", Cbor.Encode(EventToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeEventGetEventReply(System.Func<Event> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Event", Cbor.Encode(EventToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeEventUpdateEventReply(System.Func<Event> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Event", Cbor.Encode(EventToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeEventDeleteEventReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeEventDeleteEventAndFutureReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeEventGetCalendarViewReply(System.Func<CalendarView> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CalendarView", Cbor.Encode(CalendarViewToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeEventSetCalendarViewReply(System.Func<CalendarView> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CalendarView", Cbor.Encode(CalendarViewToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeEventAcceptEventReply(System.Func<Event> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Event", Cbor.Encode(EventToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeEventRecoverEditReply(System.Func<Event> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Event", Cbor.Encode(EventToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeEventDeclineEventReply(System.Func<Event> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Event", Cbor.Encode(EventToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCalendarListProjectDeadlinesReply(System.Func<ProjectDeadlineList> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("ProjectDeadlineList", Cbor.Encode(ProjectDeadlineListToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCalendarGetStatusReply(System.Func<CalendarStatus> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CalendarStatus", Cbor.Encode(CalendarStatusToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCalendarConfigureCalendarReply(System.Func<CalendarStatus> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CalendarStatus", Cbor.Encode(CalendarStatusToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCalendarBeginConnectReply(System.Func<CalendarConnectResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CalendarConnectResponse", Cbor.Encode(CalendarConnectResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCalendarCompleteConnectReply(System.Func<CalendarStatus> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CalendarStatus", Cbor.Encode(CalendarStatusToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCalendarDisconnectReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCalendarRestoreEventReply(System.Func<Event> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Event", Cbor.Encode(EventToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTaskCreateTaskReply(System.Func<Task> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Task", Cbor.Encode(TaskToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTaskGetTaskReply(System.Func<Task> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Task", Cbor.Encode(TaskToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTaskUpdateTaskReply(System.Func<Task> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Task", Cbor.Encode(TaskToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTaskDeleteTaskReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTaskListTasksReply(System.Func<TaskList> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("TaskList", Cbor.Encode(TaskListToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTaskCreatePersonalTaskReply(System.Func<Task> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Task", Cbor.Encode(TaskToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTaskSetTaskVisibilityReply(System.Func<Task> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Task", Cbor.Encode(TaskToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTaskPutTaskGrantReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTaskDeleteTaskGrantReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeDependencyAddDependencyReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeDependencyRemoveDependencyReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeDependencyGetDependenciesReply(System.Func<DependencyGraph> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("DependencyGraph", Cbor.Encode(DependencyGraphToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCommentCreateCommentReply(System.Func<Comment> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Comment", Cbor.Encode(CommentToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCommentGetCommentReply(System.Func<Comment> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Comment", Cbor.Encode(CommentToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCommentUpdateCommentReply(System.Func<Comment> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Comment", Cbor.Encode(CommentToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCommentDeleteCommentReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeNotificationUnreadCountReply(System.Func<NotificationUnreadCount> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("NotificationUnreadCount", Cbor.Encode(NotificationUnreadCountToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeNotificationMarkReadReply(System.Func<Notification> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Notification", Cbor.Encode(NotificationToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeNotificationMarkAllReadReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeShareCreateShareReply(System.Func<Share> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Share", Cbor.Encode(ShareToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeShareDeleteShareReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeShareCheckAccessReply(System.Func<Share> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Share", Cbor.Encode(ShareToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeSettingsGetSettingsReply(System.Func<EffectiveSettings> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EffectiveSettings", Cbor.Encode(EffectiveSettingsToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeSettingsUpdateSettingsReply(System.Func<EffectiveSettings> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EffectiveSettings", Cbor.Encode(EffectiveSettingsToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeBugReportBugReply(System.Func<Task> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("Task", Cbor.Encode(TaskToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeAuditQueryAuditReply(System.Func<AuditPage> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("AuditPage", Cbor.Encode(AuditPageToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTrashListTrashReply(System.Func<TrashPage> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("TrashPage", Cbor.Encode(TrashPageToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTrashRestoreReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTrashPurgeReply(System.Func<EmptyResponse> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static byte[] ResolveRpcReply(string service, string op, string? variant, byte[] payload)
+    {
+        if (service == "AuthService" && op == "begin-browser-login")
+        {
+            return variant switch
+            {
+                "BeginBrowserLoginResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "get-act-as-scope-set")
+        {
+            return variant switch
+            {
+                "ActAsScopeSetResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "exchange-act-as-credential")
+        {
+            return variant switch
+            {
+                "ActAsTokenResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "login")
+        {
+            return variant switch
+            {
+                "LoginResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "complete")
+        {
+            return variant switch
+            {
+                "LoginResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "refresh")
+        {
+            return variant switch
+            {
+                "LoginResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "logout")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "resume-session")
+        {
+            return variant switch
+            {
+                "LoginResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "end-session")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "me")
+        {
+            return variant switch
+            {
+                "MeResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "begin-cli-login")
+        {
+            return variant switch
+            {
+                "BeginCliLoginResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "inspect-cli-login")
+        {
+            return variant switch
+            {
+                "CliLoginRequestInfo" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "approve-cli-login")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "deny-cli-login")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "exchange-cli-login")
+        {
+            return variant switch
+            {
+                "ExchangeCliLoginResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "refresh-session")
+        {
+            return variant switch
+            {
+                "CliTokenResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "list-sessions")
+        {
+            return variant switch
+            {
+                "CliSessionsResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuthService" && op == "revoke-session")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "DevAuthService" && op == "list-dev-users")
+        {
+            return variant switch
+            {
+                "DevUsersResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "DevAuthService" && op == "dev-login")
+        {
+            return variant switch
+            {
+                "LoginResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "HouseService" && op == "create-house")
+        {
+            return variant switch
+            {
+                "House" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "HouseService" && op == "get-house")
+        {
+            return variant switch
+            {
+                "House" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "HouseService" && op == "update-house")
+        {
+            return variant switch
+            {
+                "House" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "HouseService" && op == "delete-house")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "MemberService" && op == "create-member")
+        {
+            return variant switch
+            {
+                "Member" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "MemberService" && op == "get-member")
+        {
+            return variant switch
+            {
+                "Member" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "MemberService" && op == "get-member-by-identity")
+        {
+            return variant switch
+            {
+                "Member" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "MemberService" && op == "update-member")
+        {
+            return variant switch
+            {
+                "Member" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "MemberService" && op == "deactivate-member")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "MemberService" && op == "reactivate-member")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TrustedDomainService" && op == "add-trusted-domain")
+        {
+            return variant switch
+            {
+                "TrustedDomain" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TrustedDomainService" && op == "remove-trusted-domain")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TrustedDomainService" && op == "is-domain-trusted")
+        {
+            return variant switch
+            {
+                "BoolResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "RoleService" && op == "create-role")
+        {
+            return variant switch
+            {
+                "Role" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "RoleService" && op == "update-role")
+        {
+            return variant switch
+            {
+                "Role" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "RoleService" && op == "delete-role")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "RoleService" && op == "grant-role")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "RoleService" && op == "revoke-role")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "SkillService" && op == "create-skill")
+        {
+            return variant switch
+            {
+                "Skill" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "SkillService" && op == "update-skill")
+        {
+            return variant switch
+            {
+                "Skill" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "SkillService" && op == "delete-skill")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "SkillService" && op == "add-member-skill")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "SkillService" && op == "remove-member-skill")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "SkillService" && op == "add-group-skill")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "SkillService" && op == "remove-group-skill")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "GroupService" && op == "create-group")
+        {
+            return variant switch
+            {
+                "Group" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "GroupService" && op == "update-group")
+        {
+            return variant switch
+            {
+                "Group" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "GroupService" && op == "delete-group")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "GroupService" && op == "add-group-member")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "GroupService" && op == "remove-group-member")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "create-project")
+        {
+            return variant switch
+            {
+                "Project" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "get-project")
+        {
+            return variant switch
+            {
+                "Project" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "update-project")
+        {
+            return variant switch
+            {
+                "Project" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "delete-project")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "list-projects")
+        {
+            return variant switch
+            {
+                "ProjectList" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "list-project-tasks")
+        {
+            return variant switch
+            {
+                "TaskList" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "add-project-task")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "remove-project-task")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "set-project-task-position")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "add-project-member")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "remove-project-member")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "add-project-owner")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "remove-project-owner")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "create-milestone")
+        {
+            return variant switch
+            {
+                "Milestone" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "update-milestone")
+        {
+            return variant switch
+            {
+                "Milestone" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "delete-milestone")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "set-project-visibility")
+        {
+            return variant switch
+            {
+                "Project" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "put-project-grant")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "delete-project-grant")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "EventService" && op == "create-event")
+        {
+            return variant switch
+            {
+                "Event" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "EventService" && op == "get-event")
+        {
+            return variant switch
+            {
+                "Event" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "EventService" && op == "update-event")
+        {
+            return variant switch
+            {
+                "Event" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "EventService" && op == "delete-event")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "EventService" && op == "delete-event-and-future")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "EventService" && op == "get-calendar-view")
+        {
+            return variant switch
+            {
+                "CalendarView" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "EventService" && op == "set-calendar-view")
+        {
+            return variant switch
+            {
+                "CalendarView" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "EventService" && op == "accept-event")
+        {
+            return variant switch
+            {
+                "Event" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "EventService" && op == "recover-edit")
+        {
+            return variant switch
+            {
+                "Event" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "EventService" && op == "decline-event")
+        {
+            return variant switch
+            {
+                "Event" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CalendarService" && op == "list-project-deadlines")
+        {
+            return variant switch
+            {
+                "ProjectDeadlineList" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CalendarService" && op == "get-status")
+        {
+            return variant switch
+            {
+                "CalendarStatus" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CalendarService" && op == "configure-calendar")
+        {
+            return variant switch
+            {
+                "CalendarStatus" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CalendarService" && op == "begin-connect")
+        {
+            return variant switch
+            {
+                "CalendarConnectResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CalendarService" && op == "complete-connect")
+        {
+            return variant switch
+            {
+                "CalendarStatus" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CalendarService" && op == "disconnect")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CalendarService" && op == "restore-event")
+        {
+            return variant switch
+            {
+                "Event" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TaskService" && op == "create-task")
+        {
+            return variant switch
+            {
+                "Task" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TaskService" && op == "get-task")
+        {
+            return variant switch
+            {
+                "Task" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TaskService" && op == "update-task")
+        {
+            return variant switch
+            {
+                "Task" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TaskService" && op == "delete-task")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TaskService" && op == "list-tasks")
+        {
+            return variant switch
+            {
+                "TaskList" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TaskService" && op == "create-personal-task")
+        {
+            return variant switch
+            {
+                "Task" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TaskService" && op == "set-task-visibility")
+        {
+            return variant switch
+            {
+                "Task" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TaskService" && op == "put-task-grant")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TaskService" && op == "delete-task-grant")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "DependencyService" && op == "add-dependency")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "DependencyService" && op == "remove-dependency")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "DependencyService" && op == "get-dependencies")
+        {
+            return variant switch
+            {
+                "DependencyGraph" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CommentService" && op == "create-comment")
+        {
+            return variant switch
+            {
+                "Comment" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CommentService" && op == "get-comment")
+        {
+            return variant switch
+            {
+                "Comment" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CommentService" && op == "update-comment")
+        {
+            return variant switch
+            {
+                "Comment" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CommentService" && op == "delete-comment")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "NotificationService" && op == "unread-count")
+        {
+            return variant switch
+            {
+                "NotificationUnreadCount" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "NotificationService" && op == "mark-read")
+        {
+            return variant switch
+            {
+                "Notification" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "NotificationService" && op == "mark-all-read")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ShareService" && op == "create-share")
+        {
+            return variant switch
+            {
+                "Share" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ShareService" && op == "delete-share")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ShareService" && op == "check-access")
+        {
+            return variant switch
+            {
+                "Share" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "SettingsService" && op == "get-settings")
+        {
+            return variant switch
+            {
+                "EffectiveSettings" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "SettingsService" && op == "update-settings")
+        {
+            return variant switch
+            {
+                "EffectiveSettings" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "BugService" && op == "report-bug")
+        {
+            return variant switch
+            {
+                "Task" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "AuditService" && op == "query-audit")
+        {
+            return variant switch
+            {
+                "AuditPage" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TrashService" && op == "list-trash")
+        {
+            return variant switch
+            {
+                "TrashPage" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TrashService" && op == "restore")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TrashService" && op == "purge")
+        {
+            return variant switch
+            {
+                "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        return payload;
+    }
 }

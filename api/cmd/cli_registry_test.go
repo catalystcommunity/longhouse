@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	longhouseclient "github.com/catalystcommunity/longhouse/clients/go"
 )
@@ -170,11 +169,9 @@ func TestStrictCLIJSONRejectsUnknownReceiveOnlyAndTrailingData(t *testing.T) {
 		t.Fatalf("decodeStrictCLIJSON valid input: %v", err)
 	}
 	dueAt := request.Interface().(*longhouseclient.Task).DueAt
-	if dueAt == nil || *dueAt == "tomorrow" {
-		t.Fatalf("due_at was not normalized: %v", dueAt)
-	}
-	if _, err := time.Parse(time.RFC3339, string(*dueAt)); err != nil {
-		t.Fatalf("normalized due_at = %q: %v", *dueAt, err)
+	tomorrow, _ := parseCLITime("tomorrow")
+	if dueAt == nil || !dueAt.Equal(tomorrow) {
+		t.Fatalf("due_at = %v, want %v", dueAt, tomorrow)
 	}
 }
 

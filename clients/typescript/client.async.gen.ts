@@ -10,10 +10,14 @@ export interface AsyncServiceTransport {
 }
 
 export class AuditAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async queryAudit(req: AuditQuery): Promise<AuditPage> {
@@ -23,10 +27,14 @@ export class AuditAsyncClient {
 }
 
 export class AuthAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async beginBrowserLogin(req: BeginBrowserLoginRequest): Promise<BeginBrowserLoginResponse> {
@@ -35,7 +43,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getActAsScopeSet(req: ActAsScopeSetRequest): Promise<ActAsScopeSetResponse> {
@@ -44,7 +52,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async exchangeActAsCredential(req: ExchangeActAsCredentialRequest): Promise<ActAsTokenResponse> {
@@ -53,7 +61,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async login(req: LoginRequest): Promise<LoginResponse> {
@@ -62,7 +70,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async complete(req: CompleteRequest): Promise<LoginResponse> {
@@ -71,7 +79,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async refresh(req: EmptyRequest): Promise<LoginResponse> {
@@ -80,7 +88,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async logout(req: EmptyRequest): Promise<EmptyResponse> {
@@ -89,7 +97,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async resumeSession(req: EmptyRequest): Promise<LoginResponse> {
@@ -98,7 +106,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async endSession(req: EmptyRequest): Promise<EmptyResponse> {
@@ -107,7 +115,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async me(req: EmptyRequest): Promise<MeResponse> {
@@ -116,7 +124,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async beginCliLogin(req: BeginCliLoginRequest): Promise<BeginCliLoginResponse> {
@@ -125,7 +133,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async inspectCliLogin(req: ApproveCliLoginRequest): Promise<CliLoginRequestInfo> {
@@ -134,7 +142,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async approveCliLogin(req: ApproveCliLoginRequest): Promise<EmptyResponse> {
@@ -143,7 +151,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async denyCliLogin(req: DenyCliLoginRequest): Promise<EmptyResponse> {
@@ -152,7 +160,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async exchangeCliLogin(req: ExchangeCliLoginRequest): Promise<ExchangeCliLoginResponse> {
@@ -161,7 +169,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async refreshSession(req: RefreshSessionRequest): Promise<CliTokenResponse> {
@@ -170,7 +178,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async listSessions(req: EmptyRequest): Promise<CliSessionsResponse> {
@@ -179,7 +187,7 @@ export class AuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async revokeSession(req: RevokeSessionRequest): Promise<EmptyResponse> {
@@ -189,10 +197,14 @@ export class AuthAsyncClient {
 }
 
 export class BugAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async reportBug(req: BugReportRequest): Promise<Task> {
@@ -202,10 +214,14 @@ export class BugAsyncClient {
 }
 
 export class CalendarAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async listProjectDeadlines(req: ProjectDeadlineRequest): Promise<ProjectDeadlineList> {
@@ -214,7 +230,7 @@ export class CalendarAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getStatus(req: HouseID): Promise<CalendarStatus> {
@@ -223,7 +239,7 @@ export class CalendarAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async configureCalendar(req: ConfigureCalendarRequest): Promise<CalendarStatus> {
@@ -232,7 +248,7 @@ export class CalendarAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async beginConnect(req: HouseID): Promise<CalendarConnectResponse> {
@@ -241,7 +257,7 @@ export class CalendarAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async completeConnect(req: CompleteCalendarConnectRequest): Promise<CalendarStatus> {
@@ -250,7 +266,7 @@ export class CalendarAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async disconnect(req: HouseID): Promise<EmptyResponse> {
@@ -277,7 +293,7 @@ export class CalendarAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async restoreEvent(req: RestoreCalendarEventRequest): Promise<Event> {
@@ -287,10 +303,14 @@ export class CalendarAsyncClient {
 }
 
 export class CommentAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createComment(req: Comment): Promise<Comment> {
@@ -299,7 +319,7 @@ export class CommentAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getComment(req: CommentID): Promise<Comment> {
@@ -308,7 +328,7 @@ export class CommentAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async updateComment(req: Comment): Promise<Comment> {
@@ -317,7 +337,7 @@ export class CommentAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteComment(req: CommentID): Promise<EmptyResponse> {
@@ -336,10 +356,14 @@ export class CommentAsyncClient {
 }
 
 export class DependencyAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async addDependency(req: DependencyRef): Promise<EmptyResponse> {
@@ -348,7 +372,7 @@ export class DependencyAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async removeDependency(req: DependencyRef): Promise<EmptyResponse> {
@@ -357,7 +381,7 @@ export class DependencyAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getDependencies(req: DependencyTarget): Promise<DependencyGraph> {
@@ -367,10 +391,14 @@ export class DependencyAsyncClient {
 }
 
 export class DevAuthAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async listDevUsers(req: EmptyRequest): Promise<DevUsersResponse> {
@@ -379,7 +407,7 @@ export class DevAuthAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async devLogin(req: DevLoginRequest): Promise<LoginResponse> {
@@ -389,10 +417,14 @@ export class DevAuthAsyncClient {
 }
 
 export class EventAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createEvent(req: Event): Promise<Event> {
@@ -401,7 +433,7 @@ export class EventAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getEvent(req: EventID): Promise<Event> {
@@ -410,7 +442,7 @@ export class EventAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async updateEvent(req: Event): Promise<Event> {
@@ -419,7 +451,7 @@ export class EventAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteEvent(req: EventID): Promise<EmptyResponse> {
@@ -428,7 +460,7 @@ export class EventAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteEventAndFuture(req: EventID): Promise<EmptyResponse> {
@@ -446,7 +478,7 @@ export class EventAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getCalendarView(req: HouseID): Promise<CalendarView> {
@@ -455,7 +487,7 @@ export class EventAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async setCalendarView(req: CalendarView): Promise<CalendarView> {
@@ -464,7 +496,7 @@ export class EventAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async acceptEvent(req: EventDecision): Promise<Event> {
@@ -473,7 +505,7 @@ export class EventAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async recoverEdit(req: EventID): Promise<Event> {
@@ -482,7 +514,7 @@ export class EventAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async declineEvent(req: EventDecision): Promise<Event> {
@@ -501,10 +533,14 @@ export class EventAsyncClient {
 }
 
 export class GroupAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createGroup(req: Group): Promise<Group> {
@@ -513,7 +549,7 @@ export class GroupAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async updateGroup(req: Group): Promise<Group> {
@@ -522,7 +558,7 @@ export class GroupAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteGroup(req: GroupID): Promise<EmptyResponse> {
@@ -540,7 +576,7 @@ export class GroupAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async addGroupMember(req: GroupMemberRef): Promise<EmptyResponse> {
@@ -549,7 +585,7 @@ export class GroupAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async removeGroupMember(req: GroupMemberRef): Promise<EmptyResponse> {
@@ -568,10 +604,14 @@ export class GroupAsyncClient {
 }
 
 export class HouseAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createHouse(req: House): Promise<House> {
@@ -580,7 +620,7 @@ export class HouseAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getHouse(req: HouseID): Promise<House> {
@@ -589,7 +629,7 @@ export class HouseAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async updateHouse(req: House): Promise<House> {
@@ -598,7 +638,7 @@ export class HouseAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteHouse(req: HouseID): Promise<EmptyResponse> {
@@ -617,7 +657,11 @@ export class HouseAsyncClient {
 }
 
 export class MemberAuditAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
    * @throws {ServiceError} when the API returns an error response
@@ -630,10 +674,14 @@ export class MemberAuditAsyncClient {
 }
 
 export class MemberAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createMember(req: Member): Promise<Member> {
@@ -642,7 +690,7 @@ export class MemberAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getMember(req: MemberID): Promise<Member> {
@@ -651,7 +699,7 @@ export class MemberAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getMemberByIdentity(req: Member): Promise<Member> {
@@ -660,7 +708,7 @@ export class MemberAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async updateMember(req: Member): Promise<Member> {
@@ -669,7 +717,7 @@ export class MemberAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deactivateMember(req: MemberID): Promise<EmptyResponse> {
@@ -678,7 +726,7 @@ export class MemberAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async reactivateMember(req: MemberID): Promise<EmptyResponse> {
@@ -697,7 +745,11 @@ export class MemberAsyncClient {
 }
 
 export class NotificationAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
    * @throws {ServiceError} when the API returns an error response
@@ -709,7 +761,7 @@ export class NotificationAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async unreadCount(req: HouseID): Promise<NotificationUnreadCount> {
@@ -718,7 +770,7 @@ export class NotificationAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async markRead(req: NotificationID): Promise<Notification> {
@@ -727,7 +779,7 @@ export class NotificationAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async markAllRead(req: HouseID): Promise<EmptyResponse> {
@@ -737,10 +789,14 @@ export class NotificationAsyncClient {
 }
 
 export class ProjectAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createProject(req: Project): Promise<Project> {
@@ -749,7 +805,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getProject(req: ProjectID): Promise<Project> {
@@ -758,7 +814,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async updateProject(req: Project): Promise<Project> {
@@ -767,7 +823,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteProject(req: ProjectID): Promise<EmptyResponse> {
@@ -776,7 +832,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async listProjects(req: HouseScopedListRequest): Promise<ProjectList> {
@@ -785,7 +841,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async listProjectTasks(req: ProjectScopedListRequest): Promise<TaskList> {
@@ -794,7 +850,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async addProjectTask(req: ProjectTaskOrderRequest): Promise<EmptyResponse> {
@@ -803,7 +859,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async removeProjectTask(req: ProjectTaskRef): Promise<EmptyResponse> {
@@ -812,7 +868,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async setProjectTaskPosition(req: ProjectTaskOrderRequest): Promise<EmptyResponse> {
@@ -830,7 +886,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async addProjectMember(req: ProjectMemberRef): Promise<EmptyResponse> {
@@ -839,7 +895,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async removeProjectMember(req: ProjectMemberRef): Promise<EmptyResponse> {
@@ -857,7 +913,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async addProjectOwner(req: ProjectOwnerRef): Promise<EmptyResponse> {
@@ -866,7 +922,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async removeProjectOwner(req: ProjectOwnerRef): Promise<EmptyResponse> {
@@ -884,7 +940,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createMilestone(req: Milestone): Promise<Milestone> {
@@ -893,7 +949,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async updateMilestone(req: Milestone): Promise<Milestone> {
@@ -902,7 +958,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteMilestone(req: MilestoneID): Promise<EmptyResponse> {
@@ -911,7 +967,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async setProjectVisibility(req: SetProjectVisibilityRequest): Promise<Project> {
@@ -929,7 +985,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async putProjectGrant(req: PutProjectGrantRequest): Promise<EmptyResponse> {
@@ -938,7 +994,7 @@ export class ProjectAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteProjectGrant(req: ProjectGrantRef): Promise<EmptyResponse> {
@@ -948,10 +1004,14 @@ export class ProjectAsyncClient {
 }
 
 export class RoleAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createRole(req: Role): Promise<Role> {
@@ -960,7 +1020,7 @@ export class RoleAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async updateRole(req: Role): Promise<Role> {
@@ -969,7 +1029,7 @@ export class RoleAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteRole(req: RoleID): Promise<EmptyResponse> {
@@ -987,7 +1047,7 @@ export class RoleAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async grantRole(req: MemberRoleRef): Promise<EmptyResponse> {
@@ -996,7 +1056,7 @@ export class RoleAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async revokeRole(req: MemberRoleRef): Promise<EmptyResponse> {
@@ -1015,10 +1075,14 @@ export class RoleAsyncClient {
 }
 
 export class SettingsAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getSettings(req: HouseID): Promise<EffectiveSettings> {
@@ -1027,7 +1091,7 @@ export class SettingsAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async updateSettings(req: UpdateSettingsRequest): Promise<EffectiveSettings> {
@@ -1037,10 +1101,14 @@ export class SettingsAsyncClient {
 }
 
 export class ShareAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createShare(req: Share): Promise<Share> {
@@ -1049,7 +1117,7 @@ export class ShareAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteShare(req: ShareID): Promise<EmptyResponse> {
@@ -1067,7 +1135,7 @@ export class ShareAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async checkAccess(req: ShareAccessRequest): Promise<Share> {
@@ -1077,10 +1145,14 @@ export class ShareAsyncClient {
 }
 
 export class SkillAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createSkill(req: Skill): Promise<Skill> {
@@ -1089,7 +1161,7 @@ export class SkillAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async updateSkill(req: Skill): Promise<Skill> {
@@ -1098,7 +1170,7 @@ export class SkillAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteSkill(req: SkillID): Promise<EmptyResponse> {
@@ -1116,7 +1188,7 @@ export class SkillAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async addMemberSkill(req: MemberSkillRef): Promise<EmptyResponse> {
@@ -1125,7 +1197,7 @@ export class SkillAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async removeMemberSkill(req: MemberSkillRef): Promise<EmptyResponse> {
@@ -1143,7 +1215,7 @@ export class SkillAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async addGroupSkill(req: GroupSkillRef): Promise<EmptyResponse> {
@@ -1152,7 +1224,7 @@ export class SkillAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async removeGroupSkill(req: GroupSkillRef): Promise<EmptyResponse> {
@@ -1171,10 +1243,14 @@ export class SkillAsyncClient {
 }
 
 export class TaskAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createTask(req: Task): Promise<Task> {
@@ -1183,7 +1259,7 @@ export class TaskAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async getTask(req: TaskID): Promise<Task> {
@@ -1192,7 +1268,7 @@ export class TaskAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async updateTask(req: Task): Promise<Task> {
@@ -1201,7 +1277,7 @@ export class TaskAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteTask(req: TaskID): Promise<EmptyResponse> {
@@ -1210,7 +1286,7 @@ export class TaskAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async listTasks(req: TaskListRequest): Promise<TaskList> {
@@ -1219,7 +1295,7 @@ export class TaskAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async createPersonalTask(req: Task): Promise<Task> {
@@ -1228,7 +1304,7 @@ export class TaskAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async setTaskVisibility(req: SetTaskVisibilityRequest): Promise<Task> {
@@ -1246,7 +1322,7 @@ export class TaskAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async putTaskGrant(req: PutTaskGrantRequest): Promise<EmptyResponse> {
@@ -1255,7 +1331,7 @@ export class TaskAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async deleteTaskGrant(req: TaskGrantRef): Promise<EmptyResponse> {
@@ -1265,10 +1341,14 @@ export class TaskAsyncClient {
 }
 
 export class TrashAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async listTrash(req: HouseScopedListRequest): Promise<TrashPage> {
@@ -1277,7 +1357,7 @@ export class TrashAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async restore(req: RestoreRequest): Promise<EmptyResponse> {
@@ -1286,7 +1366,7 @@ export class TrashAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async purge(req: PurgeRequest): Promise<EmptyResponse> {
@@ -1296,10 +1376,14 @@ export class TrashAsyncClient {
 }
 
 export class TrustedDomainAsyncClient {
-  constructor(private readonly t: AsyncServiceTransport) {}
+  private readonly t: AsyncServiceTransport;
+
+  constructor(t: AsyncServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async addTrustedDomain(req: TrustedDomain): Promise<TrustedDomain> {
@@ -1308,7 +1392,7 @@ export class TrustedDomainAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async removeTrustedDomain(req: TrustedDomainID): Promise<EmptyResponse> {
@@ -1326,7 +1410,7 @@ export class TrustedDomainAsyncClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   async isDomainTrusted(req: TrustedDomain): Promise<BoolResponse> {

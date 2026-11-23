@@ -53,7 +53,7 @@ describe("recurrence on the wire", () => {
         fireEvent.click(screen.getByRole("button", {name: "Create event"}));
         await waitFor(() => expect(createEvent).toHaveBeenCalledOnce());
         const body = createEvent.mock.calls[0][0];
-        const wire = fromEventCbor(toEventCbor({...body, eventId: "", createdAt: "", updatedAt: ""}));
+        const wire = fromEventCbor(toEventCbor({...body, eventId: "", createdAt: new Date(0), updatedAt: new Date(0)}));
         expect(wire.recurrenceFreq).toBeUndefined();
         expect(wire.clearRecurrence).toBe(true);
     });
@@ -65,7 +65,7 @@ describe("calendar event loading", () => {
         const screen = render(() => (CalendarPage()));
         const expectRange = async (start: Date, end: Date) => {
             await waitFor(() => expect(listEvents).toHaveBeenLastCalledWith({
-                houseId: "house-1", rangeStart: start.toISOString(), rangeEnd: end.toISOString(), limit: 500, offset: 0,
+                houseId: "house-1", rangeStart: start, rangeEnd: end, limit: 500, offset: 0,
             }));
         };
         await expectRange(new Date(2026, 10, 1), new Date(2026, 10, 2));
@@ -79,11 +79,11 @@ describe("calendar event loading", () => {
     it("opens a linked event after all pages of its date range load", async () => {
         const rows: ApiEvent[] = Array.from({ length: 501 }, (_, i) => ({
             eventId: `event-${i}`, houseId: "house-1", ownerMemberId: "member-1",
-            title: `Event ${i}`, createdAt: "", updatedAt: "",
-            startsAt: new Date(2026, 10, 1, 10).toISOString(),
-            endsAt: new Date(2026, 10, 1, 11).toISOString(),
+            title: `Event ${i}`, createdAt: new Date(0), updatedAt: new Date(0),
+            startsAt: new Date(2026, 10, 1, 10),
+            endsAt: new Date(2026, 10, 1, 11),
         }));
-        listEvents.mockImplementation(async (req) => req.rangeStart === new Date(2026, 10, 1).toISOString()
+        listEvents.mockImplementation(async (req) => req.rangeStart?.getTime() === new Date(2026, 10, 1).getTime()
             ? rows.slice(Number(req.offset), Number(req.offset) + Number(req.limit))
             : []);
         const history = createTestHistory();
@@ -97,8 +97,8 @@ describe("calendar event loading", () => {
 describe("owner acceptance", () => {
     const proposal: ApiEvent = {
         eventId: "proposal-1", houseId: "house-1", ownerMemberId: "member-1",
-        title: "Assigned meeting", description: "Review these saved details", createdAt: "", updatedAt: "",
-        startsAt: "2026-11-06T15:00:00Z", endsAt: "2026-11-06T16:00:00Z",
+        title: "Assigned meeting", description: "Review these saved details", createdAt: new Date(0), updatedAt: new Date(0),
+        startsAt: new Date("2026-11-06T15:00:00Z"), endsAt: new Date("2026-11-06T16:00:00Z"),
         calendarState: "pending", revision: 7,
     };
     const mount = () => render(() => CalendarPage());
@@ -145,8 +145,8 @@ describe("owner acceptance", () => {
 describe("remote series edits", () => {
     const occurrence: ApiEvent = {
         eventId: "occurrence-1", houseId: "house-1", ownerMemberId: "member-1",
-        title: "Weekly meeting", createdAt: "", updatedAt: "",
-        startsAt: "2026-11-17T15:00:00Z", endsAt: "2026-11-17T16:00:00Z",
+        title: "Weekly meeting", createdAt: new Date(0), updatedAt: new Date(0),
+        startsAt: new Date("2026-11-17T15:00:00Z"), endsAt: new Date("2026-11-17T16:00:00Z"),
         calendarState: "remote", revision: 4, recurrenceRootEventId: "root-1",
         recurrenceRule: "FREQ=WEEKLY", timezone: "America/Denver",
     };

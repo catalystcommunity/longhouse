@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "csil_timestamp.gen.h"
 
 typedef struct CsilBytes {
     uint8_t *data;
@@ -256,9 +257,6 @@ typedef char *NotificationEventID;
 /* CliSessionID is a type alias. */
 typedef char *CliSessionID;
 
-/* Timestamp is a type alias. */
-typedef char *Timestamp;
-
 /* AuditID is a type alias. */
 typedef char *AuditID;
 
@@ -267,8 +265,8 @@ typedef struct House {
     HouseID house_id;
     char *name;
     char *description;
-    Timestamp created_at;
-    Timestamp updated_at;
+    CsilTimestamp created_at;
+    CsilTimestamp updated_at;
 } House;
 
 /* Member is a structured data type. */
@@ -282,10 +280,10 @@ typedef struct Member {
     char *avatar_url;
     char *handle;
     CsilBytes *cached_public_key;
-    Timestamp created_at;
-    Timestamp updated_at;
-    Timestamp *last_seen_at;
-    Timestamp *deactivated_at;
+    CsilTimestamp created_at;
+    CsilTimestamp updated_at;
+    CsilTimestamp *last_seen_at;
+    CsilTimestamp *deactivated_at;
 } Member;
 
 /* TrustedDomain is a structured data type. */
@@ -293,7 +291,7 @@ typedef struct TrustedDomain {
     TrustedDomainID trusted_domain_id;
     HouseID house_id;
     char *domain;
-    Timestamp created_at;
+    CsilTimestamp created_at;
 } TrustedDomain;
 
 /* Role is a structured data type. */
@@ -302,15 +300,15 @@ typedef struct Role {
     HouseID house_id;
     char *name;
     char *description;
-    Timestamp created_at;
-    Timestamp updated_at;
+    CsilTimestamp created_at;
+    CsilTimestamp updated_at;
 } Role;
 
 /* MemberRole is a structured data type. */
 typedef struct MemberRole {
     MemberID member_id;
     RoleID role_id;
-    Timestamp created_at;
+    CsilTimestamp created_at;
 } MemberRole;
 
 /* MemberAudit is a structured data type. */
@@ -323,7 +321,7 @@ typedef struct MemberAudit {
     char *target_type;
     char *target_id;
     char *detail;
-    Timestamp created_at;
+    CsilTimestamp created_at;
 } MemberAudit;
 
 /* Skill is a structured data type. */
@@ -332,22 +330,22 @@ typedef struct Skill {
     HouseID house_id;
     char *name;
     char *description;
-    Timestamp created_at;
-    Timestamp updated_at;
+    CsilTimestamp created_at;
+    CsilTimestamp updated_at;
 } Skill;
 
 /* MemberSkill is a structured data type. */
 typedef struct MemberSkill {
     MemberID member_id;
     SkillID skill_id;
-    Timestamp created_at;
+    CsilTimestamp created_at;
 } MemberSkill;
 
 /* GroupSkill is a structured data type. */
 typedef struct GroupSkill {
     GroupID group_id;
     SkillID skill_id;
-    Timestamp created_at;
+    CsilTimestamp created_at;
 } GroupSkill;
 
 /* Group is a structured data type. */
@@ -356,15 +354,15 @@ typedef struct Group {
     HouseID house_id;
     char *name;
     char *description;
-    Timestamp created_at;
-    Timestamp updated_at;
+    CsilTimestamp created_at;
+    CsilTimestamp updated_at;
 } Group;
 
 /* GroupMember is a structured data type. */
 typedef struct GroupMember {
     GroupID group_id;
     MemberID member_id;
-    Timestamp created_at;
+    CsilTimestamp created_at;
 } GroupMember;
 
 /* Project is a structured data type. */
@@ -378,8 +376,8 @@ typedef struct Project {
     AccessLevel *visibility;
     MemberID *created_by_member_id;
     bool *personal;
-    Timestamp created_at;
-    Timestamp updated_at;
+    CsilTimestamp created_at;
+    CsilTimestamp updated_at;
 } Project;
 
 /* ProjectTask is a structured data type. */
@@ -387,21 +385,21 @@ typedef struct ProjectTask {
     ProjectID project_id;
     TaskID task_id;
     int64_t position;
-    Timestamp created_at;
+    CsilTimestamp created_at;
 } ProjectTask;
 
 /* ProjectMember is a structured data type. */
 typedef struct ProjectMember {
     ProjectID project_id;
     MemberID member_id;
-    Timestamp created_at;
+    CsilTimestamp created_at;
 } ProjectMember;
 
 /* ProjectOwner is a structured data type. */
 typedef struct ProjectOwner {
     ProjectID project_id;
     MemberID member_id;
-    Timestamp created_at;
+    CsilTimestamp created_at;
 } ProjectOwner;
 
 /* Milestone is a structured data type. */
@@ -412,8 +410,8 @@ typedef struct Milestone {
     char *when_label;
     MilestoneState state;
     int64_t position;
-    Timestamp created_at;
-    Timestamp updated_at;
+    CsilTimestamp created_at;
+    CsilTimestamp updated_at;
 } Milestone;
 
 /* Event is a structured data type. */
@@ -424,8 +422,8 @@ typedef struct Event {
     char *title;
     char *description;
     char *location;
-    Timestamp *starts_at;
-    Timestamp *ends_at;
+    CsilTimestamp *starts_at;
+    CsilTimestamp *ends_at;
     bool *all_day;
     char *timezone;
     char *recurrence_rule;
@@ -435,7 +433,7 @@ typedef struct Event {
     int64_t *recurrence_by_weekday;
     size_t recurrence_by_weekday_count;
     int64_t *recurrence_by_setpos;
-    Timestamp *next_recurrence_at;
+    CsilTimestamp *next_recurrence_at;
     EventID *recurrence_root_event_id;
     char *calendar_state;
     uint64_t *revision;
@@ -444,8 +442,8 @@ typedef struct Event {
     MemberID *edit_pending_member_id;
     bool *calendar_unbound;
     char *edit_scope;
-    Timestamp created_at;
-    Timestamp updated_at;
+    CsilTimestamp created_at;
+    CsilTimestamp updated_at;
 } Event;
 
 /* Task is a structured data type. */
@@ -461,7 +459,7 @@ typedef struct Task {
     char *title;
     char *description;
     TaskStatus *status;
-    Timestamp *due_at;
+    CsilTimestamp *due_at;
     char *tag;
     uint64_t *estimate_minutes;
     RecurrenceFreq *recurrence_freq;
@@ -470,11 +468,11 @@ typedef struct Task {
     int64_t *recurrence_by_weekday;
     size_t recurrence_by_weekday_count;
     int64_t *recurrence_by_setpos;
-    Timestamp *next_recurrence_at;
+    CsilTimestamp *next_recurrence_at;
     TaskID *recurrence_root_task_id;
-    Timestamp *deleted_at;
-    Timestamp created_at;
-    Timestamp updated_at;
+    CsilTimestamp *deleted_at;
+    CsilTimestamp created_at;
+    CsilTimestamp updated_at;
 } Task;
 
 /* Comment is a structured data type. */
@@ -485,8 +483,8 @@ typedef struct Comment {
     TargetType target_type;
     char *target_id;
     char *body;
-    Timestamp created_at;
-    Timestamp updated_at;
+    CsilTimestamp created_at;
+    CsilTimestamp updated_at;
 } Comment;
 
 /* Share is a structured data type. */
@@ -499,8 +497,8 @@ typedef struct Share {
     ResourceType resource_type;
     char *resource_id;
     AccessLevel *access_level;
-    Timestamp created_at;
-    Timestamp *expires_at;
+    CsilTimestamp created_at;
+    CsilTimestamp *expires_at;
 } Share;
 
 /* HouseSummary is a structured data type. */
@@ -567,7 +565,7 @@ typedef struct LoginResponse {
     char *domain;
     char *user_id;
     char *display_name;
-    Timestamp expires_at;
+    CsilTimestamp expires_at;
 } LoginResponse;
 
 /* CliTokenResponse is a structured data type. */
@@ -576,9 +574,9 @@ typedef struct CliTokenResponse {
     char *domain;
     char *user_id;
     char *display_name;
-    Timestamp expires_at;
+    CsilTimestamp expires_at;
     char *refresh_token;
-    Timestamp refresh_expires_at;
+    CsilTimestamp refresh_expires_at;
     CliSessionID session_id;
 } CliTokenResponse;
 
@@ -592,7 +590,7 @@ typedef struct BeginCliLoginResponse {
     char *device_code;
     char *user_code;
     char *verification_url;
-    Timestamp expires_at;
+    CsilTimestamp expires_at;
     uint64_t interval_seconds;
 } BeginCliLoginResponse;
 
@@ -605,7 +603,7 @@ typedef struct ApproveCliLoginRequest {
 typedef struct CliLoginRequestInfo {
     char *user_code;
     char *client_name;
-    Timestamp expires_at;
+    CsilTimestamp expires_at;
 } CliLoginRequestInfo;
 
 /* DenyCliLoginRequest is a structured data type. */
@@ -633,10 +631,10 @@ typedef struct RefreshSessionRequest {
 typedef struct CliSessionSummary {
     CliSessionID session_id;
     char *client_name;
-    Timestamp created_at;
-    Timestamp last_used_at;
-    Timestamp expires_at;
-    Timestamp *revoked_at;
+    CsilTimestamp created_at;
+    CsilTimestamp last_used_at;
+    CsilTimestamp expires_at;
+    CsilTimestamp *revoked_at;
     SessionKind *kind;
     bool *current;
 } CliSessionSummary;
@@ -680,7 +678,7 @@ typedef struct MeResponse {
     char *domain;
     char *user_id;
     char *display_name;
-    Timestamp expires_at;
+    CsilTimestamp expires_at;
     HouseSummary *houses;
     size_t houses_count;
 } MeResponse;
@@ -714,8 +712,8 @@ typedef struct HouseScopedListRequest {
 /* EventListRequest is a structured data type. */
 typedef struct EventListRequest {
     HouseID house_id;
-    Timestamp *range_start;
-    Timestamp *range_end;
+    CsilTimestamp *range_start;
+    CsilTimestamp *range_end;
     uint64_t *limit;
     uint64_t *offset;
 } EventListRequest;
@@ -728,9 +726,9 @@ typedef struct TaskListRequest {
     TaskState *state;
     bool *mine;
     bool *loose;
-    Timestamp *due_from;
-    Timestamp *due_to;
-    Timestamp *due_before;
+    CsilTimestamp *due_from;
+    CsilTimestamp *due_to;
+    CsilTimestamp *due_before;
     size_t due_before_count;
 } TaskListRequest;
 
@@ -789,8 +787,8 @@ typedef struct Notification {
     char *target_title;
     char *body;
     bool read;
-    Timestamp *read_at;
-    Timestamp created_at;
+    CsilTimestamp *read_at;
+    CsilTimestamp created_at;
 } Notification;
 
 /* NotificationListRequest is a structured data type. */
@@ -1000,7 +998,7 @@ typedef struct ActAsTokenResponse {
     char *token;
     char *domain;
     char *user_id;
-    Timestamp expires_at;
+    CsilTimestamp expires_at;
     char *grant_id;
     char *grantee;
     char **scopes;
@@ -1035,7 +1033,7 @@ typedef struct CalendarStatus {
     bool ready;
     bool connected;
     char *last_error;
-    Timestamp *sync_pending_since;
+    CsilTimestamp *sync_pending_since;
 } CalendarStatus;
 
 /* ConfigureCalendarRequest is a structured data type. */
@@ -1060,8 +1058,8 @@ typedef struct CompleteCalendarConnectRequest {
 typedef struct CalendarTrashEntry {
     char *trash_id;
     Event event;
-    Timestamp deleted_at;
-    Timestamp expires_at;
+    CsilTimestamp deleted_at;
+    CsilTimestamp expires_at;
 } CalendarTrashEntry;
 
 /* RestoreCalendarEventRequest is a structured data type. */
@@ -1081,15 +1079,15 @@ typedef struct CalendarMigrationRow {
 /* ProjectDeadlineRequest is a structured data type. */
 typedef struct ProjectDeadlineRequest {
     ProjectID project_id;
-    Timestamp range_start;
-    Timestamp range_end;
+    CsilTimestamp range_start;
+    CsilTimestamp range_end;
 } ProjectDeadlineRequest;
 
 /* ProjectDeadline is a structured data type. */
 typedef struct ProjectDeadline {
     TaskID task_id;
     char *title;
-    Timestamp due_at;
+    CsilTimestamp due_at;
 } ProjectDeadline;
 
 /* ProjectDeadlineList is a structured data type. */
@@ -1118,7 +1116,7 @@ typedef struct AuditEntry {
     char *before;
     char *after;
     char *detail;
-    Timestamp created_at;
+    CsilTimestamp created_at;
 } AuditEntry;
 
 /* AuditQuery is a structured data type. */
@@ -1127,8 +1125,8 @@ typedef struct AuditQuery {
     MemberID *actor_member_id;
     char *resource_type;
     char *action;
-    Timestamp *since;
-    Timestamp *until;
+    CsilTimestamp *since;
+    CsilTimestamp *until;
     char *cursor;
     uint64_t *limit;
 } AuditQuery;
@@ -1146,7 +1144,7 @@ typedef struct TrashItem {
     char *resource_id;
     HouseID house_id;
     char *title;
-    Timestamp deleted_at;
+    CsilTimestamp deleted_at;
     MemberID *deleted_by_member_id;
     char *deleted_op_id;
 } TrashItem;
@@ -1172,5 +1170,1270 @@ typedef struct PurgeRequest {
     char *resource_type;
     char *resource_id;
 } PurgeRequest;
+
+typedef struct AuthServiceBeginBrowserLoginReply {
+    enum {
+        AuthServiceBeginBrowserLoginReply_as_begin_browser_login_response,
+        AuthServiceBeginBrowserLoginReply_as_service_error,
+    } kind;
+    union {
+        BeginBrowserLoginResponse as_begin_browser_login_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceBeginBrowserLoginReply;
+
+typedef struct AuthServiceGetActAsScopeSetReply {
+    enum {
+        AuthServiceGetActAsScopeSetReply_as_act_as_scope_set_response,
+        AuthServiceGetActAsScopeSetReply_as_service_error,
+    } kind;
+    union {
+        ActAsScopeSetResponse as_act_as_scope_set_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceGetActAsScopeSetReply;
+
+typedef struct AuthServiceExchangeActAsCredentialReply {
+    enum {
+        AuthServiceExchangeActAsCredentialReply_as_act_as_token_response,
+        AuthServiceExchangeActAsCredentialReply_as_service_error,
+    } kind;
+    union {
+        ActAsTokenResponse as_act_as_token_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceExchangeActAsCredentialReply;
+
+typedef struct AuthServiceLoginReply {
+    enum {
+        AuthServiceLoginReply_as_login_response,
+        AuthServiceLoginReply_as_service_error,
+    } kind;
+    union {
+        LoginResponse as_login_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceLoginReply;
+
+typedef struct AuthServiceCompleteReply {
+    enum {
+        AuthServiceCompleteReply_as_login_response,
+        AuthServiceCompleteReply_as_service_error,
+    } kind;
+    union {
+        LoginResponse as_login_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceCompleteReply;
+
+typedef struct AuthServiceRefreshReply {
+    enum {
+        AuthServiceRefreshReply_as_login_response,
+        AuthServiceRefreshReply_as_service_error,
+    } kind;
+    union {
+        LoginResponse as_login_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceRefreshReply;
+
+typedef struct AuthServiceLogoutReply {
+    enum {
+        AuthServiceLogoutReply_as_empty_response,
+        AuthServiceLogoutReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceLogoutReply;
+
+typedef struct AuthServiceResumeSessionReply {
+    enum {
+        AuthServiceResumeSessionReply_as_login_response,
+        AuthServiceResumeSessionReply_as_service_error,
+    } kind;
+    union {
+        LoginResponse as_login_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceResumeSessionReply;
+
+typedef struct AuthServiceEndSessionReply {
+    enum {
+        AuthServiceEndSessionReply_as_empty_response,
+        AuthServiceEndSessionReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceEndSessionReply;
+
+typedef struct AuthServiceMeReply {
+    enum {
+        AuthServiceMeReply_as_me_response,
+        AuthServiceMeReply_as_service_error,
+    } kind;
+    union {
+        MeResponse as_me_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceMeReply;
+
+typedef struct AuthServiceBeginCliLoginReply {
+    enum {
+        AuthServiceBeginCliLoginReply_as_begin_cli_login_response,
+        AuthServiceBeginCliLoginReply_as_service_error,
+    } kind;
+    union {
+        BeginCliLoginResponse as_begin_cli_login_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceBeginCliLoginReply;
+
+typedef struct AuthServiceInspectCliLoginReply {
+    enum {
+        AuthServiceInspectCliLoginReply_as_cli_login_request_info,
+        AuthServiceInspectCliLoginReply_as_service_error,
+    } kind;
+    union {
+        CliLoginRequestInfo as_cli_login_request_info;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceInspectCliLoginReply;
+
+typedef struct AuthServiceApproveCliLoginReply {
+    enum {
+        AuthServiceApproveCliLoginReply_as_empty_response,
+        AuthServiceApproveCliLoginReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceApproveCliLoginReply;
+
+typedef struct AuthServiceDenyCliLoginReply {
+    enum {
+        AuthServiceDenyCliLoginReply_as_empty_response,
+        AuthServiceDenyCliLoginReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceDenyCliLoginReply;
+
+typedef struct AuthServiceExchangeCliLoginReply {
+    enum {
+        AuthServiceExchangeCliLoginReply_as_exchange_cli_login_response,
+        AuthServiceExchangeCliLoginReply_as_service_error,
+    } kind;
+    union {
+        ExchangeCliLoginResponse as_exchange_cli_login_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceExchangeCliLoginReply;
+
+typedef struct AuthServiceRefreshSessionReply {
+    enum {
+        AuthServiceRefreshSessionReply_as_cli_token_response,
+        AuthServiceRefreshSessionReply_as_service_error,
+    } kind;
+    union {
+        CliTokenResponse as_cli_token_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceRefreshSessionReply;
+
+typedef struct AuthServiceListSessionsReply {
+    enum {
+        AuthServiceListSessionsReply_as_cli_sessions_response,
+        AuthServiceListSessionsReply_as_service_error,
+    } kind;
+    union {
+        CliSessionsResponse as_cli_sessions_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceListSessionsReply;
+
+typedef struct AuthServiceRevokeSessionReply {
+    enum {
+        AuthServiceRevokeSessionReply_as_empty_response,
+        AuthServiceRevokeSessionReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} AuthServiceRevokeSessionReply;
+
+typedef struct DevAuthServiceListDevUsersReply {
+    enum {
+        DevAuthServiceListDevUsersReply_as_dev_users_response,
+        DevAuthServiceListDevUsersReply_as_service_error,
+    } kind;
+    union {
+        DevUsersResponse as_dev_users_response;
+        ServiceError as_service_error;
+    } value;
+} DevAuthServiceListDevUsersReply;
+
+typedef struct DevAuthServiceDevLoginReply {
+    enum {
+        DevAuthServiceDevLoginReply_as_login_response,
+        DevAuthServiceDevLoginReply_as_service_error,
+    } kind;
+    union {
+        LoginResponse as_login_response;
+        ServiceError as_service_error;
+    } value;
+} DevAuthServiceDevLoginReply;
+
+typedef struct HouseServiceCreateHouseReply {
+    enum {
+        HouseServiceCreateHouseReply_as_house,
+        HouseServiceCreateHouseReply_as_service_error,
+    } kind;
+    union {
+        House as_house;
+        ServiceError as_service_error;
+    } value;
+} HouseServiceCreateHouseReply;
+
+typedef struct HouseServiceGetHouseReply {
+    enum {
+        HouseServiceGetHouseReply_as_house,
+        HouseServiceGetHouseReply_as_service_error,
+    } kind;
+    union {
+        House as_house;
+        ServiceError as_service_error;
+    } value;
+} HouseServiceGetHouseReply;
+
+typedef struct HouseServiceUpdateHouseReply {
+    enum {
+        HouseServiceUpdateHouseReply_as_house,
+        HouseServiceUpdateHouseReply_as_service_error,
+    } kind;
+    union {
+        House as_house;
+        ServiceError as_service_error;
+    } value;
+} HouseServiceUpdateHouseReply;
+
+typedef struct HouseServiceDeleteHouseReply {
+    enum {
+        HouseServiceDeleteHouseReply_as_empty_response,
+        HouseServiceDeleteHouseReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} HouseServiceDeleteHouseReply;
+
+typedef struct MemberServiceCreateMemberReply {
+    enum {
+        MemberServiceCreateMemberReply_as_member,
+        MemberServiceCreateMemberReply_as_service_error,
+    } kind;
+    union {
+        Member as_member;
+        ServiceError as_service_error;
+    } value;
+} MemberServiceCreateMemberReply;
+
+typedef struct MemberServiceGetMemberReply {
+    enum {
+        MemberServiceGetMemberReply_as_member,
+        MemberServiceGetMemberReply_as_service_error,
+    } kind;
+    union {
+        Member as_member;
+        ServiceError as_service_error;
+    } value;
+} MemberServiceGetMemberReply;
+
+typedef struct MemberServiceGetMemberByIdentityReply {
+    enum {
+        MemberServiceGetMemberByIdentityReply_as_member,
+        MemberServiceGetMemberByIdentityReply_as_service_error,
+    } kind;
+    union {
+        Member as_member;
+        ServiceError as_service_error;
+    } value;
+} MemberServiceGetMemberByIdentityReply;
+
+typedef struct MemberServiceUpdateMemberReply {
+    enum {
+        MemberServiceUpdateMemberReply_as_member,
+        MemberServiceUpdateMemberReply_as_service_error,
+    } kind;
+    union {
+        Member as_member;
+        ServiceError as_service_error;
+    } value;
+} MemberServiceUpdateMemberReply;
+
+typedef struct MemberServiceDeactivateMemberReply {
+    enum {
+        MemberServiceDeactivateMemberReply_as_empty_response,
+        MemberServiceDeactivateMemberReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} MemberServiceDeactivateMemberReply;
+
+typedef struct MemberServiceReactivateMemberReply {
+    enum {
+        MemberServiceReactivateMemberReply_as_empty_response,
+        MemberServiceReactivateMemberReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} MemberServiceReactivateMemberReply;
+
+typedef struct TrustedDomainServiceAddTrustedDomainReply {
+    enum {
+        TrustedDomainServiceAddTrustedDomainReply_as_trusted_domain,
+        TrustedDomainServiceAddTrustedDomainReply_as_service_error,
+    } kind;
+    union {
+        TrustedDomain as_trusted_domain;
+        ServiceError as_service_error;
+    } value;
+} TrustedDomainServiceAddTrustedDomainReply;
+
+typedef struct TrustedDomainServiceRemoveTrustedDomainReply {
+    enum {
+        TrustedDomainServiceRemoveTrustedDomainReply_as_empty_response,
+        TrustedDomainServiceRemoveTrustedDomainReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} TrustedDomainServiceRemoveTrustedDomainReply;
+
+typedef struct TrustedDomainServiceIsDomainTrustedReply {
+    enum {
+        TrustedDomainServiceIsDomainTrustedReply_as_bool_response,
+        TrustedDomainServiceIsDomainTrustedReply_as_service_error,
+    } kind;
+    union {
+        BoolResponse as_bool_response;
+        ServiceError as_service_error;
+    } value;
+} TrustedDomainServiceIsDomainTrustedReply;
+
+typedef struct RoleServiceCreateRoleReply {
+    enum {
+        RoleServiceCreateRoleReply_as_role,
+        RoleServiceCreateRoleReply_as_service_error,
+    } kind;
+    union {
+        Role as_role;
+        ServiceError as_service_error;
+    } value;
+} RoleServiceCreateRoleReply;
+
+typedef struct RoleServiceUpdateRoleReply {
+    enum {
+        RoleServiceUpdateRoleReply_as_role,
+        RoleServiceUpdateRoleReply_as_service_error,
+    } kind;
+    union {
+        Role as_role;
+        ServiceError as_service_error;
+    } value;
+} RoleServiceUpdateRoleReply;
+
+typedef struct RoleServiceDeleteRoleReply {
+    enum {
+        RoleServiceDeleteRoleReply_as_empty_response,
+        RoleServiceDeleteRoleReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} RoleServiceDeleteRoleReply;
+
+typedef struct RoleServiceGrantRoleReply {
+    enum {
+        RoleServiceGrantRoleReply_as_empty_response,
+        RoleServiceGrantRoleReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} RoleServiceGrantRoleReply;
+
+typedef struct RoleServiceRevokeRoleReply {
+    enum {
+        RoleServiceRevokeRoleReply_as_empty_response,
+        RoleServiceRevokeRoleReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} RoleServiceRevokeRoleReply;
+
+typedef struct SkillServiceCreateSkillReply {
+    enum {
+        SkillServiceCreateSkillReply_as_skill,
+        SkillServiceCreateSkillReply_as_service_error,
+    } kind;
+    union {
+        Skill as_skill;
+        ServiceError as_service_error;
+    } value;
+} SkillServiceCreateSkillReply;
+
+typedef struct SkillServiceUpdateSkillReply {
+    enum {
+        SkillServiceUpdateSkillReply_as_skill,
+        SkillServiceUpdateSkillReply_as_service_error,
+    } kind;
+    union {
+        Skill as_skill;
+        ServiceError as_service_error;
+    } value;
+} SkillServiceUpdateSkillReply;
+
+typedef struct SkillServiceDeleteSkillReply {
+    enum {
+        SkillServiceDeleteSkillReply_as_empty_response,
+        SkillServiceDeleteSkillReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} SkillServiceDeleteSkillReply;
+
+typedef struct SkillServiceAddMemberSkillReply {
+    enum {
+        SkillServiceAddMemberSkillReply_as_empty_response,
+        SkillServiceAddMemberSkillReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} SkillServiceAddMemberSkillReply;
+
+typedef struct SkillServiceRemoveMemberSkillReply {
+    enum {
+        SkillServiceRemoveMemberSkillReply_as_empty_response,
+        SkillServiceRemoveMemberSkillReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} SkillServiceRemoveMemberSkillReply;
+
+typedef struct SkillServiceAddGroupSkillReply {
+    enum {
+        SkillServiceAddGroupSkillReply_as_empty_response,
+        SkillServiceAddGroupSkillReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} SkillServiceAddGroupSkillReply;
+
+typedef struct SkillServiceRemoveGroupSkillReply {
+    enum {
+        SkillServiceRemoveGroupSkillReply_as_empty_response,
+        SkillServiceRemoveGroupSkillReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} SkillServiceRemoveGroupSkillReply;
+
+typedef struct GroupServiceCreateGroupReply {
+    enum {
+        GroupServiceCreateGroupReply_as_group,
+        GroupServiceCreateGroupReply_as_service_error,
+    } kind;
+    union {
+        Group as_group;
+        ServiceError as_service_error;
+    } value;
+} GroupServiceCreateGroupReply;
+
+typedef struct GroupServiceUpdateGroupReply {
+    enum {
+        GroupServiceUpdateGroupReply_as_group,
+        GroupServiceUpdateGroupReply_as_service_error,
+    } kind;
+    union {
+        Group as_group;
+        ServiceError as_service_error;
+    } value;
+} GroupServiceUpdateGroupReply;
+
+typedef struct GroupServiceDeleteGroupReply {
+    enum {
+        GroupServiceDeleteGroupReply_as_empty_response,
+        GroupServiceDeleteGroupReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} GroupServiceDeleteGroupReply;
+
+typedef struct GroupServiceAddGroupMemberReply {
+    enum {
+        GroupServiceAddGroupMemberReply_as_empty_response,
+        GroupServiceAddGroupMemberReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} GroupServiceAddGroupMemberReply;
+
+typedef struct GroupServiceRemoveGroupMemberReply {
+    enum {
+        GroupServiceRemoveGroupMemberReply_as_empty_response,
+        GroupServiceRemoveGroupMemberReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} GroupServiceRemoveGroupMemberReply;
+
+typedef struct ProjectServiceCreateProjectReply {
+    enum {
+        ProjectServiceCreateProjectReply_as_project,
+        ProjectServiceCreateProjectReply_as_service_error,
+    } kind;
+    union {
+        Project as_project;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceCreateProjectReply;
+
+typedef struct ProjectServiceGetProjectReply {
+    enum {
+        ProjectServiceGetProjectReply_as_project,
+        ProjectServiceGetProjectReply_as_service_error,
+    } kind;
+    union {
+        Project as_project;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceGetProjectReply;
+
+typedef struct ProjectServiceUpdateProjectReply {
+    enum {
+        ProjectServiceUpdateProjectReply_as_project,
+        ProjectServiceUpdateProjectReply_as_service_error,
+    } kind;
+    union {
+        Project as_project;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceUpdateProjectReply;
+
+typedef struct ProjectServiceDeleteProjectReply {
+    enum {
+        ProjectServiceDeleteProjectReply_as_empty_response,
+        ProjectServiceDeleteProjectReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceDeleteProjectReply;
+
+typedef struct ProjectServiceListProjectsReply {
+    enum {
+        ProjectServiceListProjectsReply_as_project_list,
+        ProjectServiceListProjectsReply_as_service_error,
+    } kind;
+    union {
+        ProjectList as_project_list;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceListProjectsReply;
+
+typedef struct ProjectServiceListProjectTasksReply {
+    enum {
+        ProjectServiceListProjectTasksReply_as_task_list,
+        ProjectServiceListProjectTasksReply_as_service_error,
+    } kind;
+    union {
+        TaskList as_task_list;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceListProjectTasksReply;
+
+typedef struct ProjectServiceAddProjectTaskReply {
+    enum {
+        ProjectServiceAddProjectTaskReply_as_empty_response,
+        ProjectServiceAddProjectTaskReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceAddProjectTaskReply;
+
+typedef struct ProjectServiceRemoveProjectTaskReply {
+    enum {
+        ProjectServiceRemoveProjectTaskReply_as_empty_response,
+        ProjectServiceRemoveProjectTaskReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceRemoveProjectTaskReply;
+
+typedef struct ProjectServiceSetProjectTaskPositionReply {
+    enum {
+        ProjectServiceSetProjectTaskPositionReply_as_empty_response,
+        ProjectServiceSetProjectTaskPositionReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceSetProjectTaskPositionReply;
+
+typedef struct ProjectServiceAddProjectMemberReply {
+    enum {
+        ProjectServiceAddProjectMemberReply_as_empty_response,
+        ProjectServiceAddProjectMemberReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceAddProjectMemberReply;
+
+typedef struct ProjectServiceRemoveProjectMemberReply {
+    enum {
+        ProjectServiceRemoveProjectMemberReply_as_empty_response,
+        ProjectServiceRemoveProjectMemberReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceRemoveProjectMemberReply;
+
+typedef struct ProjectServiceAddProjectOwnerReply {
+    enum {
+        ProjectServiceAddProjectOwnerReply_as_empty_response,
+        ProjectServiceAddProjectOwnerReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceAddProjectOwnerReply;
+
+typedef struct ProjectServiceRemoveProjectOwnerReply {
+    enum {
+        ProjectServiceRemoveProjectOwnerReply_as_empty_response,
+        ProjectServiceRemoveProjectOwnerReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceRemoveProjectOwnerReply;
+
+typedef struct ProjectServiceCreateMilestoneReply {
+    enum {
+        ProjectServiceCreateMilestoneReply_as_milestone,
+        ProjectServiceCreateMilestoneReply_as_service_error,
+    } kind;
+    union {
+        Milestone as_milestone;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceCreateMilestoneReply;
+
+typedef struct ProjectServiceUpdateMilestoneReply {
+    enum {
+        ProjectServiceUpdateMilestoneReply_as_milestone,
+        ProjectServiceUpdateMilestoneReply_as_service_error,
+    } kind;
+    union {
+        Milestone as_milestone;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceUpdateMilestoneReply;
+
+typedef struct ProjectServiceDeleteMilestoneReply {
+    enum {
+        ProjectServiceDeleteMilestoneReply_as_empty_response,
+        ProjectServiceDeleteMilestoneReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceDeleteMilestoneReply;
+
+typedef struct ProjectServiceSetProjectVisibilityReply {
+    enum {
+        ProjectServiceSetProjectVisibilityReply_as_project,
+        ProjectServiceSetProjectVisibilityReply_as_service_error,
+    } kind;
+    union {
+        Project as_project;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceSetProjectVisibilityReply;
+
+typedef struct ProjectServicePutProjectGrantReply {
+    enum {
+        ProjectServicePutProjectGrantReply_as_empty_response,
+        ProjectServicePutProjectGrantReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ProjectServicePutProjectGrantReply;
+
+typedef struct ProjectServiceDeleteProjectGrantReply {
+    enum {
+        ProjectServiceDeleteProjectGrantReply_as_empty_response,
+        ProjectServiceDeleteProjectGrantReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceDeleteProjectGrantReply;
+
+typedef struct EventServiceCreateEventReply {
+    enum {
+        EventServiceCreateEventReply_as_event,
+        EventServiceCreateEventReply_as_service_error,
+    } kind;
+    union {
+        Event as_event;
+        ServiceError as_service_error;
+    } value;
+} EventServiceCreateEventReply;
+
+typedef struct EventServiceGetEventReply {
+    enum {
+        EventServiceGetEventReply_as_event,
+        EventServiceGetEventReply_as_service_error,
+    } kind;
+    union {
+        Event as_event;
+        ServiceError as_service_error;
+    } value;
+} EventServiceGetEventReply;
+
+typedef struct EventServiceUpdateEventReply {
+    enum {
+        EventServiceUpdateEventReply_as_event,
+        EventServiceUpdateEventReply_as_service_error,
+    } kind;
+    union {
+        Event as_event;
+        ServiceError as_service_error;
+    } value;
+} EventServiceUpdateEventReply;
+
+typedef struct EventServiceDeleteEventReply {
+    enum {
+        EventServiceDeleteEventReply_as_empty_response,
+        EventServiceDeleteEventReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} EventServiceDeleteEventReply;
+
+typedef struct EventServiceDeleteEventAndFutureReply {
+    enum {
+        EventServiceDeleteEventAndFutureReply_as_empty_response,
+        EventServiceDeleteEventAndFutureReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} EventServiceDeleteEventAndFutureReply;
+
+typedef struct EventServiceGetCalendarViewReply {
+    enum {
+        EventServiceGetCalendarViewReply_as_calendar_view,
+        EventServiceGetCalendarViewReply_as_service_error,
+    } kind;
+    union {
+        CalendarView as_calendar_view;
+        ServiceError as_service_error;
+    } value;
+} EventServiceGetCalendarViewReply;
+
+typedef struct EventServiceSetCalendarViewReply {
+    enum {
+        EventServiceSetCalendarViewReply_as_calendar_view,
+        EventServiceSetCalendarViewReply_as_service_error,
+    } kind;
+    union {
+        CalendarView as_calendar_view;
+        ServiceError as_service_error;
+    } value;
+} EventServiceSetCalendarViewReply;
+
+typedef struct EventServiceAcceptEventReply {
+    enum {
+        EventServiceAcceptEventReply_as_event,
+        EventServiceAcceptEventReply_as_service_error,
+    } kind;
+    union {
+        Event as_event;
+        ServiceError as_service_error;
+    } value;
+} EventServiceAcceptEventReply;
+
+typedef struct EventServiceRecoverEditReply {
+    enum {
+        EventServiceRecoverEditReply_as_event,
+        EventServiceRecoverEditReply_as_service_error,
+    } kind;
+    union {
+        Event as_event;
+        ServiceError as_service_error;
+    } value;
+} EventServiceRecoverEditReply;
+
+typedef struct EventServiceDeclineEventReply {
+    enum {
+        EventServiceDeclineEventReply_as_event,
+        EventServiceDeclineEventReply_as_service_error,
+    } kind;
+    union {
+        Event as_event;
+        ServiceError as_service_error;
+    } value;
+} EventServiceDeclineEventReply;
+
+typedef struct CalendarServiceListProjectDeadlinesReply {
+    enum {
+        CalendarServiceListProjectDeadlinesReply_as_project_deadline_list,
+        CalendarServiceListProjectDeadlinesReply_as_service_error,
+    } kind;
+    union {
+        ProjectDeadlineList as_project_deadline_list;
+        ServiceError as_service_error;
+    } value;
+} CalendarServiceListProjectDeadlinesReply;
+
+typedef struct CalendarServiceGetStatusReply {
+    enum {
+        CalendarServiceGetStatusReply_as_calendar_status,
+        CalendarServiceGetStatusReply_as_service_error,
+    } kind;
+    union {
+        CalendarStatus as_calendar_status;
+        ServiceError as_service_error;
+    } value;
+} CalendarServiceGetStatusReply;
+
+typedef struct CalendarServiceConfigureCalendarReply {
+    enum {
+        CalendarServiceConfigureCalendarReply_as_calendar_status,
+        CalendarServiceConfigureCalendarReply_as_service_error,
+    } kind;
+    union {
+        CalendarStatus as_calendar_status;
+        ServiceError as_service_error;
+    } value;
+} CalendarServiceConfigureCalendarReply;
+
+typedef struct CalendarServiceBeginConnectReply {
+    enum {
+        CalendarServiceBeginConnectReply_as_calendar_connect_response,
+        CalendarServiceBeginConnectReply_as_service_error,
+    } kind;
+    union {
+        CalendarConnectResponse as_calendar_connect_response;
+        ServiceError as_service_error;
+    } value;
+} CalendarServiceBeginConnectReply;
+
+typedef struct CalendarServiceCompleteConnectReply {
+    enum {
+        CalendarServiceCompleteConnectReply_as_calendar_status,
+        CalendarServiceCompleteConnectReply_as_service_error,
+    } kind;
+    union {
+        CalendarStatus as_calendar_status;
+        ServiceError as_service_error;
+    } value;
+} CalendarServiceCompleteConnectReply;
+
+typedef struct CalendarServiceDisconnectReply {
+    enum {
+        CalendarServiceDisconnectReply_as_empty_response,
+        CalendarServiceDisconnectReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} CalendarServiceDisconnectReply;
+
+typedef struct CalendarServiceRestoreEventReply {
+    enum {
+        CalendarServiceRestoreEventReply_as_event,
+        CalendarServiceRestoreEventReply_as_service_error,
+    } kind;
+    union {
+        Event as_event;
+        ServiceError as_service_error;
+    } value;
+} CalendarServiceRestoreEventReply;
+
+typedef struct TaskServiceCreateTaskReply {
+    enum {
+        TaskServiceCreateTaskReply_as_task,
+        TaskServiceCreateTaskReply_as_service_error,
+    } kind;
+    union {
+        Task as_task;
+        ServiceError as_service_error;
+    } value;
+} TaskServiceCreateTaskReply;
+
+typedef struct TaskServiceGetTaskReply {
+    enum {
+        TaskServiceGetTaskReply_as_task,
+        TaskServiceGetTaskReply_as_service_error,
+    } kind;
+    union {
+        Task as_task;
+        ServiceError as_service_error;
+    } value;
+} TaskServiceGetTaskReply;
+
+typedef struct TaskServiceUpdateTaskReply {
+    enum {
+        TaskServiceUpdateTaskReply_as_task,
+        TaskServiceUpdateTaskReply_as_service_error,
+    } kind;
+    union {
+        Task as_task;
+        ServiceError as_service_error;
+    } value;
+} TaskServiceUpdateTaskReply;
+
+typedef struct TaskServiceDeleteTaskReply {
+    enum {
+        TaskServiceDeleteTaskReply_as_empty_response,
+        TaskServiceDeleteTaskReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} TaskServiceDeleteTaskReply;
+
+typedef struct TaskServiceListTasksReply {
+    enum {
+        TaskServiceListTasksReply_as_task_list,
+        TaskServiceListTasksReply_as_service_error,
+    } kind;
+    union {
+        TaskList as_task_list;
+        ServiceError as_service_error;
+    } value;
+} TaskServiceListTasksReply;
+
+typedef struct TaskServiceCreatePersonalTaskReply {
+    enum {
+        TaskServiceCreatePersonalTaskReply_as_task,
+        TaskServiceCreatePersonalTaskReply_as_service_error,
+    } kind;
+    union {
+        Task as_task;
+        ServiceError as_service_error;
+    } value;
+} TaskServiceCreatePersonalTaskReply;
+
+typedef struct TaskServiceSetTaskVisibilityReply {
+    enum {
+        TaskServiceSetTaskVisibilityReply_as_task,
+        TaskServiceSetTaskVisibilityReply_as_service_error,
+    } kind;
+    union {
+        Task as_task;
+        ServiceError as_service_error;
+    } value;
+} TaskServiceSetTaskVisibilityReply;
+
+typedef struct TaskServicePutTaskGrantReply {
+    enum {
+        TaskServicePutTaskGrantReply_as_empty_response,
+        TaskServicePutTaskGrantReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} TaskServicePutTaskGrantReply;
+
+typedef struct TaskServiceDeleteTaskGrantReply {
+    enum {
+        TaskServiceDeleteTaskGrantReply_as_empty_response,
+        TaskServiceDeleteTaskGrantReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} TaskServiceDeleteTaskGrantReply;
+
+typedef struct DependencyServiceAddDependencyReply {
+    enum {
+        DependencyServiceAddDependencyReply_as_empty_response,
+        DependencyServiceAddDependencyReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} DependencyServiceAddDependencyReply;
+
+typedef struct DependencyServiceRemoveDependencyReply {
+    enum {
+        DependencyServiceRemoveDependencyReply_as_empty_response,
+        DependencyServiceRemoveDependencyReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} DependencyServiceRemoveDependencyReply;
+
+typedef struct DependencyServiceGetDependenciesReply {
+    enum {
+        DependencyServiceGetDependenciesReply_as_dependency_graph,
+        DependencyServiceGetDependenciesReply_as_service_error,
+    } kind;
+    union {
+        DependencyGraph as_dependency_graph;
+        ServiceError as_service_error;
+    } value;
+} DependencyServiceGetDependenciesReply;
+
+typedef struct CommentServiceCreateCommentReply {
+    enum {
+        CommentServiceCreateCommentReply_as_comment,
+        CommentServiceCreateCommentReply_as_service_error,
+    } kind;
+    union {
+        Comment as_comment;
+        ServiceError as_service_error;
+    } value;
+} CommentServiceCreateCommentReply;
+
+typedef struct CommentServiceGetCommentReply {
+    enum {
+        CommentServiceGetCommentReply_as_comment,
+        CommentServiceGetCommentReply_as_service_error,
+    } kind;
+    union {
+        Comment as_comment;
+        ServiceError as_service_error;
+    } value;
+} CommentServiceGetCommentReply;
+
+typedef struct CommentServiceUpdateCommentReply {
+    enum {
+        CommentServiceUpdateCommentReply_as_comment,
+        CommentServiceUpdateCommentReply_as_service_error,
+    } kind;
+    union {
+        Comment as_comment;
+        ServiceError as_service_error;
+    } value;
+} CommentServiceUpdateCommentReply;
+
+typedef struct CommentServiceDeleteCommentReply {
+    enum {
+        CommentServiceDeleteCommentReply_as_empty_response,
+        CommentServiceDeleteCommentReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} CommentServiceDeleteCommentReply;
+
+typedef struct NotificationServiceUnreadCountReply {
+    enum {
+        NotificationServiceUnreadCountReply_as_notification_unread_count,
+        NotificationServiceUnreadCountReply_as_service_error,
+    } kind;
+    union {
+        NotificationUnreadCount as_notification_unread_count;
+        ServiceError as_service_error;
+    } value;
+} NotificationServiceUnreadCountReply;
+
+typedef struct NotificationServiceMarkReadReply {
+    enum {
+        NotificationServiceMarkReadReply_as_notification,
+        NotificationServiceMarkReadReply_as_service_error,
+    } kind;
+    union {
+        Notification as_notification;
+        ServiceError as_service_error;
+    } value;
+} NotificationServiceMarkReadReply;
+
+typedef struct NotificationServiceMarkAllReadReply {
+    enum {
+        NotificationServiceMarkAllReadReply_as_empty_response,
+        NotificationServiceMarkAllReadReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} NotificationServiceMarkAllReadReply;
+
+typedef struct ShareServiceCreateShareReply {
+    enum {
+        ShareServiceCreateShareReply_as_share,
+        ShareServiceCreateShareReply_as_service_error,
+    } kind;
+    union {
+        Share as_share;
+        ServiceError as_service_error;
+    } value;
+} ShareServiceCreateShareReply;
+
+typedef struct ShareServiceDeleteShareReply {
+    enum {
+        ShareServiceDeleteShareReply_as_empty_response,
+        ShareServiceDeleteShareReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} ShareServiceDeleteShareReply;
+
+typedef struct ShareServiceCheckAccessReply {
+    enum {
+        ShareServiceCheckAccessReply_as_share,
+        ShareServiceCheckAccessReply_as_service_error,
+    } kind;
+    union {
+        Share as_share;
+        ServiceError as_service_error;
+    } value;
+} ShareServiceCheckAccessReply;
+
+typedef struct SettingsServiceGetSettingsReply {
+    enum {
+        SettingsServiceGetSettingsReply_as_effective_settings,
+        SettingsServiceGetSettingsReply_as_service_error,
+    } kind;
+    union {
+        EffectiveSettings as_effective_settings;
+        ServiceError as_service_error;
+    } value;
+} SettingsServiceGetSettingsReply;
+
+typedef struct SettingsServiceUpdateSettingsReply {
+    enum {
+        SettingsServiceUpdateSettingsReply_as_effective_settings,
+        SettingsServiceUpdateSettingsReply_as_service_error,
+    } kind;
+    union {
+        EffectiveSettings as_effective_settings;
+        ServiceError as_service_error;
+    } value;
+} SettingsServiceUpdateSettingsReply;
+
+typedef struct BugServiceReportBugReply {
+    enum {
+        BugServiceReportBugReply_as_task,
+        BugServiceReportBugReply_as_service_error,
+    } kind;
+    union {
+        Task as_task;
+        ServiceError as_service_error;
+    } value;
+} BugServiceReportBugReply;
+
+typedef struct AuditServiceQueryAuditReply {
+    enum {
+        AuditServiceQueryAuditReply_as_audit_page,
+        AuditServiceQueryAuditReply_as_service_error,
+    } kind;
+    union {
+        AuditPage as_audit_page;
+        ServiceError as_service_error;
+    } value;
+} AuditServiceQueryAuditReply;
+
+typedef struct TrashServiceListTrashReply {
+    enum {
+        TrashServiceListTrashReply_as_trash_page,
+        TrashServiceListTrashReply_as_service_error,
+    } kind;
+    union {
+        TrashPage as_trash_page;
+        ServiceError as_service_error;
+    } value;
+} TrashServiceListTrashReply;
+
+typedef struct TrashServiceRestoreReply {
+    enum {
+        TrashServiceRestoreReply_as_empty_response,
+        TrashServiceRestoreReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} TrashServiceRestoreReply;
+
+typedef struct TrashServicePurgeReply {
+    enum {
+        TrashServicePurgeReply_as_empty_response,
+        TrashServicePurgeReply_as_service_error,
+    } kind;
+    union {
+        EmptyResponse as_empty_response;
+        ServiceError as_service_error;
+    } value;
+} TrashServicePurgeReply;
 
 #endif /* CSILGEN_TYPES_GEN_H */

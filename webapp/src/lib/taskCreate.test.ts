@@ -14,8 +14,8 @@ describe("normalizeTaskCreate", () => {
     const value = decode(toTaskCbor(task));
 
     expect(mapGet(value, "task_id")).toBe("");
-    expect(mapGet(value, "created_at")).toBe("");
-    expect(mapGet(value, "updated_at")).toBe("");
+    expect(mapGet(value, "created_at")).toEqual({ tag: 0, value: "1970-01-01T00:00:00Z" });
+    expect(mapGet(value, "updated_at")).toEqual({ tag: 0, value: "1970-01-01T00:00:00Z" });
     expect(mapGet(value, "tag")).toBeUndefined();
   });
 
@@ -26,8 +26,8 @@ describe("normalizeTaskCreate", () => {
     })));
 
     expect(mapGet(value, "project_id")).toBe("");
-    expect(mapGet(value, "created_at")).toBe("");
-    expect(mapGet(value, "updated_at")).toBe("");
+    expect(mapGet(value, "created_at")).toEqual({ tag: 0, value: "1970-01-01T00:00:00Z" });
+    expect(mapGet(value, "updated_at")).toEqual({ tag: 0, value: "1970-01-01T00:00:00Z" });
   });
 
   it("fills generated-codec-required receive-only fields for event creates", () => {
@@ -38,8 +38,8 @@ describe("normalizeTaskCreate", () => {
 
     expect(mapGet(value, "event_id")).toBe("");
     expect(mapGet(value, "owner_member_id")).toBe("");
-    expect(mapGet(value, "created_at")).toBe("");
-    expect(mapGet(value, "updated_at")).toBe("");
+    expect(mapGet(value, "created_at")).toEqual({ tag: 0, value: "1970-01-01T00:00:00Z" });
+    expect(mapGet(value, "updated_at")).toEqual({ tag: 0, value: "1970-01-01T00:00:00Z" });
   });
 
   it("fills generated-codec-required receive-only fields for comment creates", () => {
@@ -52,7 +52,7 @@ describe("normalizeTaskCreate", () => {
 
     expect(mapGet(value, "comment_id")).toBe("");
     expect(mapGet(value, "member_id")).toBe("");
-    expect(mapGet(value, "created_at")).toBe("");
-    expect(mapGet(value, "updated_at")).toBe("");
+    expect(mapGet(value, "created_at")).toEqual({ tag: 0, value: "1970-01-01T00:00:00Z" });
+    expect(mapGet(value, "updated_at")).toEqual({ tag: 0, value: "1970-01-01T00:00:00Z" });
   });
 });

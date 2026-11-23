@@ -89,10 +89,7 @@ func LoginCLI(flags map[string]string) error {
 		}
 	}
 
-	expiresAt, err := time.Parse(time.RFC3339, string(login.ExpiresAt))
-	if err != nil {
-		return fmt.Errorf("server returned an invalid login expiration: %w", err)
-	}
+	expiresAt := login.ExpiresAt
 	interval := time.Duration(login.IntervalSeconds) * time.Second
 	if interval < time.Second {
 		interval = time.Second
@@ -294,9 +291,9 @@ func credentialsFromResponse(baseURL string, response csil.CliTokenResponse) cli
 		Domain:           response.Domain,
 		UserID:           response.UserId,
 		DisplayName:      displayName,
-		ExpiresAt:        string(response.ExpiresAt),
+		ExpiresAt:        response.ExpiresAt.UTC().Format(time.RFC3339Nano),
 		RefreshToken:     response.RefreshToken,
-		RefreshExpiresAt: string(response.RefreshExpiresAt),
+		RefreshExpiresAt: response.RefreshExpiresAt.UTC().Format(time.RFC3339Nano),
 		SessionID:        string(response.SessionId),
 	}
 }

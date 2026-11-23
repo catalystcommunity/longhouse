@@ -18,7 +18,6 @@ and milestone_id = string
 and notification_id = string
 and notification_event_id = string
 and cli_session_id = string
-and timestamp = string
 and task_status = Open | In_progress | Done | Cancelled
 and target_type = Event | Task | Project
 and access_level = None | Read | Edit | Full
@@ -36,8 +35,10 @@ and house = {
   house_id : house_id;
   name : string;
   description : string option;
-  created_at : timestamp;
-  updated_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  updated_at : string;
 }
 
 and member = {
@@ -50,17 +51,22 @@ and member = {
   avatar_url : string option;
   handle : string option;
   cached_public_key : bytes option;
-  created_at : timestamp;
-  updated_at : timestamp;
-  last_seen_at : timestamp option;
-  deactivated_at : timestamp option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  updated_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  last_seen_at : string option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  deactivated_at : string option;
 }
 
 and trusted_domain = {
   trusted_domain_id : trusted_domain_id;
   house_id : house_id;
   domain : string;
-  created_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
 }
 
 and role = {
@@ -68,14 +74,17 @@ and role = {
   house_id : house_id;
   name : string;
   description : string option;
-  created_at : timestamp;
-  updated_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  updated_at : string;
 }
 
 and member_role = {
   member_id : member_id;
   role_id : role_id;
-  created_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
 }
 
 and member_audit = {
@@ -87,7 +96,8 @@ and member_audit = {
   target_type : string option;
   target_id : string option;
   detail : string option;
-  created_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
 }
 
 and skill = {
@@ -95,20 +105,24 @@ and skill = {
   house_id : house_id;
   name : string;
   description : string option;
-  created_at : timestamp;
-  updated_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  updated_at : string;
 }
 
 and member_skill = {
   member_id : member_id;
   skill_id : skill_id;
-  created_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
 }
 
 and group_skill = {
   group_id : group_id;
   skill_id : skill_id;
-  created_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
 }
 
 and group = {
@@ -116,14 +130,17 @@ and group = {
   house_id : house_id;
   name : string;
   description : string option;
-  created_at : timestamp;
-  updated_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  updated_at : string;
 }
 
 and group_member = {
   group_id : group_id;
   member_id : member_id;
-  created_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
 }
 
 and project = {
@@ -136,27 +153,32 @@ and project = {
   visibility : access_level option;
   created_by_member_id : member_id option;
   personal : bool option;
-  created_at : timestamp;
-  updated_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  updated_at : string;
 }
 
 and project_task = {
   project_id : project_id;
   task_id : task_id;
   position : int64;
-  created_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
 }
 
 and project_member = {
   project_id : project_id;
   member_id : member_id;
-  created_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
 }
 
 and project_owner = {
   project_id : project_id;
   member_id : member_id;
-  created_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
 }
 
 and milestone = {
@@ -166,8 +188,10 @@ and milestone = {
   when_label : string;
   state : milestone_state;
   position : int64;
-  created_at : timestamp;
-  updated_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  updated_at : string;
 }
 
 and event = {
@@ -177,8 +201,10 @@ and event = {
   title : string;
   description : string option;
   location : string option;
-  starts_at : timestamp option;
-  ends_at : timestamp option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  starts_at : string option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  ends_at : string option;
   all_day : bool option;
   timezone : string option;
   recurrence_rule : string option;
@@ -187,7 +213,8 @@ and event = {
   recurrence_interval : int64 option;
   recurrence_by_weekday : int64 list option;
   recurrence_by_setpos : int64 option;
-  next_recurrence_at : timestamp option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  next_recurrence_at : string option;
   recurrence_root_event_id : event_id option;
   calendar_state : string option;
   revision : int64 option;
@@ -196,8 +223,10 @@ and event = {
   edit_pending_member_id : member_id option;
   calendar_unbound : bool option;
   edit_scope : string option;
-  created_at : timestamp;
-  updated_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  updated_at : string;
 }
 
 and task = {
@@ -211,7 +240,8 @@ and task = {
   title : string;
   description : string option;
   status : task_status option;
-  due_at : timestamp option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  due_at : string option;
   tag : string option;
   estimate_minutes : int64 option;
   recurrence_freq : recurrence_freq option;
@@ -219,11 +249,15 @@ and task = {
   recurrence_interval : int64 option;
   recurrence_by_weekday : int64 list option;
   recurrence_by_setpos : int64 option;
-  next_recurrence_at : timestamp option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  next_recurrence_at : string option;
   recurrence_root_task_id : task_id option;
-  deleted_at : timestamp option;
-  created_at : timestamp;
-  updated_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  deleted_at : string option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  updated_at : string;
 }
 
 and comment = {
@@ -233,8 +267,10 @@ and comment = {
   target_type : target_type;
   target_id : string;
   body : string;
-  created_at : timestamp;
-  updated_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  updated_at : string;
 }
 
 and share = {
@@ -246,8 +282,10 @@ and share = {
   resource_type : resource_type;
   resource_id : string;
   access_level : access_level option;
-  created_at : timestamp;
-  expires_at : timestamp option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  expires_at : string option;
 }
 
 and house_summary = {
@@ -286,7 +324,8 @@ and login_response = {
   domain : string;
   user_id : string;
   display_name : string option;
-  expires_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  expires_at : string;
 }
 
 and cli_token_response = {
@@ -294,9 +333,11 @@ and cli_token_response = {
   domain : string;
   user_id : string;
   display_name : string option;
-  expires_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  expires_at : string;
   refresh_token : string;
-  refresh_expires_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  refresh_expires_at : string;
   session_id : cli_session_id;
 }
 
@@ -306,7 +347,8 @@ and begin_cli_login_response = {
   device_code : string;
   user_code : string;
   verification_url : string;
-  expires_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  expires_at : string;
   interval_seconds : int64;
 }
 
@@ -315,7 +357,8 @@ and approve_cli_login_request = { user_code : string }
 and cli_login_request_info = {
   user_code : string;
   client_name : string;
-  expires_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  expires_at : string;
 }
 
 and deny_cli_login_request = { user_code : string }
@@ -331,10 +374,14 @@ and refresh_session_request = { refresh_token : string }
 and cli_session_summary = {
   session_id : cli_session_id;
   client_name : string;
-  created_at : timestamp;
-  last_used_at : timestamp;
-  expires_at : timestamp;
-  revoked_at : timestamp option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  last_used_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  expires_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  revoked_at : string option;
   kind : session_kind option;
   current : bool option;
 }
@@ -359,7 +406,8 @@ and me_response = {
   domain : string;
   user_id : string;
   display_name : string option;
-  expires_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  expires_at : string;
   houses : house_summary list;
 }
 
@@ -376,8 +424,10 @@ and house_scoped_list_request = {
 
 and event_list_request = {
   house_id : house_id;
-  range_start : timestamp option;
-  range_end : timestamp option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  range_start : string option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  range_end : string option;
   limit : int64 option;
   offset : int64 option;
 }
@@ -389,9 +439,12 @@ and task_list_request = {
   state : task_state option;
   mine : bool option;
   loose : bool option;
-  due_from : timestamp option;
-  due_to : timestamp option;
-  due_before : timestamp list option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  due_from : string option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  due_to : string option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  due_before : string list option;
 }
 
 and task_list = {
@@ -437,8 +490,10 @@ and notification = {
   target_title : string;
   body : string;
   read : bool;
-  read_at : timestamp option;
-  created_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  read_at : string option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
 }
 
 and notification_list_request = {
@@ -571,7 +626,8 @@ and act_as_token_response = {
   token : string;
   domain : string;
   user_id : string;
-  expires_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  expires_at : string;
   grant_id : string;
   grantee : string;
   scopes : string list;
@@ -594,7 +650,8 @@ and calendar_status = {
   ready : bool;
   connected : bool;
   last_error : string option;
-  sync_pending_since : timestamp option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  sync_pending_since : string option;
 }
 
 and configure_calendar_request = { house_id : house_id; enabled : bool }
@@ -609,8 +666,10 @@ and complete_calendar_connect_request = {
 and calendar_trash_entry = {
   trash_id : string;
   event : event;
-  deleted_at : timestamp;
-  expires_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  deleted_at : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  expires_at : string;
 }
 
 and restore_calendar_event_request = { house_id : house_id; trash_id : string }
@@ -624,14 +683,17 @@ and calendar_migration_row = {
 
 and project_deadline_request = {
   project_id : project_id;
-  range_start : timestamp;
-  range_end : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  range_start : string;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  range_end : string;
 }
 
 and project_deadline = {
   task_id : task_id;
   title : string;
-  due_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  due_at : string;
 }
 
 and project_deadline_list = {
@@ -659,7 +721,8 @@ and audit_entry = {
   before : string option;
   after : string option;
   detail : string option;
-  created_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  created_at : string;
 }
 
 and audit_query = {
@@ -667,8 +730,10 @@ and audit_query = {
   actor_member_id : member_id option;
   resource_type : string option;
   action : string option;
-  since : timestamp option;
-  until : timestamp option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  since : string option;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  until : string option;
   cursor : string option;
   limit : int64 option;
 }
@@ -680,7 +745,8 @@ and trash_item = {
   resource_id : string;
   house_id : house_id;
   title : string option;
-  deleted_at : timestamp;
+  (* wire: CBOR tag 0 RFC3339 UTC timestamp text *)
+  deleted_at : string;
   deleted_by_member_id : member_id option;
   deleted_op_id : string;
 }

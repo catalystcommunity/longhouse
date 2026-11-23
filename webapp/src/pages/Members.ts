@@ -163,8 +163,8 @@ const InviteForm = (props: {
                 linkkeysDomain: domain().trim(),
                 linkkeysUserId: userId().trim(),
                 displayName: displayN().trim() || undefined,
-                createdAt: "",
-                updatedAt: "",
+                createdAt: new Date(0),
+                updatedAt: new Date(0),
             } as any);
             await props.onInvited();
         }

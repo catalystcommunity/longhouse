@@ -73,7 +73,7 @@ func (s *AuthService) ExchangeActAsCredential(ctx context.Context, req csil.Exch
 	}
 	s.recordSecurityEvent(ctx, models.AuditActionLogin, id.Domain, id.UserID, houses, map[string]any{"act_as_grant_id": verified.GrantID, "act_as_grantee": verified.Grantee, "act_as_scopes": scopes})
 	return csil.ActAsTokenResponse{Token: token, Domain: id.Domain, UserId: id.UserID,
-		ExpiresAt: csil.Timestamp(time.Unix(minted.ExpiresAt, 0).UTC().Format(time.RFC3339)), GrantId: verified.GrantID, Grantee: verified.Grantee, Scopes: scopes}, nil
+		ExpiresAt: time.Unix(minted.ExpiresAt, 0).UTC(), GrantId: verified.GrantID, Grantee: verified.Grantee, Scopes: scopes}, nil
 }
 
 // VerifyDelegation checks revocation and replaces the bearer membership snapshot.

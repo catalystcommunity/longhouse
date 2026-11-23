@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"testing"
+	"time"
 
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
 	"github.com/catalystcommunity/longhouse/api/internal/csilservices"
@@ -36,7 +37,7 @@ func TestRecurrenceClear_Postgres_EventWire(t *testing.T) {
 func TestRecurrenceClear_Postgres_TaskWire(t *testing.T) {
 	f := newCalendarFixture(t)
 	service := csilservices.TaskService{Store: store.AppStore}
-	freq, due := csil.RecurrenceFreq("weekly"), csil.Timestamp("2026-11-15T16:00:00Z")
+	freq, due := csil.RecurrenceFreq("weekly"), time.Date(2026, 11, 15, 16, 0, 0, 0, time.UTC)
 	task, err := service.CreateTask(f.ownerCtx, csil.Task{HouseId: csil.HouseID(f.house), OwnerMemberId: csil.MemberID(f.owner), Title: "Repeat", DueAt: &due, RecurrenceFreq: &freq})
 	if err != nil {
 		t.Fatal(err)

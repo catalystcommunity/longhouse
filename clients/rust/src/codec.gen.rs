@@ -418,13 +418,63 @@ fn cbor_as_map(v: &CsilCborValue) -> Result<&[(CsilCborValue, CsilCborValue)], C
     }
 }
 
+fn csil_enc_timestamp(t: &time::OffsetDateTime) -> CsilCborValue {
+    let utc = t.to_offset(time::UtcOffset::UTC);
+    let mut text = utc
+        .format(&time::format_description::well_known::Rfc3339)
+        .expect("CSIL timestamp requires a four-digit UTC year");
+    // Keep the wire spelling used by earlier Rust releases (3, 6, or 9 fractional digits).
+    if let Some(point) = text.find('.') {
+        let end = text.len() - 1; // final Z
+        let digits = end - point - 1;
+        let padding = (3 - digits % 3) % 3;
+        text.insert_str(end, &"00"[..padding]);
+    }
+    CsilCborValue::Tag(0, Box::new(CsilCborValue::Text(text)))
+}
+
+pub(super) fn csil_parse_timestamp(s: &str) -> Result<time::OffsetDateTime, CsilCborError> {
+    if !matches!(s.as_bytes().get(10), Some(b'T' | b't' | b' ')) {
+        return Err(CsilCborError("invalid timestamp separator".into()));
+    }
+    // The time crate rounds a leap second down. Reject it to avoid changing the instant.
+    if s.get(17..19) == Some("60") {
+        return Err(CsilCborError("unrepresentable leap second".into()));
+    }
+    let dt = time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339)
+        .map_err(|e| CsilCborError(format!("csil cbor: invalid timestamp: {e}")))?;
+    dt.checked_to_offset(time::UtcOffset::UTC)
+        .filter(|utc| (0..=9999).contains(&utc.year()))
+        .ok_or_else(|| CsilCborError("timestamp outside four-digit UTC year range".into()))
+}
+
+fn csil_as_timestamp(v: &CsilCborValue) -> Result<time::OffsetDateTime, CsilCborError> {
+    let CsilCborValue::Tag(0, inner) = v else {
+        return Err(CsilCborError(
+            "csil cbor: expected CBOR tag 0 timestamp".to_string(),
+        ));
+    };
+    let CsilCborValue::Text(s) = inner.as_ref() else {
+        return Err(CsilCborError(
+            "csil cbor: timestamp content must be text".to_string(),
+        ));
+    };
+    csil_parse_timestamp(s)
+}
+
 /// Build the canonical CBOR value tree for a House.
 fn csil_enc_house(csil_v: &House) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(5);
     csil_entries.push((cbor_text("name"), cbor_text(&csil_v.name)));
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
-    csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
+    csil_entries.push((
+        cbor_text("updated_at"),
+        csil_enc_timestamp(&csil_v.updated_at),
+    ));
     if let Some(csil_inner) = &csil_v.description {
         csil_entries.push((cbor_text("description"), cbor_text(csil_inner)));
     }
@@ -452,12 +502,12 @@ fn csil_dec_house(csil_root: &CsilCborValue) -> Result<House, CsilCborError> {
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let updated_at = {
         let csil_field = cbor_require(csil_root, "updated_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(House {
@@ -494,16 +544,22 @@ fn csil_enc_member(csil_v: &Member) -> CsilCborValue {
     if let Some(csil_inner) = &csil_v.avatar_url {
         csil_entries.push((cbor_text("avatar_url"), cbor_text(csil_inner)));
     }
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
-    csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
+    csil_entries.push((
+        cbor_text("updated_at"),
+        csil_enc_timestamp(&csil_v.updated_at),
+    ));
     if let Some(csil_inner) = &csil_v.display_name {
         csil_entries.push((cbor_text("display_name"), cbor_text(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.last_seen_at {
-        csil_entries.push((cbor_text("last_seen_at"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("last_seen_at"), csil_enc_timestamp(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.deactivated_at {
-        csil_entries.push((cbor_text("deactivated_at"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("deactivated_at"), csil_enc_timestamp(csil_inner)));
     }
     csil_entries.push((
         cbor_text("linkkeys_domain"),
@@ -578,24 +634,24 @@ fn csil_dec_member(csil_root: &CsilCborValue) -> Result<Member, CsilCborError> {
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let updated_at = {
         let csil_field = cbor_require(csil_root, "updated_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let last_seen_at = match cbor_map_get(csil_root, "last_seen_at") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
     };
     let deactivated_at = match cbor_map_get(csil_root, "deactivated_at") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -633,7 +689,10 @@ fn csil_enc_trusted_domain(csil_v: &TrustedDomain) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(4);
     csil_entries.push((cbor_text("domain"), cbor_text(&csil_v.domain)));
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     csil_entries.push((
         cbor_text("trusted_domain_id"),
         cbor_text(&csil_v.trusted_domain_id),
@@ -660,7 +719,7 @@ fn csil_dec_trusted_domain(csil_root: &CsilCborValue) -> Result<TrustedDomain, C
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(TrustedDomain {
@@ -688,8 +747,14 @@ fn csil_enc_role(csil_v: &Role) -> CsilCborValue {
     csil_entries.push((cbor_text("name"), cbor_text(&csil_v.name)));
     csil_entries.push((cbor_text("role_id"), cbor_text(&csil_v.role_id)));
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
-    csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
+    csil_entries.push((
+        cbor_text("updated_at"),
+        csil_enc_timestamp(&csil_v.updated_at),
+    ));
     if let Some(csil_inner) = &csil_v.description {
         csil_entries.push((cbor_text("description"), cbor_text(csil_inner)));
     }
@@ -722,12 +787,12 @@ fn csil_dec_role(csil_root: &CsilCborValue) -> Result<Role, CsilCborError> {
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let updated_at = {
         let csil_field = cbor_require(csil_root, "updated_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(Role {
@@ -756,7 +821,10 @@ fn csil_enc_member_role(csil_v: &MemberRole) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
     csil_entries.push((cbor_text("role_id"), cbor_text(&csil_v.role_id)));
     csil_entries.push((cbor_text("member_id"), cbor_text(&csil_v.member_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     CsilCborValue::Map(csil_entries)
 }
 
@@ -774,7 +842,7 @@ fn csil_dec_member_role(csil_root: &CsilCborValue) -> Result<MemberRole, CsilCbo
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(MemberRole {
@@ -807,7 +875,10 @@ fn csil_enc_member_audit(csil_v: &MemberAudit) -> CsilCborValue {
     if let Some(csil_inner) = &csil_v.target_id {
         csil_entries.push((cbor_text("target_id"), cbor_text(csil_inner)));
     }
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     if let Some(csil_inner) = &csil_v.target_type {
         csil_entries.push((cbor_text("target_type"), cbor_text(csil_inner)));
     }
@@ -873,7 +944,7 @@ fn csil_dec_member_audit(csil_root: &CsilCborValue) -> Result<MemberAudit, CsilC
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(MemberAudit {
@@ -906,8 +977,14 @@ fn csil_enc_skill(csil_v: &Skill) -> CsilCborValue {
     csil_entries.push((cbor_text("name"), cbor_text(&csil_v.name)));
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
     csil_entries.push((cbor_text("skill_id"), cbor_text(&csil_v.skill_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
-    csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
+    csil_entries.push((
+        cbor_text("updated_at"),
+        csil_enc_timestamp(&csil_v.updated_at),
+    ));
     if let Some(csil_inner) = &csil_v.description {
         csil_entries.push((cbor_text("description"), cbor_text(csil_inner)));
     }
@@ -940,12 +1017,12 @@ fn csil_dec_skill(csil_root: &CsilCborValue) -> Result<Skill, CsilCborError> {
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let updated_at = {
         let csil_field = cbor_require(csil_root, "updated_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(Skill {
@@ -974,7 +1051,10 @@ fn csil_enc_member_skill(csil_v: &MemberSkill) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
     csil_entries.push((cbor_text("skill_id"), cbor_text(&csil_v.skill_id)));
     csil_entries.push((cbor_text("member_id"), cbor_text(&csil_v.member_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     CsilCborValue::Map(csil_entries)
 }
 
@@ -992,7 +1072,7 @@ fn csil_dec_member_skill(csil_root: &CsilCborValue) -> Result<MemberSkill, CsilC
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(MemberSkill {
@@ -1018,7 +1098,10 @@ fn csil_enc_group_skill(csil_v: &GroupSkill) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
     csil_entries.push((cbor_text("group_id"), cbor_text(&csil_v.group_id)));
     csil_entries.push((cbor_text("skill_id"), cbor_text(&csil_v.skill_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     CsilCborValue::Map(csil_entries)
 }
 
@@ -1036,7 +1119,7 @@ fn csil_dec_group_skill(csil_root: &CsilCborValue) -> Result<GroupSkill, CsilCbo
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(GroupSkill {
@@ -1063,8 +1146,14 @@ fn csil_enc_group(csil_v: &Group) -> CsilCborValue {
     csil_entries.push((cbor_text("name"), cbor_text(&csil_v.name)));
     csil_entries.push((cbor_text("group_id"), cbor_text(&csil_v.group_id)));
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
-    csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
+    csil_entries.push((
+        cbor_text("updated_at"),
+        csil_enc_timestamp(&csil_v.updated_at),
+    ));
     if let Some(csil_inner) = &csil_v.description {
         csil_entries.push((cbor_text("description"), cbor_text(csil_inner)));
     }
@@ -1097,12 +1186,12 @@ fn csil_dec_group(csil_root: &CsilCborValue) -> Result<Group, CsilCborError> {
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let updated_at = {
         let csil_field = cbor_require(csil_root, "updated_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(Group {
@@ -1131,7 +1220,10 @@ fn csil_enc_group_member(csil_v: &GroupMember) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
     csil_entries.push((cbor_text("group_id"), cbor_text(&csil_v.group_id)));
     csil_entries.push((cbor_text("member_id"), cbor_text(&csil_v.member_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     CsilCborValue::Map(csil_entries)
 }
 
@@ -1149,7 +1241,7 @@ fn csil_dec_group_member(csil_root: &CsilCborValue) -> Result<GroupMember, CsilC
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(GroupMember {
@@ -1184,9 +1276,15 @@ fn csil_enc_project(csil_v: &Project) -> CsilCborValue {
     if let Some(csil_inner) = &csil_v.personal {
         csil_entries.push((cbor_text("personal"), cbor_bool(*csil_inner)));
     }
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     csil_entries.push((cbor_text("project_id"), cbor_text(&csil_v.project_id)));
-    csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
+    csil_entries.push((
+        cbor_text("updated_at"),
+        csil_enc_timestamp(&csil_v.updated_at),
+    ));
     if let Some(csil_inner) = &csil_v.visibility {
         csil_entries.push((cbor_text("visibility"), csil_enc_access_level(csil_inner)));
     }
@@ -1260,12 +1358,12 @@ fn csil_dec_project(csil_root: &CsilCborValue) -> Result<Project, CsilCborError>
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let updated_at = {
         let csil_field = cbor_require(csil_root, "updated_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(Project {
@@ -1299,7 +1397,10 @@ fn csil_enc_project_task(csil_v: &ProjectTask) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(4);
     csil_entries.push((cbor_text("task_id"), cbor_text(&csil_v.task_id)));
     csil_entries.push((cbor_text("position"), cbor_int(csil_v.position)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     csil_entries.push((cbor_text("project_id"), cbor_text(&csil_v.project_id)));
     CsilCborValue::Map(csil_entries)
 }
@@ -1323,7 +1424,7 @@ fn csil_dec_project_task(csil_root: &CsilCborValue) -> Result<ProjectTask, CsilC
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(ProjectTask {
@@ -1349,7 +1450,10 @@ pub fn decode_project_task(csil_data: &[u8]) -> Result<ProjectTask, CsilCborErro
 fn csil_enc_project_member(csil_v: &ProjectMember) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
     csil_entries.push((cbor_text("member_id"), cbor_text(&csil_v.member_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     csil_entries.push((cbor_text("project_id"), cbor_text(&csil_v.project_id)));
     CsilCborValue::Map(csil_entries)
 }
@@ -1368,7 +1472,7 @@ fn csil_dec_project_member(csil_root: &CsilCborValue) -> Result<ProjectMember, C
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(ProjectMember {
@@ -1393,7 +1497,10 @@ pub fn decode_project_member(csil_data: &[u8]) -> Result<ProjectMember, CsilCbor
 fn csil_enc_project_owner(csil_v: &ProjectOwner) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
     csil_entries.push((cbor_text("member_id"), cbor_text(&csil_v.member_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     csil_entries.push((cbor_text("project_id"), cbor_text(&csil_v.project_id)));
     CsilCborValue::Map(csil_entries)
 }
@@ -1412,7 +1519,7 @@ fn csil_dec_project_owner(csil_root: &CsilCborValue) -> Result<ProjectOwner, Csi
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(ProjectOwner {
@@ -1439,9 +1546,15 @@ fn csil_enc_milestone(csil_v: &Milestone) -> CsilCborValue {
     csil_entries.push((cbor_text("label"), cbor_text(&csil_v.label)));
     csil_entries.push((cbor_text("state"), csil_enc_milestone_state(&csil_v.state)));
     csil_entries.push((cbor_text("position"), cbor_int(csil_v.position)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     csil_entries.push((cbor_text("project_id"), cbor_text(&csil_v.project_id)));
-    csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
+    csil_entries.push((
+        cbor_text("updated_at"),
+        csil_enc_timestamp(&csil_v.updated_at),
+    ));
     csil_entries.push((cbor_text("when_label"), cbor_text(&csil_v.when_label)));
     csil_entries.push((cbor_text("milestone_id"), cbor_text(&csil_v.milestone_id)));
     CsilCborValue::Map(csil_entries)
@@ -1481,12 +1594,12 @@ fn csil_dec_milestone(csil_root: &CsilCborValue) -> Result<Milestone, CsilCborEr
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let updated_at = {
         let csil_field = cbor_require(csil_root, "updated_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(Milestone {
@@ -1520,7 +1633,7 @@ fn csil_enc_event(csil_v: &Event) -> CsilCborValue {
         csil_entries.push((cbor_text("all_day"), cbor_bool(*csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.ends_at {
-        csil_entries.push((cbor_text("ends_at"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("ends_at"), csil_enc_timestamp(csil_inner)));
     }
     csil_entries.push((cbor_text("event_id"), cbor_text(&csil_v.event_id)));
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
@@ -1534,13 +1647,19 @@ fn csil_enc_event(csil_v: &Event) -> CsilCborValue {
         csil_entries.push((cbor_text("timezone"), cbor_text(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.starts_at {
-        csil_entries.push((cbor_text("starts_at"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("starts_at"), csil_enc_timestamp(csil_inner)));
     }
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     if let Some(csil_inner) = &csil_v.edit_scope {
         csil_entries.push((cbor_text("edit_scope"), cbor_text(csil_inner)));
     }
-    csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
+    csil_entries.push((
+        cbor_text("updated_at"),
+        csil_enc_timestamp(&csil_v.updated_at),
+    ));
     if let Some(csil_inner) = &csil_v.description {
         csil_entries.push((cbor_text("description"), cbor_text(csil_inner)));
     }
@@ -1570,7 +1689,10 @@ fn csil_enc_event(csil_v: &Event) -> CsilCborValue {
         csil_entries.push((cbor_text("publication_error"), cbor_text(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.next_recurrence_at {
-        csil_entries.push((cbor_text("next_recurrence_at"), cbor_text(csil_inner)));
+        csil_entries.push((
+            cbor_text("next_recurrence_at"),
+            csil_enc_timestamp(csil_inner),
+        ));
     }
     if let Some(csil_inner) = &csil_v.recurrence_interval {
         csil_entries.push((cbor_text("recurrence_interval"), cbor_int(*csil_inner)));
@@ -1634,14 +1756,14 @@ fn csil_dec_event(csil_root: &CsilCborValue) -> Result<Event, CsilCborError> {
     };
     let starts_at = match cbor_map_get(csil_root, "starts_at") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
     };
     let ends_at = match cbor_map_get(csil_root, "ends_at") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -1704,7 +1826,7 @@ fn csil_dec_event(csil_root: &CsilCborValue) -> Result<Event, CsilCborError> {
     };
     let next_recurrence_at = match cbor_map_get(csil_root, "next_recurrence_at") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -1767,12 +1889,12 @@ fn csil_dec_event(csil_root: &CsilCborValue) -> Result<Event, CsilCborError> {
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let updated_at = {
         let csil_field = cbor_require(csil_root, "updated_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(Event {
@@ -1825,7 +1947,7 @@ fn csil_enc_task(csil_v: &Task) -> CsilCborValue {
     }
     csil_entries.push((cbor_text("title"), cbor_text(&csil_v.title)));
     if let Some(csil_inner) = &csil_v.due_at {
-        csil_entries.push((cbor_text("due_at"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("due_at"), csil_enc_timestamp(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.status {
         csil_entries.push((cbor_text("status"), csil_enc_task_status(csil_inner)));
@@ -1838,11 +1960,17 @@ fn csil_enc_task(csil_v: &Task) -> CsilCborValue {
             cbor_enc_array(csil_inner, |csil_elem| cbor_text(csil_elem)),
         ));
     }
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     if let Some(csil_inner) = &csil_v.deleted_at {
-        csil_entries.push((cbor_text("deleted_at"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("deleted_at"), csil_enc_timestamp(csil_inner)));
     }
-    csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
+    csil_entries.push((
+        cbor_text("updated_at"),
+        csil_enc_timestamp(&csil_v.updated_at),
+    ));
     if let Some(csil_inner) = &csil_v.visibility {
         csil_entries.push((cbor_text("visibility"), csil_enc_access_level(csil_inner)));
     }
@@ -1869,7 +1997,10 @@ fn csil_enc_task(csil_v: &Task) -> CsilCborValue {
         csil_entries.push((cbor_text("estimate_minutes"), cbor_uint(*csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.next_recurrence_at {
-        csil_entries.push((cbor_text("next_recurrence_at"), cbor_text(csil_inner)));
+        csil_entries.push((
+            cbor_text("next_recurrence_at"),
+            csil_enc_timestamp(csil_inner),
+        ));
     }
     if let Some(csil_inner) = &csil_v.recurrence_interval {
         csil_entries.push((cbor_text("recurrence_interval"), cbor_int(*csil_inner)));
@@ -1958,7 +2089,7 @@ fn csil_dec_task(csil_root: &CsilCborValue) -> Result<Task, CsilCborError> {
     };
     let due_at = match cbor_map_get(csil_root, "due_at") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -2014,7 +2145,7 @@ fn csil_dec_task(csil_root: &CsilCborValue) -> Result<Task, CsilCborError> {
     };
     let next_recurrence_at = match cbor_map_get(csil_root, "next_recurrence_at") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -2028,19 +2159,19 @@ fn csil_dec_task(csil_root: &CsilCborValue) -> Result<Task, CsilCborError> {
     };
     let deleted_at = match cbor_map_get(csil_root, "deleted_at") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let updated_at = {
         let csil_field = cbor_require(csil_root, "updated_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(Task {
@@ -2089,8 +2220,14 @@ fn csil_enc_comment(csil_v: &Comment) -> CsilCborValue {
     csil_entries.push((cbor_text("member_id"), cbor_text(&csil_v.member_id)));
     csil_entries.push((cbor_text("target_id"), cbor_text(&csil_v.target_id)));
     csil_entries.push((cbor_text("comment_id"), cbor_text(&csil_v.comment_id)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
-    csil_entries.push((cbor_text("updated_at"), cbor_text(&csil_v.updated_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
+    csil_entries.push((
+        cbor_text("updated_at"),
+        csil_enc_timestamp(&csil_v.updated_at),
+    ));
     csil_entries.push((
         cbor_text("target_type"),
         csil_enc_target_type(&csil_v.target_type),
@@ -2132,12 +2269,12 @@ fn csil_dec_comment(csil_root: &CsilCborValue) -> Result<Comment, CsilCborError>
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let updated_at = {
         let csil_field = cbor_require(csil_root, "updated_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(Comment {
@@ -2169,9 +2306,12 @@ fn csil_enc_share(csil_v: &Share) -> CsilCborValue {
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
     csil_entries.push((cbor_text("share_id"), cbor_text(&csil_v.share_id)));
     csil_entries.push((cbor_text("shared_by"), cbor_text(&csil_v.shared_by)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     if let Some(csil_inner) = &csil_v.expires_at {
-        csil_entries.push((cbor_text("expires_at"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("expires_at"), csil_enc_timestamp(csil_inner)));
     }
     csil_entries.push((cbor_text("resource_id"), cbor_text(&csil_v.resource_id)));
     if let Some(csil_inner) = &csil_v.access_level {
@@ -2238,12 +2378,12 @@ fn csil_dec_share(csil_root: &CsilCborValue) -> Result<Share, CsilCborError> {
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let expires_at = match cbor_map_get(csil_root, "expires_at") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -2653,7 +2793,10 @@ fn csil_enc_login_response(csil_v: &LoginResponse) -> CsilCborValue {
     csil_entries.push((cbor_text("token"), cbor_text(&csil_v.token)));
     csil_entries.push((cbor_text("domain"), cbor_text(&csil_v.domain)));
     csil_entries.push((cbor_text("user_id"), cbor_text(&csil_v.user_id)));
-    csil_entries.push((cbor_text("expires_at"), cbor_text(&csil_v.expires_at)));
+    csil_entries.push((
+        cbor_text("expires_at"),
+        csil_enc_timestamp(&csil_v.expires_at),
+    ));
     if let Some(csil_inner) = &csil_v.display_name {
         csil_entries.push((cbor_text("display_name"), cbor_text(csil_inner)));
     }
@@ -2686,7 +2829,7 @@ fn csil_dec_login_response(csil_root: &CsilCborValue) -> Result<LoginResponse, C
     };
     let expires_at = {
         let csil_field = cbor_require(csil_root, "expires_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(LoginResponse {
@@ -2715,7 +2858,10 @@ fn csil_enc_cli_token_response(csil_v: &CliTokenResponse) -> CsilCborValue {
     csil_entries.push((cbor_text("token"), cbor_text(&csil_v.token)));
     csil_entries.push((cbor_text("domain"), cbor_text(&csil_v.domain)));
     csil_entries.push((cbor_text("user_id"), cbor_text(&csil_v.user_id)));
-    csil_entries.push((cbor_text("expires_at"), cbor_text(&csil_v.expires_at)));
+    csil_entries.push((
+        cbor_text("expires_at"),
+        csil_enc_timestamp(&csil_v.expires_at),
+    ));
     csil_entries.push((cbor_text("session_id"), cbor_text(&csil_v.session_id)));
     if let Some(csil_inner) = &csil_v.display_name {
         csil_entries.push((cbor_text("display_name"), cbor_text(csil_inner)));
@@ -2723,7 +2869,7 @@ fn csil_enc_cli_token_response(csil_v: &CliTokenResponse) -> CsilCborValue {
     csil_entries.push((cbor_text("refresh_token"), cbor_text(&csil_v.refresh_token)));
     csil_entries.push((
         cbor_text("refresh_expires_at"),
-        cbor_text(&csil_v.refresh_expires_at),
+        csil_enc_timestamp(&csil_v.refresh_expires_at),
     ));
     CsilCborValue::Map(csil_entries)
 }
@@ -2756,7 +2902,7 @@ fn csil_dec_cli_token_response(
     };
     let expires_at = {
         let csil_field = cbor_require(csil_root, "expires_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let refresh_token = {
@@ -2766,7 +2912,7 @@ fn csil_dec_cli_token_response(
     };
     let refresh_expires_at = {
         let csil_field = cbor_require(csil_root, "refresh_expires_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let session_id = {
@@ -2833,7 +2979,10 @@ pub fn decode_begin_cli_login_request(
 fn csil_enc_begin_cli_login_response(csil_v: &BeginCliLoginResponse) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(5);
     csil_entries.push((cbor_text("user_code"), cbor_text(&csil_v.user_code)));
-    csil_entries.push((cbor_text("expires_at"), cbor_text(&csil_v.expires_at)));
+    csil_entries.push((
+        cbor_text("expires_at"),
+        csil_enc_timestamp(&csil_v.expires_at),
+    ));
     csil_entries.push((cbor_text("device_code"), cbor_text(&csil_v.device_code)));
     csil_entries.push((
         cbor_text("interval_seconds"),
@@ -2867,7 +3016,7 @@ fn csil_dec_begin_cli_login_response(
     };
     let expires_at = {
         let csil_field = cbor_require(csil_root, "expires_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let interval_seconds = {
@@ -2933,7 +3082,10 @@ pub fn decode_approve_cli_login_request(
 fn csil_enc_cli_login_request_info(csil_v: &CliLoginRequestInfo) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
     csil_entries.push((cbor_text("user_code"), cbor_text(&csil_v.user_code)));
-    csil_entries.push((cbor_text("expires_at"), cbor_text(&csil_v.expires_at)));
+    csil_entries.push((
+        cbor_text("expires_at"),
+        csil_enc_timestamp(&csil_v.expires_at),
+    ));
     csil_entries.push((cbor_text("client_name"), cbor_text(&csil_v.client_name)));
     CsilCborValue::Map(csil_entries)
 }
@@ -2954,7 +3106,7 @@ fn csil_dec_cli_login_request_info(
     };
     let expires_at = {
         let csil_field = cbor_require(csil_root, "expires_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(CliLoginRequestInfo {
@@ -3130,14 +3282,23 @@ fn csil_enc_cli_session_summary(csil_v: &CliSessionSummary) -> CsilCborValue {
     if let Some(csil_inner) = &csil_v.current {
         csil_entries.push((cbor_text("current"), cbor_bool(*csil_inner)));
     }
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
-    csil_entries.push((cbor_text("expires_at"), cbor_text(&csil_v.expires_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
+    csil_entries.push((
+        cbor_text("expires_at"),
+        csil_enc_timestamp(&csil_v.expires_at),
+    ));
     if let Some(csil_inner) = &csil_v.revoked_at {
-        csil_entries.push((cbor_text("revoked_at"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("revoked_at"), csil_enc_timestamp(csil_inner)));
     }
     csil_entries.push((cbor_text("session_id"), cbor_text(&csil_v.session_id)));
     csil_entries.push((cbor_text("client_name"), cbor_text(&csil_v.client_name)));
-    csil_entries.push((cbor_text("last_used_at"), cbor_text(&csil_v.last_used_at)));
+    csil_entries.push((
+        cbor_text("last_used_at"),
+        csil_enc_timestamp(&csil_v.last_used_at),
+    ));
     CsilCborValue::Map(csil_entries)
 }
 
@@ -3157,22 +3318,22 @@ fn csil_dec_cli_session_summary(
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let last_used_at = {
         let csil_field = cbor_require(csil_root, "last_used_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let expires_at = {
         let csil_field = cbor_require(csil_root, "expires_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let revoked_at = match cbor_map_get(csil_root, "revoked_at") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -3438,7 +3599,10 @@ fn csil_enc_me_response(csil_v: &MeResponse) -> CsilCborValue {
         cbor_enc_array(&csil_v.houses, csil_enc_house_summary),
     ));
     csil_entries.push((cbor_text("user_id"), cbor_text(&csil_v.user_id)));
-    csil_entries.push((cbor_text("expires_at"), cbor_text(&csil_v.expires_at)));
+    csil_entries.push((
+        cbor_text("expires_at"),
+        csil_enc_timestamp(&csil_v.expires_at),
+    ));
     if let Some(csil_inner) = &csil_v.display_name {
         csil_entries.push((cbor_text("display_name"), cbor_text(csil_inner)));
     }
@@ -3466,7 +3630,7 @@ fn csil_dec_me_response(csil_root: &CsilCborValue) -> Result<MeResponse, CsilCbo
     };
     let expires_at = {
         let csil_field = cbor_require(csil_root, "expires_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let houses = {
@@ -3675,10 +3839,10 @@ fn csil_enc_event_list_request(csil_v: &EventListRequest) -> CsilCborValue {
     }
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
     if let Some(csil_inner) = &csil_v.range_end {
-        csil_entries.push((cbor_text("range_end"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("range_end"), csil_enc_timestamp(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.range_start {
-        csil_entries.push((cbor_text("range_start"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("range_start"), csil_enc_timestamp(csil_inner)));
     }
     CsilCborValue::Map(csil_entries)
 }
@@ -3694,14 +3858,14 @@ fn csil_dec_event_list_request(
     };
     let range_start = match cbor_map_get(csil_root, "range_start") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
     };
     let range_end = match cbor_map_get(csil_root, "range_end") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -3756,19 +3920,19 @@ fn csil_enc_task_list_request(csil_v: &TaskListRequest) -> CsilCborValue {
         csil_entries.push((cbor_text("state"), csil_enc_task_state(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.due_to {
-        csil_entries.push((cbor_text("due_to"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("due_to"), csil_enc_timestamp(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.offset {
         csil_entries.push((cbor_text("offset"), cbor_uint(*csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.due_from {
-        csil_entries.push((cbor_text("due_from"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("due_from"), csil_enc_timestamp(csil_inner)));
     }
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
     if let Some(csil_inner) = &csil_v.due_before {
         csil_entries.push((
             cbor_text("due_before"),
-            cbor_enc_array(csil_inner, |csil_elem| cbor_text(csil_elem)),
+            cbor_enc_array(csil_inner, csil_enc_timestamp),
         ));
     }
     CsilCborValue::Map(csil_entries)
@@ -3818,21 +3982,21 @@ fn csil_dec_task_list_request(csil_root: &CsilCborValue) -> Result<TaskListReque
     };
     let due_from = match cbor_map_get(csil_root, "due_from") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
     };
     let due_to = match cbor_map_get(csil_root, "due_to") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
     };
     let due_before = match cbor_map_get(csil_root, "due_before") {
         Some(csil_field) => {
-            let csil_decode = |csil_v| cbor_dec_array(csil_v, cbor_as_text);
+            let csil_decode = |csil_v| cbor_dec_array(csil_v, csil_as_timestamp);
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -4174,7 +4338,7 @@ fn csil_enc_notification(csil_v: &Notification) -> CsilCborValue {
     csil_entries.push((cbor_text("kind"), cbor_text(&csil_v.kind)));
     csil_entries.push((cbor_text("read"), cbor_bool(csil_v.read)));
     if let Some(csil_inner) = &csil_v.read_at {
-        csil_entries.push((cbor_text("read_at"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("read_at"), csil_enc_timestamp(csil_inner)));
     }
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
     csil_entries.push((cbor_text("member_id"), cbor_text(&csil_v.member_id)));
@@ -4182,7 +4346,10 @@ fn csil_enc_notification(csil_v: &Notification) -> CsilCborValue {
         csil_entries.push((cbor_text("target_id"), cbor_text(csil_inner)));
     }
     csil_entries.push((cbor_text("actor_name"), cbor_text(&csil_v.actor_name)));
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     if let Some(csil_inner) = &csil_v.target_type {
         csil_entries.push((cbor_text("target_type"), cbor_text(csil_inner)));
     }
@@ -4262,14 +4429,14 @@ fn csil_dec_notification(csil_root: &CsilCborValue) -> Result<Notification, Csil
     };
     let read_at = match cbor_map_get(csil_root, "read_at") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(Notification {
@@ -5716,7 +5883,10 @@ fn csil_enc_act_as_token_response(csil_v: &ActAsTokenResponse) -> CsilCborValue 
     csil_entries.push((cbor_text("grantee"), cbor_text(&csil_v.grantee)));
     csil_entries.push((cbor_text("user_id"), cbor_text(&csil_v.user_id)));
     csil_entries.push((cbor_text("grant_id"), cbor_text(&csil_v.grant_id)));
-    csil_entries.push((cbor_text("expires_at"), cbor_text(&csil_v.expires_at)));
+    csil_entries.push((
+        cbor_text("expires_at"),
+        csil_enc_timestamp(&csil_v.expires_at),
+    ));
     CsilCborValue::Map(csil_entries)
 }
 
@@ -5741,7 +5911,7 @@ fn csil_dec_act_as_token_response(
     };
     let expires_at = {
         let csil_field = cbor_require(csil_root, "expires_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let grant_id = {
@@ -5925,7 +6095,10 @@ fn csil_enc_calendar_status(csil_v: &CalendarStatus) -> CsilCborValue {
         csil_entries.push((cbor_text("last_error"), cbor_text(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.sync_pending_since {
-        csil_entries.push((cbor_text("sync_pending_since"), cbor_text(csil_inner)));
+        csil_entries.push((
+            cbor_text("sync_pending_since"),
+            csil_enc_timestamp(csil_inner),
+        ));
     }
     CsilCborValue::Map(csil_entries)
 }
@@ -5966,7 +6139,7 @@ fn csil_dec_calendar_status(csil_root: &CsilCborValue) -> Result<CalendarStatus,
     };
     let sync_pending_since = match cbor_map_get(csil_root, "sync_pending_since") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -6120,8 +6293,14 @@ fn csil_enc_calendar_trash_entry(csil_v: &CalendarTrashEntry) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(4);
     csil_entries.push((cbor_text("event"), csil_enc_event(&csil_v.event)));
     csil_entries.push((cbor_text("trash_id"), cbor_text(&csil_v.trash_id)));
-    csil_entries.push((cbor_text("deleted_at"), cbor_text(&csil_v.deleted_at)));
-    csil_entries.push((cbor_text("expires_at"), cbor_text(&csil_v.expires_at)));
+    csil_entries.push((
+        cbor_text("deleted_at"),
+        csil_enc_timestamp(&csil_v.deleted_at),
+    ));
+    csil_entries.push((
+        cbor_text("expires_at"),
+        csil_enc_timestamp(&csil_v.expires_at),
+    ));
     CsilCborValue::Map(csil_entries)
 }
 
@@ -6141,12 +6320,12 @@ fn csil_dec_calendar_trash_entry(
     };
     let deleted_at = {
         let csil_field = cbor_require(csil_root, "deleted_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let expires_at = {
         let csil_field = cbor_require(csil_root, "expires_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(CalendarTrashEntry {
@@ -6264,9 +6443,15 @@ pub fn decode_calendar_migration_row(
 /// Build the canonical CBOR value tree for a ProjectDeadlineRequest.
 fn csil_enc_project_deadline_request(csil_v: &ProjectDeadlineRequest) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
-    csil_entries.push((cbor_text("range_end"), cbor_text(&csil_v.range_end)));
+    csil_entries.push((
+        cbor_text("range_end"),
+        csil_enc_timestamp(&csil_v.range_end),
+    ));
     csil_entries.push((cbor_text("project_id"), cbor_text(&csil_v.project_id)));
-    csil_entries.push((cbor_text("range_start"), cbor_text(&csil_v.range_start)));
+    csil_entries.push((
+        cbor_text("range_start"),
+        csil_enc_timestamp(&csil_v.range_start),
+    ));
     CsilCborValue::Map(csil_entries)
 }
 
@@ -6281,12 +6466,12 @@ fn csil_dec_project_deadline_request(
     };
     let range_start = {
         let csil_field = cbor_require(csil_root, "range_start")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let range_end = {
         let csil_field = cbor_require(csil_root, "range_end")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(ProjectDeadlineRequest {
@@ -6313,7 +6498,7 @@ pub fn decode_project_deadline_request(
 fn csil_enc_project_deadline(csil_v: &ProjectDeadline) -> CsilCborValue {
     let mut csil_entries: Vec<(CsilCborValue, CsilCborValue)> = Vec::with_capacity(3);
     csil_entries.push((cbor_text("title"), cbor_text(&csil_v.title)));
-    csil_entries.push((cbor_text("due_at"), cbor_text(&csil_v.due_at)));
+    csil_entries.push((cbor_text("due_at"), csil_enc_timestamp(&csil_v.due_at)));
     csil_entries.push((cbor_text("task_id"), cbor_text(&csil_v.task_id)));
     CsilCborValue::Map(csil_entries)
 }
@@ -6332,7 +6517,7 @@ fn csil_dec_project_deadline(csil_root: &CsilCborValue) -> Result<ProjectDeadlin
     };
     let due_at = {
         let csil_field = cbor_require(csil_root, "due_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(ProjectDeadline {
@@ -6441,7 +6626,10 @@ fn csil_enc_audit_entry(csil_v: &AuditEntry) -> CsilCborValue {
     if let Some(csil_inner) = &csil_v.house_id {
         csil_entries.push((cbor_text("house_id"), cbor_text(csil_inner)));
     }
-    csil_entries.push((cbor_text("created_at"), cbor_text(&csil_v.created_at)));
+    csil_entries.push((
+        cbor_text("created_at"),
+        csil_enc_timestamp(&csil_v.created_at),
+    ));
     if let Some(csil_inner) = &csil_v.resource_id {
         csil_entries.push((cbor_text("resource_id"), cbor_text(csil_inner)));
     }
@@ -6545,7 +6733,7 @@ fn csil_dec_audit_entry(csil_root: &CsilCborValue) -> Result<AuditEntry, CsilCbo
     };
     let created_at = {
         let csil_field = cbor_require(csil_root, "created_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     Ok(AuditEntry {
@@ -6585,10 +6773,10 @@ fn csil_enc_audit_query(csil_v: &AuditQuery) -> CsilCborValue {
         csil_entries.push((cbor_text("limit"), cbor_uint(*csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.since {
-        csil_entries.push((cbor_text("since"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("since"), csil_enc_timestamp(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.until {
-        csil_entries.push((cbor_text("until"), cbor_text(csil_inner)));
+        csil_entries.push((cbor_text("until"), csil_enc_timestamp(csil_inner)));
     }
     if let Some(csil_inner) = &csil_v.action {
         csil_entries.push((cbor_text("action"), cbor_text(csil_inner)));
@@ -6636,14 +6824,14 @@ fn csil_dec_audit_query(csil_root: &CsilCborValue) -> Result<AuditQuery, CsilCbo
     };
     let since = match cbor_map_get(csil_root, "since") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
     };
     let until = match cbor_map_get(csil_root, "until") {
         Some(csil_field) => {
-            let csil_decode = cbor_as_text;
+            let csil_decode = csil_as_timestamp;
             Some(csil_decode(csil_field)?)
         }
         None => None,
@@ -6736,7 +6924,10 @@ fn csil_enc_trash_item(csil_v: &TrashItem) -> CsilCborValue {
         csil_entries.push((cbor_text("title"), cbor_text(csil_inner)));
     }
     csil_entries.push((cbor_text("house_id"), cbor_text(&csil_v.house_id)));
-    csil_entries.push((cbor_text("deleted_at"), cbor_text(&csil_v.deleted_at)));
+    csil_entries.push((
+        cbor_text("deleted_at"),
+        csil_enc_timestamp(&csil_v.deleted_at),
+    ));
     csil_entries.push((cbor_text("resource_id"), cbor_text(&csil_v.resource_id)));
     csil_entries.push((cbor_text("deleted_op_id"), cbor_text(&csil_v.deleted_op_id)));
     csil_entries.push((cbor_text("resource_type"), cbor_text(&csil_v.resource_type)));
@@ -6772,7 +6963,7 @@ fn csil_dec_trash_item(csil_root: &CsilCborValue) -> Result<TrashItem, CsilCborE
     };
     let deleted_at = {
         let csil_field = cbor_require(csil_root, "deleted_at")?;
-        let csil_decode = cbor_as_text;
+        let csil_decode = csil_as_timestamp;
         csil_decode(csil_field)?
     };
     let deleted_by_member_id = match cbor_map_get(csil_root, "deleted_by_member_id") {
@@ -6957,7 +7148,7 @@ pub fn decode_purge_request(csil_data: &[u8]) -> Result<PurgeRequest, CsilCborEr
     csil_dec_purge_request(&csil_root)
 }
 
-/// Encode a TaskStatus enum as its bare literal value.
+/// Encode a TaskStatus enum as its CBOR value.
 fn csil_enc_task_status(csil_v: &TaskStatus) -> CsilCborValue {
     match csil_v {
         TaskStatus::Open => cbor_text("open"),
@@ -6981,7 +7172,7 @@ fn csil_dec_task_status(csil_v: &CsilCborValue) -> Result<TaskStatus, CsilCborEr
     }
 }
 
-/// Encode a TargetType enum as its bare literal value.
+/// Encode a TargetType enum as its CBOR value.
 fn csil_enc_target_type(csil_v: &TargetType) -> CsilCborValue {
     match csil_v {
         TargetType::Event => cbor_text("event"),
@@ -7003,7 +7194,7 @@ fn csil_dec_target_type(csil_v: &CsilCborValue) -> Result<TargetType, CsilCborEr
     }
 }
 
-/// Encode a AccessLevel enum as its bare literal value.
+/// Encode a AccessLevel enum as its CBOR value.
 fn csil_enc_access_level(csil_v: &AccessLevel) -> CsilCborValue {
     match csil_v {
         AccessLevel::None => cbor_text("none"),
@@ -7027,7 +7218,7 @@ fn csil_dec_access_level(csil_v: &CsilCborValue) -> Result<AccessLevel, CsilCbor
     }
 }
 
-/// Encode a GranteeType enum as its bare literal value.
+/// Encode a GranteeType enum as its CBOR value.
 fn csil_enc_grantee_type(csil_v: &GranteeType) -> CsilCborValue {
     match csil_v {
         GranteeType::Member => cbor_text("member"),
@@ -7047,7 +7238,7 @@ fn csil_dec_grantee_type(csil_v: &CsilCborValue) -> Result<GranteeType, CsilCbor
     }
 }
 
-/// Encode a ResourceType enum as its bare literal value.
+/// Encode a ResourceType enum as its CBOR value.
 fn csil_enc_resource_type(csil_v: &ResourceType) -> CsilCborValue {
     match csil_v {
         ResourceType::Event => cbor_text("event"),
@@ -7069,7 +7260,7 @@ fn csil_dec_resource_type(csil_v: &CsilCborValue) -> Result<ResourceType, CsilCb
     }
 }
 
-/// Encode a ProjectStatus enum as its bare literal value.
+/// Encode a ProjectStatus enum as its CBOR value.
 fn csil_enc_project_status(csil_v: &ProjectStatus) -> CsilCborValue {
     match csil_v {
         ProjectStatus::Active => cbor_text("active"),
@@ -7089,7 +7280,7 @@ fn csil_dec_project_status(csil_v: &CsilCborValue) -> Result<ProjectStatus, Csil
     }
 }
 
-/// Encode a DependencyNodeType enum as its bare literal value.
+/// Encode a DependencyNodeType enum as its CBOR value.
 fn csil_enc_dependency_node_type(csil_v: &DependencyNodeType) -> CsilCborValue {
     match csil_v {
         DependencyNodeType::Task => cbor_text("task"),
@@ -7111,7 +7302,7 @@ fn csil_dec_dependency_node_type(
     }
 }
 
-/// Encode a RecurrenceFreq enum as its bare literal value.
+/// Encode a RecurrenceFreq enum as its CBOR value.
 fn csil_enc_recurrence_freq(csil_v: &RecurrenceFreq) -> CsilCborValue {
     match csil_v {
         RecurrenceFreq::Hourly => cbor_text("hourly"),
@@ -7139,7 +7330,7 @@ fn csil_dec_recurrence_freq(csil_v: &CsilCborValue) -> Result<RecurrenceFreq, Cs
     }
 }
 
-/// Encode a MilestoneState enum as its bare literal value.
+/// Encode a MilestoneState enum as its CBOR value.
 fn csil_enc_milestone_state(csil_v: &MilestoneState) -> CsilCborValue {
     match csil_v {
         MilestoneState::Done => cbor_text("done"),
@@ -7161,7 +7352,7 @@ fn csil_dec_milestone_state(csil_v: &CsilCborValue) -> Result<MilestoneState, Cs
     }
 }
 
-/// Encode a CliLoginStatus enum as its bare literal value.
+/// Encode a CliLoginStatus enum as its CBOR value.
 fn csil_enc_cli_login_status(csil_v: &CliLoginStatus) -> CsilCborValue {
     match csil_v {
         CliLoginStatus::Pending => cbor_text("pending"),
@@ -7185,7 +7376,7 @@ fn csil_dec_cli_login_status(csil_v: &CsilCborValue) -> Result<CliLoginStatus, C
     }
 }
 
-/// Encode a SessionKind enum as its bare literal value.
+/// Encode a SessionKind enum as its CBOR value.
 fn csil_enc_session_kind(csil_v: &SessionKind) -> CsilCborValue {
     match csil_v {
         SessionKind::Cli => cbor_text("cli"),
@@ -7205,7 +7396,7 @@ fn csil_dec_session_kind(csil_v: &CsilCborValue) -> Result<SessionKind, CsilCbor
     }
 }
 
-/// Encode a TaskState enum as its bare literal value.
+/// Encode a TaskState enum as its CBOR value.
 fn csil_enc_task_state(csil_v: &TaskState) -> CsilCborValue {
     match csil_v {
         TaskState::Open => cbor_text("open"),
@@ -8029,4 +8220,1021 @@ pub fn decode_settings_get_settings_request(csil_data: &[u8]) -> Result<HouseID,
     let csil_root = cbor_decode(csil_data)?;
     let csil_decode = cbor_as_text;
     csil_decode(&csil_root)
+}
+
+pub fn encode_auth_begin_browser_login_reply(
+    reply: Result<BeginBrowserLoginResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("BeginBrowserLoginResponse", encode_begin_browser_login_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_get_act_as_scope_set_reply(
+    reply: Result<ActAsScopeSetResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("ActAsScopeSetResponse", encode_act_as_scope_set_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_exchange_act_as_credential_reply(
+    reply: Result<ActAsTokenResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("ActAsTokenResponse", encode_act_as_token_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_login_reply(
+    reply: Result<LoginResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("LoginResponse", encode_login_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_complete_reply(
+    reply: Result<LoginResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("LoginResponse", encode_login_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_refresh_reply(
+    reply: Result<LoginResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("LoginResponse", encode_login_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_logout_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_resume_session_reply(
+    reply: Result<LoginResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("LoginResponse", encode_login_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_end_session_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_me_reply(reply: Result<MeResponse, ServiceError>) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("MeResponse", encode_me_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_begin_cli_login_reply(
+    reply: Result<BeginCliLoginResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("BeginCliLoginResponse", encode_begin_cli_login_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_inspect_cli_login_reply(
+    reply: Result<CliLoginRequestInfo, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("CliLoginRequestInfo", encode_cli_login_request_info(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_approve_cli_login_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_deny_cli_login_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_exchange_cli_login_reply(
+    reply: Result<ExchangeCliLoginResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("ExchangeCliLoginResponse", encode_exchange_cli_login_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_refresh_session_reply(
+    reply: Result<CliTokenResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("CliTokenResponse", encode_cli_token_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_list_sessions_reply(
+    reply: Result<CliSessionsResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("CliSessionsResponse", encode_cli_sessions_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_auth_revoke_session_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_dev_auth_list_dev_users_reply(
+    reply: Result<DevUsersResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("DevUsersResponse", encode_dev_users_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_dev_auth_dev_login_reply(
+    reply: Result<LoginResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("LoginResponse", encode_login_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_house_create_house_reply(
+    reply: Result<House, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("House", encode_house(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_house_get_house_reply(reply: Result<House, ServiceError>) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("House", encode_house(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_house_update_house_reply(
+    reply: Result<House, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("House", encode_house(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_house_delete_house_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_member_create_member_reply(
+    reply: Result<Member, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Member", encode_member(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_member_get_member_reply(
+    reply: Result<Member, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Member", encode_member(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_member_get_member_by_identity_reply(
+    reply: Result<Member, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Member", encode_member(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_member_update_member_reply(
+    reply: Result<Member, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Member", encode_member(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_member_deactivate_member_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_member_reactivate_member_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_trusted_domain_add_trusted_domain_reply(
+    reply: Result<TrustedDomain, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("TrustedDomain", encode_trusted_domain(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_trusted_domain_remove_trusted_domain_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_trusted_domain_is_domain_trusted_reply(
+    reply: Result<BoolResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("BoolResponse", encode_bool_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_role_create_role_reply(reply: Result<Role, ServiceError>) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Role", encode_role(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_role_update_role_reply(reply: Result<Role, ServiceError>) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Role", encode_role(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_role_delete_role_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_role_grant_role_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_role_revoke_role_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_skill_create_skill_reply(
+    reply: Result<Skill, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Skill", encode_skill(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_skill_update_skill_reply(
+    reply: Result<Skill, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Skill", encode_skill(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_skill_delete_skill_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_skill_add_member_skill_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_skill_remove_member_skill_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_skill_add_group_skill_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_skill_remove_group_skill_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_group_create_group_reply(
+    reply: Result<Group, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Group", encode_group(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_group_update_group_reply(
+    reply: Result<Group, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Group", encode_group(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_group_delete_group_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_group_add_group_member_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_group_remove_group_member_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_create_project_reply(
+    reply: Result<Project, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Project", encode_project(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_get_project_reply(
+    reply: Result<Project, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Project", encode_project(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_update_project_reply(
+    reply: Result<Project, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Project", encode_project(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_delete_project_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_list_projects_reply(
+    reply: Result<ProjectList, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("ProjectList", encode_project_list(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_list_project_tasks_reply(
+    reply: Result<TaskList, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("TaskList", encode_task_list(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_add_project_task_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_remove_project_task_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_set_project_task_position_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_add_project_member_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_remove_project_member_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_add_project_owner_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_remove_project_owner_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_create_milestone_reply(
+    reply: Result<Milestone, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Milestone", encode_milestone(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_update_milestone_reply(
+    reply: Result<Milestone, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Milestone", encode_milestone(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_delete_milestone_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_set_project_visibility_reply(
+    reply: Result<Project, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Project", encode_project(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_put_project_grant_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_project_delete_project_grant_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_event_create_event_reply(
+    reply: Result<Event, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Event", encode_event(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_event_get_event_reply(reply: Result<Event, ServiceError>) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Event", encode_event(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_event_update_event_reply(
+    reply: Result<Event, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Event", encode_event(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_event_delete_event_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_event_delete_event_and_future_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_event_get_calendar_view_reply(
+    reply: Result<CalendarView, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("CalendarView", encode_calendar_view(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_event_set_calendar_view_reply(
+    reply: Result<CalendarView, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("CalendarView", encode_calendar_view(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_event_accept_event_reply(
+    reply: Result<Event, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Event", encode_event(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_event_recover_edit_reply(
+    reply: Result<Event, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Event", encode_event(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_event_decline_event_reply(
+    reply: Result<Event, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Event", encode_event(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_calendar_list_project_deadlines_reply(
+    reply: Result<ProjectDeadlineList, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("ProjectDeadlineList", encode_project_deadline_list(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_calendar_get_status_reply(
+    reply: Result<CalendarStatus, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("CalendarStatus", encode_calendar_status(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_calendar_configure_calendar_reply(
+    reply: Result<CalendarStatus, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("CalendarStatus", encode_calendar_status(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_calendar_begin_connect_reply(
+    reply: Result<CalendarConnectResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("CalendarConnectResponse", encode_calendar_connect_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_calendar_complete_connect_reply(
+    reply: Result<CalendarStatus, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("CalendarStatus", encode_calendar_status(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_calendar_disconnect_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_calendar_restore_event_reply(
+    reply: Result<Event, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Event", encode_event(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_task_create_task_reply(reply: Result<Task, ServiceError>) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Task", encode_task(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_task_get_task_reply(reply: Result<Task, ServiceError>) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Task", encode_task(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_task_update_task_reply(reply: Result<Task, ServiceError>) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Task", encode_task(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_task_delete_task_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_task_list_tasks_reply(
+    reply: Result<TaskList, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("TaskList", encode_task_list(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_task_create_personal_task_reply(
+    reply: Result<Task, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Task", encode_task(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_task_set_task_visibility_reply(
+    reply: Result<Task, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Task", encode_task(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_task_put_task_grant_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_task_delete_task_grant_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_dependency_add_dependency_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_dependency_remove_dependency_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_dependency_get_dependencies_reply(
+    reply: Result<DependencyGraph, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("DependencyGraph", encode_dependency_graph(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_comment_create_comment_reply(
+    reply: Result<Comment, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Comment", encode_comment(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_comment_get_comment_reply(
+    reply: Result<Comment, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Comment", encode_comment(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_comment_update_comment_reply(
+    reply: Result<Comment, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Comment", encode_comment(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_comment_delete_comment_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_notification_unread_count_reply(
+    reply: Result<NotificationUnreadCount, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("NotificationUnreadCount", encode_notification_unread_count(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_notification_mark_read_reply(
+    reply: Result<Notification, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Notification", encode_notification(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_notification_mark_all_read_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_share_create_share_reply(
+    reply: Result<Share, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Share", encode_share(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_share_delete_share_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_share_check_access_reply(
+    reply: Result<Share, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Share", encode_share(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_settings_get_settings_reply(
+    reply: Result<EffectiveSettings, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EffectiveSettings", encode_effective_settings(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_settings_update_settings_reply(
+    reply: Result<EffectiveSettings, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EffectiveSettings", encode_effective_settings(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_bug_report_bug_reply(reply: Result<Task, ServiceError>) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("Task", encode_task(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_audit_query_audit_reply(
+    reply: Result<AuditPage, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("AuditPage", encode_audit_page(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_trash_list_trash_reply(
+    reply: Result<TrashPage, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("TrashPage", encode_trash_page(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_trash_restore_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
+}
+
+pub fn encode_trash_purge_reply(
+    reply: Result<EmptyResponse, ServiceError>,
+) -> (&'static str, Vec<u8>) {
+    match reply {
+        Ok(value) => ("EmptyResponse", encode_empty_response(&value)),
+        Err(value) => ("ServiceError", encode_service_error(&value)),
+    }
 }

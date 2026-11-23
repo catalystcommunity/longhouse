@@ -201,7 +201,7 @@ func deadlineSyncNow(t *testing.T, f *calendarFixture) error {
 	return f.svc.SyncTaskDeadlines(context.Background())
 }
 func deadlineRequest(p *models.Project) csil.ProjectDeadlineRequest {
-	return csil.ProjectDeadlineRequest{ProjectId: csil.ProjectID(p.ProjectID), RangeStart: "2026-11-01T00:00:00Z", RangeEnd: "2026-12-01T00:00:00Z"}
+	return csil.ProjectDeadlineRequest{ProjectId: csil.ProjectID(p.ProjectID), RangeStart: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), RangeEnd: time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)}
 }
 
 func TestDeadlineCalendars_Postgres_LifecycleAndAccess(t *testing.T) {

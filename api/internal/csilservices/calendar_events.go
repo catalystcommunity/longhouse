@@ -116,7 +116,7 @@ func (s *CalendarService) listEvents(ctx context.Context, in csil.EventListReque
 	if s.Remote == nil || !h.Ready {
 		return nil, csilrpc.Conflict("house calendar is not ready")
 	}
-	start, end := tsToTimePtr(in.RangeStart), tsToTimePtr(in.RangeEnd)
+	start, end := in.RangeStart, in.RangeEnd
 	if start == nil || end == nil || !end.After(*start) {
 		return nil, csilrpc.BadRequest("catalystcal reads require range_start and range_end")
 	}
@@ -133,10 +133,10 @@ func (s *CalendarService) listEvents(ctx context.Context, in csil.EventListReque
 		out = append(out, e)
 	}
 	sort.Slice(out, func(i, j int) bool {
-		if *out[i].StartsAt == *out[j].StartsAt {
+		if out[i].StartsAt.Equal(*out[j].StartsAt) {
 			return out[i].EventId < out[j].EventId
 		}
-		return *out[i].StartsAt < *out[j].StartsAt
+		return out[i].StartsAt.Before(*out[j].StartsAt)
 	})
 	limit, offset := normalizePaging(in.Limit, in.Offset)
 	if offset >= len(out) {
@@ -166,7 +166,10 @@ func (s *CalendarService) getEvent(ctx context.Context, id csil.EventID) (csil.E
 		return csil.Event{}, err
 	}
 	if ref.RecurrenceID != "" {
-		rid := cal.Timestamp(ref.RecurrenceID)
+		rid, err := time.Parse(time.RFC3339, ref.RecurrenceID)
+		if err != nil {
+			return csil.Event{}, err
+		}
 		occ, err := cal.NewEventClient(s.Remote.ApplicationTransport()).GetOccurrence(ctx, cal.GetOccurrenceRequest{EventId: cal.EventID(ref.RemoteEventID), RecurrenceId: &rid})
 		if err != nil {
 			return csil.Event{}, remoteError(err)
@@ -175,7 +178,7 @@ func (s *CalendarService) getEvent(ctx context.Context, id csil.EventID) (csil.E
 		if occ.Event.MasterEventId != nil {
 			master = *occ.Event.MasterEventId
 		}
-		if string(occ.Event.CalendarId) != h.CalendarID || string(master) != ref.RemoteEventID || occ.RecurrenceId == nil || string(*occ.RecurrenceId) != ref.RecurrenceID {
+		if string(occ.Event.CalendarId) != h.CalendarID || string(master) != ref.RemoteEventID || occ.RecurrenceId == nil || !occ.RecurrenceId.Equal(rid) {
 			return csil.Event{}, csilrpc.NotFound("occurrence is no longer in this house calendar")
 		}
 		return s.remoteView(e, ref, occ, h), nil
@@ -190,7 +193,7 @@ func (s *CalendarService) getEvent(ctx context.Context, id csil.EventID) (csil.E
 	if err != nil {
 		return csil.Event{}, err
 	}
-	return s.remoteView(e, ref, cal.Occurrence{Event: remote, Start: cal.Timestamp(start), End: cal.Timestamp(end)}, h), nil
+	return s.remoteView(e, ref, cal.Occurrence{Event: remote, Start: start, End: end}, h), nil
 }
 func (s *CalendarService) loadRemote(ctx context.Context, e *models.Event) (houseCalendar, calendarRef, cal.Event, error) {
 	h, err := s.house(ctx, e.HouseID)
@@ -263,10 +266,13 @@ func (s *CalendarService) updateEvent(ctx context.Context, in csil.Event) (csil.
 		previous.Recurrence = content.Recurrence
 	}
 	scope := cal.RecurrenceScope("all")
-	var rid *cal.Timestamp
+	var rid *time.Time
 	if ref.RecurrenceID != "" {
 		scope = "this"
-		v := cal.Timestamp(ref.RecurrenceID)
+		v, err := time.Parse(time.RFC3339, ref.RecurrenceID)
+		if err != nil {
+			return csil.Event{}, err
+		}
 		rid = &v
 	}
 	if in.EditScope != nil {
@@ -311,7 +317,7 @@ func (s *CalendarService) updateEvent(ctx context.Context, in csil.Event) (csil.
 	if err != nil {
 		return csil.Event{}, err
 	}
-	return s.remoteView(e, ref, cal.Occurrence{Event: result, Start: cal.Timestamp(start), End: cal.Timestamp(end), RecurrenceId: rid}, h), nil
+	return s.remoteView(e, ref, cal.Occurrence{Event: result, Start: start, End: end, RecurrenceId: rid}, h), nil
 }
 
 func (s *CalendarService) AcceptEvent(ctx context.Context, in csil.EventDecision) (csil.Event, error) {
@@ -490,10 +496,13 @@ func (s *CalendarService) deleteEvent(ctx context.Context, id csil.EventID, futu
 		return csil.EmptyResponse{}, err
 	}
 	scope := cal.RecurrenceScope("all")
-	var rid *cal.Timestamp
+	var rid *time.Time
 	if ref.RecurrenceID != "" {
 		scope = "this"
-		v := cal.Timestamp(ref.RecurrenceID)
+		v, err := time.Parse(time.RFC3339, ref.RecurrenceID)
+		if err != nil {
+			return csil.EmptyResponse{}, err
+		}
 		rid = &v
 		if future {
 			scope = "this_and_future"
@@ -510,7 +519,7 @@ func (s *CalendarService) reference(ctx context.Context, house string, occ cal.O
 	}
 	rid := ""
 	if occ.RecurrenceId != nil {
-		rid = string(*occ.RecurrenceId)
+		rid = occ.RecurrenceId.UTC().Format(time.RFC3339Nano)
 	}
 	var ref calendarRef
 	var e models.Event
@@ -570,12 +579,12 @@ func (s *CalendarService) remoteView(e *models.Event, ref calendarRef, occ cal.O
 	if e.EditPendingMemberID == nil {
 		out.PublicationError = nil
 	}
-	start, end := csil.Timestamp(occ.Start), csil.Timestamp(occ.End)
+	start, end := occ.Start, occ.End
 	// catalystcal represents all-day occurrence dates as midnight UTC. Use
 	// the event's calendar dates in its zone for the local date-based UI.
 	if occ.Event.AllDay != nil && *occ.Event.AllDay {
 		if a, b, err := remoteBounds(occ.Event); err == nil {
-			start, end = csil.Timestamp(a), csil.Timestamp(b)
+			start, end = a, b
 		}
 	}
 	out.StartsAt = &start
@@ -584,8 +593,8 @@ func (s *CalendarService) remoteView(e *models.Event, ref calendarRef, occ cal.O
 	if occ.Event.Recurrence != nil {
 		out.RecurrenceRule = &occ.Event.Recurrence.Rrule
 	}
-	out.CreatedAt = csil.Timestamp(occ.Event.CreatedAt)
-	out.UpdatedAt = csil.Timestamp(occ.Event.UpdatedAt)
+	out.CreatedAt = occ.Event.CreatedAt
+	out.UpdatedAt = occ.Event.UpdatedAt
 	if ref.RecurrenceID != "" {
 		var root calendarRef
 		if err := s.DB.Order("ref_id ASC").First(&root, "house_id=? AND remote_event_id=? AND recurrence_id=''", e.HouseID, ref.RemoteEventID).Error; err == nil {
@@ -596,10 +605,7 @@ func (s *CalendarService) remoteView(e *models.Event, ref calendarRef, occ cal.O
 	return out
 }
 func validateEventTimes(in csil.Event, required bool) error {
-	start, end := tsToTimePtr(in.StartsAt), tsToTimePtr(in.EndsAt)
-	if in.StartsAt != nil && start == nil || in.EndsAt != nil && end == nil {
-		return csilrpc.BadRequest("event times must use RFC3339")
-	}
+	start, end := in.StartsAt, in.EndsAt
 	if required && (start == nil || end == nil) {
 		return csilrpc.BadRequest("set the event start and end before publication")
 	}
@@ -616,8 +622,8 @@ func calendarContent(in csil.Event, calendarID, uid string) (cal.Event, error) {
 	if err := validateEventTimes(in, true); err != nil {
 		return cal.Event{}, err
 	}
-	start, end := tsToTimePtr(in.StartsAt), tsToTimePtr(in.EndsAt)
-	a, b := cal.Timestamp(start.UTC().Format(time.RFC3339)), cal.Timestamp(end.UTC().Format(time.RFC3339))
+	start, end := in.StartsAt, in.EndsAt
+	a, b := start.UTC().Truncate(time.Second), end.UTC().Truncate(time.Second)
 	zone := "UTC"
 	if in.Timezone != nil && *in.Timezone != "" {
 		zone = *in.Timezone
@@ -628,7 +634,7 @@ func calendarContent(in csil.Event, calendarID, uid string) (cal.Event, error) {
 	}
 	out := cal.Event{CalendarId: cal.CalendarID(calendarID), Title: in.Title, Description: in.Description, Location: in.Location, Start: &a, End: &b, AllDay: in.AllDay, Timezone: &zone, Uid: strPtrCopy(uid)}
 	if in.AllDay != nil && *in.AllDay {
-		x, y := cal.DateText(start.In(loc).Format("2006-01-02")), cal.DateText(end.In(loc).Format("2006-01-02"))
+		x, y := start.In(loc).Format(time.DateOnly), end.In(loc).Format(time.DateOnly)
 		if x >= y {
 			return out, csilrpc.BadRequest("all-day events need an exclusive end date after the start date")
 		}
@@ -680,9 +686,9 @@ func calendarContent(in csil.Event, calendarID, uid string) (cal.Event, error) {
 	}
 	return out, nil
 }
-func remoteBounds(e cal.Event) (string, string, error) {
+func remoteBounds(e cal.Event) (time.Time, time.Time, error) {
 	if e.Start != nil && e.End != nil && (e.AllDay == nil || !*e.AllDay) {
-		return string(*e.Start), string(*e.End), nil
+		return *e.Start, *e.End, nil
 	}
 	if e.StartDate != nil && e.EndDate != nil {
 		zone := "UTC"
@@ -691,16 +697,16 @@ func remoteBounds(e cal.Event) (string, string, error) {
 		}
 		loc, err := time.LoadLocation(zone)
 		if err != nil {
-			return "", "", err
+			return time.Time{}, time.Time{}, err
 		}
 		a, err := time.ParseInLocation("2006-01-02", string(*e.StartDate), loc)
 		if err != nil {
-			return "", "", err
+			return time.Time{}, time.Time{}, err
 		}
 		b, err := time.ParseInLocation("2006-01-02", string(*e.EndDate), loc)
-		return a.UTC().Format(time.RFC3339), b.UTC().Format(time.RFC3339), err
+		return a.UTC(), b.UTC(), err
 	}
-	return "", "", errors.New("calendar event has no time bounds")
+	return time.Time{}, time.Time{}, errors.New("calendar event has no time bounds")
 }
 
 func (s *CalendarService) listTrash(ctx context.Context, id csil.HouseID) ([]csil.CalendarTrashEntry, error) {
@@ -733,11 +739,11 @@ func (s *CalendarService) listTrash(ctx context.Context, id csil.HouseID) ([]csi
 		if err != nil {
 			return nil, err
 		}
-		event, err := s.reference(ctx, h.HouseID, cal.Occurrence{Event: entry.Event, Start: cal.Timestamp(start), End: cal.Timestamp(end), RecurrenceId: entry.RecurrenceId})
+		event, err := s.reference(ctx, h.HouseID, cal.Occurrence{Event: entry.Event, Start: start, End: end, RecurrenceId: entry.RecurrenceId})
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, csil.CalendarTrashEntry{TrashId: string(entry.TrashId), Event: event, DeletedAt: csil.Timestamp(entry.DeletedAt), ExpiresAt: csil.Timestamp(entry.ExpiresAt)})
+		out = append(out, csil.CalendarTrashEntry{TrashId: string(entry.TrashId), Event: event, DeletedAt: entry.DeletedAt, ExpiresAt: entry.ExpiresAt})
 	}
 	return out, nil
 }
@@ -778,5 +784,5 @@ func (s *CalendarService) restoreEvent(ctx context.Context, in csil.RestoreCalen
 	if err != nil {
 		return csil.Event{}, err
 	}
-	return s.reference(ctx, string(in.HouseId), cal.Occurrence{Event: restored, Start: cal.Timestamp(start), End: cal.Timestamp(end)})
+	return s.reference(ctx, string(in.HouseId), cal.Occurrence{Event: restored, Start: start, End: end})
 }

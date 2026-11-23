@@ -80,6 +80,13 @@ request ordering, routing, task paging, and calendar acceptance and recovery.
 Check native form behavior, focus, scrolling, and narrow layouts in a browser.
 For a separate local API, set `LONGHOUSE_DEV_API_TARGET` before `npm run dev`.
 
+## RPC timestamps
+
+The API sends each instant as RFC 3339 text inside CBOR tag 0. The Go
+client uses `time.Time`. The TypeScript client uses `Date`. Upgrade the
+API, web app, CLI, and external clients together. For houses that use
+CatalystCal, follow the [calendar upgrade procedure](docs/catalystcal.md#upgrade-from-text-timestamps).
+
 ## Auth
 
 Sign-in is delegated to [linkkeys](https://github.com/catalystcommunity/linkkeys)

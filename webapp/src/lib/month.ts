@@ -3,8 +3,8 @@
  * events in, grid structures out. Extracted from Calendar.ts so it can be
  * unit-tested directly.
  *
- * Events arrive in the CSIL shape (starts_at / ends_at as ISO timestamps).
- * We slice them to local-day YYYY-MM-DD strings up front so the rest of
+ * The client decodes event times as Date objects.
+ * We convert them to local YYYY-MM-DD strings so the rest of
  * the math is timezone-independent.
  */
 
@@ -69,24 +69,15 @@ export const buildCells = (year: number, month: number, todayYMD: string): Cell[
   return out;
 };
 
-// startYMD/endYMD pull a local YYYY-MM-DD from the ISO timestamps without
-// dragging the whole derive module in (this module is unit-tested in
-// isolation). All-day events with no times are treated as the same day.
 const startYMD = (e: ApiEvent): string => {
-  if (e.startsAt) return ymdOfIso(e.startsAt);
-  if (e.endsAt) return ymdOfIso(e.endsAt);
+  if (e.startsAt) return ymd(e.startsAt);
+  if (e.endsAt) return ymd(e.endsAt);
   return "";
 };
 
 const endYMD = (e: ApiEvent): string => {
-  if (e.endsAt) return ymdOfIso(e.endsAt);
+  if (e.endsAt) return ymd(e.endsAt);
   return startYMD(e);
-};
-
-const ymdOfIso = (iso: string): string => {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
-  return ymd(d);
 };
 
 /** Group single-day events by their date string. Multi-day events skipped. */

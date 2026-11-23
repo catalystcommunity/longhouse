@@ -15,8 +15,8 @@ github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z
 github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/aymanbagabas/go-udiff v0.4.1 h1:OEIrQ8maEeDBXQDoGCbbTTXYJMYRCRO1fnodZ12Gv5o=
 github.com/aymanbagabas/go-udiff v0.4.1/go.mod h1:0L9PGwj20lrtmEMeyw4WKJ/TMyDtvAoK9bf2u/mNo3w=
-github.com/catalystcommunity/catalystcal/clients/go v0.3.0 h1:vmI7oxlca3Y1fBbDG720F8O2XaHMx25vuD+uZVJIMcM=
-github.com/catalystcommunity/catalystcal/clients/go v0.3.0/go.mod h1:xReCRnOUhP9ei8KE0oVMI60/LXooXdt2b8RxGYB3gao=
+github.com/catalystcommunity/catalystcal/clients/go v0.3.2 h1:7WstuB3FHl9fGRN3OG6Q5mJDVXLg5/VMw7x9NZ5uePs=
+github.com/catalystcommunity/catalystcal/clients/go v0.3.2/go.mod h1:xReCRnOUhP9ei8KE0oVMI60/LXooXdt2b8RxGYB3gao=
 github.com/catalystcommunity/csilgen/transports/go v0.0.0-20260713013116-a661c8727022 h1:2Gr90Egbv1QOjg4k+MPwSOZj8xCVp/q8S0EYBvUYUIk=
 github.com/catalystcommunity/csilgen/transports/go v0.0.0-20260713013116-a661c8727022/go.mod h1:7CdM6CycSuRgLJ1Qt8A10qJZlIIlvSZG8PfkU8s0fCM=
 github.com/catalystcommunity/linkkeys/sdks/regular-rp/go v0.0.0-20261111162043-3227a58c78a7 h1:i0B4+SItfXWn/HUT3xzd76vb+2vrSSjj/GZjojhuMOs=

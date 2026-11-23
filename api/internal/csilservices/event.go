@@ -110,13 +110,7 @@ func (s *EventService) ListEvents(ctx context.Context, req csil.EventListRequest
 		return nil, err
 	}
 	limit, offset := normalizePaging(req.Limit, req.Offset)
-	f := store.EventFilter{HouseID: string(req.HouseId), RangeStart: tsToTimePtr(req.RangeStart), RangeEnd: tsToTimePtr(req.RangeEnd)}
-	if req.RangeStart != nil && f.RangeStart == nil {
-		return nil, csilrpc.BadRequest("range_start must be an RFC3339 timestamp")
-	}
-	if req.RangeEnd != nil && f.RangeEnd == nil {
-		return nil, csilrpc.BadRequest("range_end must be an RFC3339 timestamp")
-	}
+	f := store.EventFilter{HouseID: string(req.HouseId), RangeStart: req.RangeStart, RangeEnd: req.RangeEnd}
 	if f.RangeStart != nil && f.RangeEnd != nil && !f.RangeEnd.After(*f.RangeStart) {
 		return nil, csilrpc.BadRequest("range_end must be after range_start")
 	}
@@ -194,8 +188,8 @@ func (s *EventService) createLocalEvent(ctx context.Context, in csil.Event, stat
 		Title:              in.Title,
 		Description:        derefStr(in.Description),
 		Location:           derefStr(in.Location),
-		StartsAt:           tsToTimePtr(in.StartsAt),
-		EndsAt:             tsToTimePtr(in.EndsAt),
+		StartsAt:           in.StartsAt,
+		EndsAt:             in.EndsAt,
 		AllDay:             in.AllDay != nil && *in.AllDay,
 		RecurrenceInterval: 1,
 	}
@@ -275,8 +269,8 @@ func (s *EventService) UpdateEvent(ctx context.Context, in csil.Event) (csil.Eve
 	if existing.CalendarState == "declined" {
 		existing.CalendarState = "pending"
 	}
-	existing.StartsAt = tsToTimePtr(in.StartsAt)
-	existing.EndsAt = tsToTimePtr(in.EndsAt)
+	existing.StartsAt = in.StartsAt
+	existing.EndsAt = in.EndsAt
 	if in.AllDay != nil {
 		existing.AllDay = *in.AllDay
 	}

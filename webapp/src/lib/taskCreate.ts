@@ -15,8 +15,8 @@ export function normalizeTaskCreate(input: TaskCreatePayload): Task {
   return {
     ...input,
     taskId: input.taskId ?? RECEIVE_ONLY_PLACEHOLDER,
-    createdAt: input.createdAt ?? RECEIVE_ONLY_PLACEHOLDER,
-    updatedAt: input.updatedAt ?? RECEIVE_ONLY_PLACEHOLDER,
+    createdAt: input.createdAt ?? new Date(0),
+    updatedAt: input.updatedAt ?? new Date(0),
   };
 }
 
@@ -24,8 +24,8 @@ export function normalizeProjectCreate(input: ProjectCreatePayload): Project {
   return {
     ...input,
     projectId: input.projectId ?? RECEIVE_ONLY_PLACEHOLDER,
-    createdAt: input.createdAt ?? RECEIVE_ONLY_PLACEHOLDER,
-    updatedAt: input.updatedAt ?? RECEIVE_ONLY_PLACEHOLDER,
+    createdAt: input.createdAt ?? new Date(0),
+    updatedAt: input.updatedAt ?? new Date(0),
   };
 }
 
@@ -34,8 +34,8 @@ export function normalizeEventCreate(input: EventCreatePayload): Event {
     ...input,
     eventId: input.eventId ?? RECEIVE_ONLY_PLACEHOLDER,
     ownerMemberId: input.ownerMemberId ?? RECEIVE_ONLY_PLACEHOLDER,
-    createdAt: input.createdAt ?? RECEIVE_ONLY_PLACEHOLDER,
-    updatedAt: input.updatedAt ?? RECEIVE_ONLY_PLACEHOLDER,
+    createdAt: input.createdAt ?? new Date(0),
+    updatedAt: input.updatedAt ?? new Date(0),
   };
 }
 
@@ -44,7 +44,7 @@ export function normalizeCommentCreate(input: CommentCreatePayload): Comment {
     ...input,
     commentId: input.commentId ?? RECEIVE_ONLY_PLACEHOLDER,
     memberId: input.memberId ?? RECEIVE_ONLY_PLACEHOLDER,
-    createdAt: input.createdAt ?? RECEIVE_ONLY_PLACEHOLDER,
-    updatedAt: input.updatedAt ?? RECEIVE_ONLY_PLACEHOLDER,
+    createdAt: input.createdAt ?? new Date(0),
+    updatedAt: input.updatedAt ?? new Date(0),
   };
 }

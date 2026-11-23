@@ -5,6 +5,8 @@
 *.so
 *.dylib
 longhouse
+!clients/java/src/main/java/com/catalystcommunity/longhouse/
+!clients/kotlin/src/main/kotlin/com/catalystcommunity/longhouse/
 
 # Test binary, built with `go test -c`
 *.test

@@ -62,7 +62,7 @@ export const SettingsPage = () => {
                 trustedDomainId: "",
                 houseId: id,
                 domain: d,
-                createdAt: "",
+                createdAt: new Date(0),
             } as any);
             setNewDomain("");
             await refetchTrusted();
@@ -147,8 +147,8 @@ export const SettingsPage = () => {
             await houseClient.updateHouse({
                 houseId: id,
                 name: renameValue().trim(),
-                createdAt: "",
-                updatedAt: "",
+                createdAt: new Date(0),
+                updatedAt: new Date(0),
             } as any);
             await loadHouses();
             setRenameValue("");
@@ -172,8 +172,8 @@ export const SettingsPage = () => {
                 houseId: "",
                 name: newHouseName().trim(),
                 description: newHouseDesc().trim() || undefined,
-                createdAt: "",
-                updatedAt: "",
+                createdAt: new Date(0),
+                updatedAt: new Date(0),
             } as any);
             // The new house's admin role for the caller exists server-side, but
             // the current bearer was minted before we were a member. Refresh
