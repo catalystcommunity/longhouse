@@ -39,8 +39,6 @@ public typealias NotificationEventId = String
 
 public typealias CliSessionId = String
 
-public typealias Timestamp = String
-
 /// TaskStatus is a generated CSIL string enum (a closed set of wire values).
 public enum TaskStatus: String, Equatable, Sendable, CaseIterable {
     case `open` = "open"
@@ -133,11 +131,11 @@ public struct House: Equatable, Sendable {
     public let name: String
     public let description: String?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: updated_at
-    public let updatedAt: Timestamp
+    public let updatedAt: String
 
-    public init(houseId: HouseId, name: String, description: String? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(houseId: HouseId, name: String, description: String? = nil, createdAt: String, updatedAt: String) {
         self.houseId = houseId
         self.name = name
         self.description = description
@@ -184,15 +182,15 @@ public struct Member: Equatable, Sendable {
     /// wire key: cached_public_key
     public let cachedPublicKey: [UInt8]?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: updated_at
-    public let updatedAt: Timestamp
+    public let updatedAt: String
     /// wire key: last_seen_at
-    public let lastSeenAt: Timestamp?
+    public let lastSeenAt: String?
     /// wire key: deactivated_at
-    public let deactivatedAt: Timestamp?
+    public let deactivatedAt: String?
 
-    public init(memberId: MemberId, houseId: HouseId, linkkeysDomain: String, linkkeysUserId: String, displayName: String? = nil, email: String? = nil, avatarUrl: String? = nil, handle: String? = nil, cachedPublicKey: [UInt8]? = nil, createdAt: Timestamp, updatedAt: Timestamp, lastSeenAt: Timestamp? = nil, deactivatedAt: Timestamp? = nil) {
+    public init(memberId: MemberId, houseId: HouseId, linkkeysDomain: String, linkkeysUserId: String, displayName: String? = nil, email: String? = nil, avatarUrl: String? = nil, handle: String? = nil, cachedPublicKey: [UInt8]? = nil, createdAt: String, updatedAt: String, lastSeenAt: String? = nil, deactivatedAt: String? = nil) {
         self.memberId = memberId
         self.houseId = houseId
         self.linkkeysDomain = linkkeysDomain
@@ -234,9 +232,9 @@ public struct TrustedDomain: Equatable, Sendable {
     public let houseId: HouseId
     public let domain: String
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
 
-    public init(trustedDomainId: TrustedDomainId, houseId: HouseId, domain: String, createdAt: Timestamp) {
+    public init(trustedDomainId: TrustedDomainId, houseId: HouseId, domain: String, createdAt: String) {
         self.trustedDomainId = trustedDomainId
         self.houseId = houseId
         self.domain = domain
@@ -261,11 +259,11 @@ public struct Role: Equatable, Sendable {
     public let name: String
     public let description: String?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: updated_at
-    public let updatedAt: Timestamp
+    public let updatedAt: String
 
-    public init(roleId: RoleId, houseId: HouseId, name: String, description: String? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(roleId: RoleId, houseId: HouseId, name: String, description: String? = nil, createdAt: String, updatedAt: String) {
         self.roleId = roleId
         self.houseId = houseId
         self.name = name
@@ -302,9 +300,9 @@ public struct MemberRole: Equatable, Sendable {
     /// wire key: role_id
     public let roleId: RoleId
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
 
-    public init(memberId: MemberId, roleId: RoleId, createdAt: Timestamp) {
+    public init(memberId: MemberId, roleId: RoleId, createdAt: String) {
         self.memberId = memberId
         self.roleId = roleId
         self.createdAt = createdAt
@@ -335,9 +333,9 @@ public struct MemberAudit: Equatable, Sendable {
     public let targetId: String?
     public let detail: String?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
 
-    public init(auditId: MemberAuditId, houseId: HouseId, subjectMemberId: MemberId, actorMemberId: MemberId? = nil, action: String, targetType: String? = nil, targetId: String? = nil, detail: String? = nil, createdAt: Timestamp) {
+    public init(auditId: MemberAuditId, houseId: HouseId, subjectMemberId: MemberId, actorMemberId: MemberId? = nil, action: String, targetType: String? = nil, targetId: String? = nil, detail: String? = nil, createdAt: String) {
         self.auditId = auditId
         self.houseId = houseId
         self.subjectMemberId = subjectMemberId
@@ -372,11 +370,11 @@ public struct Skill: Equatable, Sendable {
     public let name: String
     public let description: String?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: updated_at
-    public let updatedAt: Timestamp
+    public let updatedAt: String
 
-    public init(skillId: SkillId, houseId: HouseId, name: String, description: String? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(skillId: SkillId, houseId: HouseId, name: String, description: String? = nil, createdAt: String, updatedAt: String) {
         self.skillId = skillId
         self.houseId = houseId
         self.name = name
@@ -413,9 +411,9 @@ public struct MemberSkill: Equatable, Sendable {
     /// wire key: skill_id
     public let skillId: SkillId
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
 
-    public init(memberId: MemberId, skillId: SkillId, createdAt: Timestamp) {
+    public init(memberId: MemberId, skillId: SkillId, createdAt: String) {
         self.memberId = memberId
         self.skillId = skillId
         self.createdAt = createdAt
@@ -436,9 +434,9 @@ public struct GroupSkill: Equatable, Sendable {
     /// wire key: skill_id
     public let skillId: SkillId
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
 
-    public init(groupId: GroupId, skillId: SkillId, createdAt: Timestamp) {
+    public init(groupId: GroupId, skillId: SkillId, createdAt: String) {
         self.groupId = groupId
         self.skillId = skillId
         self.createdAt = createdAt
@@ -461,11 +459,11 @@ public struct Group: Equatable, Sendable {
     public let name: String
     public let description: String?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: updated_at
-    public let updatedAt: Timestamp
+    public let updatedAt: String
 
-    public init(groupId: GroupId, houseId: HouseId, name: String, description: String? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(groupId: GroupId, houseId: HouseId, name: String, description: String? = nil, createdAt: String, updatedAt: String) {
         self.groupId = groupId
         self.houseId = houseId
         self.name = name
@@ -502,9 +500,9 @@ public struct GroupMember: Equatable, Sendable {
     /// wire key: member_id
     public let memberId: MemberId
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
 
-    public init(groupId: GroupId, memberId: MemberId, createdAt: Timestamp) {
+    public init(groupId: GroupId, memberId: MemberId, createdAt: String) {
         self.groupId = groupId
         self.memberId = memberId
         self.createdAt = createdAt
@@ -533,11 +531,11 @@ public struct Project: Equatable, Sendable {
     public let createdByMemberId: MemberId?
     public let personal: Bool?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: updated_at
-    public let updatedAt: Timestamp
+    public let updatedAt: String
 
-    public init(projectId: ProjectId, houseId: HouseId, name: String, description: String? = nil, category: String? = nil, status: ProjectStatus? = .active, visibility: AccessLevel? = .read, createdByMemberId: MemberId? = nil, personal: Bool? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(projectId: ProjectId, houseId: HouseId, name: String, description: String? = nil, category: String? = nil, status: ProjectStatus? = .active, visibility: AccessLevel? = .read, createdByMemberId: MemberId? = nil, personal: Bool? = nil, createdAt: String, updatedAt: String) {
         self.projectId = projectId
         self.houseId = houseId
         self.name = name
@@ -585,9 +583,9 @@ public struct ProjectTask: Equatable, Sendable {
     public let taskId: TaskId
     public let position: Int64
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
 
-    public init(projectId: ProjectId, taskId: TaskId, position: Int64, createdAt: Timestamp) {
+    public init(projectId: ProjectId, taskId: TaskId, position: Int64, createdAt: String) {
         self.projectId = projectId
         self.taskId = taskId
         self.position = position
@@ -610,9 +608,9 @@ public struct ProjectMember: Equatable, Sendable {
     /// wire key: member_id
     public let memberId: MemberId
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
 
-    public init(projectId: ProjectId, memberId: MemberId, createdAt: Timestamp) {
+    public init(projectId: ProjectId, memberId: MemberId, createdAt: String) {
         self.projectId = projectId
         self.memberId = memberId
         self.createdAt = createdAt
@@ -633,9 +631,9 @@ public struct ProjectOwner: Equatable, Sendable {
     /// wire key: member_id
     public let memberId: MemberId
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
 
-    public init(projectId: ProjectId, memberId: MemberId, createdAt: Timestamp) {
+    public init(projectId: ProjectId, memberId: MemberId, createdAt: String) {
         self.projectId = projectId
         self.memberId = memberId
         self.createdAt = createdAt
@@ -661,11 +659,11 @@ public struct Milestone: Equatable, Sendable {
     public let state: MilestoneState
     public let position: Int64
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: updated_at
-    public let updatedAt: Timestamp
+    public let updatedAt: String
 
-    public init(milestoneId: MilestoneId, projectId: ProjectId, label: String, whenLabel: String, state: MilestoneState, position: Int64, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(milestoneId: MilestoneId, projectId: ProjectId, label: String, whenLabel: String, state: MilestoneState, position: Int64, createdAt: String, updatedAt: String) {
         self.milestoneId = milestoneId
         self.projectId = projectId
         self.label = label
@@ -711,9 +709,9 @@ public struct Event: Equatable, Sendable {
     public let description: String?
     public let location: String?
     /// wire key: starts_at
-    public let startsAt: Timestamp?
+    public let startsAt: String?
     /// wire key: ends_at
-    public let endsAt: Timestamp?
+    public let endsAt: String?
     /// wire key: all_day
     public let allDay: Bool?
     public let timezone: String?
@@ -730,7 +728,7 @@ public struct Event: Equatable, Sendable {
     /// wire key: recurrence_by_setpos
     public let recurrenceBySetpos: Int64?
     /// wire key: next_recurrence_at
-    public let nextRecurrenceAt: Timestamp?
+    public let nextRecurrenceAt: String?
     /// wire key: recurrence_root_event_id
     public let recurrenceRootEventId: EventId?
     /// wire key: calendar_state
@@ -747,11 +745,11 @@ public struct Event: Equatable, Sendable {
     /// wire key: edit_scope
     public let editScope: String?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: updated_at
-    public let updatedAt: Timestamp
+    public let updatedAt: String
 
-    public init(eventId: EventId, houseId: HouseId, ownerMemberId: MemberId, title: String, description: String? = nil, location: String? = nil, startsAt: Timestamp? = nil, endsAt: Timestamp? = nil, allDay: Bool? = false, timezone: String? = nil, recurrenceRule: String? = nil, recurrenceFreq: RecurrenceFreq? = nil, clearRecurrence: Bool? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: Timestamp? = nil, recurrenceRootEventId: EventId? = nil, calendarState: String? = nil, revision: UInt64? = nil, proposedByMemberId: MemberId? = nil, publicationError: String? = nil, editPendingMemberId: MemberId? = nil, calendarUnbound: Bool? = nil, editScope: String? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(eventId: EventId, houseId: HouseId, ownerMemberId: MemberId, title: String, description: String? = nil, location: String? = nil, startsAt: String? = nil, endsAt: String? = nil, allDay: Bool? = false, timezone: String? = nil, recurrenceRule: String? = nil, recurrenceFreq: RecurrenceFreq? = nil, clearRecurrence: Bool? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: String? = nil, recurrenceRootEventId: EventId? = nil, calendarState: String? = nil, revision: UInt64? = nil, proposedByMemberId: MemberId? = nil, publicationError: String? = nil, editPendingMemberId: MemberId? = nil, calendarUnbound: Bool? = nil, editScope: String? = nil, createdAt: String, updatedAt: String) {
         self.eventId = eventId
         self.houseId = houseId
         self.ownerMemberId = ownerMemberId
@@ -841,7 +839,7 @@ public struct Task: Equatable, Sendable {
     public let description: String?
     public let status: TaskStatus?
     /// wire key: due_at
-    public let dueAt: Timestamp?
+    public let dueAt: String?
     public let tag: String?
     /// wire key: estimate_minutes
     public let estimateMinutes: UInt64?
@@ -856,17 +854,17 @@ public struct Task: Equatable, Sendable {
     /// wire key: recurrence_by_setpos
     public let recurrenceBySetpos: Int64?
     /// wire key: next_recurrence_at
-    public let nextRecurrenceAt: Timestamp?
+    public let nextRecurrenceAt: String?
     /// wire key: recurrence_root_task_id
     public let recurrenceRootTaskId: TaskId?
     /// wire key: deleted_at
-    public let deletedAt: Timestamp?
+    public let deletedAt: String?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: updated_at
-    public let updatedAt: Timestamp
+    public let updatedAt: String
 
-    public init(taskId: TaskId, houseId: HouseId, ownerMemberId: MemberId, assignees: [MemberId]? = nil, assignedToSkillId: SkillId? = nil, parentTaskId: TaskId? = nil, visibility: AccessLevel? = .read, title: String, description: String? = nil, status: TaskStatus? = .`open`, dueAt: Timestamp? = nil, tag: String? = nil, estimateMinutes: UInt64? = nil, recurrenceFreq: RecurrenceFreq? = nil, clearRecurrence: Bool? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: Timestamp? = nil, recurrenceRootTaskId: TaskId? = nil, deletedAt: Timestamp? = nil, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(taskId: TaskId, houseId: HouseId, ownerMemberId: MemberId, assignees: [MemberId]? = nil, assignedToSkillId: SkillId? = nil, parentTaskId: TaskId? = nil, visibility: AccessLevel? = .read, title: String, description: String? = nil, status: TaskStatus? = .`open`, dueAt: String? = nil, tag: String? = nil, estimateMinutes: UInt64? = nil, recurrenceFreq: RecurrenceFreq? = nil, clearRecurrence: Bool? = nil, recurrenceInterval: Int64? = 1, recurrenceByWeekday: [Int64]? = nil, recurrenceBySetpos: Int64? = nil, nextRecurrenceAt: String? = nil, recurrenceRootTaskId: TaskId? = nil, deletedAt: String? = nil, createdAt: String, updatedAt: String) {
         self.taskId = taskId
         self.houseId = houseId
         self.ownerMemberId = ownerMemberId
@@ -944,11 +942,11 @@ public struct Comment: Equatable, Sendable {
     public let targetId: String
     public let body: String
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: updated_at
-    public let updatedAt: Timestamp
+    public let updatedAt: String
 
-    public init(commentId: CommentId, houseId: HouseId, memberId: MemberId, targetType: TargetType, targetId: String, body: String, createdAt: Timestamp, updatedAt: Timestamp) {
+    public init(commentId: CommentId, houseId: HouseId, memberId: MemberId, targetType: TargetType, targetId: String, body: String, createdAt: String, updatedAt: String) {
         self.commentId = commentId
         self.houseId = houseId
         self.memberId = memberId
@@ -1001,11 +999,11 @@ public struct Share: Equatable, Sendable {
     /// wire key: access_level
     public let accessLevel: AccessLevel?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: expires_at
-    public let expiresAt: Timestamp?
+    public let expiresAt: String?
 
-    public init(shareId: ShareId, houseId: HouseId, sharedBy: MemberId, linkkeysDomain: String, linkkeysUserId: String, resourceType: ResourceType, resourceId: String, accessLevel: AccessLevel? = .read, createdAt: Timestamp, expiresAt: Timestamp? = nil) {
+    public init(shareId: ShareId, houseId: HouseId, sharedBy: MemberId, linkkeysDomain: String, linkkeysUserId: String, resourceType: ResourceType, resourceId: String, accessLevel: AccessLevel? = .read, createdAt: String, expiresAt: String? = nil) {
         self.shareId = shareId
         self.houseId = houseId
         self.sharedBy = sharedBy
@@ -1205,9 +1203,9 @@ public struct LoginResponse: Equatable, Sendable {
     /// wire key: display_name
     public let displayName: String?
     /// wire key: expires_at
-    public let expiresAt: Timestamp
+    public let expiresAt: String
 
-    public init(token: String, domain: String, userId: String, displayName: String? = nil, expiresAt: Timestamp) {
+    public init(token: String, domain: String, userId: String, displayName: String? = nil, expiresAt: String) {
         self.token = token
         self.domain = domain
         self.userId = userId
@@ -1234,15 +1232,15 @@ public struct CliTokenResponse: Equatable, Sendable {
     /// wire key: display_name
     public let displayName: String?
     /// wire key: expires_at
-    public let expiresAt: Timestamp
+    public let expiresAt: String
     /// wire key: refresh_token
     public let refreshToken: String
     /// wire key: refresh_expires_at
-    public let refreshExpiresAt: Timestamp
+    public let refreshExpiresAt: String
     /// wire key: session_id
     public let sessionId: CliSessionId
 
-    public init(token: String, domain: String, userId: String, displayName: String? = nil, expiresAt: Timestamp, refreshToken: String, refreshExpiresAt: Timestamp, sessionId: CliSessionId) {
+    public init(token: String, domain: String, userId: String, displayName: String? = nil, expiresAt: String, refreshToken: String, refreshExpiresAt: String, sessionId: CliSessionId) {
         self.token = token
         self.domain = domain
         self.userId = userId
@@ -1300,11 +1298,11 @@ public struct BeginCliLoginResponse: Equatable, Sendable {
     /// wire key: verification_url
     public let verificationUrl: String
     /// wire key: expires_at
-    public let expiresAt: Timestamp
+    public let expiresAt: String
     /// wire key: interval_seconds
     public let intervalSeconds: UInt64
 
-    public init(deviceCode: String, userCode: String, verificationUrl: String, expiresAt: Timestamp, intervalSeconds: UInt64) {
+    public init(deviceCode: String, userCode: String, verificationUrl: String, expiresAt: String, intervalSeconds: UInt64) {
         self.deviceCode = deviceCode
         self.userCode = userCode
         self.verificationUrl = verificationUrl
@@ -1344,9 +1342,9 @@ public struct CliLoginRequestInfo: Equatable, Sendable {
     /// wire key: client_name
     public let clientName: String
     /// wire key: expires_at
-    public let expiresAt: Timestamp
+    public let expiresAt: String
 
-    public init(userCode: String, clientName: String, expiresAt: Timestamp) {
+    public init(userCode: String, clientName: String, expiresAt: String) {
         self.userCode = userCode
         self.clientName = clientName
         self.expiresAt = expiresAt
@@ -1429,17 +1427,17 @@ public struct CliSessionSummary: Equatable, Sendable {
     /// wire key: client_name
     public let clientName: String
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
     /// wire key: last_used_at
-    public let lastUsedAt: Timestamp
+    public let lastUsedAt: String
     /// wire key: expires_at
-    public let expiresAt: Timestamp
+    public let expiresAt: String
     /// wire key: revoked_at
-    public let revokedAt: Timestamp?
+    public let revokedAt: String?
     public let kind: SessionKind?
     public let current: Bool?
 
-    public init(sessionId: CliSessionId, clientName: String, createdAt: Timestamp, lastUsedAt: Timestamp, expiresAt: Timestamp, revokedAt: Timestamp? = nil, kind: SessionKind? = nil, current: Bool? = nil) {
+    public init(sessionId: CliSessionId, clientName: String, createdAt: String, lastUsedAt: String, expiresAt: String, revokedAt: String? = nil, kind: SessionKind? = nil, current: Bool? = nil) {
         self.sessionId = sessionId
         self.clientName = clientName
         self.createdAt = createdAt
@@ -1567,10 +1565,10 @@ public struct MeResponse: Equatable, Sendable {
     /// wire key: display_name
     public let displayName: String?
     /// wire key: expires_at
-    public let expiresAt: Timestamp
+    public let expiresAt: String
     public let houses: [HouseSummary]
 
-    public init(domain: String, userId: String, displayName: String? = nil, expiresAt: Timestamp, houses: [HouseSummary]) {
+    public init(domain: String, userId: String, displayName: String? = nil, expiresAt: String, houses: [HouseSummary]) {
         self.domain = domain
         self.userId = userId
         self.displayName = displayName
@@ -1659,13 +1657,13 @@ public struct EventListRequest: Equatable, Sendable {
     /// wire key: house_id
     public let houseId: HouseId
     /// wire key: range_start
-    public let rangeStart: Timestamp?
+    public let rangeStart: String?
     /// wire key: range_end
-    public let rangeEnd: Timestamp?
+    public let rangeEnd: String?
     public let limit: UInt64?
     public let offset: UInt64?
 
-    public init(houseId: HouseId, rangeStart: Timestamp? = nil, rangeEnd: Timestamp? = nil, limit: UInt64? = 50, offset: UInt64? = 0) {
+    public init(houseId: HouseId, rangeStart: String? = nil, rangeEnd: String? = nil, limit: UInt64? = 50, offset: UInt64? = 0) {
         self.houseId = houseId
         self.rangeStart = rangeStart
         self.rangeEnd = rangeEnd
@@ -1693,13 +1691,13 @@ public struct TaskListRequest: Equatable, Sendable {
     public let mine: Bool?
     public let loose: Bool?
     /// wire key: due_from
-    public let dueFrom: Timestamp?
+    public let dueFrom: String?
     /// wire key: due_to
-    public let dueTo: Timestamp?
+    public let dueTo: String?
     /// wire key: due_before
-    public let dueBefore: [Timestamp]?
+    public let dueBefore: [String]?
 
-    public init(houseId: HouseId, limit: UInt64? = 50, offset: UInt64? = 0, state: TaskState? = nil, mine: Bool? = nil, loose: Bool? = nil, dueFrom: Timestamp? = nil, dueTo: Timestamp? = nil, dueBefore: [Timestamp]? = nil) {
+    public init(houseId: HouseId, limit: UInt64? = 50, offset: UInt64? = 0, state: TaskState? = nil, mine: Bool? = nil, loose: Bool? = nil, dueFrom: String? = nil, dueTo: String? = nil, dueBefore: [String]? = nil) {
         self.houseId = houseId
         self.limit = limit
         self.offset = offset
@@ -1868,11 +1866,11 @@ public struct Notification: Equatable, Sendable {
     public let body: String
     public let read: Bool
     /// wire key: read_at
-    public let readAt: Timestamp?
+    public let readAt: String?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
 
-    public init(notificationId: NotificationId, houseId: HouseId, memberId: MemberId, kind: String, actorMemberId: MemberId? = nil, actorName: String, targetType: String? = nil, targetId: String? = nil, targetTitle: String, body: String, read: Bool, readAt: Timestamp? = nil, createdAt: Timestamp) {
+    public init(notificationId: NotificationId, houseId: HouseId, memberId: MemberId, kind: String, actorMemberId: MemberId? = nil, actorName: String, targetType: String? = nil, targetId: String? = nil, targetTitle: String, body: String, read: Bool, readAt: String? = nil, createdAt: String) {
         self.notificationId = notificationId
         self.houseId = houseId
         self.memberId = memberId
@@ -2548,13 +2546,13 @@ public struct ActAsTokenResponse: Equatable, Sendable {
     /// wire key: user_id
     public let userId: String
     /// wire key: expires_at
-    public let expiresAt: Timestamp
+    public let expiresAt: String
     /// wire key: grant_id
     public let grantId: String
     public let grantee: String
     public let scopes: [String]
 
-    public init(token: String, domain: String, userId: String, expiresAt: Timestamp, grantId: String, grantee: String, scopes: [String]) {
+    public init(token: String, domain: String, userId: String, expiresAt: String, grantId: String, grantee: String, scopes: [String]) {
         self.token = token
         self.domain = domain
         self.userId = userId
@@ -2645,9 +2643,9 @@ public struct CalendarStatus: Equatable, Sendable {
     /// wire key: last_error
     public let lastError: String?
     /// wire key: sync_pending_since
-    public let syncPendingSince: Timestamp?
+    public let syncPendingSince: String?
 
-    public init(houseId: HouseId, available: Bool, enabled: Bool, ready: Bool, connected: Bool, lastError: String? = nil, syncPendingSince: Timestamp? = nil) {
+    public init(houseId: HouseId, available: Bool, enabled: Bool, ready: Bool, connected: Bool, lastError: String? = nil, syncPendingSince: String? = nil) {
         self.houseId = houseId
         self.available = available
         self.enabled = enabled
@@ -2729,11 +2727,11 @@ public struct CalendarTrashEntry: Equatable, Sendable {
     public let trashId: String
     public let event: Event
     /// wire key: deleted_at
-    public let deletedAt: Timestamp
+    public let deletedAt: String
     /// wire key: expires_at
-    public let expiresAt: Timestamp
+    public let expiresAt: String
 
-    public init(trashId: String, event: Event, deletedAt: Timestamp, expiresAt: Timestamp) {
+    public init(trashId: String, event: Event, deletedAt: String, expiresAt: String) {
         self.trashId = trashId
         self.event = event
         self.deletedAt = deletedAt
@@ -2797,11 +2795,11 @@ public struct ProjectDeadlineRequest: Equatable, Sendable {
     /// wire key: project_id
     public let projectId: ProjectId
     /// wire key: range_start
-    public let rangeStart: Timestamp
+    public let rangeStart: String
     /// wire key: range_end
-    public let rangeEnd: Timestamp
+    public let rangeEnd: String
 
-    public init(projectId: ProjectId, rangeStart: Timestamp, rangeEnd: Timestamp) {
+    public init(projectId: ProjectId, rangeStart: String, rangeEnd: String) {
         self.projectId = projectId
         self.rangeStart = rangeStart
         self.rangeEnd = rangeEnd
@@ -2821,9 +2819,9 @@ public struct ProjectDeadline: Equatable, Sendable {
     public let taskId: TaskId
     public let title: String
     /// wire key: due_at
-    public let dueAt: Timestamp
+    public let dueAt: String
 
-    public init(taskId: TaskId, title: String, dueAt: Timestamp) {
+    public init(taskId: TaskId, title: String, dueAt: String) {
         self.taskId = taskId
         self.title = title
         self.dueAt = dueAt
@@ -2891,9 +2889,9 @@ public struct AuditEntry: Equatable, Sendable {
     public let after: String?
     public let detail: String?
     /// wire key: created_at
-    public let createdAt: Timestamp
+    public let createdAt: String
 
-    public init(auditId: AuditId, houseId: HouseId? = nil, actorMemberId: MemberId? = nil, actorDomain: String, actorUserId: String, serviceName: String, method: String, action: String, resourceType: String? = nil, resourceId: String? = nil, outcome: String, before: String? = nil, after: String? = nil, detail: String? = nil, createdAt: Timestamp) {
+    public init(auditId: AuditId, houseId: HouseId? = nil, actorMemberId: MemberId? = nil, actorDomain: String, actorUserId: String, serviceName: String, method: String, action: String, resourceType: String? = nil, resourceId: String? = nil, outcome: String, before: String? = nil, after: String? = nil, detail: String? = nil, createdAt: String) {
         self.auditId = auditId
         self.houseId = houseId
         self.actorMemberId = actorMemberId
@@ -2940,12 +2938,12 @@ public struct AuditQuery: Equatable, Sendable {
     /// wire key: resource_type
     public let resourceType: String?
     public let action: String?
-    public let since: Timestamp?
-    public let until: Timestamp?
+    public let since: String?
+    public let until: String?
     public let cursor: String?
     public let limit: UInt64?
 
-    public init(houseId: HouseId, actorMemberId: MemberId? = nil, resourceType: String? = nil, action: String? = nil, since: Timestamp? = nil, until: Timestamp? = nil, cursor: String? = nil, limit: UInt64? = 100) {
+    public init(houseId: HouseId, actorMemberId: MemberId? = nil, resourceType: String? = nil, action: String? = nil, since: String? = nil, until: String? = nil, cursor: String? = nil, limit: UInt64? = 100) {
         self.houseId = houseId
         self.actorMemberId = actorMemberId
         self.resourceType = resourceType
@@ -2997,13 +2995,13 @@ public struct TrashItem: Equatable, Sendable {
     public let houseId: HouseId
     public let title: String?
     /// wire key: deleted_at
-    public let deletedAt: Timestamp
+    public let deletedAt: String
     /// wire key: deleted_by_member_id
     public let deletedByMemberId: MemberId?
     /// wire key: deleted_op_id
     public let deletedOpId: String
 
-    public init(resourceType: String, resourceId: String, houseId: HouseId, title: String? = nil, deletedAt: Timestamp, deletedByMemberId: MemberId? = nil, deletedOpId: String) {
+    public init(resourceType: String, resourceId: String, houseId: HouseId, title: String? = nil, deletedAt: String, deletedByMemberId: MemberId? = nil, deletedOpId: String) {
         self.resourceType = resourceType
         self.resourceId = resourceId
         self.houseId = houseId

@@ -87,7 +87,7 @@ func (f *calendarTestRemote) Call(_ context.Context, service, op string, b []byt
 		e.EventId = "remote-1"
 		e.CreatedBy = &cal.PersonSummary{Domain: "soft.test", Subject: f.actor}
 		f.event = e
-		r := cal.CreateEventReceipt{CalendarId: e.CalendarId, IdempotencyKey: req.IdempotencyKey, EventId: e.EventId, State: "live", Created: true, CreatedAt: "2026-11-07T00:00:00Z", Event: &e}
+		r := cal.CreateEventReceipt{CalendarId: e.CalendarId, IdempotencyKey: req.IdempotencyKey, EventId: e.EventId, State: "live", Created: true, CreatedAt: time.Date(2026, 11, 7, 0, 0, 0, 0, time.UTC), Event: &e}
 		f.receipt = &r
 		f.mu.Unlock()
 		if f.entered != nil {
@@ -184,7 +184,7 @@ func newCalendarFixture(t *testing.T) *calendarFixture {
 }
 func (f *calendarFixture) proposal(t *testing.T) csil.Event {
 	t.Helper()
-	start, end := csil.Timestamp("2026-11-10T15:00:00Z"), csil.Timestamp("2026-11-10T16:00:00Z")
+	start, end := time.Date(2026, 11, 10, 15, 0, 0, 0, time.UTC), time.Date(2026, 11, 10, 16, 0, 0, 0, time.UTC)
 	freq := csil.RecurrenceFreq("weekly")
 	e, err := f.events.CreateEvent(f.adminCtx, csil.Event{HouseId: csil.HouseID(f.house), OwnerMemberId: csil.MemberID(f.owner), Title: "Assigned meeting", StartsAt: &start, EndsAt: &end, RecurrenceFreq: &freq})
 	if err != nil {
@@ -505,7 +505,7 @@ func TestCalendar_Postgres_ReadBeforeReceiptRecoveryKeepsBothLinks(t *testing.T)
 		t.Fatal(err)
 	}
 	remote.occurrence = &cal.Occurrence{Event: remote.event, Start: *remote.event.Start, End: *remote.event.End, Access: "owner"}
-	start, end := csil.Timestamp("2026-11-01T00:00:00Z"), csil.Timestamp("2026-12-01T00:00:00Z")
+	start, end := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
 	rows, err := f.svc.ListEvents(f.ownerCtx, csil.EventListRequest{HouseId: csil.HouseID(f.house), RangeStart: &start, RangeEnd: &end})
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("discovery: %+v %v", rows, err)
@@ -540,43 +540,43 @@ func TestCalendar_Postgres_MovedOccurrenceUsesOriginalIdentity(t *testing.T) {
 	if _, err := f.svc.AcceptEvent(f.ownerCtx, csil.EventDecision{EventId: e.EventId, Revision: *e.Revision}); err != nil {
 		t.Fatal(err)
 	}
-	rid := cal.Timestamp("2026-11-17T15:00:00Z")
+	rid := time.Date(2026, 11, 17, 15, 0, 0, 0, time.UTC)
 	moved := remote.event
 	master := moved.EventId
 	moved.EventId = "override-1"
 	moved.MasterEventId = &master
-	start, end := cal.Timestamp("2027-03-23T15:00:00Z"), cal.Timestamp("2027-03-23T16:00:00Z")
+	start, end := time.Date(2027, 3, 23, 15, 0, 0, 0, time.UTC), time.Date(2027, 3, 23, 16, 0, 0, 0, time.UTC)
 	moved.Start = &start
 	moved.End = &end
 	remote.occurrence = &cal.Occurrence{Event: moved, Start: start, End: end, RecurrenceId: &rid, Access: "owner"}
-	a, b := csil.Timestamp("2027-03-01T00:00:00Z"), csil.Timestamp("2027-04-01T00:00:00Z")
+	a, b := time.Date(2027, 3, 1, 0, 0, 0, 0, time.UTC), time.Date(2027, 4, 1, 0, 0, 0, 0, time.UTC)
 	rows, err := f.svc.ListEvents(f.ownerCtx, csil.EventListRequest{HouseId: csil.HouseID(f.house), RangeStart: &a, RangeEnd: &b})
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("occurrence discovery: %+v %v", rows, err)
 	}
 	id := rows[0].EventId
 	got, err := f.svc.GetEvent(f.ownerCtx, id)
-	if err != nil || string(*got.StartsAt) != string(start) || got.EventId != id || got.RecurrenceRootEventId == nil || *got.RecurrenceRootEventId != e.EventId {
+	if err != nil || !got.StartsAt.Equal(start) || got.EventId != id || got.RecurrenceRootEventId == nil || *got.RecurrenceRootEventId != e.EventId {
 		t.Fatalf("moved occurrence: %+v %v", got, err)
 	}
 	// All-day dates are midnight UTC on the wire, but local midnight in the UI.
 	allDay, zone := true, "America/Denver"
-	d1, d2 := cal.DateText("2027-03-23"), cal.DateText("2027-03-24")
+	d1, d2 := "2027-03-23", "2027-03-24"
 	remote.occurrence.Event.AllDay = &allDay
 	remote.occurrence.Event.Timezone = &zone
 	remote.occurrence.Event.Start = nil
 	remote.occurrence.Event.End = nil
 	remote.occurrence.Event.StartDate = &d1
 	remote.occurrence.Event.EndDate = &d2
-	remote.occurrence.Start = "2027-03-23T00:00:00Z"
-	remote.occurrence.End = "2027-03-24T00:00:00Z"
+	remote.occurrence.Start = time.Date(2027, 3, 23, 0, 0, 0, 0, time.UTC)
+	remote.occurrence.End = remote.occurrence.Start.AddDate(0, 0, 1)
 	got, err = f.svc.GetEvent(f.ownerCtx, id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	parsed, err := time.Parse(time.RFC3339, string(*got.StartsAt))
+	parsed := got.StartsAt
 	loc, _ := time.LoadLocation(zone)
-	if err != nil || parsed.In(loc).Format("2006-01-02 15:04") != "2027-03-23 00:00" {
+	if parsed == nil || parsed.In(loc).Format("2006-01-02 15:04") != "2027-03-23 00:00" {
 		t.Fatalf("all-day date shifted: %v %v", got.StartsAt, err)
 	}
 	remote.occurrence.Event.CalendarId = "foreign"

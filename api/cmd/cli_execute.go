@@ -198,7 +198,7 @@ func cliTypeHasBooleanJSONField(value reflect.Type, name string) bool {
 			return indirectType(field.Type).Kind() == reflect.Bool
 		}
 		nested := indirectType(field.Type)
-		if nested.Kind() == reflect.Struct && cliTypeHasBooleanJSONField(nested, name) {
+		if cliRecord(nested) && cliTypeHasBooleanJSONField(nested, name) {
 			return true
 		}
 	}
@@ -663,6 +663,10 @@ func decodeStrictCLIJSON(reader io.Reader, target any, operation *cliOperation) 
 			}
 		}
 	}
+	data, err = normalizeCLITimes(data, operation.RequestType)
+	if err != nil {
+		return fmt.Errorf("decode JSON input: %w", err)
+	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
@@ -675,35 +679,66 @@ func decodeStrictCLIJSON(reader io.Reader, target any, operation *cliOperation) 
 		}
 		return fmt.Errorf("decode JSON input: %w", err)
 	}
-	normalizeCLIInputValues(reflect.ValueOf(target))
 	return nil
 }
 
-func normalizeCLIInputValues(value reflect.Value) {
-	if !value.IsValid() {
-		return
+var cliTimeType = reflect.TypeFor[time.Time]()
+
+func cliRecord(t reflect.Type) bool {
+	return t.Kind() == reflect.Struct && t != cliTimeType
+}
+
+// Normalize timestamp shortcuts before time.Time's JSON decoder reads them.
+// Keep other fields as raw JSON for the strict decoder, including large integers.
+func normalizeCLITimes(data json.RawMessage, t reflect.Type) (json.RawMessage, error) {
+	t = indirectType(t)
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return data, nil
 	}
-	if value.Kind() == reflect.Ptr {
-		if value.IsNil() {
-			return
+	if t == cliTimeType {
+		var input string
+		if err := json.Unmarshal(data, &input); err != nil {
+			return nil, err
 		}
-		normalizeCLIInputValues(value.Elem())
-		return
-	}
-	if value.Kind() == reflect.String && value.Type().Name() == "Timestamp" && value.CanSet() {
-		value.SetString(normalizeCLIString(value.Type().Name(), value.String()))
-		return
-	}
-	switch value.Kind() {
-	case reflect.Struct:
-		for i := 0; i < value.NumField(); i++ {
-			normalizeCLIInputValues(value.Field(i))
+		instant, err := parseCLITime(input)
+		if err != nil {
+			return nil, err
 		}
-	case reflect.Slice, reflect.Array:
-		for i := 0; i < value.Len(); i++ {
-			normalizeCLIInputValues(value.Index(i))
-		}
+		return json.Marshal(instant)
 	}
+	if cliRecord(t) {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(data, &fields); err != nil {
+			return nil, err
+		}
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			name, _ := jsonFieldName(field)
+			if raw, ok := fields[name]; ok {
+				converted, err := normalizeCLITimes(raw, field.Type)
+				if err != nil {
+					return nil, fmt.Errorf("%s: %w", name, err)
+				}
+				fields[name] = converted
+			}
+		}
+		return json.Marshal(fields)
+	}
+	if t.Kind() == reflect.Slice && t.Elem().Kind() != reflect.Uint8 {
+		var items []json.RawMessage
+		if err := json.Unmarshal(data, &items); err != nil {
+			return nil, err
+		}
+		for i, raw := range items {
+			converted, err := normalizeCLITimes(raw, t.Elem())
+			if err != nil {
+				return nil, err
+			}
+			items[i] = converted
+		}
+		return json.Marshal(items)
+	}
+	return data, nil
 }
 
 func applyCLIPositionals(request reflect.Value, operation *cliOperation, positionals []string) error {
@@ -788,7 +823,7 @@ func setCLIFieldChecked(value reflect.Value, name, input string) (bool, error) {
 			return true, setCLIFieldValue(field, fieldName, input)
 		}
 		kind := field.Type().Kind()
-		if kind == reflect.Struct || (kind == reflect.Ptr && field.Type().Elem().Kind() == reflect.Struct) {
+		if cliRecord(field.Type()) || (kind == reflect.Ptr && cliRecord(field.Type().Elem())) {
 			if found, err := setCLIFieldChecked(field, name, input); found || err != nil {
 				return found, err
 			}
@@ -853,9 +888,17 @@ func setCLIValue(value reflect.Value, input string) error {
 		value.Set(result)
 		return nil
 	}
+	if value.Type() == cliTimeType {
+		t, err := parseCLITime(input)
+		if err != nil {
+			return err
+		}
+		value.Set(reflect.ValueOf(t))
+		return nil
+	}
 	switch value.Kind() {
 	case reflect.String:
-		value.SetString(normalizeCLIString(value.Type().Name(), input))
+		value.SetString(input)
 	case reflect.Bool:
 		parsed, err := strconv.ParseBool(input)
 		if err != nil {
@@ -880,25 +923,22 @@ func setCLIValue(value reflect.Value, input string) error {
 	return nil
 }
 
-func normalizeCLIString(typeName, value string) string {
-	if typeName != "Timestamp" {
-		return value
-	}
+func parseCLITime(value string) (time.Time, error) {
 	trimmed := strings.TrimSpace(value)
 	now := time.Now()
 	switch strings.ToLower(trimmed) {
 	case "today":
-		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local).UTC().Format(time.RFC3339)
+		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local).UTC(), nil
 	case "tomorrow":
-		return time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.Local).UTC().Format(time.RFC3339)
+		return time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.Local).UTC(), nil
 	}
 	if parsed, err := time.ParseInLocation("2006-01-02", trimmed, time.Local); err == nil {
-		return parsed.UTC().Format(time.RFC3339)
+		return parsed.UTC(), nil
 	}
 	if parsed, err := time.Parse(time.RFC3339, trimmed); err == nil {
-		return parsed.UTC().Format(time.RFC3339)
+		return parsed.UTC(), nil
 	}
-	return value
+	return time.Time{}, fmt.Errorf("enter an RFC3339 timestamp, YYYY-MM-DD, today, or tomorrow: %q", value)
 }
 
 func validateOperationRequest(operation *cliOperation, request reflect.Value) error {
@@ -927,16 +967,6 @@ func validateOperationRequest(operation *cliOperation, request reflect.Value) er
 		}
 		if !containsString(allowed, value) {
 			return fmt.Errorf("field %s must be one of: %s", name, strings.Join(allowed, ", "))
-		}
-	}
-	for _, timestampName := range []string{"due_at", "starts_at", "ends_at", "expires_at", "since", "until"} {
-		field := findCLIField(request.Elem(), timestampName)
-		if !field.IsValid() || fieldIsEmpty(field) {
-			continue
-		}
-		field = indirectValue(field)
-		if _, err := time.Parse(time.RFC3339, field.String()); err != nil {
-			return fmt.Errorf("field %s must be an RFC3339 timestamp, YYYY-MM-DD, today, or tomorrow", timestampName)
 		}
 	}
 	if operation.ID == "TrashService.Restore" {
@@ -978,7 +1008,7 @@ func findCLIField(value reflect.Value, name string) reflect.Value {
 			return field
 		}
 		kind := field.Type().Kind()
-		if kind == reflect.Struct || (kind == reflect.Ptr && field.Type().Elem().Kind() == reflect.Struct && !field.IsNil()) {
+		if cliRecord(field.Type()) || (kind == reflect.Ptr && cliRecord(field.Type().Elem()) && !field.IsNil()) {
 			if nested := findCLIField(field, name); nested.IsValid() {
 				return nested
 			}
@@ -1028,7 +1058,7 @@ func missingRequiredFields(value reflect.Value, operation *cliOperation) []strin
 			continue
 		}
 		field := value.Field(i)
-		if fieldInfo.Type.Kind() == reflect.Struct {
+		if cliRecord(fieldInfo.Type) {
 			missing = append(missing, missingRequiredFields(field, operation)...)
 			continue
 		}
@@ -1165,7 +1195,7 @@ func tableColumns(value reflect.Type) []int {
 		field := value.Field(i)
 		name, _ := jsonFieldName(field)
 		kind := indirectType(field.Type).Kind()
-		if kind == reflect.Struct || kind == reflect.Slice || kind == reflect.Map {
+		if cliRecord(indirectType(field.Type)) || kind == reflect.Slice || kind == reflect.Map {
 			continue
 		}
 		if strings.HasSuffix(name, "_id") || name == "name" || name == "title" || name == "label" || name == "status" || name == "domain" {
@@ -1192,6 +1222,9 @@ func formatCLIValue(value reflect.Value) string {
 			parts[i] = formatCLIValue(value.Index(i))
 		}
 		return strings.Join(parts, ",")
+	}
+	if value.Type() == cliTimeType {
+		return value.Interface().(time.Time).UTC().Format(time.RFC3339Nano)
 	}
 	if value.Kind() == reflect.Struct || value.Kind() == reflect.Map {
 		encoded, _ := json.Marshal(value.Interface())

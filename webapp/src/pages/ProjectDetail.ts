@@ -1146,7 +1146,7 @@ const ProjectTaskComposer = (props: {
                 ownerMemberId: "",
                 title: title().trim(),
                 tag: tag().trim() || undefined,
-                dueAt: dueIso,
+                dueAt: dueIso ? new Date(dueIso) : undefined,
                 estimateMinutes: estimate() ? Number(estimate()) : undefined,
                 assignees: [],
                 ...toRecurrence(recFreq(), recInterval(), recNextAt(), recByWeekday(), recBySetpos(), dueIso),
@@ -1810,7 +1810,7 @@ const ProjectSubtaskComposer = (props: {
                 ownerMemberId: "",
                 title: title().trim(),
                 tag: tag().trim() || undefined,
-                dueAt: due() || undefined,
+                dueAt: due() ? new Date(due()) : undefined,
                 estimateMinutes: estimate() ? Number(estimate()) : undefined,
                 parentTaskId: props.parent.taskId,
             };
@@ -2224,8 +2224,8 @@ const MilestoneForm = (props: {
                     whenLabel: whenLabel().trim(),
                     state: state() as any,
                     position: position(),
-                    createdAt: "",
-                    updatedAt: "",
+                    createdAt: new Date(0),
+                    updatedAt: new Date(0),
                 });
             }
             transaction(() => { setLabel(""); setWhenLabel(""); });

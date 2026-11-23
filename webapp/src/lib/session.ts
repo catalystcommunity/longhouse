@@ -27,7 +27,7 @@ export async function finishLogin(resp: LoginResponse): Promise<void> {
     domain: resp.domain,
     userId: resp.userId,
     displayName: resp.displayName,
-    expiresAt: resp.expiresAt,
+    expiresAt: resp.expiresAt.toISOString(),
   });
   await loadHouses();
 }

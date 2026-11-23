@@ -29,9 +29,8 @@ membership model.
 - **clients/**: generated client libraries, one self-contained package per
   language, under `clients/<lang>/`. The SPA consumes `clients/typescript`
   (`@longhouse/client`) via a Vite/tsconfig path alias to its source. Generated
-  by `clients/regenerate.sh` (don't hand-edit). Each package is dependency-free
-  — the generated `codec.gen.*` owns the wire, so there is no separate transport
-  library to vendor or pin.
+  by `clients/regenerate.sh` (don't hand-edit). Each package includes its wire codec.
+  The Rust client uses the `time` crate for timestamps.
 - **csil/**: CSIL service definitions and types (`longhouse.csil`),
   source of truth for the Go server stubs AND every clients/ language.
   Run `./csil/regenerate.sh` after any spec change (it regenerates the Go
@@ -161,15 +160,12 @@ dev-auth and recurrence-worker knobs.
 
 - **CSIL-first.** The spec drives the Go server stubs and every clients/
   language. Don't hand-modify generated files; edit `csil/longhouse.csil` and
-  rerun `./csil/regenerate.sh`. `csilgen` is a required **system tool** (like
-  docker/gofmt) — install it from its repo if missing (the regenerate scripts
-  print the command). Consumer-side needs from csilgen are filed as markdown
-  in `csilgen/docs/csilgen-requests/`. Status: all 14 generators emit; **13
-  compile** (typescript, go, rust, python, ruby, elixir, csharp, dart, ocaml,
-  zig, c, java, kotlin — verified via the `catalyst-tools` toolchains). Only
-  **swift** is unverified, purely for lack of a local `swiftc` (it's a system
-  install). `clients/regenerate.sh` keeps a `KNOWN_BROKEN` hook (currently
-  empty) for any generator that stops emitting.
+  rerun `./csil/regenerate.sh`. Use csilgen 0.2.15 and the WASM generators
+  from the same release. In the csilgen repository, run
+  `./tools.sh install-all csilgen/v0.2.15` to install them.
+  Report generator problems in `csilgen/docs/csilgen-requests/`.
+  The script generates all 14 client packages. Use the Swift 6.0 container
+  to build the Swift package on Linux.
 - **CSIL-RPC wire format.** `application/cbor` in both directions. Server
   fields are snake_case (Go JSON tags); the generated `codec.gen.*` emits those
   snake_case keys directly and maps them back to the camelCase generated types,

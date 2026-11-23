@@ -20,7 +20,7 @@ export const AccountPage = () => {
     const [cliSessions, { refetch: refetchCliSessions }] = query(() => session()?.token, async () => ((await authClient.listSessions({})).sessions ?? []).filter(
     // Every browser sign-in makes a session, so ended ones would pile
     // up here. Keep only live browser sessions; CLI rows stay visible.
-    (s) => s.kind !== "browser" || (!s.revokedAt && Date.parse(s.expiresAt) > Date.now())));
+    (s) => s.kind !== "browser" || (!s.revokedAt && s.expiresAt.getTime() > Date.now())));
     const onSignOut = async () => {
         await endSession();
         navigate(import.meta.env.DEV ? "/dev-login" : "/");
@@ -214,7 +214,7 @@ export const AccountPage = () => {
                                                             return cliSessions();
                                                         },
                                                         children: (cliSession) => {
-                                                            const inactive = () => Boolean(cliSession.revokedAt) || Date.parse(cliSession.expiresAt) <= Date.now();
+                                                            const inactive = () => Boolean(cliSession.revokedAt) || cliSession.expiresAt.getTime() <= Date.now();
                                                             const kindLabel = cliSession.kind === "browser" ? "Browser" : "Command line";
                                                             return (el("li", {
                                                                 "style": "display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-md)",

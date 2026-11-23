@@ -69,7 +69,7 @@ func (s *AuthService) BeginCliLogin(ctx context.Context, req csil.BeginCliLoginR
 			DeviceCode:      deviceCode,
 			UserCode:        userCode,
 			VerificationUrl: verificationURL,
-			ExpiresAt:       timestamp(expires),
+			ExpiresAt:       ts(expires),
 			IntervalSeconds: cliPollInterval,
 		}, nil
 	}
@@ -110,7 +110,7 @@ func (s *AuthService) InspectCliLogin(ctx context.Context, req csil.ApproveCliLo
 	return csil.CliLoginRequestInfo{
 		UserCode:   formatUserCode(code),
 		ClientName: login.ClientName,
-		ExpiresAt:  timestamp(login.ExpiresAt),
+		ExpiresAt:  ts(login.ExpiresAt),
 	}, nil
 }
 
@@ -199,9 +199,9 @@ func (s *AuthService) ListSessions(ctx context.Context, _ csil.EmptyRequest) (cs
 	}
 	out := make([]csil.CliSessionSummary, 0, len(sessions))
 	for _, session := range sessions {
-		var revokedAt *csil.Timestamp
+		var revokedAt *time.Time
 		if session.RevokedAt != nil {
-			t := timestamp(*session.RevokedAt)
+			t := ts(*session.RevokedAt)
 			revokedAt = &t
 		}
 		kind := csil.SessionKind(session.Kind)
@@ -209,9 +209,9 @@ func (s *AuthService) ListSessions(ctx context.Context, _ csil.EmptyRequest) (cs
 		out = append(out, csil.CliSessionSummary{
 			SessionId:  csil.CliSessionID(session.SessionID),
 			ClientName: session.ClientName,
-			CreatedAt:  timestamp(session.CreatedAt),
-			LastUsedAt: timestamp(session.LastUsedAt),
-			ExpiresAt:  timestamp(session.ExpiresAt),
+			CreatedAt:  ts(session.CreatedAt),
+			LastUsedAt: ts(session.LastUsedAt),
+			ExpiresAt:  ts(session.ExpiresAt),
 			RevokedAt:  revokedAt,
 			Kind:       &kind,
 			Current:    &current,
@@ -260,7 +260,7 @@ func (s *AuthService) cliToken(ctx context.Context, session *models.CliSession, 
 		DisplayName:      login.DisplayName,
 		ExpiresAt:        login.ExpiresAt,
 		RefreshToken:     refreshToken,
-		RefreshExpiresAt: timestamp(session.ExpiresAt),
+		RefreshExpiresAt: ts(session.ExpiresAt),
 		SessionId:        csil.CliSessionID(session.SessionID),
 	}, nil
 }
@@ -345,8 +345,4 @@ func randomUserCode() (string, error) {
 func hashSecret(secret string) []byte {
 	sum := sha256.Sum256([]byte(secret))
 	return sum[:]
-}
-
-func timestamp(t time.Time) csil.Timestamp {
-	return csil.Timestamp(t.UTC().Format(time.RFC3339))
 }

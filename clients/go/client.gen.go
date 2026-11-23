@@ -49,7 +49,11 @@ func (c *AuthClient) BeginBrowserLogin(ctx context.Context, req BeginBrowserLogi
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeBeginBrowserLoginResponse(csilResp)
+	value, err := DecodeBeginBrowserLoginResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) GetActAsScopeSet(ctx context.Context, req ActAsScopeSetRequest) (ActAsScopeSetResponse, error) {
@@ -58,7 +62,11 @@ func (c *AuthClient) GetActAsScopeSet(ctx context.Context, req ActAsScopeSetRequ
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeActAsScopeSetResponse(csilResp)
+	value, err := DecodeActAsScopeSetResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) ExchangeActAsCredential(ctx context.Context, req ExchangeActAsCredentialRequest) (ActAsTokenResponse, error) {
@@ -67,7 +75,11 @@ func (c *AuthClient) ExchangeActAsCredential(ctx context.Context, req ExchangeAc
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeActAsTokenResponse(csilResp)
+	value, err := DecodeActAsTokenResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) Login(ctx context.Context, req LoginRequest) (LoginResponse, error) {
@@ -76,7 +88,11 @@ func (c *AuthClient) Login(ctx context.Context, req LoginRequest) (LoginResponse
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeLoginResponse(csilResp)
+	value, err := DecodeLoginResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) Complete(ctx context.Context, req CompleteRequest) (LoginResponse, error) {
@@ -85,7 +101,11 @@ func (c *AuthClient) Complete(ctx context.Context, req CompleteRequest) (LoginRe
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeLoginResponse(csilResp)
+	value, err := DecodeLoginResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) Refresh(ctx context.Context, req EmptyRequest) (LoginResponse, error) {
@@ -94,7 +114,11 @@ func (c *AuthClient) Refresh(ctx context.Context, req EmptyRequest) (LoginRespon
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeLoginResponse(csilResp)
+	value, err := DecodeLoginResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) Logout(ctx context.Context, req EmptyRequest) (EmptyResponse, error) {
@@ -103,7 +127,11 @@ func (c *AuthClient) Logout(ctx context.Context, req EmptyRequest) (EmptyRespons
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) ResumeSession(ctx context.Context, req EmptyRequest) (LoginResponse, error) {
@@ -112,7 +140,11 @@ func (c *AuthClient) ResumeSession(ctx context.Context, req EmptyRequest) (Login
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeLoginResponse(csilResp)
+	value, err := DecodeLoginResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) EndSession(ctx context.Context, req EmptyRequest) (EmptyResponse, error) {
@@ -121,7 +153,11 @@ func (c *AuthClient) EndSession(ctx context.Context, req EmptyRequest) (EmptyRes
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) Me(ctx context.Context, req EmptyRequest) (MeResponse, error) {
@@ -130,7 +166,11 @@ func (c *AuthClient) Me(ctx context.Context, req EmptyRequest) (MeResponse, erro
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeMeResponse(csilResp)
+	value, err := DecodeMeResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) BeginCliLogin(ctx context.Context, req BeginCliLoginRequest) (BeginCliLoginResponse, error) {
@@ -139,7 +179,11 @@ func (c *AuthClient) BeginCliLogin(ctx context.Context, req BeginCliLoginRequest
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeBeginCliLoginResponse(csilResp)
+	value, err := DecodeBeginCliLoginResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) InspectCliLogin(ctx context.Context, req ApproveCliLoginRequest) (CliLoginRequestInfo, error) {
@@ -148,7 +192,11 @@ func (c *AuthClient) InspectCliLogin(ctx context.Context, req ApproveCliLoginReq
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeCliLoginRequestInfo(csilResp)
+	value, err := DecodeCliLoginRequestInfo(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) ApproveCliLogin(ctx context.Context, req ApproveCliLoginRequest) (EmptyResponse, error) {
@@ -157,7 +205,11 @@ func (c *AuthClient) ApproveCliLogin(ctx context.Context, req ApproveCliLoginReq
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) DenyCliLogin(ctx context.Context, req DenyCliLoginRequest) (EmptyResponse, error) {
@@ -166,7 +218,11 @@ func (c *AuthClient) DenyCliLogin(ctx context.Context, req DenyCliLoginRequest) 
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) ExchangeCliLogin(ctx context.Context, req ExchangeCliLoginRequest) (ExchangeCliLoginResponse, error) {
@@ -175,7 +231,11 @@ func (c *AuthClient) ExchangeCliLogin(ctx context.Context, req ExchangeCliLoginR
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeExchangeCliLoginResponse(csilResp)
+	value, err := DecodeExchangeCliLoginResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) RefreshSession(ctx context.Context, req RefreshSessionRequest) (CliTokenResponse, error) {
@@ -184,7 +244,11 @@ func (c *AuthClient) RefreshSession(ctx context.Context, req RefreshSessionReque
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeCliTokenResponse(csilResp)
+	value, err := DecodeCliTokenResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) ListSessions(ctx context.Context, req EmptyRequest) (CliSessionsResponse, error) {
@@ -193,7 +257,11 @@ func (c *AuthClient) ListSessions(ctx context.Context, req EmptyRequest) (CliSes
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeCliSessionsResponse(csilResp)
+	value, err := DecodeCliSessionsResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *AuthClient) RevokeSession(ctx context.Context, req RevokeSessionRequest) (EmptyResponse, error) {
@@ -202,7 +270,11 @@ func (c *AuthClient) RevokeSession(ctx context.Context, req RevokeSessionRequest
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // DevAuthClient is a typed client for the DevAuthService service. The client owns
@@ -221,7 +293,11 @@ func (c *DevAuthClient) ListDevUsers(ctx context.Context, req EmptyRequest) (Dev
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeDevUsersResponse(csilResp)
+	value, err := DecodeDevUsersResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *DevAuthClient) DevLogin(ctx context.Context, req DevLoginRequest) (LoginResponse, error) {
@@ -230,7 +306,11 @@ func (c *DevAuthClient) DevLogin(ctx context.Context, req DevLoginRequest) (Logi
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeLoginResponse(csilResp)
+	value, err := DecodeLoginResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // HouseClient is a typed client for the HouseService service. The client owns
@@ -249,7 +329,11 @@ func (c *HouseClient) CreateHouse(ctx context.Context, req House) (House, error)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeHouse(csilResp)
+	value, err := DecodeHouse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *HouseClient) GetHouse(ctx context.Context, req HouseID) (House, error) {
@@ -258,7 +342,11 @@ func (c *HouseClient) GetHouse(ctx context.Context, req HouseID) (House, error) 
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeHouse(csilResp)
+	value, err := DecodeHouse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *HouseClient) UpdateHouse(ctx context.Context, req House) (House, error) {
@@ -267,7 +355,11 @@ func (c *HouseClient) UpdateHouse(ctx context.Context, req House) (House, error)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeHouse(csilResp)
+	value, err := DecodeHouse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *HouseClient) DeleteHouse(ctx context.Context, req HouseID) (EmptyResponse, error) {
@@ -276,7 +368,11 @@ func (c *HouseClient) DeleteHouse(ctx context.Context, req HouseID) (EmptyRespon
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *HouseClient) ListHouses(ctx context.Context, req HouseListRequest) ([]House, error) {
@@ -304,7 +400,11 @@ func (c *MemberClient) CreateMember(ctx context.Context, req Member) (Member, er
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeMember(csilResp)
+	value, err := DecodeMember(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *MemberClient) GetMember(ctx context.Context, req MemberID) (Member, error) {
@@ -313,7 +413,11 @@ func (c *MemberClient) GetMember(ctx context.Context, req MemberID) (Member, err
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeMember(csilResp)
+	value, err := DecodeMember(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *MemberClient) GetMemberByIdentity(ctx context.Context, req Member) (Member, error) {
@@ -322,7 +426,11 @@ func (c *MemberClient) GetMemberByIdentity(ctx context.Context, req Member) (Mem
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeMember(csilResp)
+	value, err := DecodeMember(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *MemberClient) UpdateMember(ctx context.Context, req Member) (Member, error) {
@@ -331,7 +439,11 @@ func (c *MemberClient) UpdateMember(ctx context.Context, req Member) (Member, er
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeMember(csilResp)
+	value, err := DecodeMember(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *MemberClient) DeactivateMember(ctx context.Context, req MemberID) (EmptyResponse, error) {
@@ -340,7 +452,11 @@ func (c *MemberClient) DeactivateMember(ctx context.Context, req MemberID) (Empt
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *MemberClient) ReactivateMember(ctx context.Context, req MemberID) (EmptyResponse, error) {
@@ -349,7 +465,11 @@ func (c *MemberClient) ReactivateMember(ctx context.Context, req MemberID) (Empt
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *MemberClient) ListMembers(ctx context.Context, req HouseScopedListRequest) ([]Member, error) {
@@ -377,7 +497,11 @@ func (c *TrustedDomainClient) AddTrustedDomain(ctx context.Context, req TrustedD
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeTrustedDomain(csilResp)
+	value, err := DecodeTrustedDomain(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TrustedDomainClient) RemoveTrustedDomain(ctx context.Context, req TrustedDomainID) (EmptyResponse, error) {
@@ -386,7 +510,11 @@ func (c *TrustedDomainClient) RemoveTrustedDomain(ctx context.Context, req Trust
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TrustedDomainClient) ListTrustedDomains(ctx context.Context, req HouseID) ([]TrustedDomain, error) {
@@ -404,7 +532,11 @@ func (c *TrustedDomainClient) IsDomainTrusted(ctx context.Context, req TrustedDo
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeBoolResponse(csilResp)
+	value, err := DecodeBoolResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // RoleClient is a typed client for the RoleService service. The client owns
@@ -423,7 +555,11 @@ func (c *RoleClient) CreateRole(ctx context.Context, req Role) (Role, error) {
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeRole(csilResp)
+	value, err := DecodeRole(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *RoleClient) UpdateRole(ctx context.Context, req Role) (Role, error) {
@@ -432,7 +568,11 @@ func (c *RoleClient) UpdateRole(ctx context.Context, req Role) (Role, error) {
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeRole(csilResp)
+	value, err := DecodeRole(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *RoleClient) DeleteRole(ctx context.Context, req RoleID) (EmptyResponse, error) {
@@ -441,7 +581,11 @@ func (c *RoleClient) DeleteRole(ctx context.Context, req RoleID) (EmptyResponse,
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *RoleClient) ListRoles(ctx context.Context, req HouseScopedListRequest) ([]Role, error) {
@@ -459,7 +603,11 @@ func (c *RoleClient) GrantRole(ctx context.Context, req MemberRoleRef) (EmptyRes
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *RoleClient) RevokeRole(ctx context.Context, req MemberRoleRef) (EmptyResponse, error) {
@@ -468,7 +616,11 @@ func (c *RoleClient) RevokeRole(ctx context.Context, req MemberRoleRef) (EmptyRe
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *RoleClient) ListMemberRoles(ctx context.Context, req MemberScopedListRequest) ([]Role, error) {
@@ -496,7 +648,11 @@ func (c *SkillClient) CreateSkill(ctx context.Context, req Skill) (Skill, error)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeSkill(csilResp)
+	value, err := DecodeSkill(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *SkillClient) UpdateSkill(ctx context.Context, req Skill) (Skill, error) {
@@ -505,7 +661,11 @@ func (c *SkillClient) UpdateSkill(ctx context.Context, req Skill) (Skill, error)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeSkill(csilResp)
+	value, err := DecodeSkill(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *SkillClient) DeleteSkill(ctx context.Context, req SkillID) (EmptyResponse, error) {
@@ -514,7 +674,11 @@ func (c *SkillClient) DeleteSkill(ctx context.Context, req SkillID) (EmptyRespon
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *SkillClient) ListSkills(ctx context.Context, req HouseScopedListRequest) ([]Skill, error) {
@@ -532,7 +696,11 @@ func (c *SkillClient) AddMemberSkill(ctx context.Context, req MemberSkillRef) (E
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *SkillClient) RemoveMemberSkill(ctx context.Context, req MemberSkillRef) (EmptyResponse, error) {
@@ -541,7 +709,11 @@ func (c *SkillClient) RemoveMemberSkill(ctx context.Context, req MemberSkillRef)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *SkillClient) ListMemberSkills(ctx context.Context, req MemberScopedListRequest) ([]Skill, error) {
@@ -559,7 +731,11 @@ func (c *SkillClient) AddGroupSkill(ctx context.Context, req GroupSkillRef) (Emp
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *SkillClient) RemoveGroupSkill(ctx context.Context, req GroupSkillRef) (EmptyResponse, error) {
@@ -568,7 +744,11 @@ func (c *SkillClient) RemoveGroupSkill(ctx context.Context, req GroupSkillRef) (
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *SkillClient) ListGroupSkills(ctx context.Context, req GroupID) ([]Skill, error) {
@@ -596,7 +776,11 @@ func (c *GroupClient) CreateGroup(ctx context.Context, req Group) (Group, error)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeGroup(csilResp)
+	value, err := DecodeGroup(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *GroupClient) UpdateGroup(ctx context.Context, req Group) (Group, error) {
@@ -605,7 +789,11 @@ func (c *GroupClient) UpdateGroup(ctx context.Context, req Group) (Group, error)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeGroup(csilResp)
+	value, err := DecodeGroup(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *GroupClient) DeleteGroup(ctx context.Context, req GroupID) (EmptyResponse, error) {
@@ -614,7 +802,11 @@ func (c *GroupClient) DeleteGroup(ctx context.Context, req GroupID) (EmptyRespon
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *GroupClient) ListGroups(ctx context.Context, req HouseScopedListRequest) ([]Group, error) {
@@ -632,7 +824,11 @@ func (c *GroupClient) AddGroupMember(ctx context.Context, req GroupMemberRef) (E
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *GroupClient) RemoveGroupMember(ctx context.Context, req GroupMemberRef) (EmptyResponse, error) {
@@ -641,7 +837,11 @@ func (c *GroupClient) RemoveGroupMember(ctx context.Context, req GroupMemberRef)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *GroupClient) ListGroupMembers(ctx context.Context, req MemberScopedListRequest) ([]Member, error) {
@@ -669,7 +869,11 @@ func (c *ProjectClient) CreateProject(ctx context.Context, req Project) (Project
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeProject(csilResp)
+	value, err := DecodeProject(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) GetProject(ctx context.Context, req ProjectID) (Project, error) {
@@ -678,7 +882,11 @@ func (c *ProjectClient) GetProject(ctx context.Context, req ProjectID) (Project,
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeProject(csilResp)
+	value, err := DecodeProject(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) UpdateProject(ctx context.Context, req Project) (Project, error) {
@@ -687,7 +895,11 @@ func (c *ProjectClient) UpdateProject(ctx context.Context, req Project) (Project
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeProject(csilResp)
+	value, err := DecodeProject(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) DeleteProject(ctx context.Context, req ProjectID) (EmptyResponse, error) {
@@ -696,7 +908,11 @@ func (c *ProjectClient) DeleteProject(ctx context.Context, req ProjectID) (Empty
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) ListProjects(ctx context.Context, req HouseScopedListRequest) (ProjectList, error) {
@@ -705,7 +921,11 @@ func (c *ProjectClient) ListProjects(ctx context.Context, req HouseScopedListReq
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeProjectList(csilResp)
+	value, err := DecodeProjectList(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) ListProjectTasks(ctx context.Context, req ProjectScopedListRequest) (TaskList, error) {
@@ -714,7 +934,11 @@ func (c *ProjectClient) ListProjectTasks(ctx context.Context, req ProjectScopedL
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeTaskList(csilResp)
+	value, err := DecodeTaskList(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) AddProjectTask(ctx context.Context, req ProjectTaskOrderRequest) (EmptyResponse, error) {
@@ -723,7 +947,11 @@ func (c *ProjectClient) AddProjectTask(ctx context.Context, req ProjectTaskOrder
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) RemoveProjectTask(ctx context.Context, req ProjectTaskRef) (EmptyResponse, error) {
@@ -732,7 +960,11 @@ func (c *ProjectClient) RemoveProjectTask(ctx context.Context, req ProjectTaskRe
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) SetProjectTaskPosition(ctx context.Context, req ProjectTaskOrderRequest) (EmptyResponse, error) {
@@ -741,7 +973,11 @@ func (c *ProjectClient) SetProjectTaskPosition(ctx context.Context, req ProjectT
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) ListProjectMembers(ctx context.Context, req ProjectID) ([]Member, error) {
@@ -759,7 +995,11 @@ func (c *ProjectClient) AddProjectMember(ctx context.Context, req ProjectMemberR
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) RemoveProjectMember(ctx context.Context, req ProjectMemberRef) (EmptyResponse, error) {
@@ -768,7 +1008,11 @@ func (c *ProjectClient) RemoveProjectMember(ctx context.Context, req ProjectMemb
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) ListProjectOwners(ctx context.Context, req ProjectID) ([]Member, error) {
@@ -786,7 +1030,11 @@ func (c *ProjectClient) AddProjectOwner(ctx context.Context, req ProjectOwnerRef
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) RemoveProjectOwner(ctx context.Context, req ProjectOwnerRef) (EmptyResponse, error) {
@@ -795,7 +1043,11 @@ func (c *ProjectClient) RemoveProjectOwner(ctx context.Context, req ProjectOwner
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) ListMilestones(ctx context.Context, req ProjectID) ([]Milestone, error) {
@@ -813,7 +1065,11 @@ func (c *ProjectClient) CreateMilestone(ctx context.Context, req Milestone) (Mil
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeMilestone(csilResp)
+	value, err := DecodeMilestone(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) UpdateMilestone(ctx context.Context, req Milestone) (Milestone, error) {
@@ -822,7 +1078,11 @@ func (c *ProjectClient) UpdateMilestone(ctx context.Context, req Milestone) (Mil
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeMilestone(csilResp)
+	value, err := DecodeMilestone(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) DeleteMilestone(ctx context.Context, req MilestoneID) (EmptyResponse, error) {
@@ -831,7 +1091,11 @@ func (c *ProjectClient) DeleteMilestone(ctx context.Context, req MilestoneID) (E
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) SetProjectVisibility(ctx context.Context, req SetProjectVisibilityRequest) (Project, error) {
@@ -840,7 +1104,11 @@ func (c *ProjectClient) SetProjectVisibility(ctx context.Context, req SetProject
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeProject(csilResp)
+	value, err := DecodeProject(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) ListProjectGrants(ctx context.Context, req ProjectID) ([]Grant, error) {
@@ -858,7 +1126,11 @@ func (c *ProjectClient) PutProjectGrant(ctx context.Context, req PutProjectGrant
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ProjectClient) DeleteProjectGrant(ctx context.Context, req ProjectGrantRef) (EmptyResponse, error) {
@@ -867,7 +1139,11 @@ func (c *ProjectClient) DeleteProjectGrant(ctx context.Context, req ProjectGrant
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // EventClient is a typed client for the EventService service. The client owns
@@ -886,7 +1162,11 @@ func (c *EventClient) CreateEvent(ctx context.Context, req Event) (Event, error)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEvent(csilResp)
+	value, err := DecodeEvent(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *EventClient) GetEvent(ctx context.Context, req EventID) (Event, error) {
@@ -895,7 +1175,11 @@ func (c *EventClient) GetEvent(ctx context.Context, req EventID) (Event, error) 
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEvent(csilResp)
+	value, err := DecodeEvent(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *EventClient) UpdateEvent(ctx context.Context, req Event) (Event, error) {
@@ -904,7 +1188,11 @@ func (c *EventClient) UpdateEvent(ctx context.Context, req Event) (Event, error)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEvent(csilResp)
+	value, err := DecodeEvent(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *EventClient) DeleteEvent(ctx context.Context, req EventID) (EmptyResponse, error) {
@@ -913,7 +1201,11 @@ func (c *EventClient) DeleteEvent(ctx context.Context, req EventID) (EmptyRespon
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *EventClient) DeleteEventAndFuture(ctx context.Context, req EventID) (EmptyResponse, error) {
@@ -922,7 +1214,11 @@ func (c *EventClient) DeleteEventAndFuture(ctx context.Context, req EventID) (Em
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *EventClient) ListEvents(ctx context.Context, req EventListRequest) ([]Event, error) {
@@ -940,7 +1236,11 @@ func (c *EventClient) GetCalendarView(ctx context.Context, req HouseID) (Calenda
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeCalendarView(csilResp)
+	value, err := DecodeCalendarView(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *EventClient) SetCalendarView(ctx context.Context, req CalendarView) (CalendarView, error) {
@@ -949,7 +1249,11 @@ func (c *EventClient) SetCalendarView(ctx context.Context, req CalendarView) (Ca
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeCalendarView(csilResp)
+	value, err := DecodeCalendarView(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *EventClient) AcceptEvent(ctx context.Context, req EventDecision) (Event, error) {
@@ -958,7 +1262,11 @@ func (c *EventClient) AcceptEvent(ctx context.Context, req EventDecision) (Event
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEvent(csilResp)
+	value, err := DecodeEvent(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *EventClient) RecoverEdit(ctx context.Context, req EventID) (Event, error) {
@@ -967,7 +1275,11 @@ func (c *EventClient) RecoverEdit(ctx context.Context, req EventID) (Event, erro
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEvent(csilResp)
+	value, err := DecodeEvent(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *EventClient) DeclineEvent(ctx context.Context, req EventDecision) (Event, error) {
@@ -976,7 +1288,11 @@ func (c *EventClient) DeclineEvent(ctx context.Context, req EventDecision) (Even
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEvent(csilResp)
+	value, err := DecodeEvent(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *EventClient) ListLocalEvents(ctx context.Context, req HouseID) ([]Event, error) {
@@ -1004,7 +1320,11 @@ func (c *CalendarClient) ListProjectDeadlines(ctx context.Context, req ProjectDe
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeProjectDeadlineList(csilResp)
+	value, err := DecodeProjectDeadlineList(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *CalendarClient) GetStatus(ctx context.Context, req HouseID) (CalendarStatus, error) {
@@ -1013,7 +1333,11 @@ func (c *CalendarClient) GetStatus(ctx context.Context, req HouseID) (CalendarSt
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeCalendarStatus(csilResp)
+	value, err := DecodeCalendarStatus(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *CalendarClient) ConfigureCalendar(ctx context.Context, req ConfigureCalendarRequest) (CalendarStatus, error) {
@@ -1022,7 +1346,11 @@ func (c *CalendarClient) ConfigureCalendar(ctx context.Context, req ConfigureCal
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeCalendarStatus(csilResp)
+	value, err := DecodeCalendarStatus(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *CalendarClient) BeginConnect(ctx context.Context, req HouseID) (CalendarConnectResponse, error) {
@@ -1031,7 +1359,11 @@ func (c *CalendarClient) BeginConnect(ctx context.Context, req HouseID) (Calenda
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeCalendarConnectResponse(csilResp)
+	value, err := DecodeCalendarConnectResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *CalendarClient) CompleteConnect(ctx context.Context, req CompleteCalendarConnectRequest) (CalendarStatus, error) {
@@ -1040,7 +1372,11 @@ func (c *CalendarClient) CompleteConnect(ctx context.Context, req CompleteCalend
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeCalendarStatus(csilResp)
+	value, err := DecodeCalendarStatus(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *CalendarClient) Disconnect(ctx context.Context, req HouseID) (EmptyResponse, error) {
@@ -1049,7 +1385,11 @@ func (c *CalendarClient) Disconnect(ctx context.Context, req HouseID) (EmptyResp
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *CalendarClient) PreviewMigration(ctx context.Context, req HouseID) ([]CalendarMigrationRow, error) {
@@ -1076,7 +1416,11 @@ func (c *CalendarClient) RestoreEvent(ctx context.Context, req RestoreCalendarEv
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEvent(csilResp)
+	value, err := DecodeEvent(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // TaskClient is a typed client for the TaskService service. The client owns
@@ -1095,7 +1439,11 @@ func (c *TaskClient) CreateTask(ctx context.Context, req Task) (Task, error) {
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeTask(csilResp)
+	value, err := DecodeTask(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TaskClient) GetTask(ctx context.Context, req TaskID) (Task, error) {
@@ -1104,7 +1452,11 @@ func (c *TaskClient) GetTask(ctx context.Context, req TaskID) (Task, error) {
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeTask(csilResp)
+	value, err := DecodeTask(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TaskClient) UpdateTask(ctx context.Context, req Task) (Task, error) {
@@ -1113,7 +1465,11 @@ func (c *TaskClient) UpdateTask(ctx context.Context, req Task) (Task, error) {
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeTask(csilResp)
+	value, err := DecodeTask(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TaskClient) DeleteTask(ctx context.Context, req TaskID) (EmptyResponse, error) {
@@ -1122,7 +1478,11 @@ func (c *TaskClient) DeleteTask(ctx context.Context, req TaskID) (EmptyResponse,
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TaskClient) ListTasks(ctx context.Context, req TaskListRequest) (TaskList, error) {
@@ -1131,7 +1491,11 @@ func (c *TaskClient) ListTasks(ctx context.Context, req TaskListRequest) (TaskLi
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeTaskList(csilResp)
+	value, err := DecodeTaskList(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TaskClient) CreatePersonalTask(ctx context.Context, req Task) (Task, error) {
@@ -1140,7 +1504,11 @@ func (c *TaskClient) CreatePersonalTask(ctx context.Context, req Task) (Task, er
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeTask(csilResp)
+	value, err := DecodeTask(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TaskClient) SetTaskVisibility(ctx context.Context, req SetTaskVisibilityRequest) (Task, error) {
@@ -1149,7 +1517,11 @@ func (c *TaskClient) SetTaskVisibility(ctx context.Context, req SetTaskVisibilit
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeTask(csilResp)
+	value, err := DecodeTask(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TaskClient) ListTaskGrants(ctx context.Context, req TaskID) ([]Grant, error) {
@@ -1167,7 +1539,11 @@ func (c *TaskClient) PutTaskGrant(ctx context.Context, req PutTaskGrantRequest) 
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TaskClient) DeleteTaskGrant(ctx context.Context, req TaskGrantRef) (EmptyResponse, error) {
@@ -1176,7 +1552,11 @@ func (c *TaskClient) DeleteTaskGrant(ctx context.Context, req TaskGrantRef) (Emp
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // DependencyClient is a typed client for the DependencyService service. The client owns
@@ -1195,7 +1575,11 @@ func (c *DependencyClient) AddDependency(ctx context.Context, req DependencyRef)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *DependencyClient) RemoveDependency(ctx context.Context, req DependencyRef) (EmptyResponse, error) {
@@ -1204,7 +1588,11 @@ func (c *DependencyClient) RemoveDependency(ctx context.Context, req DependencyR
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *DependencyClient) GetDependencies(ctx context.Context, req DependencyTarget) (DependencyGraph, error) {
@@ -1213,7 +1601,11 @@ func (c *DependencyClient) GetDependencies(ctx context.Context, req DependencyTa
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeDependencyGraph(csilResp)
+	value, err := DecodeDependencyGraph(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // CommentClient is a typed client for the CommentService service. The client owns
@@ -1232,7 +1624,11 @@ func (c *CommentClient) CreateComment(ctx context.Context, req Comment) (Comment
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeComment(csilResp)
+	value, err := DecodeComment(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *CommentClient) GetComment(ctx context.Context, req CommentID) (Comment, error) {
@@ -1241,7 +1637,11 @@ func (c *CommentClient) GetComment(ctx context.Context, req CommentID) (Comment,
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeComment(csilResp)
+	value, err := DecodeComment(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *CommentClient) UpdateComment(ctx context.Context, req Comment) (Comment, error) {
@@ -1250,7 +1650,11 @@ func (c *CommentClient) UpdateComment(ctx context.Context, req Comment) (Comment
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeComment(csilResp)
+	value, err := DecodeComment(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *CommentClient) DeleteComment(ctx context.Context, req CommentID) (EmptyResponse, error) {
@@ -1259,7 +1663,11 @@ func (c *CommentClient) DeleteComment(ctx context.Context, req CommentID) (Empty
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *CommentClient) ListComments(ctx context.Context, req CommentListRequest) ([]Comment, error) {
@@ -1296,7 +1704,11 @@ func (c *NotificationClient) UnreadCount(ctx context.Context, req HouseID) (Noti
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeNotificationUnreadCount(csilResp)
+	value, err := DecodeNotificationUnreadCount(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *NotificationClient) MarkRead(ctx context.Context, req NotificationID) (Notification, error) {
@@ -1305,7 +1717,11 @@ func (c *NotificationClient) MarkRead(ctx context.Context, req NotificationID) (
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeNotification(csilResp)
+	value, err := DecodeNotification(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *NotificationClient) MarkAllRead(ctx context.Context, req HouseID) (EmptyResponse, error) {
@@ -1314,7 +1730,11 @@ func (c *NotificationClient) MarkAllRead(ctx context.Context, req HouseID) (Empt
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // ShareClient is a typed client for the ShareService service. The client owns
@@ -1333,7 +1753,11 @@ func (c *ShareClient) CreateShare(ctx context.Context, req Share) (Share, error)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeShare(csilResp)
+	value, err := DecodeShare(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ShareClient) DeleteShare(ctx context.Context, req ShareID) (EmptyResponse, error) {
@@ -1342,7 +1766,11 @@ func (c *ShareClient) DeleteShare(ctx context.Context, req ShareID) (EmptyRespon
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *ShareClient) ListSharesByResource(ctx context.Context, req ResourceRef) ([]Share, error) {
@@ -1360,7 +1788,11 @@ func (c *ShareClient) CheckAccess(ctx context.Context, req ShareAccessRequest) (
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeShare(csilResp)
+	value, err := DecodeShare(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // MemberAuditClient is a typed client for the MemberAuditService service. The client owns
@@ -1398,7 +1830,11 @@ func (c *SettingsClient) GetSettings(ctx context.Context, req HouseID) (Effectiv
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEffectiveSettings(csilResp)
+	value, err := DecodeEffectiveSettings(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *SettingsClient) UpdateSettings(ctx context.Context, req UpdateSettingsRequest) (EffectiveSettings, error) {
@@ -1407,7 +1843,11 @@ func (c *SettingsClient) UpdateSettings(ctx context.Context, req UpdateSettingsR
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEffectiveSettings(csilResp)
+	value, err := DecodeEffectiveSettings(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // BugClient is a typed client for the BugService service. The client owns
@@ -1426,7 +1866,11 @@ func (c *BugClient) ReportBug(ctx context.Context, req BugReportRequest) (Task, 
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeTask(csilResp)
+	value, err := DecodeTask(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // AuditClient is a typed client for the AuditService service. The client owns
@@ -1445,7 +1889,11 @@ func (c *AuditClient) QueryAudit(ctx context.Context, req AuditQuery) (AuditPage
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeAuditPage(csilResp)
+	value, err := DecodeAuditPage(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 // TrashClient is a typed client for the TrashService service. The client owns
@@ -1464,7 +1912,11 @@ func (c *TrashClient) ListTrash(ctx context.Context, req HouseScopedListRequest)
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeTrashPage(csilResp)
+	value, err := DecodeTrashPage(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TrashClient) Restore(ctx context.Context, req RestoreRequest) (EmptyResponse, error) {
@@ -1473,7 +1925,11 @@ func (c *TrashClient) Restore(ctx context.Context, req RestoreRequest) (EmptyRes
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }
 
 func (c *TrashClient) Purge(ctx context.Context, req PurgeRequest) (EmptyResponse, error) {
@@ -1482,5 +1938,9 @@ func (c *TrashClient) Purge(ctx context.Context, req PurgeRequest) (EmptyRespons
 	if csilErr != nil {
 		return csilZero, csilErr
 	}
-	return DecodeEmptyResponse(csilResp)
+	value, err := DecodeEmptyResponse(csilResp)
+	if err != nil {
+		return csilZero, &RPCDecodeError{err}
+	}
+	return value, nil
 }

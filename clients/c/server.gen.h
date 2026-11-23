@@ -19,224 +19,224 @@ typedef struct CsilgenCodec {
 
 /* AuthHandlers is the host's implementation of the AuthService service. */
 typedef struct AuthHandlers {
-    int (*begin_browser_login)(void *ctx, const BeginBrowserLoginRequest *req, BeginBrowserLoginResponse *resp);
-    int (*get_act_as_scope_set)(void *ctx, const ActAsScopeSetRequest *req, ActAsScopeSetResponse *resp);
-    int (*exchange_act_as_credential)(void *ctx, const ExchangeActAsCredentialRequest *req, ActAsTokenResponse *resp);
-    int (*login)(void *ctx, const LoginRequest *req, LoginResponse *resp);
-    int (*complete)(void *ctx, const CompleteRequest *req, LoginResponse *resp);
-    int (*refresh)(void *ctx, const EmptyRequest *req, LoginResponse *resp);
-    int (*logout)(void *ctx, const EmptyRequest *req, EmptyResponse *resp);
-    int (*resume_session)(void *ctx, const EmptyRequest *req, LoginResponse *resp);
-    int (*end_session)(void *ctx, const EmptyRequest *req, EmptyResponse *resp);
-    int (*me)(void *ctx, const EmptyRequest *req, MeResponse *resp);
-    int (*begin_cli_login)(void *ctx, const BeginCliLoginRequest *req, BeginCliLoginResponse *resp);
-    int (*inspect_cli_login)(void *ctx, const ApproveCliLoginRequest *req, CliLoginRequestInfo *resp);
-    int (*approve_cli_login)(void *ctx, const ApproveCliLoginRequest *req, EmptyResponse *resp);
-    int (*deny_cli_login)(void *ctx, const DenyCliLoginRequest *req, EmptyResponse *resp);
-    int (*exchange_cli_login)(void *ctx, const ExchangeCliLoginRequest *req, ExchangeCliLoginResponse *resp);
-    int (*refresh_session)(void *ctx, const RefreshSessionRequest *req, CliTokenResponse *resp);
-    int (*list_sessions)(void *ctx, const EmptyRequest *req, CliSessionsResponse *resp);
-    int (*revoke_session)(void *ctx, const RevokeSessionRequest *req, EmptyResponse *resp);
+    int (*begin_browser_login)(void *ctx, const BeginBrowserLoginRequest *req, AuthServiceBeginBrowserLoginReply *resp);
+    int (*get_act_as_scope_set)(void *ctx, const ActAsScopeSetRequest *req, AuthServiceGetActAsScopeSetReply *resp);
+    int (*exchange_act_as_credential)(void *ctx, const ExchangeActAsCredentialRequest *req, AuthServiceExchangeActAsCredentialReply *resp);
+    int (*login)(void *ctx, const LoginRequest *req, AuthServiceLoginReply *resp);
+    int (*complete)(void *ctx, const CompleteRequest *req, AuthServiceCompleteReply *resp);
+    int (*refresh)(void *ctx, const EmptyRequest *req, AuthServiceRefreshReply *resp);
+    int (*logout)(void *ctx, const EmptyRequest *req, AuthServiceLogoutReply *resp);
+    int (*resume_session)(void *ctx, const EmptyRequest *req, AuthServiceResumeSessionReply *resp);
+    int (*end_session)(void *ctx, const EmptyRequest *req, AuthServiceEndSessionReply *resp);
+    int (*me)(void *ctx, const EmptyRequest *req, AuthServiceMeReply *resp);
+    int (*begin_cli_login)(void *ctx, const BeginCliLoginRequest *req, AuthServiceBeginCliLoginReply *resp);
+    int (*inspect_cli_login)(void *ctx, const ApproveCliLoginRequest *req, AuthServiceInspectCliLoginReply *resp);
+    int (*approve_cli_login)(void *ctx, const ApproveCliLoginRequest *req, AuthServiceApproveCliLoginReply *resp);
+    int (*deny_cli_login)(void *ctx, const DenyCliLoginRequest *req, AuthServiceDenyCliLoginReply *resp);
+    int (*exchange_cli_login)(void *ctx, const ExchangeCliLoginRequest *req, AuthServiceExchangeCliLoginReply *resp);
+    int (*refresh_session)(void *ctx, const RefreshSessionRequest *req, AuthServiceRefreshSessionReply *resp);
+    int (*list_sessions)(void *ctx, const EmptyRequest *req, AuthServiceListSessionsReply *resp);
+    int (*revoke_session)(void *ctx, const RevokeSessionRequest *req, AuthServiceRevokeSessionReply *resp);
 } AuthHandlers;
 
 /* DevAuthHandlers is the host's implementation of the DevAuthService service. */
 typedef struct DevAuthHandlers {
-    int (*list_dev_users)(void *ctx, const EmptyRequest *req, DevUsersResponse *resp);
-    int (*dev_login)(void *ctx, const DevLoginRequest *req, LoginResponse *resp);
+    int (*list_dev_users)(void *ctx, const EmptyRequest *req, DevAuthServiceListDevUsersReply *resp);
+    int (*dev_login)(void *ctx, const DevLoginRequest *req, DevAuthServiceDevLoginReply *resp);
 } DevAuthHandlers;
 
 /* HouseHandlers is the host's implementation of the HouseService service. */
 typedef struct HouseHandlers {
-    int (*create_house)(void *ctx, const House *req, House *resp);
-    int (*get_house)(void *ctx, const HouseID *req, House *resp);
-    int (*update_house)(void *ctx, const House *req, House *resp);
-    int (*delete_house)(void *ctx, const HouseID *req, EmptyResponse *resp);
-    int (*list_houses)(void *ctx, const HouseListRequest *req, House * *resp);
+    int (*create_house)(void *ctx, const House *req, HouseServiceCreateHouseReply *resp);
+    int (*get_house)(void *ctx, const HouseID *req, HouseServiceGetHouseReply *resp);
+    int (*update_house)(void *ctx, const House *req, HouseServiceUpdateHouseReply *resp);
+    int (*delete_house)(void *ctx, const HouseID *req, HouseServiceDeleteHouseReply *resp);
+    int (*list_houses)(void *ctx, const HouseListRequest *req, void * *resp);
 } HouseHandlers;
 
 /* MemberHandlers is the host's implementation of the MemberService service. */
 typedef struct MemberHandlers {
-    int (*create_member)(void *ctx, const Member *req, Member *resp);
-    int (*get_member)(void *ctx, const MemberID *req, Member *resp);
-    int (*get_member_by_identity)(void *ctx, const Member *req, Member *resp);
-    int (*update_member)(void *ctx, const Member *req, Member *resp);
-    int (*deactivate_member)(void *ctx, const MemberID *req, EmptyResponse *resp);
-    int (*reactivate_member)(void *ctx, const MemberID *req, EmptyResponse *resp);
-    int (*list_members)(void *ctx, const HouseScopedListRequest *req, Member * *resp);
+    int (*create_member)(void *ctx, const Member *req, MemberServiceCreateMemberReply *resp);
+    int (*get_member)(void *ctx, const MemberID *req, MemberServiceGetMemberReply *resp);
+    int (*get_member_by_identity)(void *ctx, const Member *req, MemberServiceGetMemberByIdentityReply *resp);
+    int (*update_member)(void *ctx, const Member *req, MemberServiceUpdateMemberReply *resp);
+    int (*deactivate_member)(void *ctx, const MemberID *req, MemberServiceDeactivateMemberReply *resp);
+    int (*reactivate_member)(void *ctx, const MemberID *req, MemberServiceReactivateMemberReply *resp);
+    int (*list_members)(void *ctx, const HouseScopedListRequest *req, void * *resp);
 } MemberHandlers;
 
 /* TrustedDomainHandlers is the host's implementation of the TrustedDomainService service. */
 typedef struct TrustedDomainHandlers {
-    int (*add_trusted_domain)(void *ctx, const TrustedDomain *req, TrustedDomain *resp);
-    int (*remove_trusted_domain)(void *ctx, const TrustedDomainID *req, EmptyResponse *resp);
-    int (*list_trusted_domains)(void *ctx, const HouseID *req, TrustedDomain * *resp);
-    int (*is_domain_trusted)(void *ctx, const TrustedDomain *req, BoolResponse *resp);
+    int (*add_trusted_domain)(void *ctx, const TrustedDomain *req, TrustedDomainServiceAddTrustedDomainReply *resp);
+    int (*remove_trusted_domain)(void *ctx, const TrustedDomainID *req, TrustedDomainServiceRemoveTrustedDomainReply *resp);
+    int (*list_trusted_domains)(void *ctx, const HouseID *req, void * *resp);
+    int (*is_domain_trusted)(void *ctx, const TrustedDomain *req, TrustedDomainServiceIsDomainTrustedReply *resp);
 } TrustedDomainHandlers;
 
 /* RoleHandlers is the host's implementation of the RoleService service. */
 typedef struct RoleHandlers {
-    int (*create_role)(void *ctx, const Role *req, Role *resp);
-    int (*update_role)(void *ctx, const Role *req, Role *resp);
-    int (*delete_role)(void *ctx, const RoleID *req, EmptyResponse *resp);
-    int (*list_roles)(void *ctx, const HouseScopedListRequest *req, Role * *resp);
-    int (*grant_role)(void *ctx, const MemberRoleRef *req, EmptyResponse *resp);
-    int (*revoke_role)(void *ctx, const MemberRoleRef *req, EmptyResponse *resp);
-    int (*list_member_roles)(void *ctx, const MemberScopedListRequest *req, Role * *resp);
+    int (*create_role)(void *ctx, const Role *req, RoleServiceCreateRoleReply *resp);
+    int (*update_role)(void *ctx, const Role *req, RoleServiceUpdateRoleReply *resp);
+    int (*delete_role)(void *ctx, const RoleID *req, RoleServiceDeleteRoleReply *resp);
+    int (*list_roles)(void *ctx, const HouseScopedListRequest *req, void * *resp);
+    int (*grant_role)(void *ctx, const MemberRoleRef *req, RoleServiceGrantRoleReply *resp);
+    int (*revoke_role)(void *ctx, const MemberRoleRef *req, RoleServiceRevokeRoleReply *resp);
+    int (*list_member_roles)(void *ctx, const MemberScopedListRequest *req, void * *resp);
 } RoleHandlers;
 
 /* SkillHandlers is the host's implementation of the SkillService service. */
 typedef struct SkillHandlers {
-    int (*create_skill)(void *ctx, const Skill *req, Skill *resp);
-    int (*update_skill)(void *ctx, const Skill *req, Skill *resp);
-    int (*delete_skill)(void *ctx, const SkillID *req, EmptyResponse *resp);
-    int (*list_skills)(void *ctx, const HouseScopedListRequest *req, Skill * *resp);
-    int (*add_member_skill)(void *ctx, const MemberSkillRef *req, EmptyResponse *resp);
-    int (*remove_member_skill)(void *ctx, const MemberSkillRef *req, EmptyResponse *resp);
-    int (*list_member_skills)(void *ctx, const MemberScopedListRequest *req, Skill * *resp);
-    int (*add_group_skill)(void *ctx, const GroupSkillRef *req, EmptyResponse *resp);
-    int (*remove_group_skill)(void *ctx, const GroupSkillRef *req, EmptyResponse *resp);
-    int (*list_group_skills)(void *ctx, const GroupID *req, Skill * *resp);
+    int (*create_skill)(void *ctx, const Skill *req, SkillServiceCreateSkillReply *resp);
+    int (*update_skill)(void *ctx, const Skill *req, SkillServiceUpdateSkillReply *resp);
+    int (*delete_skill)(void *ctx, const SkillID *req, SkillServiceDeleteSkillReply *resp);
+    int (*list_skills)(void *ctx, const HouseScopedListRequest *req, void * *resp);
+    int (*add_member_skill)(void *ctx, const MemberSkillRef *req, SkillServiceAddMemberSkillReply *resp);
+    int (*remove_member_skill)(void *ctx, const MemberSkillRef *req, SkillServiceRemoveMemberSkillReply *resp);
+    int (*list_member_skills)(void *ctx, const MemberScopedListRequest *req, void * *resp);
+    int (*add_group_skill)(void *ctx, const GroupSkillRef *req, SkillServiceAddGroupSkillReply *resp);
+    int (*remove_group_skill)(void *ctx, const GroupSkillRef *req, SkillServiceRemoveGroupSkillReply *resp);
+    int (*list_group_skills)(void *ctx, const GroupID *req, void * *resp);
 } SkillHandlers;
 
 /* GroupHandlers is the host's implementation of the GroupService service. */
 typedef struct GroupHandlers {
-    int (*create_group)(void *ctx, const Group *req, Group *resp);
-    int (*update_group)(void *ctx, const Group *req, Group *resp);
-    int (*delete_group)(void *ctx, const GroupID *req, EmptyResponse *resp);
-    int (*list_groups)(void *ctx, const HouseScopedListRequest *req, Group * *resp);
-    int (*add_group_member)(void *ctx, const GroupMemberRef *req, EmptyResponse *resp);
-    int (*remove_group_member)(void *ctx, const GroupMemberRef *req, EmptyResponse *resp);
-    int (*list_group_members)(void *ctx, const MemberScopedListRequest *req, Member * *resp);
+    int (*create_group)(void *ctx, const Group *req, GroupServiceCreateGroupReply *resp);
+    int (*update_group)(void *ctx, const Group *req, GroupServiceUpdateGroupReply *resp);
+    int (*delete_group)(void *ctx, const GroupID *req, GroupServiceDeleteGroupReply *resp);
+    int (*list_groups)(void *ctx, const HouseScopedListRequest *req, void * *resp);
+    int (*add_group_member)(void *ctx, const GroupMemberRef *req, GroupServiceAddGroupMemberReply *resp);
+    int (*remove_group_member)(void *ctx, const GroupMemberRef *req, GroupServiceRemoveGroupMemberReply *resp);
+    int (*list_group_members)(void *ctx, const MemberScopedListRequest *req, void * *resp);
 } GroupHandlers;
 
 /* ProjectHandlers is the host's implementation of the ProjectService service. */
 typedef struct ProjectHandlers {
-    int (*create_project)(void *ctx, const Project *req, Project *resp);
-    int (*get_project)(void *ctx, const ProjectID *req, Project *resp);
-    int (*update_project)(void *ctx, const Project *req, Project *resp);
-    int (*delete_project)(void *ctx, const ProjectID *req, EmptyResponse *resp);
-    int (*list_projects)(void *ctx, const HouseScopedListRequest *req, ProjectList *resp);
-    int (*list_project_tasks)(void *ctx, const ProjectScopedListRequest *req, TaskList *resp);
-    int (*add_project_task)(void *ctx, const ProjectTaskOrderRequest *req, EmptyResponse *resp);
-    int (*remove_project_task)(void *ctx, const ProjectTaskRef *req, EmptyResponse *resp);
-    int (*set_project_task_position)(void *ctx, const ProjectTaskOrderRequest *req, EmptyResponse *resp);
-    int (*list_project_members)(void *ctx, const ProjectID *req, Member * *resp);
-    int (*add_project_member)(void *ctx, const ProjectMemberRef *req, EmptyResponse *resp);
-    int (*remove_project_member)(void *ctx, const ProjectMemberRef *req, EmptyResponse *resp);
-    int (*list_project_owners)(void *ctx, const ProjectID *req, Member * *resp);
-    int (*add_project_owner)(void *ctx, const ProjectOwnerRef *req, EmptyResponse *resp);
-    int (*remove_project_owner)(void *ctx, const ProjectOwnerRef *req, EmptyResponse *resp);
-    int (*list_milestones)(void *ctx, const ProjectID *req, Milestone * *resp);
-    int (*create_milestone)(void *ctx, const Milestone *req, Milestone *resp);
-    int (*update_milestone)(void *ctx, const Milestone *req, Milestone *resp);
-    int (*delete_milestone)(void *ctx, const MilestoneID *req, EmptyResponse *resp);
-    int (*set_project_visibility)(void *ctx, const SetProjectVisibilityRequest *req, Project *resp);
-    int (*list_project_grants)(void *ctx, const ProjectID *req, Grant * *resp);
-    int (*put_project_grant)(void *ctx, const PutProjectGrantRequest *req, EmptyResponse *resp);
-    int (*delete_project_grant)(void *ctx, const ProjectGrantRef *req, EmptyResponse *resp);
+    int (*create_project)(void *ctx, const Project *req, ProjectServiceCreateProjectReply *resp);
+    int (*get_project)(void *ctx, const ProjectID *req, ProjectServiceGetProjectReply *resp);
+    int (*update_project)(void *ctx, const Project *req, ProjectServiceUpdateProjectReply *resp);
+    int (*delete_project)(void *ctx, const ProjectID *req, ProjectServiceDeleteProjectReply *resp);
+    int (*list_projects)(void *ctx, const HouseScopedListRequest *req, ProjectServiceListProjectsReply *resp);
+    int (*list_project_tasks)(void *ctx, const ProjectScopedListRequest *req, ProjectServiceListProjectTasksReply *resp);
+    int (*add_project_task)(void *ctx, const ProjectTaskOrderRequest *req, ProjectServiceAddProjectTaskReply *resp);
+    int (*remove_project_task)(void *ctx, const ProjectTaskRef *req, ProjectServiceRemoveProjectTaskReply *resp);
+    int (*set_project_task_position)(void *ctx, const ProjectTaskOrderRequest *req, ProjectServiceSetProjectTaskPositionReply *resp);
+    int (*list_project_members)(void *ctx, const ProjectID *req, void * *resp);
+    int (*add_project_member)(void *ctx, const ProjectMemberRef *req, ProjectServiceAddProjectMemberReply *resp);
+    int (*remove_project_member)(void *ctx, const ProjectMemberRef *req, ProjectServiceRemoveProjectMemberReply *resp);
+    int (*list_project_owners)(void *ctx, const ProjectID *req, void * *resp);
+    int (*add_project_owner)(void *ctx, const ProjectOwnerRef *req, ProjectServiceAddProjectOwnerReply *resp);
+    int (*remove_project_owner)(void *ctx, const ProjectOwnerRef *req, ProjectServiceRemoveProjectOwnerReply *resp);
+    int (*list_milestones)(void *ctx, const ProjectID *req, void * *resp);
+    int (*create_milestone)(void *ctx, const Milestone *req, ProjectServiceCreateMilestoneReply *resp);
+    int (*update_milestone)(void *ctx, const Milestone *req, ProjectServiceUpdateMilestoneReply *resp);
+    int (*delete_milestone)(void *ctx, const MilestoneID *req, ProjectServiceDeleteMilestoneReply *resp);
+    int (*set_project_visibility)(void *ctx, const SetProjectVisibilityRequest *req, ProjectServiceSetProjectVisibilityReply *resp);
+    int (*list_project_grants)(void *ctx, const ProjectID *req, void * *resp);
+    int (*put_project_grant)(void *ctx, const PutProjectGrantRequest *req, ProjectServicePutProjectGrantReply *resp);
+    int (*delete_project_grant)(void *ctx, const ProjectGrantRef *req, ProjectServiceDeleteProjectGrantReply *resp);
 } ProjectHandlers;
 
 /* EventHandlers is the host's implementation of the EventService service. */
 typedef struct EventHandlers {
-    int (*create_event)(void *ctx, const Event *req, Event *resp);
-    int (*get_event)(void *ctx, const EventID *req, Event *resp);
-    int (*update_event)(void *ctx, const Event *req, Event *resp);
-    int (*delete_event)(void *ctx, const EventID *req, EmptyResponse *resp);
-    int (*delete_event_and_future)(void *ctx, const EventID *req, EmptyResponse *resp);
-    int (*list_events)(void *ctx, const EventListRequest *req, Event * *resp);
-    int (*get_calendar_view)(void *ctx, const HouseID *req, CalendarView *resp);
-    int (*set_calendar_view)(void *ctx, const CalendarView *req, CalendarView *resp);
-    int (*accept_event)(void *ctx, const EventDecision *req, Event *resp);
-    int (*recover_edit)(void *ctx, const EventID *req, Event *resp);
-    int (*decline_event)(void *ctx, const EventDecision *req, Event *resp);
-    int (*list_local_events)(void *ctx, const HouseID *req, Event * *resp);
+    int (*create_event)(void *ctx, const Event *req, EventServiceCreateEventReply *resp);
+    int (*get_event)(void *ctx, const EventID *req, EventServiceGetEventReply *resp);
+    int (*update_event)(void *ctx, const Event *req, EventServiceUpdateEventReply *resp);
+    int (*delete_event)(void *ctx, const EventID *req, EventServiceDeleteEventReply *resp);
+    int (*delete_event_and_future)(void *ctx, const EventID *req, EventServiceDeleteEventAndFutureReply *resp);
+    int (*list_events)(void *ctx, const EventListRequest *req, void * *resp);
+    int (*get_calendar_view)(void *ctx, const HouseID *req, EventServiceGetCalendarViewReply *resp);
+    int (*set_calendar_view)(void *ctx, const CalendarView *req, EventServiceSetCalendarViewReply *resp);
+    int (*accept_event)(void *ctx, const EventDecision *req, EventServiceAcceptEventReply *resp);
+    int (*recover_edit)(void *ctx, const EventID *req, EventServiceRecoverEditReply *resp);
+    int (*decline_event)(void *ctx, const EventDecision *req, EventServiceDeclineEventReply *resp);
+    int (*list_local_events)(void *ctx, const HouseID *req, void * *resp);
 } EventHandlers;
 
 /* CalendarHandlers is the host's implementation of the CalendarService service. */
 typedef struct CalendarHandlers {
-    int (*list_project_deadlines)(void *ctx, const ProjectDeadlineRequest *req, ProjectDeadlineList *resp);
-    int (*get_status)(void *ctx, const HouseID *req, CalendarStatus *resp);
-    int (*configure_calendar)(void *ctx, const ConfigureCalendarRequest *req, CalendarStatus *resp);
-    int (*begin_connect)(void *ctx, const HouseID *req, CalendarConnectResponse *resp);
-    int (*complete_connect)(void *ctx, const CompleteCalendarConnectRequest *req, CalendarStatus *resp);
-    int (*disconnect)(void *ctx, const HouseID *req, EmptyResponse *resp);
-    int (*preview_migration)(void *ctx, const HouseID *req, CalendarMigrationRow * *resp);
-    int (*list_trash)(void *ctx, const HouseID *req, CalendarTrashEntry * *resp);
-    int (*restore_event)(void *ctx, const RestoreCalendarEventRequest *req, Event *resp);
+    int (*list_project_deadlines)(void *ctx, const ProjectDeadlineRequest *req, CalendarServiceListProjectDeadlinesReply *resp);
+    int (*get_status)(void *ctx, const HouseID *req, CalendarServiceGetStatusReply *resp);
+    int (*configure_calendar)(void *ctx, const ConfigureCalendarRequest *req, CalendarServiceConfigureCalendarReply *resp);
+    int (*begin_connect)(void *ctx, const HouseID *req, CalendarServiceBeginConnectReply *resp);
+    int (*complete_connect)(void *ctx, const CompleteCalendarConnectRequest *req, CalendarServiceCompleteConnectReply *resp);
+    int (*disconnect)(void *ctx, const HouseID *req, CalendarServiceDisconnectReply *resp);
+    int (*preview_migration)(void *ctx, const HouseID *req, void * *resp);
+    int (*list_trash)(void *ctx, const HouseID *req, void * *resp);
+    int (*restore_event)(void *ctx, const RestoreCalendarEventRequest *req, CalendarServiceRestoreEventReply *resp);
 } CalendarHandlers;
 
 /* TaskHandlers is the host's implementation of the TaskService service. */
 typedef struct TaskHandlers {
-    int (*create_task)(void *ctx, const Task *req, Task *resp);
-    int (*get_task)(void *ctx, const TaskID *req, Task *resp);
-    int (*update_task)(void *ctx, const Task *req, Task *resp);
-    int (*delete_task)(void *ctx, const TaskID *req, EmptyResponse *resp);
-    int (*list_tasks)(void *ctx, const TaskListRequest *req, TaskList *resp);
-    int (*create_personal_task)(void *ctx, const Task *req, Task *resp);
-    int (*set_task_visibility)(void *ctx, const SetTaskVisibilityRequest *req, Task *resp);
-    int (*list_task_grants)(void *ctx, const TaskID *req, Grant * *resp);
-    int (*put_task_grant)(void *ctx, const PutTaskGrantRequest *req, EmptyResponse *resp);
-    int (*delete_task_grant)(void *ctx, const TaskGrantRef *req, EmptyResponse *resp);
+    int (*create_task)(void *ctx, const Task *req, TaskServiceCreateTaskReply *resp);
+    int (*get_task)(void *ctx, const TaskID *req, TaskServiceGetTaskReply *resp);
+    int (*update_task)(void *ctx, const Task *req, TaskServiceUpdateTaskReply *resp);
+    int (*delete_task)(void *ctx, const TaskID *req, TaskServiceDeleteTaskReply *resp);
+    int (*list_tasks)(void *ctx, const TaskListRequest *req, TaskServiceListTasksReply *resp);
+    int (*create_personal_task)(void *ctx, const Task *req, TaskServiceCreatePersonalTaskReply *resp);
+    int (*set_task_visibility)(void *ctx, const SetTaskVisibilityRequest *req, TaskServiceSetTaskVisibilityReply *resp);
+    int (*list_task_grants)(void *ctx, const TaskID *req, void * *resp);
+    int (*put_task_grant)(void *ctx, const PutTaskGrantRequest *req, TaskServicePutTaskGrantReply *resp);
+    int (*delete_task_grant)(void *ctx, const TaskGrantRef *req, TaskServiceDeleteTaskGrantReply *resp);
 } TaskHandlers;
 
 /* DependencyHandlers is the host's implementation of the DependencyService service. */
 typedef struct DependencyHandlers {
-    int (*add_dependency)(void *ctx, const DependencyRef *req, EmptyResponse *resp);
-    int (*remove_dependency)(void *ctx, const DependencyRef *req, EmptyResponse *resp);
-    int (*get_dependencies)(void *ctx, const DependencyTarget *req, DependencyGraph *resp);
+    int (*add_dependency)(void *ctx, const DependencyRef *req, DependencyServiceAddDependencyReply *resp);
+    int (*remove_dependency)(void *ctx, const DependencyRef *req, DependencyServiceRemoveDependencyReply *resp);
+    int (*get_dependencies)(void *ctx, const DependencyTarget *req, DependencyServiceGetDependenciesReply *resp);
 } DependencyHandlers;
 
 /* CommentHandlers is the host's implementation of the CommentService service. */
 typedef struct CommentHandlers {
-    int (*create_comment)(void *ctx, const Comment *req, Comment *resp);
-    int (*get_comment)(void *ctx, const CommentID *req, Comment *resp);
-    int (*update_comment)(void *ctx, const Comment *req, Comment *resp);
-    int (*delete_comment)(void *ctx, const CommentID *req, EmptyResponse *resp);
-    int (*list_comments)(void *ctx, const CommentListRequest *req, Comment * *resp);
+    int (*create_comment)(void *ctx, const Comment *req, CommentServiceCreateCommentReply *resp);
+    int (*get_comment)(void *ctx, const CommentID *req, CommentServiceGetCommentReply *resp);
+    int (*update_comment)(void *ctx, const Comment *req, CommentServiceUpdateCommentReply *resp);
+    int (*delete_comment)(void *ctx, const CommentID *req, CommentServiceDeleteCommentReply *resp);
+    int (*list_comments)(void *ctx, const CommentListRequest *req, void * *resp);
 } CommentHandlers;
 
 /* NotificationHandlers is the host's implementation of the NotificationService service. */
 typedef struct NotificationHandlers {
-    int (*list_notifications)(void *ctx, const NotificationListRequest *req, Notification * *resp);
-    int (*unread_count)(void *ctx, const HouseID *req, NotificationUnreadCount *resp);
-    int (*mark_read)(void *ctx, const NotificationID *req, Notification *resp);
-    int (*mark_all_read)(void *ctx, const HouseID *req, EmptyResponse *resp);
+    int (*list_notifications)(void *ctx, const NotificationListRequest *req, void * *resp);
+    int (*unread_count)(void *ctx, const HouseID *req, NotificationServiceUnreadCountReply *resp);
+    int (*mark_read)(void *ctx, const NotificationID *req, NotificationServiceMarkReadReply *resp);
+    int (*mark_all_read)(void *ctx, const HouseID *req, NotificationServiceMarkAllReadReply *resp);
 } NotificationHandlers;
 
 /* ShareHandlers is the host's implementation of the ShareService service. */
 typedef struct ShareHandlers {
-    int (*create_share)(void *ctx, const Share *req, Share *resp);
-    int (*delete_share)(void *ctx, const ShareID *req, EmptyResponse *resp);
-    int (*list_shares_by_resource)(void *ctx, const ResourceRef *req, Share * *resp);
-    int (*check_access)(void *ctx, const ShareAccessRequest *req, Share *resp);
+    int (*create_share)(void *ctx, const Share *req, ShareServiceCreateShareReply *resp);
+    int (*delete_share)(void *ctx, const ShareID *req, ShareServiceDeleteShareReply *resp);
+    int (*list_shares_by_resource)(void *ctx, const ResourceRef *req, void * *resp);
+    int (*check_access)(void *ctx, const ShareAccessRequest *req, ShareServiceCheckAccessReply *resp);
 } ShareHandlers;
 
 /* MemberAuditHandlers is the host's implementation of the MemberAuditService service. */
 typedef struct MemberAuditHandlers {
-    int (*list_audits_for_member)(void *ctx, const MemberScopedListRequest *req, MemberAudit * *resp);
+    int (*list_audits_for_member)(void *ctx, const MemberScopedListRequest *req, void * *resp);
 } MemberAuditHandlers;
 
 /* SettingsHandlers is the host's implementation of the SettingsService service. */
 typedef struct SettingsHandlers {
-    int (*get_settings)(void *ctx, const HouseID *req, EffectiveSettings *resp);
-    int (*update_settings)(void *ctx, const UpdateSettingsRequest *req, EffectiveSettings *resp);
+    int (*get_settings)(void *ctx, const HouseID *req, SettingsServiceGetSettingsReply *resp);
+    int (*update_settings)(void *ctx, const UpdateSettingsRequest *req, SettingsServiceUpdateSettingsReply *resp);
 } SettingsHandlers;
 
 /* BugHandlers is the host's implementation of the BugService service. */
 typedef struct BugHandlers {
-    int (*report_bug)(void *ctx, const BugReportRequest *req, Task *resp);
+    int (*report_bug)(void *ctx, const BugReportRequest *req, BugServiceReportBugReply *resp);
 } BugHandlers;
 
 /* AuditHandlers is the host's implementation of the AuditService service. */
 typedef struct AuditHandlers {
-    int (*query_audit)(void *ctx, const AuditQuery *req, AuditPage *resp);
+    int (*query_audit)(void *ctx, const AuditQuery *req, AuditServiceQueryAuditReply *resp);
 } AuditHandlers;
 
 /* TrashHandlers is the host's implementation of the TrashService service. */
 typedef struct TrashHandlers {
-    int (*list_trash)(void *ctx, const HouseScopedListRequest *req, TrashPage *resp);
-    int (*restore)(void *ctx, const RestoreRequest *req, EmptyResponse *resp);
-    int (*purge)(void *ctx, const PurgeRequest *req, EmptyResponse *resp);
+    int (*list_trash)(void *ctx, const HouseScopedListRequest *req, TrashServiceListTrashReply *resp);
+    int (*restore)(void *ctx, const RestoreRequest *req, TrashServiceRestoreReply *resp);
+    int (*purge)(void *ctx, const PurgeRequest *req, TrashServicePurgeReply *resp);
 } TrashHandlers;
 
 #endif /* CSILGEN_SERVER_GEN_H */

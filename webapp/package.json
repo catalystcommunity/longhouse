@@ -16,11 +16,11 @@
     "@types/dompurify": "^3.0.5",
     "dompurify": "^3.4.6",
     "marked": "^18.0.4",
-    "@catalystcommunity/base-components": "0.2.6",
-    "@catalystcommunity/basic-data-service": "0.2.6",
-    "@catalystcommunity/simple-router": "0.3.1",
-    "@catalystcommunity/design-tokens": "0.1.1",
-    "@catalystcommunity/date-time-picker": "0.2.6"
+    "@catalystcommunity/base-components": "0.2.7",
+    "@catalystcommunity/basic-data-service": "0.2.7",
+    "@catalystcommunity/simple-router": "0.3.2",
+    "@catalystcommunity/design-tokens": "0.1.2",
+    "@catalystcommunity/date-time-picker": "0.2.8"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

@@ -319,7 +319,7 @@ func (s *AuthService) Me(ctx context.Context, _ csil.EmptyRequest) (csil.MeRespo
 		Domain:      id.Domain,
 		UserId:      id.UserID,
 		DisplayName: strPtrCopy(id.DisplayName),
-		ExpiresAt:   csil.Timestamp(time.Unix(id.ExpiresAt, 0).UTC().Format(time.RFC3339)),
+		ExpiresAt:   time.Unix(id.ExpiresAt, 0).UTC(),
 		Houses:      houses,
 	}, nil
 }
@@ -415,7 +415,7 @@ func (s *AuthService) mintToken(ctx context.Context, domain, userID, displayName
 		Domain:      domain,
 		UserId:      userID,
 		DisplayName: strPtrCopy(displayName),
-		ExpiresAt:   csil.Timestamp(time.Unix(verified.ExpiresAt, 0).UTC().Format(time.RFC3339)),
+		ExpiresAt:   time.Unix(verified.ExpiresAt, 0).UTC(),
 	}, nil
 }
 

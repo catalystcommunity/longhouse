@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 # Regenerate the Longhouse client libraries for every language csilgen can
-# package, into clients/<lang>/. Each output dir is a self-contained,
-# dependency-free package (manifest + barrel + types + codec + client) — the
-# generated codec owns the wire, so there is no csilgen-transport dependency to
-# vendor or pin. Run from any directory.
+# package. Each directory contains the package manifest, types, codec, and
+# client. The Rust package uses the time crate for timestamps.
 #
 #   clients/<lang>/    one publishable client package per language
 #
@@ -23,19 +21,7 @@ OUT="$REPO/clients"
 VERSION="$(tr -d '[:space:]' < "$REPO/version/VERSION.txt")"
 GO_MODULE_BASE="github.com/catalystcommunity/longhouse/clients"
 
-# csilgen is installed via `cargo install` and usually lives in ~/.cargo/bin,
-# which isn't always on a non-interactive PATH. Add it before looking.
-if [ -d "$HOME/.cargo/bin" ]; then
-    export PATH="$HOME/.cargo/bin:$PATH"
-fi
-
-if ! command -v csilgen >/dev/null; then
-    echo "ERROR: csilgen not on PATH (looked in \$PATH and ~/.cargo/bin)" >&2
-    echo "       install it from the repo:" >&2
-    echo "         cargo install --git https://github.com/catalystcommunity/csilgen" >&2
-    echo "       (then: cargo run -p xtask install-wasm, per its README)" >&2
-    exit 1
-fi
+source "$REPO/csil/generator.sh"
 
 csilgen validate --input "$SPEC"
 
@@ -111,6 +97,15 @@ for entry in "${LANGS[@]}"; do
         sed 's/^/      /' "$TMPDIR/$lang.err" >&2
     fi
 done
+
+# csilgen 0.2.15 needs parentheses to return a CBOR tag from an array mapper.
+sed -i 's/=> { tag: 0, value: csilTsToText(csilE) }/=> ({ tag: 0, value: csilTsToText(csilE) })/g' "$OUT/typescript/codec.gen.ts"
+
+# Avoid a name collision with the req argument in the Zig reply encoders.
+sed -i 's/\<req(/requiredField(/g' "$OUT/zig/codec.gen.zig"
+
+# The Python JSON helpers also need to convert datetime fields and arrays.
+python3 "$OUT/fix_python_timestamps.py" "$OUT/python/longhouse_client/types.py"
 
 # Go: gofmt the generated package so it matches repo style and is verifiably
 # parseable.

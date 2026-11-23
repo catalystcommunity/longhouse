@@ -4,8 +4,10 @@
 package longhouseclient
 
 import (
+	"errors"
 	"fmt"
 	"math"
+	"time"
 	"unicode/utf8"
 )
 
@@ -499,13 +501,36 @@ func cborAsMap(v cborValue) (cborMap, error) {
 	return nil, fmt.Errorf("csil cbor: expected map, got %T", v)
 }
 
+// csilEncTimestamp encodes a time.Time as CBOR tag 0 RFC3339 text in UTC, per the
+// wire contract; sub-second precision is preserved when present.
+func csilEncTimestamp(t time.Time) cborValue {
+	return cborTag{num: 0, inner: cborText(t.UTC().Format(time.RFC3339Nano))}
+}
+
+// csilAsTimestamp decodes a CBOR tag 0 RFC3339 timestamp back to a UTC time.Time.
+func csilAsTimestamp(v cborValue) (time.Time, error) {
+	t, ok := v.(cborTag)
+	if !ok || t.num != 0 {
+		return time.Time{}, fmt.Errorf("csil cbor: expected CBOR tag 0 timestamp")
+	}
+	s, ok := t.inner.(cborText)
+	if !ok {
+		return time.Time{}, fmt.Errorf("csil cbor: timestamp content must be text")
+	}
+	parsed, err := time.Parse(time.RFC3339, string(s))
+	if err != nil {
+		return time.Time{}, err
+	}
+	return parsed.UTC(), nil
+}
+
 // csilEncHouse builds the canonical CBOR value tree for a House.
 func csilEncHouse(csilV House) cborValue {
 	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
-	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), csilEncTimestamp(csilV.UpdatedAt)})
 	if csilV.Description != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("description"), cborText((*csilV.Description))})
 	}
@@ -552,10 +577,7 @@ func csilDecHouse(csilRoot cborValue) (House, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -566,10 +588,7 @@ func csilDecHouse(csilRoot cborValue) (House, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -607,16 +626,16 @@ func csilEncMember(csilV Member) cborValue {
 	if csilV.AvatarUrl != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("avatar_url"), cborText((*csilV.AvatarUrl))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
-	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), csilEncTimestamp(csilV.UpdatedAt)})
 	if csilV.DisplayName != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("display_name"), cborText((*csilV.DisplayName))})
 	}
 	if csilV.LastSeenAt != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("last_seen_at"), cborText((*csilV.LastSeenAt))})
+		csilEntries = append(csilEntries, cborEntry{cborText("last_seen_at"), csilEncTimestamp((*csilV.LastSeenAt))})
 	}
 	if csilV.DeactivatedAt != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("deactivated_at"), cborText((*csilV.DeactivatedAt))})
+		csilEntries = append(csilEntries, cborEntry{cborText("deactivated_at"), csilEncTimestamp((*csilV.DeactivatedAt))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("linkkeys_domain"), cborText(csilV.LinkkeysDomain)})
 	csilEntries = append(csilEntries, cborEntry{cborText("linkkeys_user_id"), cborText(csilV.LinkkeysUserId)})
@@ -719,10 +738,7 @@ func csilDecMember(csilRoot cborValue) (Member, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -733,30 +749,21 @@ func csilDecMember(csilRoot cborValue) (Member, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
 		csilOut.UpdatedAt = csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "last_seen_at"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
 		csilOut.LastSeenAt = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "deactivated_at"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -785,7 +792,7 @@ func csilEncTrustedDomain(csilV TrustedDomain) cborValue {
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("domain"), cborText(csilV.Domain)})
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("trusted_domain_id"), cborText(csilV.TrustedDomainId)})
 	return csilEntries
 }
@@ -837,10 +844,7 @@ func csilDecTrustedDomain(csilRoot cborValue) (TrustedDomain, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -870,8 +874,8 @@ func csilEncRole(csilV Role) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	csilEntries = append(csilEntries, cborEntry{cborText("role_id"), cborText(csilV.RoleId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
-	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), csilEncTimestamp(csilV.UpdatedAt)})
 	if csilV.Description != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("description"), cborText((*csilV.Description))})
 	}
@@ -932,10 +936,7 @@ func csilDecRole(csilRoot cborValue) (Role, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -946,10 +947,7 @@ func csilDecRole(csilRoot cborValue) (Role, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -978,7 +976,7 @@ func csilEncMemberRole(csilV MemberRole) cborValue {
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("role_id"), cborText(csilV.RoleId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("member_id"), cborText(csilV.MemberId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	return csilEntries
 }
 
@@ -1018,10 +1016,7 @@ func csilDecMemberRole(csilRoot cborValue) (MemberRole, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1057,7 +1052,7 @@ func csilEncMemberAudit(csilV MemberAudit) cborValue {
 	if csilV.TargetId != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("target_id"), cborText((*csilV.TargetId))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	if csilV.TargetType != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("target_type"), cborText((*csilV.TargetType))})
 	}
@@ -1160,10 +1155,7 @@ func csilDecMemberAudit(csilRoot cborValue) (MemberAudit, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1193,8 +1185,8 @@ func csilEncSkill(csilV Skill) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("skill_id"), cborText(csilV.SkillId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
-	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), csilEncTimestamp(csilV.UpdatedAt)})
 	if csilV.Description != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("description"), cborText((*csilV.Description))})
 	}
@@ -1255,10 +1247,7 @@ func csilDecSkill(csilRoot cborValue) (Skill, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1269,10 +1258,7 @@ func csilDecSkill(csilRoot cborValue) (Skill, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1301,7 +1287,7 @@ func csilEncMemberSkill(csilV MemberSkill) cborValue {
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("skill_id"), cborText(csilV.SkillId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("member_id"), cborText(csilV.MemberId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	return csilEntries
 }
 
@@ -1341,10 +1327,7 @@ func csilDecMemberSkill(csilRoot cborValue) (MemberSkill, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1373,7 +1356,7 @@ func csilEncGroupSkill(csilV GroupSkill) cborValue {
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("group_id"), cborText(csilV.GroupId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("skill_id"), cborText(csilV.SkillId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	return csilEntries
 }
 
@@ -1413,10 +1396,7 @@ func csilDecGroupSkill(csilRoot cborValue) (GroupSkill, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1446,8 +1426,8 @@ func csilEncGroup(csilV Group) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("name"), cborText(csilV.Name)})
 	csilEntries = append(csilEntries, cborEntry{cborText("group_id"), cborText(csilV.GroupId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
-	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), csilEncTimestamp(csilV.UpdatedAt)})
 	if csilV.Description != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("description"), cborText((*csilV.Description))})
 	}
@@ -1508,10 +1488,7 @@ func csilDecGroup(csilRoot cborValue) (Group, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1522,10 +1499,7 @@ func csilDecGroup(csilRoot cborValue) (Group, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1554,7 +1528,7 @@ func csilEncGroupMember(csilV GroupMember) cborValue {
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("group_id"), cborText(csilV.GroupId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("member_id"), cborText(csilV.MemberId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	return csilEntries
 }
 
@@ -1594,10 +1568,7 @@ func csilDecGroupMember(csilRoot cborValue) (GroupMember, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1635,9 +1606,9 @@ func csilEncProject(csilV Project) cborValue {
 	if csilV.Personal != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("personal"), cborBool((*csilV.Personal))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("project_id"), cborText(csilV.ProjectId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), csilEncTimestamp(csilV.UpdatedAt)})
 	if csilV.Visibility != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("visibility"), cborText((*csilV.Visibility))})
 	}
@@ -1770,10 +1741,7 @@ func csilDecProject(csilRoot cborValue) (Project, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1784,10 +1752,7 @@ func csilDecProject(csilRoot cborValue) (Project, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1816,7 +1781,7 @@ func csilEncProjectTask(csilV ProjectTask) cborValue {
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("task_id"), cborText(csilV.TaskId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("position"), cborInt(csilV.Position)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("project_id"), cborText(csilV.ProjectId)})
 	return csilEntries
 }
@@ -1868,10 +1833,7 @@ func csilDecProjectTask(csilRoot cborValue) (ProjectTask, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1899,7 +1861,7 @@ func DecodeProjectTask(csilData []byte) (ProjectTask, error) {
 func csilEncProjectMember(csilV ProjectMember) cborValue {
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("member_id"), cborText(csilV.MemberId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("project_id"), cborText(csilV.ProjectId)})
 	return csilEntries
 }
@@ -1940,10 +1902,7 @@ func csilDecProjectMember(csilRoot cborValue) (ProjectMember, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -1971,7 +1930,7 @@ func DecodeProjectMember(csilData []byte) (ProjectMember, error) {
 func csilEncProjectOwner(csilV ProjectOwner) cborValue {
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("member_id"), cborText(csilV.MemberId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("project_id"), cborText(csilV.ProjectId)})
 	return csilEntries
 }
@@ -2012,10 +1971,7 @@ func csilDecProjectOwner(csilRoot cborValue) (ProjectOwner, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2045,9 +2001,9 @@ func csilEncMilestone(csilV Milestone) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("label"), cborText(csilV.Label)})
 	csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText(csilV.State)})
 	csilEntries = append(csilEntries, cborEntry{cborText("position"), cborInt(csilV.Position)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("project_id"), cborText(csilV.ProjectId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), csilEncTimestamp(csilV.UpdatedAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("when_label"), cborText(csilV.WhenLabel)})
 	csilEntries = append(csilEntries, cborEntry{cborText("milestone_id"), cborText(csilV.MilestoneId)})
 	return csilEntries
@@ -2147,10 +2103,7 @@ func csilDecMilestone(csilRoot cborValue) (Milestone, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2161,10 +2114,7 @@ func csilDecMilestone(csilRoot cborValue) (Milestone, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2196,7 +2146,7 @@ func csilEncEvent(csilV Event) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("all_day"), cborBool((*csilV.AllDay))})
 	}
 	if csilV.EndsAt != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("ends_at"), cborText((*csilV.EndsAt))})
+		csilEntries = append(csilEntries, cborEntry{cborText("ends_at"), csilEncTimestamp((*csilV.EndsAt))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("event_id"), cborText(csilV.EventId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
@@ -2210,13 +2160,13 @@ func csilEncEvent(csilV Event) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("timezone"), cborText((*csilV.Timezone))})
 	}
 	if csilV.StartsAt != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("starts_at"), cborText((*csilV.StartsAt))})
+		csilEntries = append(csilEntries, cborEntry{cborText("starts_at"), csilEncTimestamp((*csilV.StartsAt))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	if csilV.EditScope != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("edit_scope"), cborText((*csilV.EditScope))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), csilEncTimestamp(csilV.UpdatedAt)})
 	if csilV.Description != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("description"), cborText((*csilV.Description))})
 	}
@@ -2240,7 +2190,7 @@ func csilEncEvent(csilV Event) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("publication_error"), cborText((*csilV.PublicationError))})
 	}
 	if csilV.NextRecurrenceAt != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("next_recurrence_at"), cborText((*csilV.NextRecurrenceAt))})
+		csilEntries = append(csilEntries, cborEntry{cborText("next_recurrence_at"), csilEncTimestamp((*csilV.NextRecurrenceAt))})
 	}
 	if csilV.RecurrenceInterval != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("recurrence_interval"), cborInt((*csilV.RecurrenceInterval))})
@@ -2334,20 +2284,14 @@ func csilDecEvent(csilRoot cborValue) (Event, error) {
 		csilOut.Location = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "starts_at"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
 		csilOut.StartsAt = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "ends_at"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2424,10 +2368,7 @@ func csilDecEvent(csilRoot cborValue) (Event, error) {
 		csilOut.RecurrenceBySetpos = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "next_recurrence_at"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2503,10 +2444,7 @@ func csilDecEvent(csilRoot cborValue) (Event, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2517,10 +2455,7 @@ func csilDecEvent(csilRoot cborValue) (Event, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2552,7 +2487,7 @@ func csilEncTask(csilV Task) cborValue {
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
 	if csilV.DueAt != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("due_at"), cborText((*csilV.DueAt))})
+		csilEntries = append(csilEntries, cborEntry{cborText("due_at"), csilEncTimestamp((*csilV.DueAt))})
 	}
 	if csilV.Status != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("status"), cborText((*csilV.Status))})
@@ -2562,11 +2497,11 @@ func csilEncTask(csilV Task) cborValue {
 	if csilV.Assignees != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("assignees"), cborEncArray(csilV.Assignees, func(csilElem MemberID) cborValue { return cborText(csilElem) })})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	if csilV.DeletedAt != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("deleted_at"), cborText((*csilV.DeletedAt))})
+		csilEntries = append(csilEntries, cborEntry{cborText("deleted_at"), csilEncTimestamp((*csilV.DeletedAt))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), csilEncTimestamp(csilV.UpdatedAt)})
 	if csilV.Visibility != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("visibility"), cborText((*csilV.Visibility))})
 	}
@@ -2587,7 +2522,7 @@ func csilEncTask(csilV Task) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("estimate_minutes"), cborUint((*csilV.EstimateMinutes))})
 	}
 	if csilV.NextRecurrenceAt != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("next_recurrence_at"), cborText((*csilV.NextRecurrenceAt))})
+		csilEntries = append(csilEntries, cborEntry{cborText("next_recurrence_at"), csilEncTimestamp((*csilV.NextRecurrenceAt))})
 	}
 	if csilV.RecurrenceInterval != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("recurrence_interval"), cborInt((*csilV.RecurrenceInterval))})
@@ -2745,10 +2680,7 @@ func csilDecTask(csilRoot cborValue) (Task, error) {
 		csilOut.Status = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "due_at"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2818,10 +2750,7 @@ func csilDecTask(csilRoot cborValue) (Task, error) {
 		csilOut.RecurrenceBySetpos = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "next_recurrence_at"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2838,10 +2767,7 @@ func csilDecTask(csilRoot cborValue) (Task, error) {
 		csilOut.RecurrenceRootTaskId = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "deleted_at"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2852,10 +2778,7 @@ func csilDecTask(csilRoot cborValue) (Task, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2866,10 +2789,7 @@ func csilDecTask(csilRoot cborValue) (Task, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -2901,8 +2821,8 @@ func csilEncComment(csilV Comment) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("member_id"), cborText(csilV.MemberId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("target_id"), cborText(csilV.TargetId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("comment_id"), cborText(csilV.CommentId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
-	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), cborText(csilV.UpdatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("updated_at"), csilEncTimestamp(csilV.UpdatedAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("target_type"), cborText(csilV.TargetType)})
 	return csilEntries
 }
@@ -3004,10 +2924,7 @@ func csilDecComment(csilRoot cborValue) (Comment, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -3018,10 +2935,7 @@ func csilDecComment(csilRoot cborValue) (Comment, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -3051,9 +2965,9 @@ func csilEncShare(csilV Share) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("share_id"), cborText(csilV.ShareId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("shared_by"), cborText(csilV.SharedBy)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	if csilV.ExpiresAt != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText((*csilV.ExpiresAt))})
+		csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), csilEncTimestamp((*csilV.ExpiresAt))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("resource_id"), cborText(csilV.ResourceId)})
 	if csilV.AccessLevel != nil {
@@ -3194,20 +3108,14 @@ func csilDecShare(csilRoot cborValue) (Share, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
 		csilOut.CreatedAt = csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "expires_at"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -3723,7 +3631,7 @@ func csilEncLoginResponse(csilV LoginResponse) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("token"), cborText(csilV.Token)})
 	csilEntries = append(csilEntries, cborEntry{cborText("domain"), cborText(csilV.Domain)})
 	csilEntries = append(csilEntries, cborEntry{cborText("user_id"), cborText(csilV.UserId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), csilEncTimestamp(csilV.ExpiresAt)})
 	if csilV.DisplayName != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("display_name"), cborText((*csilV.DisplayName))})
 	}
@@ -3778,10 +3686,7 @@ func csilDecLoginResponse(csilRoot cborValue) (LoginResponse, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -3811,13 +3716,13 @@ func csilEncCliTokenResponse(csilV CliTokenResponse) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("token"), cborText(csilV.Token)})
 	csilEntries = append(csilEntries, cborEntry{cborText("domain"), cborText(csilV.Domain)})
 	csilEntries = append(csilEntries, cborEntry{cborText("user_id"), cborText(csilV.UserId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), csilEncTimestamp(csilV.ExpiresAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("session_id"), cborText(csilV.SessionId)})
 	if csilV.DisplayName != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("display_name"), cborText((*csilV.DisplayName))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("refresh_token"), cborText(csilV.RefreshToken)})
-	csilEntries = append(csilEntries, cborEntry{cborText("refresh_expires_at"), cborText(csilV.RefreshExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("refresh_expires_at"), csilEncTimestamp(csilV.RefreshExpiresAt)})
 	return csilEntries
 }
 
@@ -3869,10 +3774,7 @@ func csilDecCliTokenResponse(csilRoot cborValue) (CliTokenResponse, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -3894,10 +3796,7 @@ func csilDecCliTokenResponse(csilRoot cborValue) (CliTokenResponse, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -3978,7 +3877,7 @@ func DecodeBeginCliLoginRequest(csilData []byte) (BeginCliLoginRequest, error) {
 func csilEncBeginCliLoginResponse(csilV BeginCliLoginResponse) cborValue {
 	csilEntries := make(cborMap, 0, 5)
 	csilEntries = append(csilEntries, cborEntry{cborText("user_code"), cborText(csilV.UserCode)})
-	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), csilEncTimestamp(csilV.ExpiresAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("device_code"), cborText(csilV.DeviceCode)})
 	csilEntries = append(csilEntries, cborEntry{cborText("interval_seconds"), cborUint(csilV.IntervalSeconds)})
 	csilEntries = append(csilEntries, cborEntry{cborText("verification_url"), cborText(csilV.VerificationUrl)})
@@ -4026,10 +3925,7 @@ func csilDecBeginCliLoginResponse(csilRoot cborValue) (BeginCliLoginResponse, er
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -4107,7 +4003,7 @@ func DecodeApproveCliLoginRequest(csilData []byte) (ApproveCliLoginRequest, erro
 func csilEncCliLoginRequestInfo(csilV CliLoginRequestInfo) cborValue {
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("user_code"), cborText(csilV.UserCode)})
-	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), csilEncTimestamp(csilV.ExpiresAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("client_name"), cborText(csilV.ClientName)})
 	return csilEntries
 }
@@ -4142,10 +4038,7 @@ func csilDecCliLoginRequestInfo(csilRoot cborValue) (CliLoginRequestInfo, error)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -4358,14 +4251,14 @@ func csilEncCliSessionSummary(csilV CliSessionSummary) cborValue {
 	if csilV.Current != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("current"), cborBool((*csilV.Current))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
-	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), csilEncTimestamp(csilV.ExpiresAt)})
 	if csilV.RevokedAt != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("revoked_at"), cborText((*csilV.RevokedAt))})
+		csilEntries = append(csilEntries, cborEntry{cborText("revoked_at"), csilEncTimestamp((*csilV.RevokedAt))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("session_id"), cborText(csilV.SessionId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("client_name"), cborText(csilV.ClientName)})
-	csilEntries = append(csilEntries, cborEntry{cborText("last_used_at"), cborText(csilV.LastUsedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("last_used_at"), csilEncTimestamp(csilV.LastUsedAt)})
 	return csilEntries
 }
 
@@ -4402,10 +4295,7 @@ func csilDecCliSessionSummary(csilRoot cborValue) (CliSessionSummary, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -4416,10 +4306,7 @@ func csilDecCliSessionSummary(csilRoot cborValue) (CliSessionSummary, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -4430,20 +4317,14 @@ func csilDecCliSessionSummary(csilRoot cborValue) (CliSessionSummary, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
 		csilOut.ExpiresAt = csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "revoked_at"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -4776,7 +4657,7 @@ func csilEncMeResponse(csilV MeResponse) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("domain"), cborText(csilV.Domain)})
 	csilEntries = append(csilEntries, cborEntry{cborText("houses"), cborEncArray(csilV.Houses, func(csilElem HouseSummary) cborValue { return csilEncHouseSummary(csilElem) })})
 	csilEntries = append(csilEntries, cborEntry{cborText("user_id"), cborText(csilV.UserId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), csilEncTimestamp(csilV.ExpiresAt)})
 	if csilV.DisplayName != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("display_name"), cborText((*csilV.DisplayName))})
 	}
@@ -4820,10 +4701,7 @@ func csilDecMeResponse(csilRoot cborValue) (MeResponse, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -5071,10 +4949,10 @@ func csilEncEventListRequest(csilV EventListRequest) cborValue {
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
 	if csilV.RangeEnd != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("range_end"), cborText((*csilV.RangeEnd))})
+		csilEntries = append(csilEntries, cborEntry{cborText("range_end"), csilEncTimestamp((*csilV.RangeEnd))})
 	}
 	if csilV.RangeStart != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("range_start"), cborText((*csilV.RangeStart))})
+		csilEntries = append(csilEntries, cborEntry{cborText("range_start"), csilEncTimestamp((*csilV.RangeStart))})
 	}
 	return csilEntries
 }
@@ -5097,20 +4975,14 @@ func csilDecEventListRequest(csilRoot cborValue) (EventListRequest, error) {
 		csilOut.HouseId = csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "range_start"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
 		csilOut.RangeStart = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "range_end"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -5164,17 +5036,17 @@ func csilEncTaskListRequest(csilV TaskListRequest) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("state"), cborText((*csilV.State))})
 	}
 	if csilV.DueTo != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("due_to"), cborText((*csilV.DueTo))})
+		csilEntries = append(csilEntries, cborEntry{cborText("due_to"), csilEncTimestamp((*csilV.DueTo))})
 	}
 	if csilV.Offset != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("offset"), cborUint((*csilV.Offset))})
 	}
 	if csilV.DueFrom != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("due_from"), cborText((*csilV.DueFrom))})
+		csilEntries = append(csilEntries, cborEntry{cborText("due_from"), csilEncTimestamp((*csilV.DueFrom))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
 	if csilV.DueBefore != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("due_before"), cborEncArray(csilV.DueBefore, func(csilElem Timestamp) cborValue { return cborText(csilElem) })})
+		csilEntries = append(csilEntries, cborEntry{cborText("due_before"), cborEncArray(csilV.DueBefore, func(csilElem time.Time) cborValue { return csilEncTimestamp(csilElem) })})
 	}
 	return csilEntries
 }
@@ -5246,32 +5118,21 @@ func csilDecTaskListRequest(csilRoot cborValue) (TaskListRequest, error) {
 		csilOut.Loose = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "due_from"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
 		csilOut.DueFrom = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "due_to"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
 		csilOut.DueTo = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "due_before"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) ([]Timestamp, error) {
-			return cborDecArray(csilV, func(csilV cborValue) (Timestamp, error) {
-				csilInner, csilErr := (cborAsText)(csilV)
-				return Timestamp(csilInner), csilErr
-			})
-		})(csilField)
+		csilVal, csilErr := (func(csilV cborValue) ([]time.Time, error) { return cborDecArray(csilV, csilAsTimestamp) })(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -5687,7 +5548,7 @@ func csilEncNotification(csilV Notification) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("kind"), cborText(csilV.Kind)})
 	csilEntries = append(csilEntries, cborEntry{cborText("read"), cborBool(csilV.Read)})
 	if csilV.ReadAt != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("read_at"), cborText((*csilV.ReadAt))})
+		csilEntries = append(csilEntries, cborEntry{cborText("read_at"), csilEncTimestamp((*csilV.ReadAt))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("member_id"), cborText(csilV.MemberId)})
@@ -5695,7 +5556,7 @@ func csilEncNotification(csilV Notification) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("target_id"), cborText((*csilV.TargetId))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("actor_name"), cborText(csilV.ActorName)})
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	if csilV.TargetType != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("target_type"), cborText((*csilV.TargetType))})
 	}
@@ -5832,10 +5693,7 @@ func csilDecNotification(csilRoot cborValue) (Notification, error) {
 		csilOut.Read = csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "read_at"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -5846,10 +5704,7 @@ func csilDecNotification(csilRoot cborValue) (Notification, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -7930,7 +7785,7 @@ func csilEncActAsTokenResponse(csilV ActAsTokenResponse) cborValue {
 	csilEntries = append(csilEntries, cborEntry{cborText("grantee"), cborText(csilV.Grantee)})
 	csilEntries = append(csilEntries, cborEntry{cborText("user_id"), cborText(csilV.UserId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("grant_id"), cborText(csilV.GrantId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), csilEncTimestamp(csilV.ExpiresAt)})
 	return csilEntries
 }
 
@@ -7975,10 +7830,7 @@ func csilDecActAsTokenResponse(csilRoot cborValue) (ActAsTokenResponse, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -8224,7 +8076,7 @@ func csilEncCalendarStatus(csilV CalendarStatus) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("last_error"), cborText((*csilV.LastError))})
 	}
 	if csilV.SyncPendingSince != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("sync_pending_since"), cborText((*csilV.SyncPendingSince))})
+		csilEntries = append(csilEntries, cborEntry{cborText("sync_pending_since"), csilEncTimestamp((*csilV.SyncPendingSince))})
 	}
 	return csilEntries
 }
@@ -8298,10 +8150,7 @@ func csilDecCalendarStatus(csilRoot cborValue) (CalendarStatus, error) {
 		csilOut.LastError = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "sync_pending_since"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -8489,8 +8338,8 @@ func csilEncCalendarTrashEntry(csilV CalendarTrashEntry) cborValue {
 	csilEntries := make(cborMap, 0, 4)
 	csilEntries = append(csilEntries, cborEntry{cborText("event"), csilEncEvent(csilV.Event)})
 	csilEntries = append(csilEntries, cborEntry{cborText("trash_id"), cborText(csilV.TrashId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("deleted_at"), cborText(csilV.DeletedAt)})
-	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), cborText(csilV.ExpiresAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("deleted_at"), csilEncTimestamp(csilV.DeletedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("expires_at"), csilEncTimestamp(csilV.ExpiresAt)})
 	return csilEntries
 }
 
@@ -8524,10 +8373,7 @@ func csilDecCalendarTrashEntry(csilRoot cborValue) (CalendarTrashEntry, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -8538,10 +8384,7 @@ func csilDecCalendarTrashEntry(csilRoot cborValue) (CalendarTrashEntry, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -8700,9 +8543,9 @@ func DecodeCalendarMigrationRow(csilData []byte) (CalendarMigrationRow, error) {
 // csilEncProjectDeadlineRequest builds the canonical CBOR value tree for a ProjectDeadlineRequest.
 func csilEncProjectDeadlineRequest(csilV ProjectDeadlineRequest) cborValue {
 	csilEntries := make(cborMap, 0, 3)
-	csilEntries = append(csilEntries, cborEntry{cborText("range_end"), cborText(csilV.RangeEnd)})
+	csilEntries = append(csilEntries, cborEntry{cborText("range_end"), csilEncTimestamp(csilV.RangeEnd)})
 	csilEntries = append(csilEntries, cborEntry{cborText("project_id"), cborText(csilV.ProjectId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("range_start"), cborText(csilV.RangeStart)})
+	csilEntries = append(csilEntries, cborEntry{cborText("range_start"), csilEncTimestamp(csilV.RangeStart)})
 	return csilEntries
 }
 
@@ -8728,10 +8571,7 @@ func csilDecProjectDeadlineRequest(csilRoot cborValue) (ProjectDeadlineRequest, 
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -8742,10 +8582,7 @@ func csilDecProjectDeadlineRequest(csilRoot cborValue) (ProjectDeadlineRequest, 
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -8773,7 +8610,7 @@ func DecodeProjectDeadlineRequest(csilData []byte) (ProjectDeadlineRequest, erro
 func csilEncProjectDeadline(csilV ProjectDeadline) cborValue {
 	csilEntries := make(cborMap, 0, 3)
 	csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText(csilV.Title)})
-	csilEntries = append(csilEntries, cborEntry{cborText("due_at"), cborText(csilV.DueAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("due_at"), csilEncTimestamp(csilV.DueAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("task_id"), cborText(csilV.TaskId)})
 	return csilEntries
 }
@@ -8811,10 +8648,7 @@ func csilDecProjectDeadline(csilRoot cborValue) (ProjectDeadline, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -8942,7 +8776,7 @@ func csilEncAuditEntry(csilV AuditEntry) cborValue {
 	if csilV.HouseId != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText((*csilV.HouseId))})
 	}
-	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), cborText(csilV.CreatedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("created_at"), csilEncTimestamp(csilV.CreatedAt)})
 	if csilV.ResourceId != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("resource_id"), cborText((*csilV.ResourceId))})
 	}
@@ -9101,10 +8935,7 @@ func csilDecAuditEntry(csilRoot cborValue) (AuditEntry, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -9135,10 +8966,10 @@ func csilEncAuditQuery(csilV AuditQuery) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("limit"), cborUint((*csilV.Limit))})
 	}
 	if csilV.Since != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("since"), cborText((*csilV.Since))})
+		csilEntries = append(csilEntries, cborEntry{cborText("since"), csilEncTimestamp((*csilV.Since))})
 	}
 	if csilV.Until != nil {
-		csilEntries = append(csilEntries, cborEntry{cborText("until"), cborText((*csilV.Until))})
+		csilEntries = append(csilEntries, cborEntry{cborText("until"), csilEncTimestamp((*csilV.Until))})
 	}
 	if csilV.Action != nil {
 		csilEntries = append(csilEntries, cborEntry{cborText("action"), cborText((*csilV.Action))})
@@ -9198,20 +9029,14 @@ func csilDecAuditQuery(csilRoot cborValue) (AuditQuery, error) {
 		csilOut.Action = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "since"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
 		csilOut.Since = &csilVal
 	}
 	if csilField, csilOk := cborMapGet(csilRoot, "until"); csilOk {
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -9305,7 +9130,7 @@ func csilEncTrashItem(csilV TrashItem) cborValue {
 		csilEntries = append(csilEntries, cborEntry{cborText("title"), cborText((*csilV.Title))})
 	}
 	csilEntries = append(csilEntries, cborEntry{cborText("house_id"), cborText(csilV.HouseId)})
-	csilEntries = append(csilEntries, cborEntry{cborText("deleted_at"), cborText(csilV.DeletedAt)})
+	csilEntries = append(csilEntries, cborEntry{cborText("deleted_at"), csilEncTimestamp(csilV.DeletedAt)})
 	csilEntries = append(csilEntries, cborEntry{cborText("resource_id"), cborText(csilV.ResourceId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("deleted_op_id"), cborText(csilV.DeletedOpId)})
 	csilEntries = append(csilEntries, cborEntry{cborText("resource_type"), cborText(csilV.ResourceType)})
@@ -9366,10 +9191,7 @@ func csilDecTrashItem(csilRoot cborValue) (TrashItem, error) {
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
-		csilVal, csilErr := (func(csilV cborValue) (Timestamp, error) {
-			csilInner, csilErr := (cborAsText)(csilV)
-			return Timestamp(csilInner), csilErr
-		})(csilField)
+		csilVal, csilErr := (csilAsTimestamp)(csilField)
 		if csilErr != nil {
 			return csilOut, csilErr
 		}
@@ -10650,4 +10472,3126 @@ func DecodeSettingsGetSettingsRequest(csilData []byte) (HouseID, error) {
 		csilInner, csilErr := (cborAsText)(csilV)
 		return HouseID(csilInner), csilErr
 	})(csilRoot)
+}
+
+// RPCDecodeError reports a malformed typed RPC reply.
+type RPCDecodeError struct{ Err error }
+
+func (e *RPCDecodeError) Error() string { return e.Err.Error() }
+func (e *RPCDecodeError) Unwrap() error { return e.Err }
+
+// RPCApplicationError carries the declared value of an application refusal.
+type RPCApplicationError[T any] struct{ Value T }
+
+func (e *RPCApplicationError[T]) Error() string { return fmt.Sprintf("application error: %v", e.Value) }
+
+func EncodeAuthBeginBrowserLoginReply(value BeginBrowserLoginResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "BeginBrowserLoginResponse", EncodeBeginBrowserLoginResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthGetActAsScopeSetReply(value ActAsScopeSetResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "ActAsScopeSetResponse", EncodeActAsScopeSetResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthExchangeActAsCredentialReply(value ActAsTokenResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "ActAsTokenResponse", EncodeActAsTokenResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthLoginReply(value LoginResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "LoginResponse", EncodeLoginResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthCompleteReply(value LoginResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "LoginResponse", EncodeLoginResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthRefreshReply(value LoginResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "LoginResponse", EncodeLoginResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthLogoutReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthResumeSessionReply(value LoginResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "LoginResponse", EncodeLoginResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthEndSessionReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthMeReply(value MeResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "MeResponse", EncodeMeResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthBeginCliLoginReply(value BeginCliLoginResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "BeginCliLoginResponse", EncodeBeginCliLoginResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthInspectCliLoginReply(value CliLoginRequestInfo, err error) (string, []byte, error) {
+	if err == nil {
+		return "CliLoginRequestInfo", EncodeCliLoginRequestInfo(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthApproveCliLoginReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthDenyCliLoginReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthExchangeCliLoginReply(value ExchangeCliLoginResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "ExchangeCliLoginResponse", EncodeExchangeCliLoginResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthRefreshSessionReply(value CliTokenResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "CliTokenResponse", EncodeCliTokenResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthListSessionsReply(value CliSessionsResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "CliSessionsResponse", EncodeCliSessionsResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuthRevokeSessionReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeDevAuthListDevUsersReply(value DevUsersResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "DevUsersResponse", EncodeDevUsersResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeDevAuthDevLoginReply(value LoginResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "LoginResponse", EncodeLoginResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeHouseCreateHouseReply(value House, err error) (string, []byte, error) {
+	if err == nil {
+		return "House", EncodeHouse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeHouseGetHouseReply(value House, err error) (string, []byte, error) {
+	if err == nil {
+		return "House", EncodeHouse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeHouseUpdateHouseReply(value House, err error) (string, []byte, error) {
+	if err == nil {
+		return "House", EncodeHouse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeHouseDeleteHouseReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeMemberCreateMemberReply(value Member, err error) (string, []byte, error) {
+	if err == nil {
+		return "Member", EncodeMember(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeMemberGetMemberReply(value Member, err error) (string, []byte, error) {
+	if err == nil {
+		return "Member", EncodeMember(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeMemberGetMemberByIdentityReply(value Member, err error) (string, []byte, error) {
+	if err == nil {
+		return "Member", EncodeMember(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeMemberUpdateMemberReply(value Member, err error) (string, []byte, error) {
+	if err == nil {
+		return "Member", EncodeMember(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeMemberDeactivateMemberReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeMemberReactivateMemberReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTrustedDomainAddTrustedDomainReply(value TrustedDomain, err error) (string, []byte, error) {
+	if err == nil {
+		return "TrustedDomain", EncodeTrustedDomain(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTrustedDomainRemoveTrustedDomainReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTrustedDomainIsDomainTrustedReply(value BoolResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "BoolResponse", EncodeBoolResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeRoleCreateRoleReply(value Role, err error) (string, []byte, error) {
+	if err == nil {
+		return "Role", EncodeRole(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeRoleUpdateRoleReply(value Role, err error) (string, []byte, error) {
+	if err == nil {
+		return "Role", EncodeRole(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeRoleDeleteRoleReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeRoleGrantRoleReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeRoleRevokeRoleReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeSkillCreateSkillReply(value Skill, err error) (string, []byte, error) {
+	if err == nil {
+		return "Skill", EncodeSkill(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeSkillUpdateSkillReply(value Skill, err error) (string, []byte, error) {
+	if err == nil {
+		return "Skill", EncodeSkill(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeSkillDeleteSkillReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeSkillAddMemberSkillReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeSkillRemoveMemberSkillReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeSkillAddGroupSkillReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeSkillRemoveGroupSkillReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeGroupCreateGroupReply(value Group, err error) (string, []byte, error) {
+	if err == nil {
+		return "Group", EncodeGroup(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeGroupUpdateGroupReply(value Group, err error) (string, []byte, error) {
+	if err == nil {
+		return "Group", EncodeGroup(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeGroupDeleteGroupReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeGroupAddGroupMemberReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeGroupRemoveGroupMemberReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectCreateProjectReply(value Project, err error) (string, []byte, error) {
+	if err == nil {
+		return "Project", EncodeProject(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectGetProjectReply(value Project, err error) (string, []byte, error) {
+	if err == nil {
+		return "Project", EncodeProject(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectUpdateProjectReply(value Project, err error) (string, []byte, error) {
+	if err == nil {
+		return "Project", EncodeProject(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectDeleteProjectReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectListProjectsReply(value ProjectList, err error) (string, []byte, error) {
+	if err == nil {
+		return "ProjectList", EncodeProjectList(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectListProjectTasksReply(value TaskList, err error) (string, []byte, error) {
+	if err == nil {
+		return "TaskList", EncodeTaskList(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectAddProjectTaskReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectRemoveProjectTaskReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectSetProjectTaskPositionReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectAddProjectMemberReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectRemoveProjectMemberReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectAddProjectOwnerReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectRemoveProjectOwnerReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectCreateMilestoneReply(value Milestone, err error) (string, []byte, error) {
+	if err == nil {
+		return "Milestone", EncodeMilestone(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectUpdateMilestoneReply(value Milestone, err error) (string, []byte, error) {
+	if err == nil {
+		return "Milestone", EncodeMilestone(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectDeleteMilestoneReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectSetProjectVisibilityReply(value Project, err error) (string, []byte, error) {
+	if err == nil {
+		return "Project", EncodeProject(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectPutProjectGrantReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeProjectDeleteProjectGrantReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeEventCreateEventReply(value Event, err error) (string, []byte, error) {
+	if err == nil {
+		return "Event", EncodeEvent(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeEventGetEventReply(value Event, err error) (string, []byte, error) {
+	if err == nil {
+		return "Event", EncodeEvent(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeEventUpdateEventReply(value Event, err error) (string, []byte, error) {
+	if err == nil {
+		return "Event", EncodeEvent(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeEventDeleteEventReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeEventDeleteEventAndFutureReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeEventGetCalendarViewReply(value CalendarView, err error) (string, []byte, error) {
+	if err == nil {
+		return "CalendarView", EncodeCalendarView(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeEventSetCalendarViewReply(value CalendarView, err error) (string, []byte, error) {
+	if err == nil {
+		return "CalendarView", EncodeCalendarView(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeEventAcceptEventReply(value Event, err error) (string, []byte, error) {
+	if err == nil {
+		return "Event", EncodeEvent(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeEventRecoverEditReply(value Event, err error) (string, []byte, error) {
+	if err == nil {
+		return "Event", EncodeEvent(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeEventDeclineEventReply(value Event, err error) (string, []byte, error) {
+	if err == nil {
+		return "Event", EncodeEvent(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeCalendarListProjectDeadlinesReply(value ProjectDeadlineList, err error) (string, []byte, error) {
+	if err == nil {
+		return "ProjectDeadlineList", EncodeProjectDeadlineList(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeCalendarGetStatusReply(value CalendarStatus, err error) (string, []byte, error) {
+	if err == nil {
+		return "CalendarStatus", EncodeCalendarStatus(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeCalendarConfigureCalendarReply(value CalendarStatus, err error) (string, []byte, error) {
+	if err == nil {
+		return "CalendarStatus", EncodeCalendarStatus(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeCalendarBeginConnectReply(value CalendarConnectResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "CalendarConnectResponse", EncodeCalendarConnectResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeCalendarCompleteConnectReply(value CalendarStatus, err error) (string, []byte, error) {
+	if err == nil {
+		return "CalendarStatus", EncodeCalendarStatus(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeCalendarDisconnectReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeCalendarRestoreEventReply(value Event, err error) (string, []byte, error) {
+	if err == nil {
+		return "Event", EncodeEvent(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTaskCreateTaskReply(value Task, err error) (string, []byte, error) {
+	if err == nil {
+		return "Task", EncodeTask(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTaskGetTaskReply(value Task, err error) (string, []byte, error) {
+	if err == nil {
+		return "Task", EncodeTask(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTaskUpdateTaskReply(value Task, err error) (string, []byte, error) {
+	if err == nil {
+		return "Task", EncodeTask(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTaskDeleteTaskReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTaskListTasksReply(value TaskList, err error) (string, []byte, error) {
+	if err == nil {
+		return "TaskList", EncodeTaskList(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTaskCreatePersonalTaskReply(value Task, err error) (string, []byte, error) {
+	if err == nil {
+		return "Task", EncodeTask(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTaskSetTaskVisibilityReply(value Task, err error) (string, []byte, error) {
+	if err == nil {
+		return "Task", EncodeTask(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTaskPutTaskGrantReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTaskDeleteTaskGrantReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeDependencyAddDependencyReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeDependencyRemoveDependencyReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeDependencyGetDependenciesReply(value DependencyGraph, err error) (string, []byte, error) {
+	if err == nil {
+		return "DependencyGraph", EncodeDependencyGraph(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeCommentCreateCommentReply(value Comment, err error) (string, []byte, error) {
+	if err == nil {
+		return "Comment", EncodeComment(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeCommentGetCommentReply(value Comment, err error) (string, []byte, error) {
+	if err == nil {
+		return "Comment", EncodeComment(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeCommentUpdateCommentReply(value Comment, err error) (string, []byte, error) {
+	if err == nil {
+		return "Comment", EncodeComment(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeCommentDeleteCommentReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeNotificationUnreadCountReply(value NotificationUnreadCount, err error) (string, []byte, error) {
+	if err == nil {
+		return "NotificationUnreadCount", EncodeNotificationUnreadCount(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeNotificationMarkReadReply(value Notification, err error) (string, []byte, error) {
+	if err == nil {
+		return "Notification", EncodeNotification(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeNotificationMarkAllReadReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeShareCreateShareReply(value Share, err error) (string, []byte, error) {
+	if err == nil {
+		return "Share", EncodeShare(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeShareDeleteShareReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeShareCheckAccessReply(value Share, err error) (string, []byte, error) {
+	if err == nil {
+		return "Share", EncodeShare(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeSettingsGetSettingsReply(value EffectiveSettings, err error) (string, []byte, error) {
+	if err == nil {
+		return "EffectiveSettings", EncodeEffectiveSettings(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeSettingsUpdateSettingsReply(value EffectiveSettings, err error) (string, []byte, error) {
+	if err == nil {
+		return "EffectiveSettings", EncodeEffectiveSettings(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeBugReportBugReply(value Task, err error) (string, []byte, error) {
+	if err == nil {
+		return "Task", EncodeTask(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeAuditQueryAuditReply(value AuditPage, err error) (string, []byte, error) {
+	if err == nil {
+		return "AuditPage", EncodeAuditPage(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTrashListTrashReply(value TrashPage, err error) (string, []byte, error) {
+	if err == nil {
+		return "TrashPage", EncodeTrashPage(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTrashRestoreReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func EncodeTrashPurgeReply(value EmptyResponse, err error) (string, []byte, error) {
+	if err == nil {
+		return "EmptyResponse", EncodeEmptyResponse(value), nil
+	}
+	var refusal1 *RPCApplicationError[ServiceError]
+	if errors.As(err, &refusal1) && refusal1 != nil {
+		return "ServiceError", EncodeServiceError(refusal1.Value), nil
+	}
+	return "", nil, err
+}
+
+func ResolveRPCReply(service, op string, variant *string, payload []byte) ([]byte, error) {
+	switch {
+	case service == "AuthService" && op == "begin-browser-login":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "BeginBrowserLoginResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "get-act-as-scope-set":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "ActAsScopeSetResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "exchange-act-as-credential":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "ActAsTokenResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "login":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "LoginResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "complete":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "LoginResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "refresh":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "LoginResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "logout":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "resume-session":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "LoginResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "end-session":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "me":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "MeResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "begin-cli-login":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "BeginCliLoginResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "inspect-cli-login":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "CliLoginRequestInfo":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "approve-cli-login":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "deny-cli-login":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "exchange-cli-login":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "ExchangeCliLoginResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "refresh-session":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "CliTokenResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "list-sessions":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "CliSessionsResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuthService" && op == "revoke-session":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "DevAuthService" && op == "list-dev-users":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "DevUsersResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "DevAuthService" && op == "dev-login":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "LoginResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "HouseService" && op == "create-house":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "House":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "HouseService" && op == "get-house":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "House":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "HouseService" && op == "update-house":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "House":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "HouseService" && op == "delete-house":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "MemberService" && op == "create-member":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Member":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "MemberService" && op == "get-member":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Member":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "MemberService" && op == "get-member-by-identity":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Member":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "MemberService" && op == "update-member":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Member":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "MemberService" && op == "deactivate-member":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "MemberService" && op == "reactivate-member":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TrustedDomainService" && op == "add-trusted-domain":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "TrustedDomain":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TrustedDomainService" && op == "remove-trusted-domain":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TrustedDomainService" && op == "is-domain-trusted":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "BoolResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "RoleService" && op == "create-role":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Role":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "RoleService" && op == "update-role":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Role":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "RoleService" && op == "delete-role":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "RoleService" && op == "grant-role":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "RoleService" && op == "revoke-role":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "SkillService" && op == "create-skill":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Skill":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "SkillService" && op == "update-skill":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Skill":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "SkillService" && op == "delete-skill":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "SkillService" && op == "add-member-skill":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "SkillService" && op == "remove-member-skill":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "SkillService" && op == "add-group-skill":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "SkillService" && op == "remove-group-skill":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "GroupService" && op == "create-group":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Group":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "GroupService" && op == "update-group":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Group":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "GroupService" && op == "delete-group":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "GroupService" && op == "add-group-member":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "GroupService" && op == "remove-group-member":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "create-project":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Project":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "get-project":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Project":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "update-project":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Project":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "delete-project":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "list-projects":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "ProjectList":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "list-project-tasks":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "TaskList":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "add-project-task":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "remove-project-task":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "set-project-task-position":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "add-project-member":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "remove-project-member":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "add-project-owner":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "remove-project-owner":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "create-milestone":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Milestone":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "update-milestone":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Milestone":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "delete-milestone":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "set-project-visibility":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Project":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "put-project-grant":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ProjectService" && op == "delete-project-grant":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "EventService" && op == "create-event":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Event":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "EventService" && op == "get-event":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Event":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "EventService" && op == "update-event":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Event":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "EventService" && op == "delete-event":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "EventService" && op == "delete-event-and-future":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "EventService" && op == "get-calendar-view":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "CalendarView":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "EventService" && op == "set-calendar-view":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "CalendarView":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "EventService" && op == "accept-event":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Event":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "EventService" && op == "recover-edit":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Event":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "EventService" && op == "decline-event":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Event":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "CalendarService" && op == "list-project-deadlines":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "ProjectDeadlineList":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "CalendarService" && op == "get-status":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "CalendarStatus":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "CalendarService" && op == "configure-calendar":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "CalendarStatus":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "CalendarService" && op == "begin-connect":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "CalendarConnectResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "CalendarService" && op == "complete-connect":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "CalendarStatus":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "CalendarService" && op == "disconnect":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "CalendarService" && op == "restore-event":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Event":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TaskService" && op == "create-task":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Task":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TaskService" && op == "get-task":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Task":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TaskService" && op == "update-task":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Task":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TaskService" && op == "delete-task":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TaskService" && op == "list-tasks":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "TaskList":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TaskService" && op == "create-personal-task":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Task":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TaskService" && op == "set-task-visibility":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Task":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TaskService" && op == "put-task-grant":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TaskService" && op == "delete-task-grant":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "DependencyService" && op == "add-dependency":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "DependencyService" && op == "remove-dependency":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "DependencyService" && op == "get-dependencies":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "DependencyGraph":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "CommentService" && op == "create-comment":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Comment":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "CommentService" && op == "get-comment":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Comment":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "CommentService" && op == "update-comment":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Comment":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "CommentService" && op == "delete-comment":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "NotificationService" && op == "unread-count":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "NotificationUnreadCount":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "NotificationService" && op == "mark-read":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Notification":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "NotificationService" && op == "mark-all-read":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ShareService" && op == "create-share":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Share":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ShareService" && op == "delete-share":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "ShareService" && op == "check-access":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Share":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "SettingsService" && op == "get-settings":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EffectiveSettings":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "SettingsService" && op == "update-settings":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EffectiveSettings":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "BugService" && op == "report-bug":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "Task":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "AuditService" && op == "query-audit":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "AuditPage":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TrashService" && op == "list-trash":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "TrashPage":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TrashService" && op == "restore":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	case service == "TrashService" && op == "purge":
+		if variant == nil {
+			return nil, &RPCDecodeError{fmt.Errorf("missing RPC reply variant")}
+		}
+		switch *variant {
+		case "EmptyResponse":
+			return payload, nil
+		case "ServiceError":
+			value, err := DecodeServiceError(payload)
+			if err != nil {
+				return nil, &RPCDecodeError{err}
+			}
+			return nil, &RPCApplicationError[ServiceError]{Value: value}
+		default:
+			return nil, &RPCDecodeError{fmt.Errorf("unknown RPC reply variant %q", *variant)}
+		}
+	}
+	return payload, nil
 }

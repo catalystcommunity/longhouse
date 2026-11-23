@@ -46,7 +46,7 @@ func TestListEvents_Postgres_RangeAndPaging(t *testing.T) {
 	for i := 0; i < 505; i++ {
 		want = append(want, add(fmt.Sprintf("in-range-%d", i), house, owner, &inside, &inside))
 	}
-	startTS, endTS := csil.Timestamp(start.Format(time.RFC3339)), csil.Timestamp(end.Format(time.RFC3339))
+	startTS, endTS := start, end
 	limit, offset := uint64(500), uint64(0)
 	req := csil.EventListRequest{HouseId: csil.HouseID(house), RangeStart: &startTS, RangeEnd: &endTS, Limit: &limit, Offset: &offset}
 	first, err := svc.ListEvents(caller, req)

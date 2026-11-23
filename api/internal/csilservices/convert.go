@@ -13,14 +13,14 @@ import (
 )
 
 // These helpers translate DB models → CSIL wire types. The DB layer carries
-// time.Time + plain strings; CSIL carries RFC3339 strings + typed ID aliases.
+// time.Time + plain strings; CSIL carries instants and typed IDs.
 // Optional CSIL fields use pointers; an empty string becomes nil.
 
-func ts(t time.Time) csil.Timestamp {
-	return csil.Timestamp(t.UTC().Format(time.RFC3339))
+func ts(t time.Time) time.Time {
+	return t.UTC()
 }
 
-func tsPtr(t *time.Time) *csil.Timestamp {
+func tsPtr(t *time.Time) *time.Time {
 	if t == nil {
 		return nil
 	}

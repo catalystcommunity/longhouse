@@ -90,11 +90,11 @@ func collectCLIFormFields(value reflect.Value, operation *cliOperation, prefix s
 		}
 		field := value.Field(i)
 		fieldType := field.Type()
-		if fieldType.Kind() == reflect.Struct {
+		if cliRecord(fieldType) {
 			collectCLIFormFields(field, operation, name+".", choices, fields, bindings)
 			continue
 		}
-		if fieldType.Kind() == reflect.Ptr && fieldType.Elem().Kind() == reflect.Struct {
+		if fieldType.Kind() == reflect.Ptr && cliRecord(fieldType.Elem()) {
 			if field.IsNil() {
 				field.Set(reflect.New(fieldType.Elem()))
 			}
@@ -179,12 +179,6 @@ func collectCLIFormFields(value reflect.Value, operation *cliOperation, prefix s
 			probe := reflect.New(validationType).Elem()
 			if err := setCLIFieldValue(probe, validationName, input); err != nil {
 				return err
-			}
-			if strings.TrimSpace(input) != "" && indirectType(validationType).Name() == "Timestamp" {
-				normalized := formatCLIValue(probe)
-				if _, err := time.Parse(time.RFC3339, normalized); err != nil {
-					return errors.New("enter an RFC3339 timestamp, YYYY-MM-DD, today, or tomorrow")
-				}
 			}
 			return nil
 		}

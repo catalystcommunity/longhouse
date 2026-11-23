@@ -19,12 +19,12 @@ const project = (projectId: string, createdByMemberId?: string): Project => ({
   houseId: "h1",
   name: projectId,
   createdByMemberId,
-  createdAt: "",
-  updatedAt: "",
+  createdAt: new Date(0),
+  updatedAt: new Date(0),
 });
 
 const task = (taskId: string, extra: Partial<Task> = {}): Task =>
-  ({ taskId, houseId: "h1", ownerMemberId: "", title: taskId, createdAt: "", updatedAt: "", ...extra }) as Task;
+  ({ taskId, houseId: "h1", ownerMemberId: "", title: taskId, createdAt: new Date(0), updatedAt: new Date(0), ...extra }) as Task;
 
 const member = (memberId: string): Member => ({ memberId }) as Member;
 
@@ -73,7 +73,7 @@ describe("task/project set helpers", () => {
       task("b", { status: "in_progress" }),
       task("c", { status: "done" }),
       task("d", { status: "cancelled" }),
-      task("e", { deletedAt: "2026-01-01T00:00:00Z" }),
+      task("e", { deletedAt: new Date("2026-01-01T00:00:00Z") }),
     ])).toBe(2);
   });
 });

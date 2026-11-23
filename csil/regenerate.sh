@@ -16,19 +16,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SPEC="$REPO/csil/longhouse.csil"
 GO_OUT="$REPO/api/internal/csil"
 
-# csilgen is installed via `cargo install` and lives at ~/.cargo/bin/csilgen.
-# That directory isn't always on the non-interactive PATH (e.g. shells spawned
-# by editors/tools that don't source the user rc), so add it here rather than
-# forcing every caller to fix their environment.
-if [ -d "$HOME/.cargo/bin" ]; then
-    export PATH="$HOME/.cargo/bin:$PATH"
-fi
-
-if ! command -v csilgen >/dev/null; then
-    echo "ERROR: csilgen not on PATH (looked in \$PATH and ~/.cargo/bin)" >&2
-    echo "       install with: cargo install --git https://github.com/catalystcommunity/csilgen" >&2
-    exit 1
-fi
+source "$REPO/csil/generator.sh"
 
 csilgen validate --input "$SPEC"
 

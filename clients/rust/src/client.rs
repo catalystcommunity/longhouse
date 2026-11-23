@@ -10,12 +10,16 @@ use super::types::*;
 pub enum ClientError {
     Service { code: i64, message: String },
     Transport(String),
+    ApplicationServiceError(Box<ServiceError>),
+    Decode(String),
 }
 
 impl std::fmt::Display for ClientError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ClientError::Service { code, message } => write!(f, "service error {code}: {message}"),
+            Self::ApplicationServiceError(e) => write!(f, "application error: {e:?}"),
+            Self::Decode(msg) => write!(f, "invalid reply: {msg}"),
             ClientError::Transport(msg) => write!(f, "transport error: {msg}"),
         }
     }
@@ -29,6 +33,1173 @@ impl std::error::Error for ClientError {}
 /// only moves bytes, so it can be HTTP, a queue, or an in-process loop.
 pub trait Transport {
     fn call(&self, service: &str, op: &str, req: &[u8]) -> Result<Vec<u8>, ClientError>;
+}
+impl From<CsilCborError> for ClientError {
+    fn from(error: CsilCborError) -> Self {
+        Self::Decode(error.0)
+    }
+}
+
+/// Resolve a status-zero RPC reply before returning its payload to the client.
+pub fn resolve_rpc_reply(
+    service: &str,
+    op: &str,
+    variant: Option<&str>,
+    payload: Vec<u8>,
+) -> Result<Vec<u8>, ClientError> {
+    match (service, op) {
+        ("AuthService", "begin-browser-login") => match variant {
+            Some("BeginBrowserLoginResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "get-act-as-scope-set") => match variant {
+            Some("ActAsScopeSetResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "exchange-act-as-credential") => match variant {
+            Some("ActAsTokenResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "login") => match variant {
+            Some("LoginResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "complete") => match variant {
+            Some("LoginResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "refresh") => match variant {
+            Some("LoginResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "logout") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "resume-session") => match variant {
+            Some("LoginResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "end-session") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "me") => match variant {
+            Some("MeResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "begin-cli-login") => match variant {
+            Some("BeginCliLoginResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "inspect-cli-login") => match variant {
+            Some("CliLoginRequestInfo") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "approve-cli-login") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "deny-cli-login") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "exchange-cli-login") => match variant {
+            Some("ExchangeCliLoginResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "refresh-session") => match variant {
+            Some("CliTokenResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "list-sessions") => match variant {
+            Some("CliSessionsResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuthService", "revoke-session") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("DevAuthService", "list-dev-users") => match variant {
+            Some("DevUsersResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("DevAuthService", "dev-login") => match variant {
+            Some("LoginResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("HouseService", "create-house") => match variant {
+            Some("House") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("HouseService", "get-house") => match variant {
+            Some("House") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("HouseService", "update-house") => match variant {
+            Some("House") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("HouseService", "delete-house") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("MemberService", "create-member") => match variant {
+            Some("Member") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("MemberService", "get-member") => match variant {
+            Some("Member") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("MemberService", "get-member-by-identity") => match variant {
+            Some("Member") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("MemberService", "update-member") => match variant {
+            Some("Member") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("MemberService", "deactivate-member") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("MemberService", "reactivate-member") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TrustedDomainService", "add-trusted-domain") => match variant {
+            Some("TrustedDomain") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TrustedDomainService", "remove-trusted-domain") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TrustedDomainService", "is-domain-trusted") => match variant {
+            Some("BoolResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("RoleService", "create-role") => match variant {
+            Some("Role") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("RoleService", "update-role") => match variant {
+            Some("Role") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("RoleService", "delete-role") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("RoleService", "grant-role") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("RoleService", "revoke-role") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("SkillService", "create-skill") => match variant {
+            Some("Skill") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("SkillService", "update-skill") => match variant {
+            Some("Skill") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("SkillService", "delete-skill") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("SkillService", "add-member-skill") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("SkillService", "remove-member-skill") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("SkillService", "add-group-skill") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("SkillService", "remove-group-skill") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("GroupService", "create-group") => match variant {
+            Some("Group") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("GroupService", "update-group") => match variant {
+            Some("Group") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("GroupService", "delete-group") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("GroupService", "add-group-member") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("GroupService", "remove-group-member") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "create-project") => match variant {
+            Some("Project") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "get-project") => match variant {
+            Some("Project") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "update-project") => match variant {
+            Some("Project") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "delete-project") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "list-projects") => match variant {
+            Some("ProjectList") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "list-project-tasks") => match variant {
+            Some("TaskList") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "add-project-task") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "remove-project-task") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "set-project-task-position") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "add-project-member") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "remove-project-member") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "add-project-owner") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "remove-project-owner") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "create-milestone") => match variant {
+            Some("Milestone") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "update-milestone") => match variant {
+            Some("Milestone") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "delete-milestone") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "set-project-visibility") => match variant {
+            Some("Project") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "put-project-grant") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ProjectService", "delete-project-grant") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("EventService", "create-event") => match variant {
+            Some("Event") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("EventService", "get-event") => match variant {
+            Some("Event") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("EventService", "update-event") => match variant {
+            Some("Event") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("EventService", "delete-event") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("EventService", "delete-event-and-future") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("EventService", "get-calendar-view") => match variant {
+            Some("CalendarView") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("EventService", "set-calendar-view") => match variant {
+            Some("CalendarView") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("EventService", "accept-event") => match variant {
+            Some("Event") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("EventService", "recover-edit") => match variant {
+            Some("Event") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("EventService", "decline-event") => match variant {
+            Some("Event") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("CalendarService", "list-project-deadlines") => match variant {
+            Some("ProjectDeadlineList") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("CalendarService", "get-status") => match variant {
+            Some("CalendarStatus") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("CalendarService", "configure-calendar") => match variant {
+            Some("CalendarStatus") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("CalendarService", "begin-connect") => match variant {
+            Some("CalendarConnectResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("CalendarService", "complete-connect") => match variant {
+            Some("CalendarStatus") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("CalendarService", "disconnect") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("CalendarService", "restore-event") => match variant {
+            Some("Event") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TaskService", "create-task") => match variant {
+            Some("Task") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TaskService", "get-task") => match variant {
+            Some("Task") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TaskService", "update-task") => match variant {
+            Some("Task") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TaskService", "delete-task") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TaskService", "list-tasks") => match variant {
+            Some("TaskList") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TaskService", "create-personal-task") => match variant {
+            Some("Task") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TaskService", "set-task-visibility") => match variant {
+            Some("Task") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TaskService", "put-task-grant") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TaskService", "delete-task-grant") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("DependencyService", "add-dependency") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("DependencyService", "remove-dependency") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("DependencyService", "get-dependencies") => match variant {
+            Some("DependencyGraph") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("CommentService", "create-comment") => match variant {
+            Some("Comment") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("CommentService", "get-comment") => match variant {
+            Some("Comment") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("CommentService", "update-comment") => match variant {
+            Some("Comment") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("CommentService", "delete-comment") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("NotificationService", "unread-count") => match variant {
+            Some("NotificationUnreadCount") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("NotificationService", "mark-read") => match variant {
+            Some("Notification") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("NotificationService", "mark-all-read") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ShareService", "create-share") => match variant {
+            Some("Share") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ShareService", "delete-share") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("ShareService", "check-access") => match variant {
+            Some("Share") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("SettingsService", "get-settings") => match variant {
+            Some("EffectiveSettings") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("SettingsService", "update-settings") => match variant {
+            Some("EffectiveSettings") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("BugService", "report-bug") => match variant {
+            Some("Task") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("AuditService", "query-audit") => match variant {
+            Some("AuditPage") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TrashService", "list-trash") => match variant {
+            Some("TrashPage") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TrashService", "restore") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        ("TrashService", "purge") => match variant {
+            Some("EmptyResponse") => Ok(payload),
+            Some("ServiceError") => {
+                let value = decode_service_error(&payload)?;
+                Err(ClientError::ApplicationServiceError(Box::new(value)))
+            }
+            _ => Err(ClientError::Decode(format!(
+                "invalid reply variant {variant:?}"
+            ))),
+        },
+        _ => Ok(payload),
+    }
 }
 
 /// Typed client for the AuthService service.
@@ -53,7 +1224,7 @@ impl<T: Transport> AuthClient<T> {
             &encode_begin_browser_login_request(&req),
         )?;
         decode_begin_browser_login_response(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+            .map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-act-as-scope-set (request/response).
@@ -66,8 +1237,7 @@ impl<T: Transport> AuthClient<T> {
             "get-act-as-scope-set",
             &encode_act_as_scope_set_request(&req),
         )?;
-        decode_act_as_scope_set_response(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+        decode_act_as_scope_set_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// exchange-act-as-credential (request/response).
@@ -80,7 +1250,7 @@ impl<T: Transport> AuthClient<T> {
             "exchange-act-as-credential",
             &encode_exchange_act_as_credential_request(&req),
         )?;
-        decode_act_as_token_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_act_as_token_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// login (request/response).
@@ -88,7 +1258,7 @@ impl<T: Transport> AuthClient<T> {
         let csil_resp = self
             .transport
             .call("AuthService", "login", &encode_login_request(&req))?;
-        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// complete (request/response).
@@ -96,7 +1266,7 @@ impl<T: Transport> AuthClient<T> {
         let csil_resp =
             self.transport
                 .call("AuthService", "complete", &encode_complete_request(&req))?;
-        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// refresh (request/response).
@@ -104,7 +1274,7 @@ impl<T: Transport> AuthClient<T> {
         let csil_resp =
             self.transport
                 .call("AuthService", "refresh", &encode_empty_request(&req))?;
-        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// logout (request/response).
@@ -112,7 +1282,7 @@ impl<T: Transport> AuthClient<T> {
         let csil_resp =
             self.transport
                 .call("AuthService", "logout", &encode_empty_request(&req))?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// resume-session (request/response).
@@ -120,7 +1290,7 @@ impl<T: Transport> AuthClient<T> {
         let csil_resp =
             self.transport
                 .call("AuthService", "resume-session", &encode_empty_request(&req))?;
-        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// end-session (request/response).
@@ -128,7 +1298,7 @@ impl<T: Transport> AuthClient<T> {
         let csil_resp =
             self.transport
                 .call("AuthService", "end-session", &encode_empty_request(&req))?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// me (request/response).
@@ -136,7 +1306,7 @@ impl<T: Transport> AuthClient<T> {
         let csil_resp = self
             .transport
             .call("AuthService", "me", &encode_empty_request(&req))?;
-        decode_me_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_me_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// begin-cli-login (request/response).
@@ -149,8 +1319,7 @@ impl<T: Transport> AuthClient<T> {
             "begin-cli-login",
             &encode_begin_cli_login_request(&req),
         )?;
-        decode_begin_cli_login_response(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+        decode_begin_cli_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// inspect-cli-login (request/response).
@@ -163,7 +1332,7 @@ impl<T: Transport> AuthClient<T> {
             "inspect-cli-login",
             &encode_approve_cli_login_request(&req),
         )?;
-        decode_cli_login_request_info(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_cli_login_request_info(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// approve-cli-login (request/response).
@@ -176,7 +1345,7 @@ impl<T: Transport> AuthClient<T> {
             "approve-cli-login",
             &encode_approve_cli_login_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// deny-cli-login (request/response).
@@ -186,7 +1355,7 @@ impl<T: Transport> AuthClient<T> {
             "deny-cli-login",
             &encode_deny_cli_login_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// exchange-cli-login (request/response).
@@ -200,7 +1369,7 @@ impl<T: Transport> AuthClient<T> {
             &encode_exchange_cli_login_request(&req),
         )?;
         decode_exchange_cli_login_response(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+            .map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// refresh-session (request/response).
@@ -213,7 +1382,7 @@ impl<T: Transport> AuthClient<T> {
             "refresh-session",
             &encode_refresh_session_request(&req),
         )?;
-        decode_cli_token_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_cli_token_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-sessions (request/response).
@@ -221,7 +1390,7 @@ impl<T: Transport> AuthClient<T> {
         let csil_resp =
             self.transport
                 .call("AuthService", "list-sessions", &encode_empty_request(&req))?;
-        decode_cli_sessions_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_cli_sessions_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// revoke-session (request/response).
@@ -231,7 +1400,7 @@ impl<T: Transport> AuthClient<T> {
             "revoke-session",
             &encode_revoke_session_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -253,7 +1422,7 @@ impl<T: Transport> DevAuthClient<T> {
             "list-dev-users",
             &encode_empty_request(&req),
         )?;
-        decode_dev_users_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_dev_users_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// dev-login (request/response).
@@ -263,7 +1432,7 @@ impl<T: Transport> DevAuthClient<T> {
             "dev-login",
             &encode_dev_login_request(&req),
         )?;
-        decode_login_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_login_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -283,7 +1452,7 @@ impl<T: Transport> HouseClient<T> {
         let csil_resp = self
             .transport
             .call("HouseService", "create-house", &encode_house(&req))?;
-        decode_house(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_house(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-house (request/response).
@@ -293,7 +1462,7 @@ impl<T: Transport> HouseClient<T> {
             "get-house",
             &encode_house_get_house_request(&req),
         )?;
-        decode_house(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_house(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-house (request/response).
@@ -301,7 +1470,7 @@ impl<T: Transport> HouseClient<T> {
         let csil_resp = self
             .transport
             .call("HouseService", "update-house", &encode_house(&req))?;
-        decode_house(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_house(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-house (request/response).
@@ -311,7 +1480,7 @@ impl<T: Transport> HouseClient<T> {
             "delete-house",
             &encode_house_delete_house_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-houses (request/response).
@@ -342,7 +1511,7 @@ impl<T: Transport> MemberClient<T> {
         let csil_resp =
             self.transport
                 .call("MemberService", "create-member", &encode_member(&req))?;
-        decode_member(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_member(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-member (request/response).
@@ -352,7 +1521,7 @@ impl<T: Transport> MemberClient<T> {
             "get-member",
             &encode_member_get_member_request(&req),
         )?;
-        decode_member(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_member(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-member-by-identity (request/response).
@@ -362,7 +1531,7 @@ impl<T: Transport> MemberClient<T> {
             "get-member-by-identity",
             &encode_member(&req),
         )?;
-        decode_member(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_member(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-member (request/response).
@@ -370,7 +1539,7 @@ impl<T: Transport> MemberClient<T> {
         let csil_resp =
             self.transport
                 .call("MemberService", "update-member", &encode_member(&req))?;
-        decode_member(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_member(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// deactivate-member (request/response).
@@ -380,7 +1549,7 @@ impl<T: Transport> MemberClient<T> {
             "deactivate-member",
             &encode_member_deactivate_member_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// reactivate-member (request/response).
@@ -390,7 +1559,7 @@ impl<T: Transport> MemberClient<T> {
             "reactivate-member",
             &encode_member_reactivate_member_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-members (request/response).
@@ -423,7 +1592,7 @@ impl<T: Transport> TrustedDomainClient<T> {
             "add-trusted-domain",
             &encode_trusted_domain(&req),
         )?;
-        decode_trusted_domain(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_trusted_domain(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-trusted-domain (request/response).
@@ -436,7 +1605,7 @@ impl<T: Transport> TrustedDomainClient<T> {
             "remove-trusted-domain",
             &encode_trusted_domain_remove_trusted_domain_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-trusted-domains (request/response).
@@ -457,7 +1626,7 @@ impl<T: Transport> TrustedDomainClient<T> {
             "is-domain-trusted",
             &encode_trusted_domain(&req),
         )?;
-        decode_bool_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_bool_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -477,7 +1646,7 @@ impl<T: Transport> RoleClient<T> {
         let csil_resp = self
             .transport
             .call("RoleService", "create-role", &encode_role(&req))?;
-        decode_role(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_role(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-role (request/response).
@@ -485,7 +1654,7 @@ impl<T: Transport> RoleClient<T> {
         let csil_resp = self
             .transport
             .call("RoleService", "update-role", &encode_role(&req))?;
-        decode_role(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_role(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-role (request/response).
@@ -495,7 +1664,7 @@ impl<T: Transport> RoleClient<T> {
             "delete-role",
             &encode_role_delete_role_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-roles (request/response).
@@ -514,7 +1683,7 @@ impl<T: Transport> RoleClient<T> {
         let csil_resp =
             self.transport
                 .call("RoleService", "grant-role", &encode_member_role_ref(&req))?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// revoke-role (request/response).
@@ -522,7 +1691,7 @@ impl<T: Transport> RoleClient<T> {
         let csil_resp =
             self.transport
                 .call("RoleService", "revoke-role", &encode_member_role_ref(&req))?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-member-roles (request/response).
@@ -556,7 +1725,7 @@ impl<T: Transport> SkillClient<T> {
         let csil_resp = self
             .transport
             .call("SkillService", "create-skill", &encode_skill(&req))?;
-        decode_skill(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_skill(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-skill (request/response).
@@ -564,7 +1733,7 @@ impl<T: Transport> SkillClient<T> {
         let csil_resp = self
             .transport
             .call("SkillService", "update-skill", &encode_skill(&req))?;
-        decode_skill(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_skill(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-skill (request/response).
@@ -574,7 +1743,7 @@ impl<T: Transport> SkillClient<T> {
             "delete-skill",
             &encode_skill_delete_skill_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-skills (request/response).
@@ -595,7 +1764,7 @@ impl<T: Transport> SkillClient<T> {
             "add-member-skill",
             &encode_member_skill_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-member-skill (request/response).
@@ -605,7 +1774,7 @@ impl<T: Transport> SkillClient<T> {
             "remove-member-skill",
             &encode_member_skill_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-member-skills (request/response).
@@ -629,7 +1798,7 @@ impl<T: Transport> SkillClient<T> {
             "add-group-skill",
             &encode_group_skill_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-group-skill (request/response).
@@ -639,7 +1808,7 @@ impl<T: Transport> SkillClient<T> {
             "remove-group-skill",
             &encode_group_skill_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-group-skills (request/response).
@@ -670,7 +1839,7 @@ impl<T: Transport> GroupClient<T> {
         let csil_resp = self
             .transport
             .call("GroupService", "create-group", &encode_group(&req))?;
-        decode_group(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_group(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-group (request/response).
@@ -678,7 +1847,7 @@ impl<T: Transport> GroupClient<T> {
         let csil_resp = self
             .transport
             .call("GroupService", "update-group", &encode_group(&req))?;
-        decode_group(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_group(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-group (request/response).
@@ -688,7 +1857,7 @@ impl<T: Transport> GroupClient<T> {
             "delete-group",
             &encode_group_delete_group_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-groups (request/response).
@@ -709,7 +1878,7 @@ impl<T: Transport> GroupClient<T> {
             "add-group-member",
             &encode_group_member_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-group-member (request/response).
@@ -719,7 +1888,7 @@ impl<T: Transport> GroupClient<T> {
             "remove-group-member",
             &encode_group_member_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-group-members (request/response).
@@ -753,7 +1922,7 @@ impl<T: Transport> ProjectClient<T> {
         let csil_resp =
             self.transport
                 .call("ProjectService", "create-project", &encode_project(&req))?;
-        decode_project(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-project (request/response).
@@ -763,7 +1932,7 @@ impl<T: Transport> ProjectClient<T> {
             "get-project",
             &encode_project_get_project_request(&req),
         )?;
-        decode_project(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-project (request/response).
@@ -771,7 +1940,7 @@ impl<T: Transport> ProjectClient<T> {
         let csil_resp =
             self.transport
                 .call("ProjectService", "update-project", &encode_project(&req))?;
-        decode_project(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-project (request/response).
@@ -781,7 +1950,7 @@ impl<T: Transport> ProjectClient<T> {
             "delete-project",
             &encode_project_delete_project_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-projects (request/response).
@@ -791,7 +1960,7 @@ impl<T: Transport> ProjectClient<T> {
             "list-projects",
             &encode_house_scoped_list_request(&req),
         )?;
-        decode_project_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project_list(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-project-tasks (request/response).
@@ -804,7 +1973,7 @@ impl<T: Transport> ProjectClient<T> {
             "list-project-tasks",
             &encode_project_scoped_list_request(&req),
         )?;
-        decode_task_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task_list(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// add-project-task (request/response).
@@ -817,7 +1986,7 @@ impl<T: Transport> ProjectClient<T> {
             "add-project-task",
             &encode_project_task_order_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-project-task (request/response).
@@ -827,7 +1996,7 @@ impl<T: Transport> ProjectClient<T> {
             "remove-project-task",
             &encode_project_task_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// set-project-task-position (request/response).
@@ -840,7 +2009,7 @@ impl<T: Transport> ProjectClient<T> {
             "set-project-task-position",
             &encode_project_task_order_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-project-members (request/response).
@@ -861,7 +2030,7 @@ impl<T: Transport> ProjectClient<T> {
             "add-project-member",
             &encode_project_member_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-project-member (request/response).
@@ -874,7 +2043,7 @@ impl<T: Transport> ProjectClient<T> {
             "remove-project-member",
             &encode_project_member_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-project-owners (request/response).
@@ -895,7 +2064,7 @@ impl<T: Transport> ProjectClient<T> {
             "add-project-owner",
             &encode_project_owner_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-project-owner (request/response).
@@ -905,7 +2074,7 @@ impl<T: Transport> ProjectClient<T> {
             "remove-project-owner",
             &encode_project_owner_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-milestones (request/response).
@@ -926,7 +2095,7 @@ impl<T: Transport> ProjectClient<T> {
             "create-milestone",
             &encode_milestone(&req),
         )?;
-        decode_milestone(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_milestone(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-milestone (request/response).
@@ -936,7 +2105,7 @@ impl<T: Transport> ProjectClient<T> {
             "update-milestone",
             &encode_milestone(&req),
         )?;
-        decode_milestone(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_milestone(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-milestone (request/response).
@@ -946,7 +2115,7 @@ impl<T: Transport> ProjectClient<T> {
             "delete-milestone",
             &encode_project_delete_milestone_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// set-project-visibility (request/response).
@@ -959,7 +2128,7 @@ impl<T: Transport> ProjectClient<T> {
             "set-project-visibility",
             &encode_set_project_visibility_request(&req),
         )?;
-        decode_project(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-project-grants (request/response).
@@ -983,7 +2152,7 @@ impl<T: Transport> ProjectClient<T> {
             "put-project-grant",
             &encode_put_project_grant_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-project-grant (request/response).
@@ -993,7 +2162,7 @@ impl<T: Transport> ProjectClient<T> {
             "delete-project-grant",
             &encode_project_grant_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1013,7 +2182,7 @@ impl<T: Transport> EventClient<T> {
         let csil_resp = self
             .transport
             .call("EventService", "create-event", &encode_event(&req))?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-event (request/response).
@@ -1023,7 +2192,7 @@ impl<T: Transport> EventClient<T> {
             "get-event",
             &encode_event_get_event_request(&req),
         )?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-event (request/response).
@@ -1031,7 +2200,7 @@ impl<T: Transport> EventClient<T> {
         let csil_resp = self
             .transport
             .call("EventService", "update-event", &encode_event(&req))?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-event (request/response).
@@ -1041,7 +2210,7 @@ impl<T: Transport> EventClient<T> {
             "delete-event",
             &encode_event_delete_event_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-event-and-future (request/response).
@@ -1051,7 +2220,7 @@ impl<T: Transport> EventClient<T> {
             "delete-event-and-future",
             &encode_event_delete_event_and_future_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-events (request/response).
@@ -1072,7 +2241,7 @@ impl<T: Transport> EventClient<T> {
             "get-calendar-view",
             &encode_event_get_calendar_view_request(&req),
         )?;
-        decode_calendar_view(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_view(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// set-calendar-view (request/response).
@@ -1082,7 +2251,7 @@ impl<T: Transport> EventClient<T> {
             "set-calendar-view",
             &encode_calendar_view(&req),
         )?;
-        decode_calendar_view(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_view(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// accept-event (request/response).
@@ -1090,7 +2259,7 @@ impl<T: Transport> EventClient<T> {
         let csil_resp =
             self.transport
                 .call("EventService", "accept-event", &encode_event_decision(&req))?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// recover-edit (request/response).
@@ -1100,7 +2269,7 @@ impl<T: Transport> EventClient<T> {
             "recover-edit",
             &encode_event_recover_edit_request(&req),
         )?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// decline-event (request/response).
@@ -1110,7 +2279,7 @@ impl<T: Transport> EventClient<T> {
             "decline-event",
             &encode_event_decision(&req),
         )?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-local-events (request/response).
@@ -1146,7 +2315,7 @@ impl<T: Transport> CalendarClient<T> {
             "list-project-deadlines",
             &encode_project_deadline_request(&req),
         )?;
-        decode_project_deadline_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_project_deadline_list(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-status (request/response).
@@ -1156,7 +2325,7 @@ impl<T: Transport> CalendarClient<T> {
             "get-status",
             &encode_calendar_get_status_request(&req),
         )?;
-        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// configure-calendar (request/response).
@@ -1169,7 +2338,7 @@ impl<T: Transport> CalendarClient<T> {
             "configure-calendar",
             &encode_configure_calendar_request(&req),
         )?;
-        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// begin-connect (request/response).
@@ -1179,8 +2348,7 @@ impl<T: Transport> CalendarClient<T> {
             "begin-connect",
             &encode_calendar_begin_connect_request(&req),
         )?;
-        decode_calendar_connect_response(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_connect_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// complete-connect (request/response).
@@ -1193,7 +2361,7 @@ impl<T: Transport> CalendarClient<T> {
             "complete-connect",
             &encode_complete_calendar_connect_request(&req),
         )?;
-        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_calendar_status(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// disconnect (request/response).
@@ -1203,7 +2371,7 @@ impl<T: Transport> CalendarClient<T> {
             "disconnect",
             &encode_calendar_disconnect_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// preview-migration (request/response).
@@ -1238,7 +2406,7 @@ impl<T: Transport> CalendarClient<T> {
             "restore-event",
             &encode_restore_calendar_event_request(&req),
         )?;
-        decode_event(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_event(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1258,7 +2426,7 @@ impl<T: Transport> TaskClient<T> {
         let csil_resp = self
             .transport
             .call("TaskService", "create-task", &encode_task(&req))?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-task (request/response).
@@ -1268,7 +2436,7 @@ impl<T: Transport> TaskClient<T> {
             "get-task",
             &encode_task_get_task_request(&req),
         )?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-task (request/response).
@@ -1276,7 +2444,7 @@ impl<T: Transport> TaskClient<T> {
         let csil_resp = self
             .transport
             .call("TaskService", "update-task", &encode_task(&req))?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-task (request/response).
@@ -1286,7 +2454,7 @@ impl<T: Transport> TaskClient<T> {
             "delete-task",
             &encode_task_delete_task_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-tasks (request/response).
@@ -1294,7 +2462,7 @@ impl<T: Transport> TaskClient<T> {
         let csil_resp =
             self.transport
                 .call("TaskService", "list-tasks", &encode_task_list_request(&req))?;
-        decode_task_list(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task_list(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// create-personal-task (request/response).
@@ -1302,7 +2470,7 @@ impl<T: Transport> TaskClient<T> {
         let csil_resp =
             self.transport
                 .call("TaskService", "create-personal-task", &encode_task(&req))?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// set-task-visibility (request/response).
@@ -1312,7 +2480,7 @@ impl<T: Transport> TaskClient<T> {
             "set-task-visibility",
             &encode_set_task_visibility_request(&req),
         )?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-task-grants (request/response).
@@ -1333,7 +2501,7 @@ impl<T: Transport> TaskClient<T> {
             "put-task-grant",
             &encode_put_task_grant_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-task-grant (request/response).
@@ -1343,7 +2511,7 @@ impl<T: Transport> TaskClient<T> {
             "delete-task-grant",
             &encode_task_grant_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1365,7 +2533,7 @@ impl<T: Transport> DependencyClient<T> {
             "add-dependency",
             &encode_dependency_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// remove-dependency (request/response).
@@ -1375,7 +2543,7 @@ impl<T: Transport> DependencyClient<T> {
             "remove-dependency",
             &encode_dependency_ref(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-dependencies (request/response).
@@ -1385,7 +2553,7 @@ impl<T: Transport> DependencyClient<T> {
             "get-dependencies",
             &encode_dependency_target(&req),
         )?;
-        decode_dependency_graph(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_dependency_graph(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1405,7 +2573,7 @@ impl<T: Transport> CommentClient<T> {
         let csil_resp =
             self.transport
                 .call("CommentService", "create-comment", &encode_comment(&req))?;
-        decode_comment(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_comment(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// get-comment (request/response).
@@ -1415,7 +2583,7 @@ impl<T: Transport> CommentClient<T> {
             "get-comment",
             &encode_comment_get_comment_request(&req),
         )?;
-        decode_comment(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_comment(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-comment (request/response).
@@ -1423,7 +2591,7 @@ impl<T: Transport> CommentClient<T> {
         let csil_resp =
             self.transport
                 .call("CommentService", "update-comment", &encode_comment(&req))?;
-        decode_comment(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_comment(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-comment (request/response).
@@ -1433,7 +2601,7 @@ impl<T: Transport> CommentClient<T> {
             "delete-comment",
             &encode_comment_delete_comment_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-comments (request/response).
@@ -1480,8 +2648,7 @@ impl<T: Transport> NotificationClient<T> {
             "unread-count",
             &encode_notification_unread_count_request(&req),
         )?;
-        decode_notification_unread_count(&csil_resp)
-            .map_err(|e| ClientError::Transport(e.to_string()))
+        decode_notification_unread_count(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// mark-read (request/response).
@@ -1491,7 +2658,7 @@ impl<T: Transport> NotificationClient<T> {
             "mark-read",
             &encode_notification_mark_read_request(&req),
         )?;
-        decode_notification(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_notification(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// mark-all-read (request/response).
@@ -1501,7 +2668,7 @@ impl<T: Transport> NotificationClient<T> {
             "mark-all-read",
             &encode_notification_mark_all_read_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1521,7 +2688,7 @@ impl<T: Transport> ShareClient<T> {
         let csil_resp = self
             .transport
             .call("ShareService", "create-share", &encode_share(&req))?;
-        decode_share(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_share(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// delete-share (request/response).
@@ -1531,7 +2698,7 @@ impl<T: Transport> ShareClient<T> {
             "delete-share",
             &encode_share_delete_share_request(&req),
         )?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// list-shares-by-resource (request/response).
@@ -1552,7 +2719,7 @@ impl<T: Transport> ShareClient<T> {
             "check-access",
             &encode_share_access_request(&req),
         )?;
-        decode_share(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_share(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1600,7 +2767,7 @@ impl<T: Transport> SettingsClient<T> {
             "get-settings",
             &encode_settings_get_settings_request(&req),
         )?;
-        decode_effective_settings(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_effective_settings(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// update-settings (request/response).
@@ -1613,7 +2780,7 @@ impl<T: Transport> SettingsClient<T> {
             "update-settings",
             &encode_update_settings_request(&req),
         )?;
-        decode_effective_settings(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_effective_settings(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1633,7 +2800,7 @@ impl<T: Transport> BugClient<T> {
         let csil_resp =
             self.transport
                 .call("BugService", "report-bug", &encode_bug_report_request(&req))?;
-        decode_task(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_task(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1653,7 +2820,7 @@ impl<T: Transport> AuditClient<T> {
         let csil_resp =
             self.transport
                 .call("AuditService", "query-audit", &encode_audit_query(&req))?;
-        decode_audit_page(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_audit_page(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }
 
@@ -1675,7 +2842,7 @@ impl<T: Transport> TrashClient<T> {
             "list-trash",
             &encode_house_scoped_list_request(&req),
         )?;
-        decode_trash_page(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_trash_page(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// restore (request/response).
@@ -1683,7 +2850,7 @@ impl<T: Transport> TrashClient<T> {
         let csil_resp =
             self.transport
                 .call("TrashService", "restore", &encode_restore_request(&req))?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 
     /// purge (request/response).
@@ -1691,6 +2858,6 @@ impl<T: Transport> TrashClient<T> {
         let csil_resp =
             self.transport
                 .call("TrashService", "purge", &encode_purge_request(&req))?;
-        decode_empty_response(&csil_resp).map_err(|e| ClientError::Transport(e.to_string()))
+        decode_empty_response(&csil_resp).map_err(|e| ClientError::Decode(e.to_string()))
     }
 }

@@ -503,7 +503,7 @@ func appendOperationFieldHelp(fields []cliFieldHelp, operation *cliOperation, va
 			continue
 		}
 		nestedType := indirectType(field.Type)
-		if nestedType.Kind() == reflect.Struct {
+		if cliRecord(nestedType) {
 			var nestedDefaults reflect.Value
 			if defaults.IsValid() {
 				nestedDefaults = defaults.Field(i)
@@ -766,6 +766,9 @@ func jsonFieldName(field reflect.StructField) (string, bool) {
 }
 
 func cliTypeName(value reflect.Type) string {
+	if value == cliTimeType {
+		return "Timestamp"
+	}
 	if value.Kind() == reflect.Ptr {
 		return cliTypeName(value.Elem())
 	}
@@ -888,7 +891,7 @@ func cliTypeHasJSONField(value reflect.Type, name string) bool {
 			return true
 		}
 		nested := indirectType(field.Type)
-		if nested.Kind() == reflect.Struct && cliTypeHasJSONField(nested, name) {
+		if cliRecord(nested) && cliTypeHasJSONField(nested, name) {
 			return true
 		}
 	}

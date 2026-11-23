@@ -10,10 +10,14 @@ export interface ServiceTransport {
 }
 
 export class AuditClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   queryAudit(req: AuditQuery): AuditPage {
@@ -23,10 +27,14 @@ export class AuditClient {
 }
 
 export class AuthClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   beginBrowserLogin(req: BeginBrowserLoginRequest): BeginBrowserLoginResponse {
@@ -35,7 +43,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getActAsScopeSet(req: ActAsScopeSetRequest): ActAsScopeSetResponse {
@@ -44,7 +52,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   exchangeActAsCredential(req: ExchangeActAsCredentialRequest): ActAsTokenResponse {
@@ -53,7 +61,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   login(req: LoginRequest): LoginResponse {
@@ -62,7 +70,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   complete(req: CompleteRequest): LoginResponse {
@@ -71,7 +79,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   refresh(req: EmptyRequest): LoginResponse {
@@ -80,7 +88,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   logout(req: EmptyRequest): EmptyResponse {
@@ -89,7 +97,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   resumeSession(req: EmptyRequest): LoginResponse {
@@ -98,7 +106,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   endSession(req: EmptyRequest): EmptyResponse {
@@ -107,7 +115,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   me(req: EmptyRequest): MeResponse {
@@ -116,7 +124,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   beginCliLogin(req: BeginCliLoginRequest): BeginCliLoginResponse {
@@ -125,7 +133,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   inspectCliLogin(req: ApproveCliLoginRequest): CliLoginRequestInfo {
@@ -134,7 +142,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   approveCliLogin(req: ApproveCliLoginRequest): EmptyResponse {
@@ -143,7 +151,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   denyCliLogin(req: DenyCliLoginRequest): EmptyResponse {
@@ -152,7 +160,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   exchangeCliLogin(req: ExchangeCliLoginRequest): ExchangeCliLoginResponse {
@@ -161,7 +169,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   refreshSession(req: RefreshSessionRequest): CliTokenResponse {
@@ -170,7 +178,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   listSessions(req: EmptyRequest): CliSessionsResponse {
@@ -179,7 +187,7 @@ export class AuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   revokeSession(req: RevokeSessionRequest): EmptyResponse {
@@ -189,10 +197,14 @@ export class AuthClient {
 }
 
 export class BugClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   reportBug(req: BugReportRequest): Task {
@@ -202,10 +214,14 @@ export class BugClient {
 }
 
 export class CalendarClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   listProjectDeadlines(req: ProjectDeadlineRequest): ProjectDeadlineList {
@@ -214,7 +230,7 @@ export class CalendarClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getStatus(req: HouseID): CalendarStatus {
@@ -223,7 +239,7 @@ export class CalendarClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   configureCalendar(req: ConfigureCalendarRequest): CalendarStatus {
@@ -232,7 +248,7 @@ export class CalendarClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   beginConnect(req: HouseID): CalendarConnectResponse {
@@ -241,7 +257,7 @@ export class CalendarClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   completeConnect(req: CompleteCalendarConnectRequest): CalendarStatus {
@@ -250,7 +266,7 @@ export class CalendarClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   disconnect(req: HouseID): EmptyResponse {
@@ -277,7 +293,7 @@ export class CalendarClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   restoreEvent(req: RestoreCalendarEventRequest): Event {
@@ -287,10 +303,14 @@ export class CalendarClient {
 }
 
 export class CommentClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createComment(req: Comment): Comment {
@@ -299,7 +319,7 @@ export class CommentClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getComment(req: CommentID): Comment {
@@ -308,7 +328,7 @@ export class CommentClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   updateComment(req: Comment): Comment {
@@ -317,7 +337,7 @@ export class CommentClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteComment(req: CommentID): EmptyResponse {
@@ -336,10 +356,14 @@ export class CommentClient {
 }
 
 export class DependencyClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   addDependency(req: DependencyRef): EmptyResponse {
@@ -348,7 +372,7 @@ export class DependencyClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   removeDependency(req: DependencyRef): EmptyResponse {
@@ -357,7 +381,7 @@ export class DependencyClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getDependencies(req: DependencyTarget): DependencyGraph {
@@ -367,10 +391,14 @@ export class DependencyClient {
 }
 
 export class DevAuthClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   listDevUsers(req: EmptyRequest): DevUsersResponse {
@@ -379,7 +407,7 @@ export class DevAuthClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   devLogin(req: DevLoginRequest): LoginResponse {
@@ -389,10 +417,14 @@ export class DevAuthClient {
 }
 
 export class EventClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createEvent(req: Event): Event {
@@ -401,7 +433,7 @@ export class EventClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getEvent(req: EventID): Event {
@@ -410,7 +442,7 @@ export class EventClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   updateEvent(req: Event): Event {
@@ -419,7 +451,7 @@ export class EventClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteEvent(req: EventID): EmptyResponse {
@@ -428,7 +460,7 @@ export class EventClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteEventAndFuture(req: EventID): EmptyResponse {
@@ -446,7 +478,7 @@ export class EventClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getCalendarView(req: HouseID): CalendarView {
@@ -455,7 +487,7 @@ export class EventClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   setCalendarView(req: CalendarView): CalendarView {
@@ -464,7 +496,7 @@ export class EventClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   acceptEvent(req: EventDecision): Event {
@@ -473,7 +505,7 @@ export class EventClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   recoverEdit(req: EventID): Event {
@@ -482,7 +514,7 @@ export class EventClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   declineEvent(req: EventDecision): Event {
@@ -501,10 +533,14 @@ export class EventClient {
 }
 
 export class GroupClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createGroup(req: Group): Group {
@@ -513,7 +549,7 @@ export class GroupClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   updateGroup(req: Group): Group {
@@ -522,7 +558,7 @@ export class GroupClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteGroup(req: GroupID): EmptyResponse {
@@ -540,7 +576,7 @@ export class GroupClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   addGroupMember(req: GroupMemberRef): EmptyResponse {
@@ -549,7 +585,7 @@ export class GroupClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   removeGroupMember(req: GroupMemberRef): EmptyResponse {
@@ -568,10 +604,14 @@ export class GroupClient {
 }
 
 export class HouseClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createHouse(req: House): House {
@@ -580,7 +620,7 @@ export class HouseClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getHouse(req: HouseID): House {
@@ -589,7 +629,7 @@ export class HouseClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   updateHouse(req: House): House {
@@ -598,7 +638,7 @@ export class HouseClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteHouse(req: HouseID): EmptyResponse {
@@ -617,7 +657,11 @@ export class HouseClient {
 }
 
 export class MemberAuditClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
    * @throws {ServiceError} when the API returns an error response
@@ -630,10 +674,14 @@ export class MemberAuditClient {
 }
 
 export class MemberClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createMember(req: Member): Member {
@@ -642,7 +690,7 @@ export class MemberClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getMember(req: MemberID): Member {
@@ -651,7 +699,7 @@ export class MemberClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getMemberByIdentity(req: Member): Member {
@@ -660,7 +708,7 @@ export class MemberClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   updateMember(req: Member): Member {
@@ -669,7 +717,7 @@ export class MemberClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deactivateMember(req: MemberID): EmptyResponse {
@@ -678,7 +726,7 @@ export class MemberClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   reactivateMember(req: MemberID): EmptyResponse {
@@ -697,7 +745,11 @@ export class MemberClient {
 }
 
 export class NotificationClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
    * @throws {ServiceError} when the API returns an error response
@@ -709,7 +761,7 @@ export class NotificationClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   unreadCount(req: HouseID): NotificationUnreadCount {
@@ -718,7 +770,7 @@ export class NotificationClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   markRead(req: NotificationID): Notification {
@@ -727,7 +779,7 @@ export class NotificationClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   markAllRead(req: HouseID): EmptyResponse {
@@ -737,10 +789,14 @@ export class NotificationClient {
 }
 
 export class ProjectClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createProject(req: Project): Project {
@@ -749,7 +805,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getProject(req: ProjectID): Project {
@@ -758,7 +814,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   updateProject(req: Project): Project {
@@ -767,7 +823,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteProject(req: ProjectID): EmptyResponse {
@@ -776,7 +832,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   listProjects(req: HouseScopedListRequest): ProjectList {
@@ -785,7 +841,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   listProjectTasks(req: ProjectScopedListRequest): TaskList {
@@ -794,7 +850,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   addProjectTask(req: ProjectTaskOrderRequest): EmptyResponse {
@@ -803,7 +859,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   removeProjectTask(req: ProjectTaskRef): EmptyResponse {
@@ -812,7 +868,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   setProjectTaskPosition(req: ProjectTaskOrderRequest): EmptyResponse {
@@ -830,7 +886,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   addProjectMember(req: ProjectMemberRef): EmptyResponse {
@@ -839,7 +895,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   removeProjectMember(req: ProjectMemberRef): EmptyResponse {
@@ -857,7 +913,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   addProjectOwner(req: ProjectOwnerRef): EmptyResponse {
@@ -866,7 +922,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   removeProjectOwner(req: ProjectOwnerRef): EmptyResponse {
@@ -884,7 +940,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createMilestone(req: Milestone): Milestone {
@@ -893,7 +949,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   updateMilestone(req: Milestone): Milestone {
@@ -902,7 +958,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteMilestone(req: MilestoneID): EmptyResponse {
@@ -911,7 +967,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   setProjectVisibility(req: SetProjectVisibilityRequest): Project {
@@ -929,7 +985,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   putProjectGrant(req: PutProjectGrantRequest): EmptyResponse {
@@ -938,7 +994,7 @@ export class ProjectClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteProjectGrant(req: ProjectGrantRef): EmptyResponse {
@@ -948,10 +1004,14 @@ export class ProjectClient {
 }
 
 export class RoleClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createRole(req: Role): Role {
@@ -960,7 +1020,7 @@ export class RoleClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   updateRole(req: Role): Role {
@@ -969,7 +1029,7 @@ export class RoleClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteRole(req: RoleID): EmptyResponse {
@@ -987,7 +1047,7 @@ export class RoleClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   grantRole(req: MemberRoleRef): EmptyResponse {
@@ -996,7 +1056,7 @@ export class RoleClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   revokeRole(req: MemberRoleRef): EmptyResponse {
@@ -1015,10 +1075,14 @@ export class RoleClient {
 }
 
 export class SettingsClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getSettings(req: HouseID): EffectiveSettings {
@@ -1027,7 +1091,7 @@ export class SettingsClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   updateSettings(req: UpdateSettingsRequest): EffectiveSettings {
@@ -1037,10 +1101,14 @@ export class SettingsClient {
 }
 
 export class ShareClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createShare(req: Share): Share {
@@ -1049,7 +1117,7 @@ export class ShareClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteShare(req: ShareID): EmptyResponse {
@@ -1067,7 +1135,7 @@ export class ShareClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   checkAccess(req: ShareAccessRequest): Share {
@@ -1077,10 +1145,14 @@ export class ShareClient {
 }
 
 export class SkillClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createSkill(req: Skill): Skill {
@@ -1089,7 +1161,7 @@ export class SkillClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   updateSkill(req: Skill): Skill {
@@ -1098,7 +1170,7 @@ export class SkillClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteSkill(req: SkillID): EmptyResponse {
@@ -1116,7 +1188,7 @@ export class SkillClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   addMemberSkill(req: MemberSkillRef): EmptyResponse {
@@ -1125,7 +1197,7 @@ export class SkillClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   removeMemberSkill(req: MemberSkillRef): EmptyResponse {
@@ -1143,7 +1215,7 @@ export class SkillClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   addGroupSkill(req: GroupSkillRef): EmptyResponse {
@@ -1152,7 +1224,7 @@ export class SkillClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   removeGroupSkill(req: GroupSkillRef): EmptyResponse {
@@ -1171,10 +1243,14 @@ export class SkillClient {
 }
 
 export class TaskClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createTask(req: Task): Task {
@@ -1183,7 +1259,7 @@ export class TaskClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   getTask(req: TaskID): Task {
@@ -1192,7 +1268,7 @@ export class TaskClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   updateTask(req: Task): Task {
@@ -1201,7 +1277,7 @@ export class TaskClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteTask(req: TaskID): EmptyResponse {
@@ -1210,7 +1286,7 @@ export class TaskClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   listTasks(req: TaskListRequest): TaskList {
@@ -1219,7 +1295,7 @@ export class TaskClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   createPersonalTask(req: Task): Task {
@@ -1228,7 +1304,7 @@ export class TaskClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   setTaskVisibility(req: SetTaskVisibilityRequest): Task {
@@ -1246,7 +1322,7 @@ export class TaskClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   putTaskGrant(req: PutTaskGrantRequest): EmptyResponse {
@@ -1255,7 +1331,7 @@ export class TaskClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   deleteTaskGrant(req: TaskGrantRef): EmptyResponse {
@@ -1265,10 +1341,14 @@ export class TaskClient {
 }
 
 export class TrashClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   listTrash(req: HouseScopedListRequest): TrashPage {
@@ -1277,7 +1357,7 @@ export class TrashClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   restore(req: RestoreRequest): EmptyResponse {
@@ -1286,7 +1366,7 @@ export class TrashClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   purge(req: PurgeRequest): EmptyResponse {
@@ -1296,10 +1376,14 @@ export class TrashClient {
 }
 
 export class TrustedDomainClient {
-  constructor(private readonly t: ServiceTransport) {}
+  private readonly t: ServiceTransport;
+
+  constructor(t: ServiceTransport) {
+    this.t = t;
+  }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   addTrustedDomain(req: TrustedDomain): TrustedDomain {
@@ -1308,7 +1392,7 @@ export class TrustedDomainClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   removeTrustedDomain(req: TrustedDomainID): EmptyResponse {
@@ -1326,7 +1410,7 @@ export class TrustedDomainClient {
   }
 
   /**
-   * @throws {ServiceError} when the API returns an error response
+   * @throws {ServiceErrorRefusal} for the declared application error
    * @throws transport errors (network, timeout) raised by the transport
    */
   isDomainTrusted(req: TrustedDomain): BoolResponse {

@@ -35,11 +35,11 @@ func (s *CalendarService) requireNoSplit(ctx context.Context, house, series stri
 	return nil
 }
 
-func (s *CalendarService) splitSeries(ctx context.Context, e *models.Event, m *models.Member, h houseCalendar, ref calendarRef, content cal.Event, rid cal.Timestamp, writer cal.Transport) (csil.Event, error) {
+func (s *CalendarService) splitSeries(ctx context.Context, e *models.Event, m *models.Member, h houseCalendar, ref calendarRef, content cal.Event, rid time.Time, writer cal.Transport) (csil.Event, error) {
 	if content.Recurrence == nil {
 		return csil.Event{}, csilrpc.BadRequest("this event is not a recurring series")
 	}
-	operation := calendarSplit{EventID: e.EventID, Revision: e.Revision, HouseID: e.HouseID, CalendarID: h.CalendarID, SeriesID: ref.RemoteEventID, MemberID: m.MemberID, RecurrenceID: string(rid), IdempotencyKey: fmt.Sprintf("longhouse-split:%s:%d", e.EventID, e.Revision), Payload: cal.EncodeEvent(content)}
+	operation := calendarSplit{EventID: e.EventID, Revision: e.Revision, HouseID: e.HouseID, CalendarID: h.CalendarID, SeriesID: ref.RemoteEventID, MemberID: m.MemberID, RecurrenceID: rid.UTC().Format(time.RFC3339Nano), IdempotencyKey: fmt.Sprintf("longhouse-split:%s:%d", e.EventID, e.Revision), Payload: cal.EncodeEvent(content)}
 	if err := s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&operation).Error; err != nil {
 			return err
@@ -98,7 +98,7 @@ func (s *CalendarService) RecoverEdit(ctx context.Context, id csil.EventID) (out
 }
 
 func (s *CalendarService) finishSplit(ctx context.Context, operation *calendarSplit, writer cal.Transport, recovering bool) error {
-	content, err := cal.DecodeEvent(operation.Payload)
+	content, err := decodeSavedEvent(operation.Payload)
 	if err != nil {
 		return err
 	}
@@ -109,13 +109,23 @@ func (s *CalendarService) finishSplit(ctx context.Context, operation *calendarSp
 	if err = s.DB.Where("house_id=? AND remote_event_id=? AND recurrence_id<>'' AND ref_id IN (SELECT event_id FROM events WHERE NOT calendar_unbound)", operation.HouseID, operation.SeriesID).Order("recurrence_id, ref_id").Find(&refs).Error; err != nil {
 		return err
 	}
-	ids := []cal.Timestamp{}
+	ids := []time.Time{}
+	var refKeys []string
 	seen := map[string]bool{}
 	for _, ref := range refs {
 		if !seen[ref.RecurrenceID] {
 			seen[ref.RecurrenceID] = true
-			ids = append(ids, cal.Timestamp(ref.RecurrenceID))
+			rid, err := time.Parse(time.RFC3339, ref.RecurrenceID)
+			if err != nil {
+				return err
+			}
+			ids = append(ids, rid)
+			refKeys = append(refKeys, ref.RecurrenceID)
 		}
+	}
+	requested, err := time.Parse(time.RFC3339, operation.RecurrenceID)
+	if err != nil {
+		return err
 	}
 	client := cal.NewEventClient(writer)
 	mappings := map[string]cal.SplitOccurrenceMapping{}
@@ -133,7 +143,7 @@ func (s *CalendarService) finishSplit(ctx context.Context, operation *calendarSp
 			current, err = client.GetSplitReceipt(ctx, cal.SplitReceiptRequest{SeriesId: cal.EventID(operation.SeriesID), IdempotencyKey: operation.IdempotencyKey, MapRecurrenceIds: batch})
 		}
 		if offset == 0 && (!recovering || isRemoteNotFound(err)) {
-			current, err = client.SplitSeriesOnce(ctx, cal.SplitSeriesOnceRequest{IdempotencyKey: operation.IdempotencyKey, Event: content, RecurrenceId: cal.Timestamp(operation.RecurrenceID), MapRecurrenceIds: batch})
+			current, err = client.SplitSeriesOnce(ctx, cal.SplitSeriesOnceRequest{IdempotencyKey: operation.IdempotencyKey, Event: content, RecurrenceId: requested, MapRecurrenceIds: batch})
 		}
 		if err != nil {
 			return csilrpc.Conflict("calendar edit is not confirmed; reconnect if needed, then retry the saved edit")
@@ -143,11 +153,11 @@ func (s *CalendarService) finishSplit(ctx context.Context, operation *calendarSp
 		}
 		if offset == 0 {
 			receipt = current
-		} else if current.SuccessorId != receipt.SuccessorId || current.SplitAt != receipt.SplitAt || current.InPlace != receipt.InPlace {
+		} else if current.SuccessorId != receipt.SuccessorId || !current.SplitAt.Equal(receipt.SplitAt) || current.InPlace != receipt.InPlace {
 			return errors.New("calendar split receipt changed between mapping batches")
 		}
-		for _, mapping := range current.Mappings {
-			mappings[string(mapping.RecurrenceId)] = mapping
+		for i, mapping := range current.Mappings {
+			mappings[refKeys[offset+i]] = mapping
 		}
 		if end == len(ids) {
 			break
@@ -163,7 +173,7 @@ func (s *CalendarService) finishSplit(ctx context.Context, operation *calendarSp
 					return err
 				}
 			} else {
-				if err := tx.Model(&calendarRef{}).Where("ref_id=?", ref.RefID).Updates(map[string]any{"remote_event_id": string(*mapping.EventId), "recurrence_id": string(*mapping.MappedRecurrenceId)}).Error; err != nil {
+				if err := tx.Model(&calendarRef{}).Where("ref_id=?", ref.RefID).Updates(map[string]any{"remote_event_id": string(*mapping.EventId), "recurrence_id": mapping.MappedRecurrenceId.UTC().Format(time.RFC3339Nano)}).Error; err != nil {
 					return err
 				}
 				state, body := receipt.SeriesState, receipt.Series
@@ -214,12 +224,12 @@ func splitResultNotice(state cal.CreateReceiptState, event *cal.Event, calendar 
 	}
 	return "The series edit completed, but this event is no longer available in this house calendar. Its link and comments are kept."
 }
-func validateSplitReceipt(operation *calendarSplit, receipt cal.SplitSeriesReceipt, ids []cal.Timestamp) error {
+func validateSplitReceipt(operation *calendarSplit, receipt cal.SplitSeriesReceipt, ids []time.Time) error {
 	if string(receipt.SeriesId) != operation.SeriesID || receipt.IdempotencyKey != operation.IdempotencyKey || string(receipt.CalendarId) != operation.CalendarID || receipt.SuccessorId == "" || (receipt.InPlace && receipt.SuccessorId != receipt.SeriesId) {
 		return errors.New("calendar split receipt does not match the saved request")
 	}
-	boundary, err := time.Parse(time.RFC3339, string(receipt.SplitAt))
-	if err != nil {
+	boundary := receipt.SplitAt
+	if boundary.IsZero() {
 		return errors.New("invalid calendar split boundary")
 	}
 	requested, err := time.Parse(time.RFC3339, operation.RecurrenceID)
@@ -242,7 +252,7 @@ func validateSplitReceipt(operation *calendarSplit, receipt cal.SplitSeriesRecei
 		return errors.New("calendar split has no matching successor")
 	}
 	for i, mapping := range receipt.Mappings {
-		if mapping.RecurrenceId != ids[i] {
+		if !mapping.RecurrenceId.Equal(ids[i]) {
 			return errors.New("calendar split mapping order mismatch")
 		}
 		if mapping.Result == "none" {
@@ -251,12 +261,12 @@ func validateSplitReceipt(operation *calendarSplit, receipt cal.SplitSeriesRecei
 		if mapping.EventId == nil || mapping.MappedRecurrenceId == nil {
 			return errors.New("calendar split mapping has no target")
 		}
-		if _, err := time.Parse(time.RFC3339, string(*mapping.MappedRecurrenceId)); err != nil {
+		if mapping.MappedRecurrenceId.IsZero() {
 			return errors.New("invalid mapped recurrence ID")
 		}
 		switch mapping.Result {
 		case "original":
-			if *mapping.EventId != receipt.SeriesId || *mapping.MappedRecurrenceId != mapping.RecurrenceId {
+			if *mapping.EventId != receipt.SeriesId || !mapping.MappedRecurrenceId.Equal(mapping.RecurrenceId) {
 				return errors.New("calendar split changed a retained reference")
 			}
 		case "successor":

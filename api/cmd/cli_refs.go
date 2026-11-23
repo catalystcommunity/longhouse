@@ -53,13 +53,13 @@ func (resolver *cliReferenceResolver) resolveStruct(value reflect.Value) error {
 		fieldInfo := value.Type().Field(i)
 		name, _ := jsonFieldName(fieldInfo)
 		field := value.Field(i)
-		if fieldInfo.Type.Kind() == reflect.Struct {
+		if cliRecord(fieldInfo.Type) {
 			if err := resolver.resolveStruct(field); err != nil {
 				return err
 			}
 			continue
 		}
-		if fieldInfo.Type.Kind() == reflect.Ptr && fieldInfo.Type.Elem().Kind() == reflect.Struct && !field.IsNil() {
+		if fieldInfo.Type.Kind() == reflect.Ptr && cliRecord(fieldInfo.Type.Elem()) && !field.IsNil() {
 			if err := resolver.resolveStruct(field); err != nil {
 				return err
 			}
@@ -305,7 +305,7 @@ func (resolver *cliReferenceResolver) resolveType(typeName, query string) (strin
 			listRequest := longhouseclient.EventListRequest{HouseId: request.HouseId, Limit: &limit, Offset: &offset}
 			status, statusErr := longhouseclient.NewCalendarClient(resolver.runtime.transport).GetStatus(ctx, request.HouseId)
 			if statusErr == nil && status.Enabled {
-				start, end := longhouseclient.Timestamp(time.Now().AddDate(-2, 0, 0).UTC().Format(time.RFC3339)), longhouseclient.Timestamp(time.Now().AddDate(2, 0, 0).UTC().Format(time.RFC3339))
+				start, end := time.Now().AddDate(-2, 0, 0).UTC(), time.Now().AddDate(2, 0, 0).UTC()
 				listRequest.RangeStart = &start
 				listRequest.RangeEnd = &end
 			}

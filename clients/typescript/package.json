@@ -17,7 +17,6 @@
   "scripts": {
     "build": "tsc"
   },
-  "type": "commonjs",
   "types": "dist/index.d.ts",
-  "version": "0.16.2"
+  "version": "0.16.3"
 }

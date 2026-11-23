@@ -34,38 +34,97 @@ export type NotificationEventID = string;
 
 export type CliSessionID = string;
 
-export type Timestamp = string;
-
+export const TaskStatus = {
+  OPEN: "open",
+  IN_PROGRESS: "in_progress",
+  DONE: "done",
+  CANCELLED: "cancelled",
+} as const;
 export type TaskStatus = "open" | "in_progress" | "done" | "cancelled";
 
+export const TargetType = {
+  EVENT: "event",
+  TASK: "task",
+  PROJECT: "project",
+} as const;
 export type TargetType = "event" | "task" | "project";
 
+export const AccessLevel = {
+  NONE: "none",
+  READ: "read",
+  EDIT: "edit",
+  FULL: "full",
+} as const;
 export type AccessLevel = "none" | "read" | "edit" | "full";
 
+export const GranteeType = {
+  MEMBER: "member",
+  GROUP: "group",
+} as const;
 export type GranteeType = "member" | "group";
 
+export const ResourceType = {
+  EVENT: "event",
+  TASK: "task",
+  HOUSE: "house",
+} as const;
 export type ResourceType = "event" | "task" | "house";
 
+export const ProjectStatus = {
+  ACTIVE: "active",
+  ARCHIVED: "archived",
+} as const;
 export type ProjectStatus = "active" | "archived";
 
+export const DependencyNodeType = {
+  TASK: "task",
+  PROJECT: "project",
+} as const;
 export type DependencyNodeType = "task" | "project";
 
+export const RecurrenceFreq = {
+  HOURLY: "hourly",
+  DAILY: "daily",
+  WEEKLY: "weekly",
+  MONTHLY: "monthly",
+  QUARTERLY: "quarterly",
+  YEARLY: "yearly",
+} as const;
 export type RecurrenceFreq = "hourly" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
 
+export const MilestoneState = {
+  DONE: "done",
+  CURRENT: "current",
+  FUTURE: "future",
+} as const;
 export type MilestoneState = "done" | "current" | "future";
 
+export const CliLoginStatus = {
+  PENDING: "pending",
+  DENIED: "denied",
+  EXPIRED: "expired",
+  COMPLETE: "complete",
+} as const;
 export type CliLoginStatus = "pending" | "denied" | "expired" | "complete";
 
+export const SessionKind = {
+  CLI: "cli",
+  BROWSER: "browser",
+} as const;
 export type SessionKind = "cli" | "browser";
 
+export const TaskState = {
+  OPEN: "open",
+  CLOSED: "closed",
+} as const;
 export type TaskState = "open" | "closed";
 
 export interface House {
   houseId: HouseID;
   name: string;
   description?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Member {
@@ -78,17 +137,17 @@ export interface Member {
   avatarUrl?: string;
   handle?: string;
   cachedPublicKey?: Uint8Array;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  lastSeenAt?: Timestamp;
-  deactivatedAt?: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
+  lastSeenAt?: Date;
+  deactivatedAt?: Date;
 }
 
 export interface TrustedDomain {
   trustedDomainId: TrustedDomainID;
   houseId: HouseID;
   domain: string;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export interface Role {
@@ -96,14 +155,14 @@ export interface Role {
   houseId: HouseID;
   name: string;
   description?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface MemberRole {
   memberId: MemberID;
   roleId: RoleID;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export interface MemberAudit {
@@ -115,7 +174,7 @@ export interface MemberAudit {
   targetType?: string;
   targetId?: string;
   detail?: string;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export interface Skill {
@@ -123,20 +182,20 @@ export interface Skill {
   houseId: HouseID;
   name: string;
   description?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface MemberSkill {
   memberId: MemberID;
   skillId: SkillID;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export interface GroupSkill {
   groupId: GroupID;
   skillId: SkillID;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export interface Group {
@@ -144,14 +203,14 @@ export interface Group {
   houseId: HouseID;
   name: string;
   description?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface GroupMember {
   groupId: GroupID;
   memberId: MemberID;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export interface Project {
@@ -164,27 +223,27 @@ export interface Project {
   visibility?: AccessLevel;
   createdByMemberId?: MemberID;
   personal?: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ProjectTask {
   projectId: ProjectID;
   taskId: TaskID;
   position: number;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export interface ProjectMember {
   projectId: ProjectID;
   memberId: MemberID;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export interface ProjectOwner {
   projectId: ProjectID;
   memberId: MemberID;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export interface Milestone {
@@ -194,8 +253,8 @@ export interface Milestone {
   whenLabel: string;
   state: MilestoneState;
   position: number;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Event {
@@ -205,8 +264,8 @@ export interface Event {
   title: string;
   description?: string;
   location?: string;
-  startsAt?: Timestamp;
-  endsAt?: Timestamp;
+  startsAt?: Date;
+  endsAt?: Date;
   allDay?: boolean;
   timezone?: string;
   recurrenceRule?: string;
@@ -215,7 +274,7 @@ export interface Event {
   recurrenceInterval?: number;
   recurrenceByWeekday?: number[];
   recurrenceBySetpos?: number;
-  nextRecurrenceAt?: Timestamp;
+  nextRecurrenceAt?: Date;
   recurrenceRootEventId?: EventID;
   calendarState?: string;
   revision?: number;
@@ -224,8 +283,8 @@ export interface Event {
   editPendingMemberId?: MemberID;
   calendarUnbound?: boolean;
   editScope?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Task {
@@ -239,7 +298,7 @@ export interface Task {
   title: string;
   description?: string;
   status?: TaskStatus;
-  dueAt?: Timestamp;
+  dueAt?: Date;
   tag?: string;
   estimateMinutes?: number;
   recurrenceFreq?: RecurrenceFreq;
@@ -247,11 +306,11 @@ export interface Task {
   recurrenceInterval?: number;
   recurrenceByWeekday?: number[];
   recurrenceBySetpos?: number;
-  nextRecurrenceAt?: Timestamp;
+  nextRecurrenceAt?: Date;
   recurrenceRootTaskId?: TaskID;
-  deletedAt?: Timestamp;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  deletedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Comment {
@@ -261,8 +320,8 @@ export interface Comment {
   targetType: TargetType;
   targetId: string;
   body: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Share {
@@ -274,8 +333,8 @@ export interface Share {
   resourceType: ResourceType;
   resourceId: string;
   accessLevel?: AccessLevel;
-  createdAt: Timestamp;
-  expiresAt?: Timestamp;
+  createdAt: Date;
+  expiresAt?: Date;
 }
 
 export interface HouseSummary {
@@ -329,7 +388,7 @@ export interface LoginResponse {
   domain: string;
   userId: string;
   displayName?: string;
-  expiresAt: Timestamp;
+  expiresAt: Date;
 }
 
 export interface CliTokenResponse {
@@ -337,9 +396,9 @@ export interface CliTokenResponse {
   domain: string;
   userId: string;
   displayName?: string;
-  expiresAt: Timestamp;
+  expiresAt: Date;
   refreshToken: string;
-  refreshExpiresAt: Timestamp;
+  refreshExpiresAt: Date;
   sessionId: CliSessionID;
 }
 
@@ -351,7 +410,7 @@ export interface BeginCliLoginResponse {
   deviceCode: string;
   userCode: string;
   verificationUrl: string;
-  expiresAt: Timestamp;
+  expiresAt: Date;
   intervalSeconds: number;
 }
 
@@ -362,7 +421,7 @@ export interface ApproveCliLoginRequest {
 export interface CliLoginRequestInfo {
   userCode: string;
   clientName: string;
-  expiresAt: Timestamp;
+  expiresAt: Date;
 }
 
 export interface DenyCliLoginRequest {
@@ -385,10 +444,10 @@ export interface RefreshSessionRequest {
 export interface CliSessionSummary {
   sessionId: CliSessionID;
   clientName: string;
-  createdAt: Timestamp;
-  lastUsedAt: Timestamp;
-  expiresAt: Timestamp;
-  revokedAt?: Timestamp;
+  createdAt: Date;
+  lastUsedAt: Date;
+  expiresAt: Date;
+  revokedAt?: Date;
   kind?: SessionKind;
   current?: boolean;
 }
@@ -423,7 +482,7 @@ export interface MeResponse {
   domain: string;
   userId: string;
   displayName?: string;
-  expiresAt: Timestamp;
+  expiresAt: Date;
   houses: HouseSummary[];
 }
 
@@ -450,8 +509,8 @@ export interface HouseScopedListRequest {
 
 export interface EventListRequest {
   houseId: HouseID;
-  rangeStart?: Timestamp;
-  rangeEnd?: Timestamp;
+  rangeStart?: Date;
+  rangeEnd?: Date;
   limit?: number;
   offset?: number;
 }
@@ -463,9 +522,9 @@ export interface TaskListRequest {
   state?: TaskState;
   mine?: boolean;
   loose?: boolean;
-  dueFrom?: Timestamp;
-  dueTo?: Timestamp;
-  dueBefore?: Timestamp[];
+  dueFrom?: Date;
+  dueTo?: Date;
+  dueBefore?: Date[];
 }
 
 export interface TaskList {
@@ -514,8 +573,8 @@ export interface Notification {
   targetTitle: string;
   body: string;
   read: boolean;
-  readAt?: Timestamp;
-  createdAt: Timestamp;
+  readAt?: Date;
+  createdAt: Date;
 }
 
 export interface NotificationListRequest {
@@ -691,7 +750,7 @@ export interface ActAsTokenResponse {
   token: string;
   domain: string;
   userId: string;
-  expiresAt: Timestamp;
+  expiresAt: Date;
   grantId: string;
   grantee: string;
   scopes: string[];
@@ -720,7 +779,7 @@ export interface CalendarStatus {
   ready: boolean;
   connected: boolean;
   lastError?: string;
-  syncPendingSince?: Timestamp;
+  syncPendingSince?: Date;
 }
 
 export interface ConfigureCalendarRequest {
@@ -741,8 +800,8 @@ export interface CompleteCalendarConnectRequest {
 export interface CalendarTrashEntry {
   trashId: string;
   event: Event;
-  deletedAt: Timestamp;
-  expiresAt: Timestamp;
+  deletedAt: Date;
+  expiresAt: Date;
 }
 
 export interface RestoreCalendarEventRequest {
@@ -759,14 +818,14 @@ export interface CalendarMigrationRow {
 
 export interface ProjectDeadlineRequest {
   projectId: ProjectID;
-  rangeStart: Timestamp;
-  rangeEnd: Timestamp;
+  rangeStart: Date;
+  rangeEnd: Date;
 }
 
 export interface ProjectDeadline {
   taskId: TaskID;
   title: string;
-  dueAt: Timestamp;
+  dueAt: Date;
 }
 
 export interface ProjectDeadlineList {
@@ -794,7 +853,7 @@ export interface AuditEntry {
   before?: string;
   after?: string;
   detail?: string;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export interface AuditQuery {
@@ -802,8 +861,8 @@ export interface AuditQuery {
   actorMemberId?: MemberID;
   resourceType?: string;
   action?: string;
-  since?: Timestamp;
-  until?: Timestamp;
+  since?: Date;
+  until?: Date;
   cursor?: string;
   limit?: number;
 }
@@ -818,7 +877,7 @@ export interface TrashItem {
   resourceId: string;
   houseId: HouseID;
   title?: string;
-  deletedAt: Timestamp;
+  deletedAt: Date;
   deletedByMemberId?: MemberID;
   deletedOpId: string;
 }

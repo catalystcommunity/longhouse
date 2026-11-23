@@ -51,9 +51,9 @@ export const memberSwatch = (id: string): Swatch => {
  *  the day = away, else offline. lastSeenAt missing → offline. */
 export type MemberStatus = "active" | "away" | "offline";
 
-export const memberStatus = (m: { lastSeenAt?: string }, now = Date.now()): MemberStatus => {
+export const memberStatus = (m: { lastSeenAt?: Date }, now = Date.now()): MemberStatus => {
   if (!m.lastSeenAt) return "offline";
-  const t = Date.parse(m.lastSeenAt);
+  const t = m.lastSeenAt.getTime();
   if (Number.isNaN(t)) return "offline";
   const delta = now - t;
   if (delta < 15 * 60 * 1000) return "active";
@@ -62,9 +62,9 @@ export const memberStatus = (m: { lastSeenAt?: string }, now = Date.now()): Memb
 };
 
 /** "12m" / "2h" / "3d" / "just now" style ago strings. */
-export const lastSeenLabel = (m: { lastSeenAt?: string }, now = Date.now()): string | undefined => {
+export const lastSeenLabel = (m: { lastSeenAt?: Date }, now = Date.now()): string | undefined => {
   if (!m.lastSeenAt) return undefined;
-  const t = Date.parse(m.lastSeenAt);
+  const t = m.lastSeenAt.getTime();
   if (Number.isNaN(t)) return undefined;
   const sec = Math.max(0, Math.floor((now - t) / 1000));
   if (sec < 60) return "just now";
@@ -125,18 +125,6 @@ export const eventTone = (organizerId: string): Tone => {
   let h = 0;
   for (let i = 0; i < organizerId.length; i++) h = (h * 31 + organizerId.charCodeAt(i)) | 0;
   return tones[Math.abs(h) % tones.length];
-};
-
-/** YYYY-MM-DD slice of an ISO datetime, in the viewer's local TZ. The
- *  calendar grid is local-time; UTC slicing would put events in the
- *  wrong day at the edges. */
-export const ymdLocal = (iso: string): string => {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 };
 
 /** Compact wall-clock label for an event ("09:00", "—" for all-day). */

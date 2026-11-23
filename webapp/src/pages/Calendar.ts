@@ -7,11 +7,11 @@ import { DateTimePicker } from "~/components/DateTimePicker";
 import { RecurrenceFields, recurrenceLabel, toRecurrence, type RecurrenceFreq } from "~/components/RecurrenceFields";
 import { calendarClient, eventClient, memberClient } from "~/data/clients";
 import { CalendarConnection } from "~/components/CalendarConnection";
-import { displayName, eventTone, timeLabel, ymdLocal } from "~/lib/derive";
+import { displayName, eventTone, timeLabel } from "~/lib/derive";
 import { normalizeEventCreate } from "~/lib/taskCreate";
 import { loadEvents, startOfRange, viewRange, VIEW_DAYS, type CalendarViewMode as ViewMode } from "~/lib/events";
 import { currentMemberId, hasRole, useCurrentHouseId } from "~/stores/auth";
-import { buildCells, groupSingleByDate, placeSpans } from "~/lib/month";
+import { buildCells, groupSingleByDate, placeSpans, ymd } from "~/lib/month";
 import type { CalendarSubscription, Event as ApiEvent } from "@longhouse/client";
 const WEEKDAYS_MON_FIRST = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
@@ -37,7 +37,7 @@ export const CalendarPage = () => {
         if (!h)
             return null;
         const { start, end } = viewRange(view(), anchor());
-        return { houseId: h, rangeStart: start.toISOString(), rangeEnd: end.toISOString() };
+        return { houseId: h, rangeStart: start, rangeEnd: end };
     }, (request) => loadEvents(eventClient, request));
     const [members] = query(() => houseId(), async (h) => memberClient.listMembers({ houseId: h }));
     // Calendar sharing — like any calendar app, you see your own calendar by
@@ -738,7 +738,7 @@ const MonthView = (props: {
     const month = () => props.anchor.getMonth();
     const todayYMD = (() => {
         const d = new Date();
-        return ymdLocal(d.toISOString());
+        return ymd(d);
     })();
     const cells = computed(() => buildCells(year(), month(), todayYMD));
     const single = computed(() => groupSingleByDate(props.events));
@@ -959,7 +959,7 @@ const TimeGridView = (props: {
                 d.setDate(s.getDate() + i);
                 if (d.getTime() > en.getTime() && i > 0)
                     break;
-                const key = ymdLocal(d.toISOString());
+                const key = ymd(d);
                 const arr = map.get(key) ?? [];
                 arr.push(e);
                 map.set(key, arr);
@@ -977,7 +977,7 @@ const TimeGridView = (props: {
                 continue;
             if (!e.startsAt)
                 continue;
-            const key = ymdLocal(e.startsAt);
+            const key = ymd(e.startsAt);
             const arr = map.get(key) ?? [];
             arr.push(e);
             map.set(key, arr);
@@ -1128,7 +1128,7 @@ const TimeGridView = (props: {
                                             return visibleDays();
                                         },
                                         children: (d) => {
-                                            const items = () => allDayByDay().get(ymdLocal(d.toISOString())) ?? [];
+                                            const items = () => allDayByDay().get(ymd(d)) ?? [];
                                             return (el("div", {
                                                 "style": "padding:4px;display:flex;flex-direction:column;gap:3px;border-left:1px solid var(--line);min-height:24px",
                                                 get children() {
@@ -1197,7 +1197,7 @@ const TimeGridView = (props: {
                                     return visibleDays();
                                 },
                                 children: (day, dayIdx) => {
-                                    const dayEvents = () => eventsByDay().get(ymdLocal(day.toISOString())) ?? [];
+                                    const dayEvents = () => eventsByDay().get(ymd(day)) ?? [];
                                     return (el("div", {
                                         "style": "position:relative;border-left:1px solid var(--line)",
                                         get children() {
@@ -1313,7 +1313,7 @@ const EventComposer = (props: {
     // 9–10am.
     const seedStart = (): string => {
         if (initial()?.startsAt)
-            return initial()!.startsAt!;
+            return initial()!.startsAt!.toISOString();
         if (props.state.mode === "create" && props.state.start)
             return props.state.start;
         const d = new Date();
@@ -1323,7 +1323,7 @@ const EventComposer = (props: {
     };
     const seedEnd = (): string => {
         if (initial()?.endsAt)
-            return initial()!.endsAt!;
+            return initial()!.endsAt!.toISOString();
         if (props.state.mode === "create" && props.state.end)
             return props.state.end;
         const d = new Date();
@@ -1368,8 +1368,8 @@ const EventComposer = (props: {
                 title: title().trim(),
                 description: description().trim() || undefined,
                 location: location().trim() || undefined,
-                startsAt: startsAt() || undefined,
-                endsAt: endsAt() || undefined,
+                startsAt: startsAt() ? new Date(startsAt()) : undefined,
+                endsAt: endsAt() ? new Date(endsAt()) : undefined,
                 allDay: allDay(),
                 timezone: initial()?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
                 editScope: scope(),

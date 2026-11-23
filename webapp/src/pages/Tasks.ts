@@ -328,7 +328,7 @@ const TaskComposer = (props: {
                 ownerMemberId: "",
                 title: title().trim(),
                 tag: tag().trim() || undefined,
-                dueAt: dueIso,
+                dueAt: dueIso ? new Date(dueIso) : undefined,
                 estimateMinutes: estimate() ? Number(estimate()) : undefined,
                 ...toRecurrence(recFreq(), recInterval(), recNextAt(), recByWeekday(), recBySetpos(), dueIso),
             };
@@ -1092,7 +1092,7 @@ const SubtaskComposer = (props: {
                 ownerMemberId: "",
                 title: title().trim(),
                 tag: tag().trim() || undefined,
-                dueAt: due() || undefined,
+                dueAt: due() ? new Date(due()) : undefined,
                 estimateMinutes: estimate() ? Number(estimate()) : undefined,
                 parentTaskId: props.parent.taskId,
             };

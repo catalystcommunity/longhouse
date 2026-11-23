@@ -37,38 +37,229 @@ typedef NotificationEventId = String;
 
 typedef CliSessionId = String;
 
-typedef Timestamp = String;
+enum TaskStatus {
+  open('open'),
+  inProgress('in_progress'),
+  done('done'),
+  cancelled('cancelled');
 
-typedef TaskStatus = String;
+  const TaskStatus(this.wireValue);
+  final String wireValue;
 
-typedef TargetType = String;
+  String toJson() => wireValue;
 
-typedef AccessLevel = String;
+  static TaskStatus fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown TaskStatus value', value);
+  }
+}
 
-typedef GranteeType = String;
+enum TargetType {
+  event('event'),
+  task('task'),
+  project('project');
 
-typedef ResourceType = String;
+  const TargetType(this.wireValue);
+  final String wireValue;
 
-typedef ProjectStatus = String;
+  String toJson() => wireValue;
 
-typedef DependencyNodeType = String;
+  static TargetType fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown TargetType value', value);
+  }
+}
 
-typedef RecurrenceFreq = String;
+enum AccessLevel {
+  none('none'),
+  read('read'),
+  edit('edit'),
+  full('full');
 
-typedef MilestoneState = String;
+  const AccessLevel(this.wireValue);
+  final String wireValue;
 
-typedef CliLoginStatus = String;
+  String toJson() => wireValue;
 
-typedef SessionKind = String;
+  static AccessLevel fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown AccessLevel value', value);
+  }
+}
 
-typedef TaskState = String;
+enum GranteeType {
+  member('member'),
+  group('group');
+
+  const GranteeType(this.wireValue);
+  final String wireValue;
+
+  String toJson() => wireValue;
+
+  static GranteeType fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown GranteeType value', value);
+  }
+}
+
+enum ResourceType {
+  event('event'),
+  task('task'),
+  house('house');
+
+  const ResourceType(this.wireValue);
+  final String wireValue;
+
+  String toJson() => wireValue;
+
+  static ResourceType fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown ResourceType value', value);
+  }
+}
+
+enum ProjectStatus {
+  active('active'),
+  archived('archived');
+
+  const ProjectStatus(this.wireValue);
+  final String wireValue;
+
+  String toJson() => wireValue;
+
+  static ProjectStatus fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown ProjectStatus value', value);
+  }
+}
+
+enum DependencyNodeType {
+  task('task'),
+  project('project');
+
+  const DependencyNodeType(this.wireValue);
+  final String wireValue;
+
+  String toJson() => wireValue;
+
+  static DependencyNodeType fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown DependencyNodeType value', value);
+  }
+}
+
+enum RecurrenceFreq {
+  hourly('hourly'),
+  daily('daily'),
+  weekly('weekly'),
+  monthly('monthly'),
+  quarterly('quarterly'),
+  yearly('yearly');
+
+  const RecurrenceFreq(this.wireValue);
+  final String wireValue;
+
+  String toJson() => wireValue;
+
+  static RecurrenceFreq fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown RecurrenceFreq value', value);
+  }
+}
+
+enum MilestoneState {
+  done('done'),
+  current('current'),
+  future('future');
+
+  const MilestoneState(this.wireValue);
+  final String wireValue;
+
+  String toJson() => wireValue;
+
+  static MilestoneState fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown MilestoneState value', value);
+  }
+}
+
+enum CliLoginStatus {
+  pending('pending'),
+  denied('denied'),
+  expired('expired'),
+  complete('complete');
+
+  const CliLoginStatus(this.wireValue);
+  final String wireValue;
+
+  String toJson() => wireValue;
+
+  static CliLoginStatus fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown CliLoginStatus value', value);
+  }
+}
+
+enum SessionKind {
+  cli('cli'),
+  browser('browser');
+
+  const SessionKind(this.wireValue);
+  final String wireValue;
+
+  String toJson() => wireValue;
+
+  static SessionKind fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown SessionKind value', value);
+  }
+}
+
+enum TaskState {
+  open('open'),
+  closed('closed');
+
+  const TaskState(this.wireValue);
+  final String wireValue;
+
+  String toJson() => wireValue;
+
+  static TaskState fromWire(Object? value) {
+    for (final member in values) {
+      if (member.wireValue == value) return member;
+    }
+    throw FormatException('unknown TaskState value', value);
+  }
+}
 
 final class House {
   final HouseId houseId;
   final String name;
   final String? description;
-  final Timestamp createdAt;
-  final Timestamp updatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const House({
     required this.houseId,
@@ -90,8 +281,8 @@ final class House {
       houseId: map['house_id'] as HouseId,
       name: map['name'] as String,
       description: map['description'] as String?,
-      createdAt: map['created_at'] as Timestamp,
-      updatedAt: map['updated_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -136,8 +327,8 @@ final class House {
       description: map['description'] == null
           ? null
           : map['description'] as String,
-      createdAt: map['created_at'] as String,
-      updatedAt: map['updated_at'] as String,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -159,10 +350,10 @@ final class Member {
   final String? avatarUrl;
   final String? handle;
   final Uint8List? cachedPublicKey;
-  final Timestamp createdAt;
-  final Timestamp updatedAt;
-  final Timestamp? lastSeenAt;
-  final Timestamp? deactivatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? lastSeenAt;
+  final DateTime? deactivatedAt;
 
   const Member({
     required this.memberId,
@@ -202,10 +393,10 @@ final class Member {
       avatarUrl: map['avatar_url'] as String?,
       handle: map['handle'] as String?,
       cachedPublicKey: map['cached_public_key'] as Uint8List?,
-      createdAt: map['created_at'] as Timestamp,
-      updatedAt: map['updated_at'] as Timestamp,
-      lastSeenAt: map['last_seen_at'] as Timestamp?,
-      deactivatedAt: map['deactivated_at'] as Timestamp?,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
+      lastSeenAt: map['last_seen_at'] as DateTime?,
+      deactivatedAt: map['deactivated_at'] as DateTime?,
     );
   }
 
@@ -282,14 +473,14 @@ final class Member {
       cachedPublicKey: map['cached_public_key'] == null
           ? null
           : map['cached_public_key'] as Uint8List,
-      createdAt: map['created_at'] as String,
-      updatedAt: map['updated_at'] as String,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
       lastSeenAt: map['last_seen_at'] == null
           ? null
-          : map['last_seen_at'] as String,
+          : map['last_seen_at'] as DateTime,
       deactivatedAt: map['deactivated_at'] == null
           ? null
-          : map['deactivated_at'] as String,
+          : map['deactivated_at'] as DateTime,
     );
   }
 
@@ -305,7 +496,7 @@ final class TrustedDomain {
   final TrustedDomainId trustedDomainId;
   final HouseId houseId;
   final String domain;
-  final Timestamp createdAt;
+  final DateTime createdAt;
 
   const TrustedDomain({
     required this.trustedDomainId,
@@ -326,7 +517,7 @@ final class TrustedDomain {
       trustedDomainId: map['trusted_domain_id'] as TrustedDomainId,
       houseId: map['house_id'] as HouseId,
       domain: map['domain'] as String,
-      createdAt: map['created_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -358,7 +549,7 @@ final class TrustedDomain {
       trustedDomainId: map['trusted_domain_id'] as String,
       houseId: map['house_id'] as String,
       domain: map['domain'] as String,
-      createdAt: map['created_at'] as String,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -375,8 +566,8 @@ final class Role {
   final HouseId houseId;
   final String name;
   final String? description;
-  final Timestamp createdAt;
-  final Timestamp updatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const Role({
     required this.roleId,
@@ -401,8 +592,8 @@ final class Role {
       houseId: map['house_id'] as HouseId,
       name: map['name'] as String,
       description: map['description'] as String?,
-      createdAt: map['created_at'] as Timestamp,
-      updatedAt: map['updated_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -456,8 +647,8 @@ final class Role {
       description: map['description'] == null
           ? null
           : map['description'] as String,
-      createdAt: map['created_at'] as String,
-      updatedAt: map['updated_at'] as String,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -472,7 +663,7 @@ final class Role {
 final class MemberRole {
   final MemberId memberId;
   final RoleId roleId;
-  final Timestamp createdAt;
+  final DateTime createdAt;
 
   const MemberRole({
     required this.memberId,
@@ -491,7 +682,7 @@ final class MemberRole {
     return MemberRole(
       memberId: map['member_id'] as MemberId,
       roleId: map['role_id'] as RoleId,
-      createdAt: map['created_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -520,7 +711,7 @@ final class MemberRole {
     return MemberRole(
       memberId: map['member_id'] as String,
       roleId: map['role_id'] as String,
-      createdAt: map['created_at'] as String,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -541,7 +732,7 @@ final class MemberAudit {
   final String? targetType;
   final String? targetId;
   final String? detail;
-  final Timestamp createdAt;
+  final DateTime createdAt;
 
   const MemberAudit({
     required this.auditId,
@@ -577,7 +768,7 @@ final class MemberAudit {
       targetType: map['target_type'] as String?,
       targetId: map['target_id'] as String?,
       detail: map['detail'] as String?,
-      createdAt: map['created_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -637,7 +828,7 @@ final class MemberAudit {
           : map['target_type'] as String,
       targetId: map['target_id'] == null ? null : map['target_id'] as String,
       detail: map['detail'] == null ? null : map['detail'] as String,
-      createdAt: map['created_at'] as String,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -654,8 +845,8 @@ final class Skill {
   final HouseId houseId;
   final String name;
   final String? description;
-  final Timestamp createdAt;
-  final Timestamp updatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const Skill({
     required this.skillId,
@@ -680,8 +871,8 @@ final class Skill {
       houseId: map['house_id'] as HouseId,
       name: map['name'] as String,
       description: map['description'] as String?,
-      createdAt: map['created_at'] as Timestamp,
-      updatedAt: map['updated_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -735,8 +926,8 @@ final class Skill {
       description: map['description'] == null
           ? null
           : map['description'] as String,
-      createdAt: map['created_at'] as String,
-      updatedAt: map['updated_at'] as String,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -751,7 +942,7 @@ final class Skill {
 final class MemberSkill {
   final MemberId memberId;
   final SkillId skillId;
-  final Timestamp createdAt;
+  final DateTime createdAt;
 
   const MemberSkill({
     required this.memberId,
@@ -770,7 +961,7 @@ final class MemberSkill {
     return MemberSkill(
       memberId: map['member_id'] as MemberId,
       skillId: map['skill_id'] as SkillId,
-      createdAt: map['created_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -799,7 +990,7 @@ final class MemberSkill {
     return MemberSkill(
       memberId: map['member_id'] as String,
       skillId: map['skill_id'] as String,
-      createdAt: map['created_at'] as String,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -814,7 +1005,7 @@ final class MemberSkill {
 final class GroupSkill {
   final GroupId groupId;
   final SkillId skillId;
-  final Timestamp createdAt;
+  final DateTime createdAt;
 
   const GroupSkill({
     required this.groupId,
@@ -833,7 +1024,7 @@ final class GroupSkill {
     return GroupSkill(
       groupId: map['group_id'] as GroupId,
       skillId: map['skill_id'] as SkillId,
-      createdAt: map['created_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -862,7 +1053,7 @@ final class GroupSkill {
     return GroupSkill(
       groupId: map['group_id'] as String,
       skillId: map['skill_id'] as String,
-      createdAt: map['created_at'] as String,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -879,8 +1070,8 @@ final class Group {
   final HouseId houseId;
   final String name;
   final String? description;
-  final Timestamp createdAt;
-  final Timestamp updatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const Group({
     required this.groupId,
@@ -905,8 +1096,8 @@ final class Group {
       houseId: map['house_id'] as HouseId,
       name: map['name'] as String,
       description: map['description'] as String?,
-      createdAt: map['created_at'] as Timestamp,
-      updatedAt: map['updated_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -960,8 +1151,8 @@ final class Group {
       description: map['description'] == null
           ? null
           : map['description'] as String,
-      createdAt: map['created_at'] as String,
-      updatedAt: map['updated_at'] as String,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -976,7 +1167,7 @@ final class Group {
 final class GroupMember {
   final GroupId groupId;
   final MemberId memberId;
-  final Timestamp createdAt;
+  final DateTime createdAt;
 
   const GroupMember({
     required this.groupId,
@@ -995,7 +1186,7 @@ final class GroupMember {
     return GroupMember(
       groupId: map['group_id'] as GroupId,
       memberId: map['member_id'] as MemberId,
-      createdAt: map['created_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -1024,7 +1215,7 @@ final class GroupMember {
     return GroupMember(
       groupId: map['group_id'] as String,
       memberId: map['member_id'] as String,
-      createdAt: map['created_at'] as String,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -1046,8 +1237,8 @@ final class Project {
   final AccessLevel? visibility;
   final MemberId? createdByMemberId;
   final bool? personal;
-  final Timestamp createdAt;
-  final Timestamp updatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const Project({
     required this.projectId,
@@ -1069,8 +1260,8 @@ final class Project {
     map['name'] = name;
     if (description != null) map['description'] = description;
     if (category != null) map['category'] = category;
-    if (status != null) map['status'] = status;
-    if (visibility != null) map['visibility'] = visibility;
+    if (status != null) map['status'] = status!.wireValue;
+    if (visibility != null) map['visibility'] = visibility!.wireValue;
     return map;
   }
 
@@ -1081,12 +1272,12 @@ final class Project {
       name: map['name'] as String,
       description: map['description'] as String?,
       category: map['category'] as String?,
-      status: map['status'] as ProjectStatus?,
-      visibility: map['visibility'] as AccessLevel?,
+      status: map['status'] == null ? null : ProjectStatus.fromWire(map['status']),
+      visibility: map['visibility'] == null ? null : AccessLevel.fromWire(map['visibility']),
       createdByMemberId: map['created_by_member_id'] as MemberId?,
       personal: map['personal'] as bool?,
-      createdAt: map['created_at'] as Timestamp,
-      updatedAt: map['updated_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -1138,8 +1329,8 @@ final class Project {
     map['name'] = name;
     if (description != null) map['description'] = description!;
     if (category != null) map['category'] = category!;
-    if (status != null) map['status'] = status!;
-    if (visibility != null) map['visibility'] = visibility!;
+    if (status != null) map['status'] = status!.wireValue;
+    if (visibility != null) map['visibility'] = visibility!.wireValue;
     return map;
   }
 
@@ -1156,24 +1347,16 @@ final class Project {
       category: map['category'] == null ? null : map['category'] as String,
       status: map['status'] == null
           ? null
-          : CsilCbor.expectOneOf<String>(map['status'], const [
-              'active',
-              'archived',
-            ]),
+          : ProjectStatus.fromWire(map['status']),
       visibility: map['visibility'] == null
           ? null
-          : CsilCbor.expectOneOf<String>(map['visibility'], const [
-              'none',
-              'read',
-              'edit',
-              'full',
-            ]),
+          : AccessLevel.fromWire(map['visibility']),
       createdByMemberId: map['created_by_member_id'] == null
           ? null
           : map['created_by_member_id'] as String,
       personal: map['personal'] == null ? null : map['personal'] as bool,
-      createdAt: map['created_at'] as String,
-      updatedAt: map['updated_at'] as String,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -1189,7 +1372,7 @@ final class ProjectTask {
   final ProjectId projectId;
   final TaskId taskId;
   final int position;
-  final Timestamp createdAt;
+  final DateTime createdAt;
 
   const ProjectTask({
     required this.projectId,
@@ -1211,7 +1394,7 @@ final class ProjectTask {
       projectId: map['project_id'] as ProjectId,
       taskId: map['task_id'] as TaskId,
       position: map['position'] as int,
-      createdAt: map['created_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -1243,7 +1426,7 @@ final class ProjectTask {
       projectId: map['project_id'] as String,
       taskId: map['task_id'] as String,
       position: map['position'] as int,
-      createdAt: map['created_at'] as String,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -1258,7 +1441,7 @@ final class ProjectTask {
 final class ProjectMember {
   final ProjectId projectId;
   final MemberId memberId;
-  final Timestamp createdAt;
+  final DateTime createdAt;
 
   const ProjectMember({
     required this.projectId,
@@ -1277,7 +1460,7 @@ final class ProjectMember {
     return ProjectMember(
       projectId: map['project_id'] as ProjectId,
       memberId: map['member_id'] as MemberId,
-      createdAt: map['created_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -1306,7 +1489,7 @@ final class ProjectMember {
     return ProjectMember(
       projectId: map['project_id'] as String,
       memberId: map['member_id'] as String,
-      createdAt: map['created_at'] as String,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -1321,7 +1504,7 @@ final class ProjectMember {
 final class ProjectOwner {
   final ProjectId projectId;
   final MemberId memberId;
-  final Timestamp createdAt;
+  final DateTime createdAt;
 
   const ProjectOwner({
     required this.projectId,
@@ -1340,7 +1523,7 @@ final class ProjectOwner {
     return ProjectOwner(
       projectId: map['project_id'] as ProjectId,
       memberId: map['member_id'] as MemberId,
-      createdAt: map['created_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -1369,7 +1552,7 @@ final class ProjectOwner {
     return ProjectOwner(
       projectId: map['project_id'] as String,
       memberId: map['member_id'] as String,
-      createdAt: map['created_at'] as String,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -1388,8 +1571,8 @@ final class Milestone {
   final String whenLabel;
   final MilestoneState state;
   final int position;
-  final Timestamp createdAt;
-  final Timestamp updatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const Milestone({
     required this.milestoneId,
@@ -1407,7 +1590,7 @@ final class Milestone {
     map['project_id'] = projectId;
     map['label'] = label;
     map['when_label'] = whenLabel;
-    map['state'] = state;
+    map['state'] = state.wireValue;
     map['position'] = position;
     return map;
   }
@@ -1418,10 +1601,10 @@ final class Milestone {
       projectId: map['project_id'] as ProjectId,
       label: map['label'] as String,
       whenLabel: map['when_label'] as String,
-      state: map['state'] as MilestoneState,
+      state: MilestoneState.fromWire(map['state']),
       position: map['position'] as int,
-      createdAt: map['created_at'] as Timestamp,
-      updatedAt: map['updated_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -1466,7 +1649,7 @@ final class Milestone {
     map['project_id'] = projectId;
     map['label'] = label;
     map['when_label'] = whenLabel;
-    map['state'] = state;
+    map['state'] = state.wireValue;
     map['position'] = position;
     return map;
   }
@@ -1479,14 +1662,10 @@ final class Milestone {
       projectId: map['project_id'] as String,
       label: map['label'] as String,
       whenLabel: map['when_label'] as String,
-      state: CsilCbor.expectOneOf<String>(map['state'], const [
-        'done',
-        'current',
-        'future',
-      ]),
+      state: MilestoneState.fromWire(map['state']),
       position: map['position'] as int,
-      createdAt: map['created_at'] as String,
-      updatedAt: map['updated_at'] as String,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -1505,8 +1684,8 @@ final class Event {
   final String title;
   final String? description;
   final String? location;
-  final Timestamp? startsAt;
-  final Timestamp? endsAt;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
   final bool? allDay;
   final String? timezone;
   final String? recurrenceRule;
@@ -1515,7 +1694,7 @@ final class Event {
   final int? recurrenceInterval;
   final List<int>? recurrenceByWeekday;
   final int? recurrenceBySetpos;
-  final Timestamp? nextRecurrenceAt;
+  final DateTime? nextRecurrenceAt;
   final EventId? recurrenceRootEventId;
   final String? calendarState;
   final int? revision;
@@ -1524,8 +1703,8 @@ final class Event {
   final MemberId? editPendingMemberId;
   final bool? calendarUnbound;
   final String? editScope;
-  final Timestamp createdAt;
-  final Timestamp updatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const Event({
     required this.eventId,
@@ -1569,7 +1748,7 @@ final class Event {
     if (allDay != null) map['all_day'] = allDay;
     if (timezone != null) map['timezone'] = timezone;
     if (recurrenceRule != null) map['recurrence_rule'] = recurrenceRule;
-    if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq;
+    if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq!.wireValue;
     if (clearRecurrence != null) map['clear_recurrence'] = clearRecurrence;
     if (recurrenceInterval != null)
       map['recurrence_interval'] = recurrenceInterval;
@@ -1593,17 +1772,17 @@ final class Event {
       title: map['title'] as String,
       description: map['description'] as String?,
       location: map['location'] as String?,
-      startsAt: map['starts_at'] as Timestamp?,
-      endsAt: map['ends_at'] as Timestamp?,
+      startsAt: map['starts_at'] as DateTime?,
+      endsAt: map['ends_at'] as DateTime?,
       allDay: map['all_day'] as bool?,
       timezone: map['timezone'] as String?,
       recurrenceRule: map['recurrence_rule'] as String?,
-      recurrenceFreq: map['recurrence_freq'] as RecurrenceFreq?,
+      recurrenceFreq: map['recurrence_freq'] == null ? null : RecurrenceFreq.fromWire(map['recurrence_freq']),
       clearRecurrence: map['clear_recurrence'] as bool?,
       recurrenceInterval: map['recurrence_interval'] as int?,
       recurrenceByWeekday: map['recurrence_by_weekday'] as List<int>?,
       recurrenceBySetpos: map['recurrence_by_setpos'] as int?,
-      nextRecurrenceAt: map['next_recurrence_at'] as Timestamp?,
+      nextRecurrenceAt: map['next_recurrence_at'] as DateTime?,
       recurrenceRootEventId: map['recurrence_root_event_id'] as EventId?,
       calendarState: map['calendar_state'] as String?,
       revision: map['revision'] as int?,
@@ -1612,8 +1791,8 @@ final class Event {
       editPendingMemberId: map['edit_pending_member_id'] as MemberId?,
       calendarUnbound: map['calendar_unbound'] as bool?,
       editScope: map['edit_scope'] as String?,
-      createdAt: map['created_at'] as Timestamp,
-      updatedAt: map['updated_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -1703,7 +1882,8 @@ final class Event {
     if (allDay != null) map['all_day'] = allDay!;
     if (timezone != null) map['timezone'] = timezone!;
     if (recurrenceRule != null) map['recurrence_rule'] = recurrenceRule!;
-    if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq!;
+    if (recurrenceFreq != null)
+      map['recurrence_freq'] = recurrenceFreq!.wireValue;
     if (clearRecurrence != null) map['clear_recurrence'] = clearRecurrence!;
     if (recurrenceInterval != null)
       map['recurrence_interval'] = recurrenceInterval!;
@@ -1731,8 +1911,8 @@ final class Event {
           ? null
           : map['description'] as String,
       location: map['location'] == null ? null : map['location'] as String,
-      startsAt: map['starts_at'] == null ? null : map['starts_at'] as String,
-      endsAt: map['ends_at'] == null ? null : map['ends_at'] as String,
+      startsAt: map['starts_at'] == null ? null : map['starts_at'] as DateTime,
+      endsAt: map['ends_at'] == null ? null : map['ends_at'] as DateTime,
       allDay: map['all_day'] == null ? null : map['all_day'] as bool,
       timezone: map['timezone'] == null ? null : map['timezone'] as String,
       recurrenceRule: map['recurrence_rule'] == null
@@ -1740,14 +1920,7 @@ final class Event {
           : map['recurrence_rule'] as String,
       recurrenceFreq: map['recurrence_freq'] == null
           ? null
-          : CsilCbor.expectOneOf<String>(map['recurrence_freq'], const [
-              'hourly',
-              'daily',
-              'weekly',
-              'monthly',
-              'quarterly',
-              'yearly',
-            ]),
+          : RecurrenceFreq.fromWire(map['recurrence_freq']),
       clearRecurrence: map['clear_recurrence'] == null
           ? null
           : map['clear_recurrence'] as bool,
@@ -1765,7 +1938,7 @@ final class Event {
           : map['recurrence_by_setpos'] as int,
       nextRecurrenceAt: map['next_recurrence_at'] == null
           ? null
-          : map['next_recurrence_at'] as String,
+          : map['next_recurrence_at'] as DateTime,
       recurrenceRootEventId: map['recurrence_root_event_id'] == null
           ? null
           : map['recurrence_root_event_id'] as String,
@@ -1786,8 +1959,8 @@ final class Event {
           ? null
           : map['calendar_unbound'] as bool,
       editScope: map['edit_scope'] == null ? null : map['edit_scope'] as String,
-      createdAt: map['created_at'] as String,
-      updatedAt: map['updated_at'] as String,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -1810,7 +1983,7 @@ final class Task {
   final String title;
   final String? description;
   final TaskStatus? status;
-  final Timestamp? dueAt;
+  final DateTime? dueAt;
   final String? tag;
   final int? estimateMinutes;
   final RecurrenceFreq? recurrenceFreq;
@@ -1818,11 +1991,11 @@ final class Task {
   final int? recurrenceInterval;
   final List<int>? recurrenceByWeekday;
   final int? recurrenceBySetpos;
-  final Timestamp? nextRecurrenceAt;
+  final DateTime? nextRecurrenceAt;
   final TaskId? recurrenceRootTaskId;
-  final Timestamp? deletedAt;
-  final Timestamp createdAt;
-  final Timestamp updatedAt;
+  final DateTime? deletedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const Task({
     required this.taskId,
@@ -1858,14 +2031,14 @@ final class Task {
     if (assignedToSkillId != null)
       map['assigned_to_skill_id'] = assignedToSkillId;
     if (parentTaskId != null) map['parent_task_id'] = parentTaskId;
-    if (visibility != null) map['visibility'] = visibility;
+    if (visibility != null) map['visibility'] = visibility!.wireValue;
     map['title'] = title;
     if (description != null) map['description'] = description;
-    if (status != null) map['status'] = status;
+    if (status != null) map['status'] = status!.wireValue;
     if (dueAt != null) map['due_at'] = dueAt;
     if (tag != null) map['tag'] = tag;
     if (estimateMinutes != null) map['estimate_minutes'] = estimateMinutes;
-    if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq;
+    if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq!.wireValue;
     if (clearRecurrence != null) map['clear_recurrence'] = clearRecurrence;
     if (recurrenceInterval != null)
       map['recurrence_interval'] = recurrenceInterval;
@@ -1888,23 +2061,23 @@ final class Task {
       assignees: map['assignees'] as List<MemberId>?,
       assignedToSkillId: map['assigned_to_skill_id'] as SkillId?,
       parentTaskId: map['parent_task_id'] as TaskId?,
-      visibility: map['visibility'] as AccessLevel?,
+      visibility: map['visibility'] == null ? null : AccessLevel.fromWire(map['visibility']),
       title: map['title'] as String,
       description: map['description'] as String?,
-      status: map['status'] as TaskStatus?,
-      dueAt: map['due_at'] as Timestamp?,
+      status: map['status'] == null ? null : TaskStatus.fromWire(map['status']),
+      dueAt: map['due_at'] as DateTime?,
       tag: map['tag'] as String?,
       estimateMinutes: map['estimate_minutes'] as int?,
-      recurrenceFreq: map['recurrence_freq'] as RecurrenceFreq?,
+      recurrenceFreq: map['recurrence_freq'] == null ? null : RecurrenceFreq.fromWire(map['recurrence_freq']),
       clearRecurrence: map['clear_recurrence'] as bool?,
       recurrenceInterval: map['recurrence_interval'] as int?,
       recurrenceByWeekday: map['recurrence_by_weekday'] as List<int>?,
       recurrenceBySetpos: map['recurrence_by_setpos'] as int?,
-      nextRecurrenceAt: map['next_recurrence_at'] as Timestamp?,
+      nextRecurrenceAt: map['next_recurrence_at'] as DateTime?,
       recurrenceRootTaskId: map['recurrence_root_task_id'] as TaskId?,
-      deletedAt: map['deleted_at'] as Timestamp?,
-      createdAt: map['created_at'] as Timestamp,
-      updatedAt: map['updated_at'] as Timestamp,
+      deletedAt: map['deleted_at'] as DateTime?,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -1982,14 +2155,15 @@ final class Task {
     if (assignedToSkillId != null)
       map['assigned_to_skill_id'] = assignedToSkillId!;
     if (parentTaskId != null) map['parent_task_id'] = parentTaskId!;
-    if (visibility != null) map['visibility'] = visibility!;
+    if (visibility != null) map['visibility'] = visibility!.wireValue;
     map['title'] = title;
     if (description != null) map['description'] = description!;
-    if (status != null) map['status'] = status!;
+    if (status != null) map['status'] = status!.wireValue;
     if (dueAt != null) map['due_at'] = dueAt!;
     if (tag != null) map['tag'] = tag!;
     if (estimateMinutes != null) map['estimate_minutes'] = estimateMinutes!;
-    if (recurrenceFreq != null) map['recurrence_freq'] = recurrenceFreq!;
+    if (recurrenceFreq != null)
+      map['recurrence_freq'] = recurrenceFreq!.wireValue;
     if (clearRecurrence != null) map['clear_recurrence'] = clearRecurrence!;
     if (recurrenceInterval != null)
       map['recurrence_interval'] = recurrenceInterval!;
@@ -2025,39 +2199,20 @@ final class Task {
           : map['parent_task_id'] as String,
       visibility: map['visibility'] == null
           ? null
-          : CsilCbor.expectOneOf<String>(map['visibility'], const [
-              'none',
-              'read',
-              'edit',
-              'full',
-            ]),
+          : AccessLevel.fromWire(map['visibility']),
       title: map['title'] as String,
       description: map['description'] == null
           ? null
           : map['description'] as String,
-      status: map['status'] == null
-          ? null
-          : CsilCbor.expectOneOf<String>(map['status'], const [
-              'open',
-              'in_progress',
-              'done',
-              'cancelled',
-            ]),
-      dueAt: map['due_at'] == null ? null : map['due_at'] as String,
+      status: map['status'] == null ? null : TaskStatus.fromWire(map['status']),
+      dueAt: map['due_at'] == null ? null : map['due_at'] as DateTime,
       tag: map['tag'] == null ? null : map['tag'] as String,
       estimateMinutes: map['estimate_minutes'] == null
           ? null
           : map['estimate_minutes'] as int,
       recurrenceFreq: map['recurrence_freq'] == null
           ? null
-          : CsilCbor.expectOneOf<String>(map['recurrence_freq'], const [
-              'hourly',
-              'daily',
-              'weekly',
-              'monthly',
-              'quarterly',
-              'yearly',
-            ]),
+          : RecurrenceFreq.fromWire(map['recurrence_freq']),
       clearRecurrence: map['clear_recurrence'] == null
           ? null
           : map['clear_recurrence'] as bool,
@@ -2075,13 +2230,15 @@ final class Task {
           : map['recurrence_by_setpos'] as int,
       nextRecurrenceAt: map['next_recurrence_at'] == null
           ? null
-          : map['next_recurrence_at'] as String,
+          : map['next_recurrence_at'] as DateTime,
       recurrenceRootTaskId: map['recurrence_root_task_id'] == null
           ? null
           : map['recurrence_root_task_id'] as String,
-      deletedAt: map['deleted_at'] == null ? null : map['deleted_at'] as String,
-      createdAt: map['created_at'] as String,
-      updatedAt: map['updated_at'] as String,
+      deletedAt: map['deleted_at'] == null
+          ? null
+          : map['deleted_at'] as DateTime,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -2100,8 +2257,8 @@ final class Comment {
   final TargetType targetType;
   final String targetId;
   final String body;
-  final Timestamp createdAt;
-  final Timestamp updatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const Comment({
     required this.commentId,
@@ -2117,7 +2274,7 @@ final class Comment {
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
     map['house_id'] = houseId;
-    map['target_type'] = targetType;
+    map['target_type'] = targetType.wireValue;
     map['target_id'] = targetId;
     map['body'] = body;
     return map;
@@ -2128,11 +2285,11 @@ final class Comment {
       commentId: map['comment_id'] as CommentId,
       houseId: map['house_id'] as HouseId,
       memberId: map['member_id'] as MemberId,
-      targetType: map['target_type'] as TargetType,
+      targetType: TargetType.fromWire(map['target_type']),
       targetId: map['target_id'] as String,
       body: map['body'] as String,
-      createdAt: map['created_at'] as Timestamp,
-      updatedAt: map['updated_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -2175,7 +2332,7 @@ final class Comment {
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
     map['house_id'] = houseId;
-    map['target_type'] = targetType;
+    map['target_type'] = targetType.wireValue;
     map['target_id'] = targetId;
     map['body'] = body;
     return map;
@@ -2188,15 +2345,11 @@ final class Comment {
       commentId: map['comment_id'] as String,
       houseId: map['house_id'] as String,
       memberId: map['member_id'] as String,
-      targetType: CsilCbor.expectOneOf<String>(map['target_type'], const [
-        'event',
-        'task',
-        'project',
-      ]),
+      targetType: TargetType.fromWire(map['target_type']),
       targetId: map['target_id'] as String,
       body: map['body'] as String,
-      createdAt: map['created_at'] as String,
-      updatedAt: map['updated_at'] as String,
+      createdAt: map['created_at'] as DateTime,
+      updatedAt: map['updated_at'] as DateTime,
     );
   }
 
@@ -2217,8 +2370,8 @@ final class Share {
   final ResourceType resourceType;
   final String resourceId;
   final AccessLevel? accessLevel;
-  final Timestamp createdAt;
-  final Timestamp? expiresAt;
+  final DateTime createdAt;
+  final DateTime? expiresAt;
 
   const Share({
     required this.shareId,
@@ -2238,9 +2391,9 @@ final class Share {
     map['house_id'] = houseId;
     map['linkkeys_domain'] = linkkeysDomain;
     map['linkkeys_user_id'] = linkkeysUserId;
-    map['resource_type'] = resourceType;
+    map['resource_type'] = resourceType.wireValue;
     map['resource_id'] = resourceId;
-    if (accessLevel != null) map['access_level'] = accessLevel;
+    if (accessLevel != null) map['access_level'] = accessLevel!.wireValue;
     if (expiresAt != null) map['expires_at'] = expiresAt;
     return map;
   }
@@ -2252,11 +2405,11 @@ final class Share {
       sharedBy: map['shared_by'] as MemberId,
       linkkeysDomain: map['linkkeys_domain'] as String,
       linkkeysUserId: map['linkkeys_user_id'] as String,
-      resourceType: map['resource_type'] as ResourceType,
+      resourceType: ResourceType.fromWire(map['resource_type']),
       resourceId: map['resource_id'] as String,
-      accessLevel: map['access_level'] as AccessLevel?,
-      createdAt: map['created_at'] as Timestamp,
-      expiresAt: map['expires_at'] as Timestamp?,
+      accessLevel: map['access_level'] == null ? null : AccessLevel.fromWire(map['access_level']),
+      createdAt: map['created_at'] as DateTime,
+      expiresAt: map['expires_at'] as DateTime?,
     );
   }
 
@@ -2295,9 +2448,9 @@ final class Share {
     map['house_id'] = houseId;
     map['linkkeys_domain'] = linkkeysDomain;
     map['linkkeys_user_id'] = linkkeysUserId;
-    map['resource_type'] = resourceType;
+    map['resource_type'] = resourceType.wireValue;
     map['resource_id'] = resourceId;
-    if (accessLevel != null) map['access_level'] = accessLevel!;
+    if (accessLevel != null) map['access_level'] = accessLevel!.wireValue;
     if (expiresAt != null) map['expires_at'] = expiresAt!;
     return map;
   }
@@ -2311,22 +2464,15 @@ final class Share {
       sharedBy: map['shared_by'] as String,
       linkkeysDomain: map['linkkeys_domain'] as String,
       linkkeysUserId: map['linkkeys_user_id'] as String,
-      resourceType: CsilCbor.expectOneOf<String>(map['resource_type'], const [
-        'event',
-        'task',
-        'house',
-      ]),
+      resourceType: ResourceType.fromWire(map['resource_type']),
       resourceId: map['resource_id'] as String,
       accessLevel: map['access_level'] == null
           ? null
-          : CsilCbor.expectOneOf<String>(map['access_level'], const [
-              'none',
-              'read',
-              'edit',
-              'full',
-            ]),
-      createdAt: map['created_at'] as String,
-      expiresAt: map['expires_at'] == null ? null : map['expires_at'] as String,
+          : AccessLevel.fromWire(map['access_level']),
+      createdAt: map['created_at'] as DateTime,
+      expiresAt: map['expires_at'] == null
+          ? null
+          : map['expires_at'] as DateTime,
     );
   }
 
@@ -2856,7 +3002,7 @@ final class LoginResponse {
   final String domain;
   final String userId;
   final String? displayName;
-  final Timestamp expiresAt;
+  final DateTime expiresAt;
 
   const LoginResponse({
     required this.token,
@@ -2882,7 +3028,7 @@ final class LoginResponse {
       domain: map['domain'] as String,
       userId: map['user_id'] as String,
       displayName: map['display_name'] as String?,
-      expiresAt: map['expires_at'] as Timestamp,
+      expiresAt: map['expires_at'] as DateTime,
     );
   }
 
@@ -2921,7 +3067,7 @@ final class LoginResponse {
       displayName: map['display_name'] == null
           ? null
           : map['display_name'] as String,
-      expiresAt: map['expires_at'] as String,
+      expiresAt: map['expires_at'] as DateTime,
     );
   }
 
@@ -2938,9 +3084,9 @@ final class CliTokenResponse {
   final String domain;
   final String userId;
   final String? displayName;
-  final Timestamp expiresAt;
+  final DateTime expiresAt;
   final String refreshToken;
-  final Timestamp refreshExpiresAt;
+  final DateTime refreshExpiresAt;
   final CliSessionId sessionId;
 
   const CliTokenResponse({
@@ -2973,9 +3119,9 @@ final class CliTokenResponse {
       domain: map['domain'] as String,
       userId: map['user_id'] as String,
       displayName: map['display_name'] as String?,
-      expiresAt: map['expires_at'] as Timestamp,
+      expiresAt: map['expires_at'] as DateTime,
       refreshToken: map['refresh_token'] as String,
-      refreshExpiresAt: map['refresh_expires_at'] as Timestamp,
+      refreshExpiresAt: map['refresh_expires_at'] as DateTime,
       sessionId: map['session_id'] as CliSessionId,
     );
   }
@@ -3029,9 +3175,9 @@ final class CliTokenResponse {
       displayName: map['display_name'] == null
           ? null
           : map['display_name'] as String,
-      expiresAt: map['expires_at'] as String,
+      expiresAt: map['expires_at'] as DateTime,
       refreshToken: map['refresh_token'] as String,
-      refreshExpiresAt: map['refresh_expires_at'] as String,
+      refreshExpiresAt: map['refresh_expires_at'] as DateTime,
       sessionId: map['session_id'] as String,
     );
   }
@@ -3103,7 +3249,7 @@ final class BeginCliLoginResponse {
   final String deviceCode;
   final String userCode;
   final String verificationUrl;
-  final Timestamp expiresAt;
+  final DateTime expiresAt;
   final int intervalSeconds;
 
   const BeginCliLoginResponse({
@@ -3129,7 +3275,7 @@ final class BeginCliLoginResponse {
       deviceCode: map['device_code'] as String,
       userCode: map['user_code'] as String,
       verificationUrl: map['verification_url'] as String,
-      expiresAt: map['expires_at'] as Timestamp,
+      expiresAt: map['expires_at'] as DateTime,
       intervalSeconds: map['interval_seconds'] as int,
     );
   }
@@ -3171,7 +3317,7 @@ final class BeginCliLoginResponse {
       deviceCode: map['device_code'] as String,
       userCode: map['user_code'] as String,
       verificationUrl: map['verification_url'] as String,
-      expiresAt: map['expires_at'] as String,
+      expiresAt: map['expires_at'] as DateTime,
       intervalSeconds: map['interval_seconds'] as int,
     );
   }
@@ -3232,7 +3378,7 @@ final class ApproveCliLoginRequest {
 final class CliLoginRequestInfo {
   final String userCode;
   final String clientName;
-  final Timestamp expiresAt;
+  final DateTime expiresAt;
 
   const CliLoginRequestInfo({
     required this.userCode,
@@ -3252,7 +3398,7 @@ final class CliLoginRequestInfo {
     return CliLoginRequestInfo(
       userCode: map['user_code'] as String,
       clientName: map['client_name'] as String,
-      expiresAt: map['expires_at'] as Timestamp,
+      expiresAt: map['expires_at'] as DateTime,
     );
   }
 
@@ -3282,7 +3428,7 @@ final class CliLoginRequestInfo {
     return CliLoginRequestInfo(
       userCode: map['user_code'] as String,
       clientName: map['client_name'] as String,
-      expiresAt: map['expires_at'] as String,
+      expiresAt: map['expires_at'] as DateTime,
     );
   }
 
@@ -3392,14 +3538,14 @@ final class ExchangeCliLoginResponse {
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
-    map['status'] = status;
+    map['status'] = status.wireValue;
     if (session != null) map['session'] = session;
     return map;
   }
 
   factory ExchangeCliLoginResponse.fromMap(Map<String, Object?> map) {
     return ExchangeCliLoginResponse(
-      status: map['status'] as CliLoginStatus,
+      status: CliLoginStatus.fromWire(map['status']),
       session: map['session'] as CliTokenResponse?,
     );
   }
@@ -3416,7 +3562,7 @@ final class ExchangeCliLoginResponse {
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
-    map['status'] = status;
+    map['status'] = status.wireValue;
     if (session != null) map['session'] = session!.toCborValue();
     return map;
   }
@@ -3425,12 +3571,7 @@ final class ExchangeCliLoginResponse {
   factory ExchangeCliLoginResponse.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return ExchangeCliLoginResponse(
-      status: CsilCbor.expectOneOf<String>(map['status'], const [
-        'pending',
-        'denied',
-        'expired',
-        'complete',
-      ]),
+      status: CliLoginStatus.fromWire(map['status']),
       session: map['session'] == null
           ? null
           : CliTokenResponse.fromCborValue(map['session']),
@@ -3493,10 +3634,10 @@ final class RefreshSessionRequest {
 final class CliSessionSummary {
   final CliSessionId sessionId;
   final String clientName;
-  final Timestamp createdAt;
-  final Timestamp lastUsedAt;
-  final Timestamp expiresAt;
-  final Timestamp? revokedAt;
+  final DateTime createdAt;
+  final DateTime lastUsedAt;
+  final DateTime expiresAt;
+  final DateTime? revokedAt;
   final SessionKind? kind;
   final bool? current;
 
@@ -3519,7 +3660,7 @@ final class CliSessionSummary {
     map['last_used_at'] = lastUsedAt;
     map['expires_at'] = expiresAt;
     if (revokedAt != null) map['revoked_at'] = revokedAt;
-    if (kind != null) map['kind'] = kind;
+    if (kind != null) map['kind'] = kind!.wireValue;
     if (current != null) map['current'] = current;
     return map;
   }
@@ -3528,11 +3669,11 @@ final class CliSessionSummary {
     return CliSessionSummary(
       sessionId: map['session_id'] as CliSessionId,
       clientName: map['client_name'] as String,
-      createdAt: map['created_at'] as Timestamp,
-      lastUsedAt: map['last_used_at'] as Timestamp,
-      expiresAt: map['expires_at'] as Timestamp,
-      revokedAt: map['revoked_at'] as Timestamp?,
-      kind: map['kind'] as SessionKind?,
+      createdAt: map['created_at'] as DateTime,
+      lastUsedAt: map['last_used_at'] as DateTime,
+      expiresAt: map['expires_at'] as DateTime,
+      revokedAt: map['revoked_at'] as DateTime?,
+      kind: map['kind'] == null ? null : SessionKind.fromWire(map['kind']),
       current: map['current'] as bool?,
     );
   }
@@ -3571,7 +3712,7 @@ final class CliSessionSummary {
     map['last_used_at'] = lastUsedAt;
     map['expires_at'] = expiresAt;
     if (revokedAt != null) map['revoked_at'] = revokedAt!;
-    if (kind != null) map['kind'] = kind!;
+    if (kind != null) map['kind'] = kind!.wireValue;
     if (current != null) map['current'] = current!;
     return map;
   }
@@ -3582,13 +3723,13 @@ final class CliSessionSummary {
     return CliSessionSummary(
       sessionId: map['session_id'] as String,
       clientName: map['client_name'] as String,
-      createdAt: map['created_at'] as String,
-      lastUsedAt: map['last_used_at'] as String,
-      expiresAt: map['expires_at'] as String,
-      revokedAt: map['revoked_at'] == null ? null : map['revoked_at'] as String,
-      kind: map['kind'] == null
+      createdAt: map['created_at'] as DateTime,
+      lastUsedAt: map['last_used_at'] as DateTime,
+      expiresAt: map['expires_at'] as DateTime,
+      revokedAt: map['revoked_at'] == null
           ? null
-          : CsilCbor.expectOneOf<String>(map['kind'], const ['cli', 'browser']),
+          : map['revoked_at'] as DateTime,
+      kind: map['kind'] == null ? null : SessionKind.fromWire(map['kind']),
       current: map['current'] == null ? null : map['current'] as bool,
     );
   }
@@ -3907,7 +4048,7 @@ final class MeResponse {
   final String domain;
   final String userId;
   final String? displayName;
-  final Timestamp expiresAt;
+  final DateTime expiresAt;
   final List<HouseSummary> houses;
 
   const MeResponse({
@@ -3933,7 +4074,7 @@ final class MeResponse {
       domain: map['domain'] as String,
       userId: map['user_id'] as String,
       displayName: map['display_name'] as String?,
-      expiresAt: map['expires_at'] as Timestamp,
+      expiresAt: map['expires_at'] as DateTime,
       houses: map['houses'] as List<HouseSummary>,
     );
   }
@@ -3972,7 +4113,7 @@ final class MeResponse {
       displayName: map['display_name'] == null
           ? null
           : map['display_name'] as String,
-      expiresAt: map['expires_at'] as String,
+      expiresAt: map['expires_at'] as DateTime,
       houses: (map['houses'] as List)
           .map((csilE) => HouseSummary.fromCborValue(csilE))
           .cast<HouseSummary>()
@@ -4238,8 +4379,8 @@ final class HouseScopedListRequest {
 
 final class EventListRequest {
   final HouseId houseId;
-  final Timestamp? rangeStart;
-  final Timestamp? rangeEnd;
+  final DateTime? rangeStart;
+  final DateTime? rangeEnd;
   final int? limit;
   final int? offset;
 
@@ -4264,8 +4405,8 @@ final class EventListRequest {
   factory EventListRequest.fromMap(Map<String, Object?> map) {
     return EventListRequest(
       houseId: map['house_id'] as HouseId,
-      rangeStart: map['range_start'] as Timestamp?,
-      rangeEnd: map['range_end'] as Timestamp?,
+      rangeStart: map['range_start'] as DateTime?,
+      rangeEnd: map['range_end'] as DateTime?,
       limit: map['limit'] as int?,
       offset: map['offset'] as int?,
     );
@@ -4303,8 +4444,8 @@ final class EventListRequest {
       houseId: map['house_id'] as String,
       rangeStart: map['range_start'] == null
           ? null
-          : map['range_start'] as String,
-      rangeEnd: map['range_end'] == null ? null : map['range_end'] as String,
+          : map['range_start'] as DateTime,
+      rangeEnd: map['range_end'] == null ? null : map['range_end'] as DateTime,
       limit: map['limit'] == null ? null : map['limit'] as int,
       offset: map['offset'] == null ? null : map['offset'] as int,
     );
@@ -4325,9 +4466,9 @@ final class TaskListRequest {
   final TaskState? state;
   final bool? mine;
   final bool? loose;
-  final Timestamp? dueFrom;
-  final Timestamp? dueTo;
-  final List<Timestamp>? dueBefore;
+  final DateTime? dueFrom;
+  final DateTime? dueTo;
+  final List<DateTime>? dueBefore;
 
   const TaskListRequest({
     required this.houseId,
@@ -4346,7 +4487,7 @@ final class TaskListRequest {
     map['house_id'] = houseId;
     if (limit != null) map['limit'] = limit;
     if (offset != null) map['offset'] = offset;
-    if (state != null) map['state'] = state;
+    if (state != null) map['state'] = state!.wireValue;
     if (mine != null) map['mine'] = mine;
     if (loose != null) map['loose'] = loose;
     if (dueFrom != null) map['due_from'] = dueFrom;
@@ -4360,12 +4501,12 @@ final class TaskListRequest {
       houseId: map['house_id'] as HouseId,
       limit: map['limit'] as int?,
       offset: map['offset'] as int?,
-      state: map['state'] as TaskState?,
+      state: map['state'] == null ? null : TaskState.fromWire(map['state']),
       mine: map['mine'] as bool?,
       loose: map['loose'] as bool?,
-      dueFrom: map['due_from'] as Timestamp?,
-      dueTo: map['due_to'] as Timestamp?,
-      dueBefore: map['due_before'] as List<Timestamp>?,
+      dueFrom: map['due_from'] as DateTime?,
+      dueTo: map['due_to'] as DateTime?,
+      dueBefore: map['due_before'] as List<DateTime>?,
     );
   }
 
@@ -4402,7 +4543,7 @@ final class TaskListRequest {
     map['house_id'] = houseId;
     if (limit != null) map['limit'] = limit!;
     if (offset != null) map['offset'] = offset!;
-    if (state != null) map['state'] = state!;
+    if (state != null) map['state'] = state!.wireValue;
     if (mine != null) map['mine'] = mine!;
     if (loose != null) map['loose'] = loose!;
     if (dueFrom != null) map['due_from'] = dueFrom!;
@@ -4418,21 +4559,16 @@ final class TaskListRequest {
       houseId: map['house_id'] as String,
       limit: map['limit'] == null ? null : map['limit'] as int,
       offset: map['offset'] == null ? null : map['offset'] as int,
-      state: map['state'] == null
-          ? null
-          : CsilCbor.expectOneOf<String>(map['state'], const [
-              'open',
-              'closed',
-            ]),
+      state: map['state'] == null ? null : TaskState.fromWire(map['state']),
       mine: map['mine'] == null ? null : map['mine'] as bool,
       loose: map['loose'] == null ? null : map['loose'] as bool,
-      dueFrom: map['due_from'] == null ? null : map['due_from'] as String,
-      dueTo: map['due_to'] == null ? null : map['due_to'] as String,
+      dueFrom: map['due_from'] == null ? null : map['due_from'] as DateTime,
+      dueTo: map['due_to'] == null ? null : map['due_to'] as DateTime,
       dueBefore: map['due_before'] == null
           ? null
           : (map['due_before'] as List)
-                .map((csilE) => csilE as String)
-                .cast<Timestamp>()
+                .map((csilE) => csilE as DateTime)
+                .cast<DateTime>()
                 .toList(),
     );
   }
@@ -4675,7 +4811,7 @@ final class ProjectScopedListRequest {
     map['project_id'] = projectId;
     if (limit != null) map['limit'] = limit;
     if (offset != null) map['offset'] = offset;
-    if (state != null) map['state'] = state;
+    if (state != null) map['state'] = state!.wireValue;
     return map;
   }
 
@@ -4685,7 +4821,7 @@ final class ProjectScopedListRequest {
       projectId: map['project_id'] as ProjectId,
       limit: map['limit'] as int?,
       offset: map['offset'] as int?,
-      state: map['state'] as TaskState?,
+      state: map['state'] == null ? null : TaskState.fromWire(map['state']),
     );
   }
 
@@ -4710,7 +4846,7 @@ final class ProjectScopedListRequest {
     map['project_id'] = projectId;
     if (limit != null) map['limit'] = limit!;
     if (offset != null) map['offset'] = offset!;
-    if (state != null) map['state'] = state!;
+    if (state != null) map['state'] = state!.wireValue;
     return map;
   }
 
@@ -4722,12 +4858,7 @@ final class ProjectScopedListRequest {
       projectId: map['project_id'] as String,
       limit: map['limit'] == null ? null : map['limit'] as int,
       offset: map['offset'] == null ? null : map['offset'] as int,
-      state: map['state'] == null
-          ? null
-          : CsilCbor.expectOneOf<String>(map['state'], const [
-              'open',
-              'closed',
-            ]),
+      state: map['state'] == null ? null : TaskState.fromWire(map['state']),
     );
   }
 
@@ -4754,7 +4885,7 @@ final class CommentListRequest {
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
-    map['target_type'] = targetType;
+    map['target_type'] = targetType.wireValue;
     map['target_id'] = targetId;
     if (limit != null) map['limit'] = limit;
     if (offset != null) map['offset'] = offset;
@@ -4763,7 +4894,7 @@ final class CommentListRequest {
 
   factory CommentListRequest.fromMap(Map<String, Object?> map) {
     return CommentListRequest(
-      targetType: map['target_type'] as TargetType,
+      targetType: TargetType.fromWire(map['target_type']),
       targetId: map['target_id'] as String,
       limit: map['limit'] as int?,
       offset: map['offset'] as int?,
@@ -4785,7 +4916,7 @@ final class CommentListRequest {
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
-    map['target_type'] = targetType;
+    map['target_type'] = targetType.wireValue;
     map['target_id'] = targetId;
     if (limit != null) map['limit'] = limit!;
     if (offset != null) map['offset'] = offset!;
@@ -4796,11 +4927,7 @@ final class CommentListRequest {
   factory CommentListRequest.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return CommentListRequest(
-      targetType: CsilCbor.expectOneOf<String>(map['target_type'], const [
-        'event',
-        'task',
-        'project',
-      ]),
+      targetType: TargetType.fromWire(map['target_type']),
       targetId: map['target_id'] as String,
       limit: map['limit'] == null ? null : map['limit'] as int,
       offset: map['offset'] == null ? null : map['offset'] as int,
@@ -4827,8 +4954,8 @@ final class Notification {
   final String targetTitle;
   final String body;
   final bool read;
-  final Timestamp? readAt;
-  final Timestamp createdAt;
+  final DateTime? readAt;
+  final DateTime createdAt;
 
   const Notification({
     required this.notificationId,
@@ -4877,8 +5004,8 @@ final class Notification {
       targetTitle: map['target_title'] as String,
       body: map['body'] as String,
       read: map['read'] as bool,
-      readAt: map['read_at'] as Timestamp?,
-      createdAt: map['created_at'] as Timestamp,
+      readAt: map['read_at'] as DateTime?,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -4955,8 +5082,8 @@ final class Notification {
       targetTitle: map['target_title'] as String,
       body: map['body'] as String,
       read: map['read'] as bool,
-      readAt: map['read_at'] == null ? null : map['read_at'] as String,
-      createdAt: map['created_at'] as String,
+      readAt: map['read_at'] == null ? null : map['read_at'] as DateTime,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -5104,7 +5231,7 @@ final class ShareAccessRequest {
     final map = <String, Object?>{};
     map['linkkeys_domain'] = linkkeysDomain;
     map['linkkeys_user_id'] = linkkeysUserId;
-    map['resource_type'] = resourceType;
+    map['resource_type'] = resourceType.wireValue;
     map['resource_id'] = resourceId;
     return map;
   }
@@ -5113,7 +5240,7 @@ final class ShareAccessRequest {
     return ShareAccessRequest(
       linkkeysDomain: map['linkkeys_domain'] as String,
       linkkeysUserId: map['linkkeys_user_id'] as String,
-      resourceType: map['resource_type'] as ResourceType,
+      resourceType: ResourceType.fromWire(map['resource_type']),
       resourceId: map['resource_id'] as String,
     );
   }
@@ -5140,7 +5267,7 @@ final class ShareAccessRequest {
     final map = <String, Object?>{};
     map['linkkeys_domain'] = linkkeysDomain;
     map['linkkeys_user_id'] = linkkeysUserId;
-    map['resource_type'] = resourceType;
+    map['resource_type'] = resourceType.wireValue;
     map['resource_id'] = resourceId;
     return map;
   }
@@ -5151,11 +5278,7 @@ final class ShareAccessRequest {
     return ShareAccessRequest(
       linkkeysDomain: map['linkkeys_domain'] as String,
       linkkeysUserId: map['linkkeys_user_id'] as String,
-      resourceType: CsilCbor.expectOneOf<String>(map['resource_type'], const [
-        'event',
-        'task',
-        'house',
-      ]),
+      resourceType: ResourceType.fromWire(map['resource_type']),
       resourceId: map['resource_id'] as String,
     );
   }
@@ -5176,14 +5299,14 @@ final class ResourceRef {
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
-    map['resource_type'] = resourceType;
+    map['resource_type'] = resourceType.wireValue;
     map['resource_id'] = resourceId;
     return map;
   }
 
   factory ResourceRef.fromMap(Map<String, Object?> map) {
     return ResourceRef(
-      resourceType: map['resource_type'] as ResourceType,
+      resourceType: ResourceType.fromWire(map['resource_type']),
       resourceId: map['resource_id'] as String,
     );
   }
@@ -5200,7 +5323,7 @@ final class ResourceRef {
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
-    map['resource_type'] = resourceType;
+    map['resource_type'] = resourceType.wireValue;
     map['resource_id'] = resourceId;
     return map;
   }
@@ -5209,11 +5332,7 @@ final class ResourceRef {
   factory ResourceRef.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return ResourceRef(
-      resourceType: CsilCbor.expectOneOf<String>(map['resource_type'], const [
-        'event',
-        'task',
-        'house',
-      ]),
+      resourceType: ResourceType.fromWire(map['resource_type']),
       resourceId: map['resource_id'] as String,
     );
   }
@@ -5684,18 +5803,18 @@ final class DependencyRef {
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
-    map['dependent_type'] = dependentType;
+    map['dependent_type'] = dependentType.wireValue;
     map['dependent_id'] = dependentId;
-    map['dependency_type'] = dependencyType;
+    map['dependency_type'] = dependencyType.wireValue;
     map['dependency_id'] = dependencyId;
     return map;
   }
 
   factory DependencyRef.fromMap(Map<String, Object?> map) {
     return DependencyRef(
-      dependentType: map['dependent_type'] as DependencyNodeType,
+      dependentType: DependencyNodeType.fromWire(map['dependent_type']),
       dependentId: map['dependent_id'] as String,
-      dependencyType: map['dependency_type'] as DependencyNodeType,
+      dependencyType: DependencyNodeType.fromWire(map['dependency_type']),
       dependencyId: map['dependency_id'] as String,
     );
   }
@@ -5720,9 +5839,9 @@ final class DependencyRef {
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
-    map['dependent_type'] = dependentType;
+    map['dependent_type'] = dependentType.wireValue;
     map['dependent_id'] = dependentId;
-    map['dependency_type'] = dependencyType;
+    map['dependency_type'] = dependencyType.wireValue;
     map['dependency_id'] = dependencyId;
     return map;
   }
@@ -5731,15 +5850,9 @@ final class DependencyRef {
   factory DependencyRef.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return DependencyRef(
-      dependentType: CsilCbor.expectOneOf<String>(map['dependent_type'], const [
-        'task',
-        'project',
-      ]),
+      dependentType: DependencyNodeType.fromWire(map['dependent_type']),
       dependentId: map['dependent_id'] as String,
-      dependencyType: CsilCbor.expectOneOf<String>(
-        map['dependency_type'],
-        const ['task', 'project'],
-      ),
+      dependencyType: DependencyNodeType.fromWire(map['dependency_type']),
       dependencyId: map['dependency_id'] as String,
     );
   }
@@ -5760,14 +5873,14 @@ final class DependencyTarget {
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
-    map['type'] = type;
+    map['type'] = type.wireValue;
     map['id'] = id;
     return map;
   }
 
   factory DependencyTarget.fromMap(Map<String, Object?> map) {
     return DependencyTarget(
-      type: map['type'] as DependencyNodeType,
+      type: DependencyNodeType.fromWire(map['type']),
       id: map['id'] as String,
     );
   }
@@ -5784,7 +5897,7 @@ final class DependencyTarget {
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
-    map['type'] = type;
+    map['type'] = type.wireValue;
     map['id'] = id;
     return map;
   }
@@ -5793,10 +5906,7 @@ final class DependencyTarget {
   factory DependencyTarget.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return DependencyTarget(
-      type: CsilCbor.expectOneOf<String>(map['type'], const [
-        'task',
-        'project',
-      ]),
+      type: DependencyNodeType.fromWire(map['type']),
       id: map['id'] as String,
     );
   }
@@ -5824,14 +5934,14 @@ final class DependencyNode {
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
-    map['type'] = type;
+    map['type'] = type.wireValue;
     map['id'] = id;
     return map;
   }
 
   factory DependencyNode.fromMap(Map<String, Object?> map) {
     return DependencyNode(
-      type: map['type'] as DependencyNodeType,
+      type: DependencyNodeType.fromWire(map['type']),
       id: map['id'] as String,
       title: map['title'] as String,
       status: map['status'] as String?,
@@ -5853,7 +5963,7 @@ final class DependencyNode {
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
-    map['type'] = type;
+    map['type'] = type.wireValue;
     map['id'] = id;
     return map;
   }
@@ -5862,10 +5972,7 @@ final class DependencyNode {
   factory DependencyNode.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return DependencyNode(
-      type: CsilCbor.expectOneOf<String>(map['type'], const [
-        'task',
-        'project',
-      ]),
+      type: DependencyNodeType.fromWire(map['type']),
       id: map['id'] as String,
       title: map['title'] as String,
       status: map['status'] == null ? null : map['status'] as String,
@@ -5955,17 +6062,17 @@ final class Grant {
 
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
-    map['grantee_type'] = granteeType;
+    map['grantee_type'] = granteeType.wireValue;
     map['grantee_id'] = granteeId;
-    map['access_level'] = accessLevel;
+    map['access_level'] = accessLevel.wireValue;
     return map;
   }
 
   factory Grant.fromMap(Map<String, Object?> map) {
     return Grant(
-      granteeType: map['grantee_type'] as GranteeType,
+      granteeType: GranteeType.fromWire(map['grantee_type']),
       granteeId: map['grantee_id'] as String,
-      accessLevel: map['access_level'] as AccessLevel,
+      accessLevel: AccessLevel.fromWire(map['access_level']),
     );
   }
 
@@ -5983,9 +6090,9 @@ final class Grant {
   /// The CBOR-encodable dynamic tree for this record (deep).
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
-    map['grantee_type'] = granteeType;
+    map['grantee_type'] = granteeType.wireValue;
     map['grantee_id'] = granteeId;
-    map['access_level'] = accessLevel;
+    map['access_level'] = accessLevel.wireValue;
     return map;
   }
 
@@ -5993,17 +6100,9 @@ final class Grant {
   factory Grant.fromCborValue(Object? cbor) {
     final map = cbor as Map;
     return Grant(
-      granteeType: CsilCbor.expectOneOf<String>(map['grantee_type'], const [
-        'member',
-        'group',
-      ]),
+      granteeType: GranteeType.fromWire(map['grantee_type']),
       granteeId: map['grantee_id'] as String,
-      accessLevel: CsilCbor.expectOneOf<String>(map['access_level'], const [
-        'none',
-        'read',
-        'edit',
-        'full',
-      ]),
+      accessLevel: AccessLevel.fromWire(map['access_level']),
     );
   }
 
@@ -6029,7 +6128,7 @@ final class TaskGrantRef {
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
     map['task_id'] = taskId;
-    map['grantee_type'] = granteeType;
+    map['grantee_type'] = granteeType.wireValue;
     map['grantee_id'] = granteeId;
     return map;
   }
@@ -6037,7 +6136,7 @@ final class TaskGrantRef {
   factory TaskGrantRef.fromMap(Map<String, Object?> map) {
     return TaskGrantRef(
       taskId: map['task_id'] as TaskId,
-      granteeType: map['grantee_type'] as GranteeType,
+      granteeType: GranteeType.fromWire(map['grantee_type']),
       granteeId: map['grantee_id'] as String,
     );
   }
@@ -6057,7 +6156,7 @@ final class TaskGrantRef {
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
     map['task_id'] = taskId;
-    map['grantee_type'] = granteeType;
+    map['grantee_type'] = granteeType.wireValue;
     map['grantee_id'] = granteeId;
     return map;
   }
@@ -6067,10 +6166,7 @@ final class TaskGrantRef {
     final map = cbor as Map;
     return TaskGrantRef(
       taskId: map['task_id'] as String,
-      granteeType: CsilCbor.expectOneOf<String>(map['grantee_type'], const [
-        'member',
-        'group',
-      ]),
+      granteeType: GranteeType.fromWire(map['grantee_type']),
       granteeId: map['grantee_id'] as String,
     );
   }
@@ -6099,18 +6195,18 @@ final class PutTaskGrantRequest {
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
     map['task_id'] = taskId;
-    map['grantee_type'] = granteeType;
+    map['grantee_type'] = granteeType.wireValue;
     map['grantee_id'] = granteeId;
-    map['access_level'] = accessLevel;
+    map['access_level'] = accessLevel.wireValue;
     return map;
   }
 
   factory PutTaskGrantRequest.fromMap(Map<String, Object?> map) {
     return PutTaskGrantRequest(
       taskId: map['task_id'] as TaskId,
-      granteeType: map['grantee_type'] as GranteeType,
+      granteeType: GranteeType.fromWire(map['grantee_type']),
       granteeId: map['grantee_id'] as String,
-      accessLevel: map['access_level'] as AccessLevel,
+      accessLevel: AccessLevel.fromWire(map['access_level']),
     );
   }
 
@@ -6131,9 +6227,9 @@ final class PutTaskGrantRequest {
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
     map['task_id'] = taskId;
-    map['grantee_type'] = granteeType;
+    map['grantee_type'] = granteeType.wireValue;
     map['grantee_id'] = granteeId;
-    map['access_level'] = accessLevel;
+    map['access_level'] = accessLevel.wireValue;
     return map;
   }
 
@@ -6142,17 +6238,9 @@ final class PutTaskGrantRequest {
     final map = cbor as Map;
     return PutTaskGrantRequest(
       taskId: map['task_id'] as String,
-      granteeType: CsilCbor.expectOneOf<String>(map['grantee_type'], const [
-        'member',
-        'group',
-      ]),
+      granteeType: GranteeType.fromWire(map['grantee_type']),
       granteeId: map['grantee_id'] as String,
-      accessLevel: CsilCbor.expectOneOf<String>(map['access_level'], const [
-        'none',
-        'read',
-        'edit',
-        'full',
-      ]),
+      accessLevel: AccessLevel.fromWire(map['access_level']),
     );
   }
 
@@ -6176,14 +6264,14 @@ final class SetTaskVisibilityRequest {
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
     map['task_id'] = taskId;
-    map['visibility'] = visibility;
+    map['visibility'] = visibility.wireValue;
     return map;
   }
 
   factory SetTaskVisibilityRequest.fromMap(Map<String, Object?> map) {
     return SetTaskVisibilityRequest(
       taskId: map['task_id'] as TaskId,
-      visibility: map['visibility'] as AccessLevel,
+      visibility: AccessLevel.fromWire(map['visibility']),
     );
   }
 
@@ -6200,7 +6288,7 @@ final class SetTaskVisibilityRequest {
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
     map['task_id'] = taskId;
-    map['visibility'] = visibility;
+    map['visibility'] = visibility.wireValue;
     return map;
   }
 
@@ -6209,12 +6297,7 @@ final class SetTaskVisibilityRequest {
     final map = cbor as Map;
     return SetTaskVisibilityRequest(
       taskId: map['task_id'] as String,
-      visibility: CsilCbor.expectOneOf<String>(map['visibility'], const [
-        'none',
-        'read',
-        'edit',
-        'full',
-      ]),
+      visibility: AccessLevel.fromWire(map['visibility']),
     );
   }
 
@@ -6240,7 +6323,7 @@ final class ProjectGrantRef {
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
     map['project_id'] = projectId;
-    map['grantee_type'] = granteeType;
+    map['grantee_type'] = granteeType.wireValue;
     map['grantee_id'] = granteeId;
     return map;
   }
@@ -6248,7 +6331,7 @@ final class ProjectGrantRef {
   factory ProjectGrantRef.fromMap(Map<String, Object?> map) {
     return ProjectGrantRef(
       projectId: map['project_id'] as ProjectId,
-      granteeType: map['grantee_type'] as GranteeType,
+      granteeType: GranteeType.fromWire(map['grantee_type']),
       granteeId: map['grantee_id'] as String,
     );
   }
@@ -6268,7 +6351,7 @@ final class ProjectGrantRef {
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
     map['project_id'] = projectId;
-    map['grantee_type'] = granteeType;
+    map['grantee_type'] = granteeType.wireValue;
     map['grantee_id'] = granteeId;
     return map;
   }
@@ -6278,10 +6361,7 @@ final class ProjectGrantRef {
     final map = cbor as Map;
     return ProjectGrantRef(
       projectId: map['project_id'] as String,
-      granteeType: CsilCbor.expectOneOf<String>(map['grantee_type'], const [
-        'member',
-        'group',
-      ]),
+      granteeType: GranteeType.fromWire(map['grantee_type']),
       granteeId: map['grantee_id'] as String,
     );
   }
@@ -6310,18 +6390,18 @@ final class PutProjectGrantRequest {
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
     map['project_id'] = projectId;
-    map['grantee_type'] = granteeType;
+    map['grantee_type'] = granteeType.wireValue;
     map['grantee_id'] = granteeId;
-    map['access_level'] = accessLevel;
+    map['access_level'] = accessLevel.wireValue;
     return map;
   }
 
   factory PutProjectGrantRequest.fromMap(Map<String, Object?> map) {
     return PutProjectGrantRequest(
       projectId: map['project_id'] as ProjectId,
-      granteeType: map['grantee_type'] as GranteeType,
+      granteeType: GranteeType.fromWire(map['grantee_type']),
       granteeId: map['grantee_id'] as String,
-      accessLevel: map['access_level'] as AccessLevel,
+      accessLevel: AccessLevel.fromWire(map['access_level']),
     );
   }
 
@@ -6342,9 +6422,9 @@ final class PutProjectGrantRequest {
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
     map['project_id'] = projectId;
-    map['grantee_type'] = granteeType;
+    map['grantee_type'] = granteeType.wireValue;
     map['grantee_id'] = granteeId;
-    map['access_level'] = accessLevel;
+    map['access_level'] = accessLevel.wireValue;
     return map;
   }
 
@@ -6353,17 +6433,9 @@ final class PutProjectGrantRequest {
     final map = cbor as Map;
     return PutProjectGrantRequest(
       projectId: map['project_id'] as String,
-      granteeType: CsilCbor.expectOneOf<String>(map['grantee_type'], const [
-        'member',
-        'group',
-      ]),
+      granteeType: GranteeType.fromWire(map['grantee_type']),
       granteeId: map['grantee_id'] as String,
-      accessLevel: CsilCbor.expectOneOf<String>(map['access_level'], const [
-        'none',
-        'read',
-        'edit',
-        'full',
-      ]),
+      accessLevel: AccessLevel.fromWire(map['access_level']),
     );
   }
 
@@ -6387,14 +6459,14 @@ final class SetProjectVisibilityRequest {
   Map<String, Object?> toMap() {
     final map = <String, Object?>{};
     map['project_id'] = projectId;
-    map['visibility'] = visibility;
+    map['visibility'] = visibility.wireValue;
     return map;
   }
 
   factory SetProjectVisibilityRequest.fromMap(Map<String, Object?> map) {
     return SetProjectVisibilityRequest(
       projectId: map['project_id'] as ProjectId,
-      visibility: map['visibility'] as AccessLevel,
+      visibility: AccessLevel.fromWire(map['visibility']),
     );
   }
 
@@ -6411,7 +6483,7 @@ final class SetProjectVisibilityRequest {
   Map<String, Object?> toCborValue() {
     final map = <String, Object?>{};
     map['project_id'] = projectId;
-    map['visibility'] = visibility;
+    map['visibility'] = visibility.wireValue;
     return map;
   }
 
@@ -6420,12 +6492,7 @@ final class SetProjectVisibilityRequest {
     final map = cbor as Map;
     return SetProjectVisibilityRequest(
       projectId: map['project_id'] as String,
-      visibility: CsilCbor.expectOneOf<String>(map['visibility'], const [
-        'none',
-        'read',
-        'edit',
-        'full',
-      ]),
+      visibility: AccessLevel.fromWire(map['visibility']),
     );
   }
 
@@ -6456,8 +6523,7 @@ final class EffectiveSettings {
       map['bug_reports_enabled'] = bugReportsEnabled;
     if (bugReportsProjectId != null)
       map['bug_reports_project_id'] = bugReportsProjectId;
-    if (defaultProjectVisibility != null)
-      map['default_project_visibility'] = defaultProjectVisibility;
+    if (defaultProjectVisibility != null) map['default_project_visibility'] = defaultProjectVisibility!.wireValue;
     if (sessionLifetimeHours != null)
       map['session_lifetime_hours'] = sessionLifetimeHours;
     return map;
@@ -6467,8 +6533,7 @@ final class EffectiveSettings {
     return EffectiveSettings(
       bugReportsEnabled: map['bug_reports_enabled'] as bool?,
       bugReportsProjectId: map['bug_reports_project_id'] as ProjectId?,
-      defaultProjectVisibility:
-          map['default_project_visibility'] as AccessLevel?,
+      defaultProjectVisibility: map['default_project_visibility'] == null ? null : AccessLevel.fromWire(map['default_project_visibility']),
       sessionLifetimeHours: map['session_lifetime_hours'] as int?,
     );
   }
@@ -6498,7 +6563,7 @@ final class EffectiveSettings {
     if (bugReportsProjectId != null)
       map['bug_reports_project_id'] = bugReportsProjectId!;
     if (defaultProjectVisibility != null)
-      map['default_project_visibility'] = defaultProjectVisibility!;
+      map['default_project_visibility'] = defaultProjectVisibility!.wireValue;
     if (sessionLifetimeHours != null)
       map['session_lifetime_hours'] = sessionLifetimeHours!;
     return map;
@@ -6516,10 +6581,7 @@ final class EffectiveSettings {
           : map['bug_reports_project_id'] as String,
       defaultProjectVisibility: map['default_project_visibility'] == null
           ? null
-          : CsilCbor.expectOneOf<String>(
-              map['default_project_visibility'],
-              const ['none', 'read', 'edit', 'full'],
-            ),
+          : AccessLevel.fromWire(map['default_project_visibility']),
       sessionLifetimeHours: map['session_lifetime_hours'] == null
           ? null
           : map['session_lifetime_hours'] as int,
@@ -6939,7 +7001,7 @@ final class ActAsTokenResponse {
   final String token;
   final String domain;
   final String userId;
-  final Timestamp expiresAt;
+  final DateTime expiresAt;
   final String grantId;
   final String grantee;
   final List<String> scopes;
@@ -6971,7 +7033,7 @@ final class ActAsTokenResponse {
       token: map['token'] as String,
       domain: map['domain'] as String,
       userId: map['user_id'] as String,
-      expiresAt: map['expires_at'] as Timestamp,
+      expiresAt: map['expires_at'] as DateTime,
       grantId: map['grant_id'] as String,
       grantee: map['grantee'] as String,
       scopes: map['scopes'] as List<String>,
@@ -7021,7 +7083,7 @@ final class ActAsTokenResponse {
       token: map['token'] as String,
       domain: map['domain'] as String,
       userId: map['user_id'] as String,
-      expiresAt: map['expires_at'] as String,
+      expiresAt: map['expires_at'] as DateTime,
       grantId: map['grant_id'] as String,
       grantee: map['grantee'] as String,
       scopes: (map['scopes'] as List)
@@ -7228,7 +7290,7 @@ final class CalendarStatus {
   final bool ready;
   final bool connected;
   final String? lastError;
-  final Timestamp? syncPendingSince;
+  final DateTime? syncPendingSince;
 
   const CalendarStatus({
     required this.houseId,
@@ -7260,7 +7322,7 @@ final class CalendarStatus {
       ready: map['ready'] as bool,
       connected: map['connected'] as bool,
       lastError: map['last_error'] as String?,
-      syncPendingSince: map['sync_pending_since'] as Timestamp?,
+      syncPendingSince: map['sync_pending_since'] as DateTime?,
     );
   }
 
@@ -7312,7 +7374,7 @@ final class CalendarStatus {
       lastError: map['last_error'] == null ? null : map['last_error'] as String,
       syncPendingSince: map['sync_pending_since'] == null
           ? null
-          : map['sync_pending_since'] as String,
+          : map['sync_pending_since'] as DateTime,
     );
   }
 
@@ -7494,8 +7556,8 @@ final class CompleteCalendarConnectRequest {
 final class CalendarTrashEntry {
   final String trashId;
   final Event event;
-  final Timestamp deletedAt;
-  final Timestamp expiresAt;
+  final DateTime deletedAt;
+  final DateTime expiresAt;
 
   const CalendarTrashEntry({
     required this.trashId,
@@ -7517,8 +7579,8 @@ final class CalendarTrashEntry {
     return CalendarTrashEntry(
       trashId: map['trash_id'] as String,
       event: map['event'] as Event,
-      deletedAt: map['deleted_at'] as Timestamp,
-      expiresAt: map['expires_at'] as Timestamp,
+      deletedAt: map['deleted_at'] as DateTime,
+      expiresAt: map['expires_at'] as DateTime,
     );
   }
 
@@ -7550,8 +7612,8 @@ final class CalendarTrashEntry {
     return CalendarTrashEntry(
       trashId: map['trash_id'] as String,
       event: Event.fromCborValue(map['event']),
-      deletedAt: map['deleted_at'] as String,
-      expiresAt: map['expires_at'] as String,
+      deletedAt: map['deleted_at'] as DateTime,
+      expiresAt: map['expires_at'] as DateTime,
     );
   }
 
@@ -7694,8 +7756,8 @@ final class CalendarMigrationRow {
 
 final class ProjectDeadlineRequest {
   final ProjectId projectId;
-  final Timestamp rangeStart;
-  final Timestamp rangeEnd;
+  final DateTime rangeStart;
+  final DateTime rangeEnd;
 
   const ProjectDeadlineRequest({
     required this.projectId,
@@ -7714,8 +7776,8 @@ final class ProjectDeadlineRequest {
   factory ProjectDeadlineRequest.fromMap(Map<String, Object?> map) {
     return ProjectDeadlineRequest(
       projectId: map['project_id'] as ProjectId,
-      rangeStart: map['range_start'] as Timestamp,
-      rangeEnd: map['range_end'] as Timestamp,
+      rangeStart: map['range_start'] as DateTime,
+      rangeEnd: map['range_end'] as DateTime,
     );
   }
 
@@ -7744,8 +7806,8 @@ final class ProjectDeadlineRequest {
     final map = cbor as Map;
     return ProjectDeadlineRequest(
       projectId: map['project_id'] as String,
-      rangeStart: map['range_start'] as String,
-      rangeEnd: map['range_end'] as String,
+      rangeStart: map['range_start'] as DateTime,
+      rangeEnd: map['range_end'] as DateTime,
     );
   }
 
@@ -7760,7 +7822,7 @@ final class ProjectDeadlineRequest {
 final class ProjectDeadline {
   final TaskId taskId;
   final String title;
-  final Timestamp dueAt;
+  final DateTime dueAt;
 
   const ProjectDeadline({
     required this.taskId,
@@ -7780,7 +7842,7 @@ final class ProjectDeadline {
     return ProjectDeadline(
       taskId: map['task_id'] as TaskId,
       title: map['title'] as String,
-      dueAt: map['due_at'] as Timestamp,
+      dueAt: map['due_at'] as DateTime,
     );
   }
 
@@ -7810,7 +7872,7 @@ final class ProjectDeadline {
     return ProjectDeadline(
       taskId: map['task_id'] as String,
       title: map['title'] as String,
-      dueAt: map['due_at'] as String,
+      dueAt: map['due_at'] as DateTime,
     );
   }
 
@@ -7922,7 +7984,7 @@ final class AuditEntry {
   final String? before;
   final String? after;
   final String? detail;
-  final Timestamp createdAt;
+  final DateTime createdAt;
 
   const AuditEntry({
     required this.auditId,
@@ -7976,7 +8038,7 @@ final class AuditEntry {
       before: map['before'] as String?,
       after: map['after'] as String?,
       detail: map['detail'] as String?,
-      createdAt: map['created_at'] as Timestamp,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -8062,7 +8124,7 @@ final class AuditEntry {
       before: map['before'] == null ? null : map['before'] as String,
       after: map['after'] == null ? null : map['after'] as String,
       detail: map['detail'] == null ? null : map['detail'] as String,
-      createdAt: map['created_at'] as String,
+      createdAt: map['created_at'] as DateTime,
     );
   }
 
@@ -8079,8 +8141,8 @@ final class AuditQuery {
   final MemberId? actorMemberId;
   final String? resourceType;
   final String? action;
-  final Timestamp? since;
-  final Timestamp? until;
+  final DateTime? since;
+  final DateTime? until;
   final String? cursor;
   final int? limit;
 
@@ -8114,8 +8176,8 @@ final class AuditQuery {
       actorMemberId: map['actor_member_id'] as MemberId?,
       resourceType: map['resource_type'] as String?,
       action: map['action'] as String?,
-      since: map['since'] as Timestamp?,
-      until: map['until'] as Timestamp?,
+      since: map['since'] as DateTime?,
+      until: map['until'] as DateTime?,
       cursor: map['cursor'] as String?,
       limit: map['limit'] as int?,
     );
@@ -8172,8 +8234,8 @@ final class AuditQuery {
           ? null
           : map['resource_type'] as String,
       action: map['action'] == null ? null : map['action'] as String,
-      since: map['since'] == null ? null : map['since'] as String,
-      until: map['until'] == null ? null : map['until'] as String,
+      since: map['since'] == null ? null : map['since'] as DateTime,
+      until: map['until'] == null ? null : map['until'] as DateTime,
       cursor: map['cursor'] == null ? null : map['cursor'] as String,
       limit: map['limit'] == null ? null : map['limit'] as int,
     );
@@ -8251,7 +8313,7 @@ final class TrashItem {
   final String resourceId;
   final HouseId houseId;
   final String? title;
-  final Timestamp deletedAt;
+  final DateTime deletedAt;
   final MemberId? deletedByMemberId;
   final String deletedOpId;
 
@@ -8284,7 +8346,7 @@ final class TrashItem {
       resourceId: map['resource_id'] as String,
       houseId: map['house_id'] as HouseId,
       title: map['title'] as String?,
-      deletedAt: map['deleted_at'] as Timestamp,
+      deletedAt: map['deleted_at'] as DateTime,
       deletedByMemberId: map['deleted_by_member_id'] as MemberId?,
       deletedOpId: map['deleted_op_id'] as String,
     );
@@ -8335,7 +8397,7 @@ final class TrashItem {
       resourceId: map['resource_id'] as String,
       houseId: map['house_id'] as String,
       title: map['title'] == null ? null : map['title'] as String,
-      deletedAt: map['deleted_at'] as String,
+      deletedAt: map['deleted_at'] as DateTime,
       deletedByMemberId: map['deleted_by_member_id'] == null
           ? null
           : map['deleted_by_member_id'] as String,
@@ -8552,4 +8614,2203 @@ final class PurgeRequest {
   /// Decode a CSIL CBOR byte payload into this record.
   factory PurgeRequest.fromCbor(List<int> bytes) =>
       PurgeRequest.fromCborValue(CsilCbor.decode(bytes));
+}
+
+final class ServiceErrorRefusal implements Exception {
+  final ServiceError value;
+  const ServiceErrorRefusal(this.value);
+}
+
+(String, Uint8List) encodeAuthServiceBeginBrowserLoginReply(BeginBrowserLoginResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('BeginBrowserLoginResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceGetActAsScopeSetReply(ActAsScopeSetResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('ActAsScopeSetResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceExchangeActAsCredentialReply(ActAsTokenResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('ActAsTokenResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceLoginReply(LoginResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('LoginResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceCompleteReply(LoginResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('LoginResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceRefreshReply(LoginResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('LoginResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceLogoutReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceResumeSessionReply(LoginResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('LoginResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceEndSessionReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceMeReply(MeResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('MeResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceBeginCliLoginReply(BeginCliLoginResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('BeginCliLoginResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceInspectCliLoginReply(CliLoginRequestInfo Function() handler) {
+  try {
+    final value = handler();
+    return ('CliLoginRequestInfo', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceApproveCliLoginReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceDenyCliLoginReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceExchangeCliLoginReply(ExchangeCliLoginResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('ExchangeCliLoginResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceRefreshSessionReply(CliTokenResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('CliTokenResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceListSessionsReply(CliSessionsResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('CliSessionsResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuthServiceRevokeSessionReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeDevAuthServiceListDevUsersReply(DevUsersResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('DevUsersResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeDevAuthServiceDevLoginReply(LoginResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('LoginResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeHouseServiceCreateHouseReply(House Function() handler) {
+  try {
+    final value = handler();
+    return ('House', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeHouseServiceGetHouseReply(House Function() handler) {
+  try {
+    final value = handler();
+    return ('House', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeHouseServiceUpdateHouseReply(House Function() handler) {
+  try {
+    final value = handler();
+    return ('House', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeHouseServiceDeleteHouseReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeMemberServiceCreateMemberReply(Member Function() handler) {
+  try {
+    final value = handler();
+    return ('Member', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeMemberServiceGetMemberReply(Member Function() handler) {
+  try {
+    final value = handler();
+    return ('Member', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeMemberServiceGetMemberByIdentityReply(Member Function() handler) {
+  try {
+    final value = handler();
+    return ('Member', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeMemberServiceUpdateMemberReply(Member Function() handler) {
+  try {
+    final value = handler();
+    return ('Member', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeMemberServiceDeactivateMemberReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeMemberServiceReactivateMemberReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTrustedDomainServiceAddTrustedDomainReply(TrustedDomain Function() handler) {
+  try {
+    final value = handler();
+    return ('TrustedDomain', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTrustedDomainServiceRemoveTrustedDomainReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTrustedDomainServiceIsDomainTrustedReply(BoolResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('BoolResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeRoleServiceCreateRoleReply(Role Function() handler) {
+  try {
+    final value = handler();
+    return ('Role', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeRoleServiceUpdateRoleReply(Role Function() handler) {
+  try {
+    final value = handler();
+    return ('Role', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeRoleServiceDeleteRoleReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeRoleServiceGrantRoleReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeRoleServiceRevokeRoleReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeSkillServiceCreateSkillReply(Skill Function() handler) {
+  try {
+    final value = handler();
+    return ('Skill', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeSkillServiceUpdateSkillReply(Skill Function() handler) {
+  try {
+    final value = handler();
+    return ('Skill', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeSkillServiceDeleteSkillReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeSkillServiceAddMemberSkillReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeSkillServiceRemoveMemberSkillReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeSkillServiceAddGroupSkillReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeSkillServiceRemoveGroupSkillReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeGroupServiceCreateGroupReply(Group Function() handler) {
+  try {
+    final value = handler();
+    return ('Group', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeGroupServiceUpdateGroupReply(Group Function() handler) {
+  try {
+    final value = handler();
+    return ('Group', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeGroupServiceDeleteGroupReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeGroupServiceAddGroupMemberReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeGroupServiceRemoveGroupMemberReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceCreateProjectReply(Project Function() handler) {
+  try {
+    final value = handler();
+    return ('Project', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceGetProjectReply(Project Function() handler) {
+  try {
+    final value = handler();
+    return ('Project', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceUpdateProjectReply(Project Function() handler) {
+  try {
+    final value = handler();
+    return ('Project', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceDeleteProjectReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceListProjectsReply(ProjectList Function() handler) {
+  try {
+    final value = handler();
+    return ('ProjectList', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceListProjectTasksReply(TaskList Function() handler) {
+  try {
+    final value = handler();
+    return ('TaskList', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceAddProjectTaskReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceRemoveProjectTaskReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceSetProjectTaskPositionReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceAddProjectMemberReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceRemoveProjectMemberReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceAddProjectOwnerReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceRemoveProjectOwnerReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceCreateMilestoneReply(Milestone Function() handler) {
+  try {
+    final value = handler();
+    return ('Milestone', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceUpdateMilestoneReply(Milestone Function() handler) {
+  try {
+    final value = handler();
+    return ('Milestone', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceDeleteMilestoneReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceSetProjectVisibilityReply(Project Function() handler) {
+  try {
+    final value = handler();
+    return ('Project', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServicePutProjectGrantReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeProjectServiceDeleteProjectGrantReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeEventServiceCreateEventReply(Event Function() handler) {
+  try {
+    final value = handler();
+    return ('Event', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeEventServiceGetEventReply(Event Function() handler) {
+  try {
+    final value = handler();
+    return ('Event', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeEventServiceUpdateEventReply(Event Function() handler) {
+  try {
+    final value = handler();
+    return ('Event', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeEventServiceDeleteEventReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeEventServiceDeleteEventAndFutureReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeEventServiceGetCalendarViewReply(CalendarView Function() handler) {
+  try {
+    final value = handler();
+    return ('CalendarView', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeEventServiceSetCalendarViewReply(CalendarView Function() handler) {
+  try {
+    final value = handler();
+    return ('CalendarView', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeEventServiceAcceptEventReply(Event Function() handler) {
+  try {
+    final value = handler();
+    return ('Event', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeEventServiceRecoverEditReply(Event Function() handler) {
+  try {
+    final value = handler();
+    return ('Event', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeEventServiceDeclineEventReply(Event Function() handler) {
+  try {
+    final value = handler();
+    return ('Event', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeCalendarServiceListProjectDeadlinesReply(ProjectDeadlineList Function() handler) {
+  try {
+    final value = handler();
+    return ('ProjectDeadlineList', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeCalendarServiceGetStatusReply(CalendarStatus Function() handler) {
+  try {
+    final value = handler();
+    return ('CalendarStatus', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeCalendarServiceConfigureCalendarReply(CalendarStatus Function() handler) {
+  try {
+    final value = handler();
+    return ('CalendarStatus', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeCalendarServiceBeginConnectReply(CalendarConnectResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('CalendarConnectResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeCalendarServiceCompleteConnectReply(CalendarStatus Function() handler) {
+  try {
+    final value = handler();
+    return ('CalendarStatus', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeCalendarServiceDisconnectReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeCalendarServiceRestoreEventReply(Event Function() handler) {
+  try {
+    final value = handler();
+    return ('Event', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTaskServiceCreateTaskReply(Task Function() handler) {
+  try {
+    final value = handler();
+    return ('Task', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTaskServiceGetTaskReply(Task Function() handler) {
+  try {
+    final value = handler();
+    return ('Task', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTaskServiceUpdateTaskReply(Task Function() handler) {
+  try {
+    final value = handler();
+    return ('Task', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTaskServiceDeleteTaskReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTaskServiceListTasksReply(TaskList Function() handler) {
+  try {
+    final value = handler();
+    return ('TaskList', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTaskServiceCreatePersonalTaskReply(Task Function() handler) {
+  try {
+    final value = handler();
+    return ('Task', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTaskServiceSetTaskVisibilityReply(Task Function() handler) {
+  try {
+    final value = handler();
+    return ('Task', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTaskServicePutTaskGrantReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTaskServiceDeleteTaskGrantReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeDependencyServiceAddDependencyReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeDependencyServiceRemoveDependencyReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeDependencyServiceGetDependenciesReply(DependencyGraph Function() handler) {
+  try {
+    final value = handler();
+    return ('DependencyGraph', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeCommentServiceCreateCommentReply(Comment Function() handler) {
+  try {
+    final value = handler();
+    return ('Comment', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeCommentServiceGetCommentReply(Comment Function() handler) {
+  try {
+    final value = handler();
+    return ('Comment', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeCommentServiceUpdateCommentReply(Comment Function() handler) {
+  try {
+    final value = handler();
+    return ('Comment', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeCommentServiceDeleteCommentReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeNotificationServiceUnreadCountReply(NotificationUnreadCount Function() handler) {
+  try {
+    final value = handler();
+    return ('NotificationUnreadCount', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeNotificationServiceMarkReadReply(Notification Function() handler) {
+  try {
+    final value = handler();
+    return ('Notification', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeNotificationServiceMarkAllReadReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeShareServiceCreateShareReply(Share Function() handler) {
+  try {
+    final value = handler();
+    return ('Share', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeShareServiceDeleteShareReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeShareServiceCheckAccessReply(Share Function() handler) {
+  try {
+    final value = handler();
+    return ('Share', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeSettingsServiceGetSettingsReply(EffectiveSettings Function() handler) {
+  try {
+    final value = handler();
+    return ('EffectiveSettings', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeSettingsServiceUpdateSettingsReply(EffectiveSettings Function() handler) {
+  try {
+    final value = handler();
+    return ('EffectiveSettings', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeBugServiceReportBugReply(Task Function() handler) {
+  try {
+    final value = handler();
+    return ('Task', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeAuditServiceQueryAuditReply(AuditPage Function() handler) {
+  try {
+    final value = handler();
+    return ('AuditPage', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTrashServiceListTrashReply(TrashPage Function() handler) {
+  try {
+    final value = handler();
+    return ('TrashPage', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTrashServiceRestoreReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+(String, Uint8List) encodeTrashServicePurgeReply(EmptyResponse Function() handler) {
+  try {
+    final value = handler();
+    return ('EmptyResponse', CsilCbor.encodeValue(value.toCborValue()));
+  } on ServiceErrorRefusal catch (refusal) {
+    return ('ServiceError', CsilCbor.encodeValue(refusal.value.toCborValue()));
+  }
+}
+
+Uint8List resolveRpcReply(
+  String service,
+  String op,
+  String? variant,
+  Uint8List payload,
+) {
+  if (service == 'AuthService' && op == 'begin-browser-login') {
+    switch (variant) {
+      case 'BeginBrowserLoginResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'get-act-as-scope-set') {
+    switch (variant) {
+      case 'ActAsScopeSetResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'exchange-act-as-credential') {
+    switch (variant) {
+      case 'ActAsTokenResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'login') {
+    switch (variant) {
+      case 'LoginResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'complete') {
+    switch (variant) {
+      case 'LoginResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'refresh') {
+    switch (variant) {
+      case 'LoginResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'logout') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'resume-session') {
+    switch (variant) {
+      case 'LoginResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'end-session') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'me') {
+    switch (variant) {
+      case 'MeResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'begin-cli-login') {
+    switch (variant) {
+      case 'BeginCliLoginResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'inspect-cli-login') {
+    switch (variant) {
+      case 'CliLoginRequestInfo':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'approve-cli-login') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'deny-cli-login') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'exchange-cli-login') {
+    switch (variant) {
+      case 'ExchangeCliLoginResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'refresh-session') {
+    switch (variant) {
+      case 'CliTokenResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'list-sessions') {
+    switch (variant) {
+      case 'CliSessionsResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuthService' && op == 'revoke-session') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'DevAuthService' && op == 'list-dev-users') {
+    switch (variant) {
+      case 'DevUsersResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'DevAuthService' && op == 'dev-login') {
+    switch (variant) {
+      case 'LoginResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'HouseService' && op == 'create-house') {
+    switch (variant) {
+      case 'House':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'HouseService' && op == 'get-house') {
+    switch (variant) {
+      case 'House':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'HouseService' && op == 'update-house') {
+    switch (variant) {
+      case 'House':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'HouseService' && op == 'delete-house') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'MemberService' && op == 'create-member') {
+    switch (variant) {
+      case 'Member':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'MemberService' && op == 'get-member') {
+    switch (variant) {
+      case 'Member':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'MemberService' && op == 'get-member-by-identity') {
+    switch (variant) {
+      case 'Member':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'MemberService' && op == 'update-member') {
+    switch (variant) {
+      case 'Member':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'MemberService' && op == 'deactivate-member') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'MemberService' && op == 'reactivate-member') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TrustedDomainService' && op == 'add-trusted-domain') {
+    switch (variant) {
+      case 'TrustedDomain':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TrustedDomainService' && op == 'remove-trusted-domain') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TrustedDomainService' && op == 'is-domain-trusted') {
+    switch (variant) {
+      case 'BoolResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'RoleService' && op == 'create-role') {
+    switch (variant) {
+      case 'Role':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'RoleService' && op == 'update-role') {
+    switch (variant) {
+      case 'Role':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'RoleService' && op == 'delete-role') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'RoleService' && op == 'grant-role') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'RoleService' && op == 'revoke-role') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'SkillService' && op == 'create-skill') {
+    switch (variant) {
+      case 'Skill':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'SkillService' && op == 'update-skill') {
+    switch (variant) {
+      case 'Skill':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'SkillService' && op == 'delete-skill') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'SkillService' && op == 'add-member-skill') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'SkillService' && op == 'remove-member-skill') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'SkillService' && op == 'add-group-skill') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'SkillService' && op == 'remove-group-skill') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'GroupService' && op == 'create-group') {
+    switch (variant) {
+      case 'Group':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'GroupService' && op == 'update-group') {
+    switch (variant) {
+      case 'Group':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'GroupService' && op == 'delete-group') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'GroupService' && op == 'add-group-member') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'GroupService' && op == 'remove-group-member') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'create-project') {
+    switch (variant) {
+      case 'Project':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'get-project') {
+    switch (variant) {
+      case 'Project':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'update-project') {
+    switch (variant) {
+      case 'Project':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'delete-project') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'list-projects') {
+    switch (variant) {
+      case 'ProjectList':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'list-project-tasks') {
+    switch (variant) {
+      case 'TaskList':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'add-project-task') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'remove-project-task') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'set-project-task-position') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'add-project-member') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'remove-project-member') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'add-project-owner') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'remove-project-owner') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'create-milestone') {
+    switch (variant) {
+      case 'Milestone':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'update-milestone') {
+    switch (variant) {
+      case 'Milestone':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'delete-milestone') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'set-project-visibility') {
+    switch (variant) {
+      case 'Project':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'put-project-grant') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ProjectService' && op == 'delete-project-grant') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'EventService' && op == 'create-event') {
+    switch (variant) {
+      case 'Event':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'EventService' && op == 'get-event') {
+    switch (variant) {
+      case 'Event':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'EventService' && op == 'update-event') {
+    switch (variant) {
+      case 'Event':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'EventService' && op == 'delete-event') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'EventService' && op == 'delete-event-and-future') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'EventService' && op == 'get-calendar-view') {
+    switch (variant) {
+      case 'CalendarView':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'EventService' && op == 'set-calendar-view') {
+    switch (variant) {
+      case 'CalendarView':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'EventService' && op == 'accept-event') {
+    switch (variant) {
+      case 'Event':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'EventService' && op == 'recover-edit') {
+    switch (variant) {
+      case 'Event':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'EventService' && op == 'decline-event') {
+    switch (variant) {
+      case 'Event':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'CalendarService' && op == 'list-project-deadlines') {
+    switch (variant) {
+      case 'ProjectDeadlineList':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'CalendarService' && op == 'get-status') {
+    switch (variant) {
+      case 'CalendarStatus':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'CalendarService' && op == 'configure-calendar') {
+    switch (variant) {
+      case 'CalendarStatus':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'CalendarService' && op == 'begin-connect') {
+    switch (variant) {
+      case 'CalendarConnectResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'CalendarService' && op == 'complete-connect') {
+    switch (variant) {
+      case 'CalendarStatus':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'CalendarService' && op == 'disconnect') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'CalendarService' && op == 'restore-event') {
+    switch (variant) {
+      case 'Event':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TaskService' && op == 'create-task') {
+    switch (variant) {
+      case 'Task':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TaskService' && op == 'get-task') {
+    switch (variant) {
+      case 'Task':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TaskService' && op == 'update-task') {
+    switch (variant) {
+      case 'Task':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TaskService' && op == 'delete-task') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TaskService' && op == 'list-tasks') {
+    switch (variant) {
+      case 'TaskList':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TaskService' && op == 'create-personal-task') {
+    switch (variant) {
+      case 'Task':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TaskService' && op == 'set-task-visibility') {
+    switch (variant) {
+      case 'Task':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TaskService' && op == 'put-task-grant') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TaskService' && op == 'delete-task-grant') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'DependencyService' && op == 'add-dependency') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'DependencyService' && op == 'remove-dependency') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'DependencyService' && op == 'get-dependencies') {
+    switch (variant) {
+      case 'DependencyGraph':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'CommentService' && op == 'create-comment') {
+    switch (variant) {
+      case 'Comment':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'CommentService' && op == 'get-comment') {
+    switch (variant) {
+      case 'Comment':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'CommentService' && op == 'update-comment') {
+    switch (variant) {
+      case 'Comment':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'CommentService' && op == 'delete-comment') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'NotificationService' && op == 'unread-count') {
+    switch (variant) {
+      case 'NotificationUnreadCount':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'NotificationService' && op == 'mark-read') {
+    switch (variant) {
+      case 'Notification':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'NotificationService' && op == 'mark-all-read') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ShareService' && op == 'create-share') {
+    switch (variant) {
+      case 'Share':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ShareService' && op == 'delete-share') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'ShareService' && op == 'check-access') {
+    switch (variant) {
+      case 'Share':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'SettingsService' && op == 'get-settings') {
+    switch (variant) {
+      case 'EffectiveSettings':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'SettingsService' && op == 'update-settings') {
+    switch (variant) {
+      case 'EffectiveSettings':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'BugService' && op == 'report-bug') {
+    switch (variant) {
+      case 'Task':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'AuditService' && op == 'query-audit') {
+    switch (variant) {
+      case 'AuditPage':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TrashService' && op == 'list-trash') {
+    switch (variant) {
+      case 'TrashPage':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TrashService' && op == 'restore') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  if (service == 'TrashService' && op == 'purge') {
+    switch (variant) {
+      case 'EmptyResponse':
+        return payload;
+      case 'ServiceError':
+        throw ServiceErrorRefusal(ServiceError.fromCborValue(CsilCbor.decode(payload)));
+      default:
+        throw FormatException('invalid RPC reply variant: $variant');
+    }
+  }
+  return payload;
 }

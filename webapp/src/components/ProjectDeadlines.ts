@@ -7,8 +7,8 @@ export function ProjectDeadlines(props: { projectId: string; revision: number; c
     const [month, setMonth] = cell(new Date(now.getFullYear(), now.getMonth(), 1));
     const [result, { refetch }] = query(() => ({
         projectId: props.projectId,
-        rangeStart: month().toISOString(),
-        rangeEnd: new Date(month().getFullYear(), month().getMonth() + 1, 1).toISOString(),
+        rangeStart: month(),
+        rangeEnd: new Date(month().getFullYear(), month().getMonth() + 1, 1),
         revision: props.revision,
         category: props.category,
     }), ({ projectId, rangeStart, rangeEnd }) => calendarClient.listProjectDeadlines({ projectId, rangeStart, rangeEnd }));
@@ -42,7 +42,7 @@ export function ProjectDeadlines(props: { projectId: string; revision: number; c
                     Repeat({ get each() { return result()?.deadlines ?? []; }, children: deadline => el("div", {
                         style: "display:flex;gap:16px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)",
                         children: [
-                            el("time", { datetime: deadline.dueAt, children: new Date(deadline.dueAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) }),
+                            el("time", { datetime: deadline.dueAt.toISOString(), children: new Date(deadline.dueAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) }),
                             el("span", { children: deadline.title }),
                         ],
                     }) }),

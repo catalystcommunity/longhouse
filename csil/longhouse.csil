@@ -23,7 +23,6 @@ MilestoneID   = text
 NotificationID      = text
 NotificationEventID = text
 CliSessionID        = text
-Timestamp     = text  ;; RFC3339, always UTC
 
 TaskStatus       = "open" / "in_progress" / "done" / "cancelled"
 TargetType       = "event" / "task" / "project"
@@ -60,10 +59,10 @@ House = {
     ? description: text,
 
     @receive-only
-    created_at: Timestamp,
+    created_at: timestamp,
 
     @receive-only
-    updated_at: Timestamp
+    updated_at: timestamp
 }
 
 Member = {
@@ -99,18 +98,18 @@ Member = {
     ? cached_public_key: bytes,
 
     @receive-only
-    created_at: Timestamp,
+    created_at: timestamp,
 
     @receive-only
-    updated_at: Timestamp,
+    updated_at: timestamp,
 
     @receive-only
-    ? last_seen_at: Timestamp,
+    ? last_seen_at: timestamp,
 
     ;; Set when an admin has deactivated the member (denied future login).
     ;; Reactivating clears it. Receive-only — managed via deactivate/reactivate.
     @receive-only
-    ? deactivated_at: Timestamp
+    ? deactivated_at: timestamp
 }
 
 TrustedDomain = {
@@ -121,7 +120,7 @@ TrustedDomain = {
     domain: text,
 
     @receive-only
-    created_at: Timestamp
+    created_at: timestamp
 }
 
 ;; ============================================================
@@ -137,10 +136,10 @@ Role = {
     ? description: text,
 
     @receive-only
-    created_at: Timestamp,
+    created_at: timestamp,
 
     @receive-only
-    updated_at: Timestamp
+    updated_at: timestamp
 }
 
 MemberRole = {
@@ -148,7 +147,7 @@ MemberRole = {
     role_id: RoleID,
 
     @receive-only
-    created_at: Timestamp
+    created_at: timestamp
 }
 
 ;; Append-only audit trail of role/skill/group attachments and admin
@@ -166,7 +165,7 @@ MemberAudit = {
     ? detail: text,  ;; JSON-encoded; CSIL doesn't model jsonb directly
 
     @receive-only
-    created_at: Timestamp
+    created_at: timestamp
 }
 
 ;; ============================================================
@@ -182,10 +181,10 @@ Skill = {
     ? description: text,
 
     @receive-only
-    created_at: Timestamp,
+    created_at: timestamp,
 
     @receive-only
-    updated_at: Timestamp
+    updated_at: timestamp
 }
 
 MemberSkill = {
@@ -193,7 +192,7 @@ MemberSkill = {
     skill_id: SkillID,
 
     @receive-only
-    created_at: Timestamp
+    created_at: timestamp
 }
 
 ;; A skill the group as a whole holds. Per-member skills (MemberSkill) and
@@ -205,7 +204,7 @@ GroupSkill = {
     skill_id: SkillID,
 
     @receive-only
-    created_at: Timestamp
+    created_at: timestamp
 }
 
 ;; ============================================================
@@ -221,10 +220,10 @@ Group = {
     ? description: text,
 
     @receive-only
-    created_at: Timestamp,
+    created_at: timestamp,
 
     @receive-only
-    updated_at: Timestamp
+    updated_at: timestamp
 }
 
 GroupMember = {
@@ -232,7 +231,7 @@ GroupMember = {
     member_id: MemberID,
 
     @receive-only
-    created_at: Timestamp
+    created_at: timestamp
 }
 
 ;; ============================================================
@@ -265,10 +264,10 @@ Project = {
     ? personal: bool,
 
     @receive-only
-    created_at: Timestamp,
+    created_at: timestamp,
 
     @receive-only
-    updated_at: Timestamp
+    updated_at: timestamp
 }
 
 ProjectTask = {
@@ -277,7 +276,7 @@ ProjectTask = {
     position: int,
 
     @receive-only
-    created_at: Timestamp
+    created_at: timestamp
 }
 
 ;; ProjectMember + ProjectOwner are separate join tables so a project can
@@ -289,7 +288,7 @@ ProjectMember = {
     member_id: MemberID,
 
     @receive-only
-    created_at: Timestamp
+    created_at: timestamp
 }
 
 ProjectOwner = {
@@ -297,7 +296,7 @@ ProjectOwner = {
     member_id: MemberID,
 
     @receive-only
-    created_at: Timestamp
+    created_at: timestamp
 }
 
 ;; Project timeline markers. `position` orders them in the ribbon; `state`
@@ -315,10 +314,10 @@ Milestone = {
     position: int,
 
     @receive-only
-    created_at: Timestamp,
+    created_at: timestamp,
 
     @receive-only
-    updated_at: Timestamp
+    updated_at: timestamp
 }
 
 ;; ============================================================
@@ -337,8 +336,8 @@ Event = {
     title: text .size (1..512),
     ? description: text,
     ? location: text,
-    ? starts_at: Timestamp,
-    ? ends_at: Timestamp,
+    ? starts_at: timestamp,
+    ? ends_at: timestamp,
     ? all_day: bool .default false,
     ? timezone: text,
     ? recurrence_rule: text,
@@ -366,7 +365,7 @@ Event = {
     ;; matching weekday. Ignored when `recurrence_by_weekday` is empty,
     ;; or when freq is daily/hourly/weekly.
     ? recurrence_by_setpos: int,
-    ? next_recurrence_at: Timestamp,
+    ? next_recurrence_at: timestamp,
     ? recurrence_root_event_id: EventID,
 
     ;; Assignment and publication state. Updates must send the current revision.
@@ -386,10 +385,10 @@ Event = {
     ? edit_scope: text,
 
     @receive-only
-    created_at: Timestamp,
+    created_at: timestamp,
 
     @receive-only
-    updated_at: Timestamp
+    updated_at: timestamp
 }
 
 Task = {
@@ -418,7 +417,7 @@ Task = {
     title: text .size (1..512),
     ? description: text,
     ? status: TaskStatus .default "open",
-    ? due_at: Timestamp,
+    ? due_at: timestamp,
 
     ;; `tag` is a free-form bucket (e.g. "house", "barn", "calls"). Per-house
     ;; tag tables can come later; for now any string is allowed. Used by the
@@ -436,15 +435,15 @@ Task = {
     ;; Ordinal position inside the period for monthly/quarterly/yearly
     ;; recurrences (same semantics as Event.recurrence_by_setpos).
     ? recurrence_by_setpos: int,
-    ? next_recurrence_at: Timestamp,
+    ? next_recurrence_at: timestamp,
     ? recurrence_root_task_id: TaskID,
-    ? deleted_at: Timestamp,
+    ? deleted_at: timestamp,
 
     @receive-only
-    created_at: Timestamp,
+    created_at: timestamp,
 
     @receive-only
-    updated_at: Timestamp
+    updated_at: timestamp
 }
 
 Comment = {
@@ -461,10 +460,10 @@ Comment = {
     body: text .size (1..10000),
 
     @receive-only
-    created_at: Timestamp,
+    created_at: timestamp,
 
     @receive-only
-    updated_at: Timestamp
+    updated_at: timestamp
 }
 
 Share = {
@@ -483,9 +482,9 @@ Share = {
     ? access_level: AccessLevel .default "read",
 
     @receive-only
-    created_at: Timestamp,
+    created_at: timestamp,
 
-    ? expires_at: Timestamp
+    ? expires_at: timestamp
 }
 
 ;; ============================================================
@@ -566,7 +565,7 @@ LoginResponse = {
     domain: text,
     user_id: text,
     ? display_name: text,
-    expires_at: Timestamp
+    expires_at: timestamp
 }
 
 ;; A browser-authorized CLI session. The access token has the same format as
@@ -578,9 +577,9 @@ CliTokenResponse = {
     domain: text,
     user_id: text,
     ? display_name: text,
-    expires_at: Timestamp,
+    expires_at: timestamp,
     refresh_token: text,
-    refresh_expires_at: Timestamp,
+    refresh_expires_at: timestamp,
     session_id: CliSessionID
 }
 
@@ -592,7 +591,7 @@ BeginCliLoginResponse = {
     device_code: text,
     user_code: text,
     verification_url: text,
-    expires_at: Timestamp,
+    expires_at: timestamp,
     interval_seconds: uint
 }
 
@@ -603,7 +602,7 @@ ApproveCliLoginRequest = {
 CliLoginRequestInfo = {
     user_code: text,
     client_name: text,
-    expires_at: Timestamp
+    expires_at: timestamp
 }
 
 DenyCliLoginRequest = {
@@ -626,10 +625,10 @@ RefreshSessionRequest = {
 CliSessionSummary = {
     session_id: CliSessionID,
     client_name: text,
-    created_at: Timestamp,
-    last_used_at: Timestamp,
-    expires_at: Timestamp,
-    ? revoked_at: Timestamp,
+    created_at: timestamp,
+    last_used_at: timestamp,
+    expires_at: timestamp,
+    ? revoked_at: timestamp,
     ;; Absent from older servers; treat absence as "cli".
     ? kind: SessionKind,
     ;; True when this is the session behind the caller's own bearer.
@@ -675,7 +674,7 @@ MeResponse = {
     domain: text,
     user_id: text,
     ? display_name: text,
-    expires_at: Timestamp,
+    expires_at: timestamp,
     houses: [* HouseSummary]
 }
 
@@ -709,8 +708,8 @@ HouseScopedListRequest = {
 ;; limit. The default page size is 50; the maximum is 500.
 EventListRequest = {
     house_id: HouseID,
-    ? range_start: Timestamp,
-    ? range_end: Timestamp,
+    ? range_start: timestamp,
+    ? range_end: timestamp,
     ? limit: uint .default 50,
     ? offset: uint .default 0
 }
@@ -730,15 +729,15 @@ TaskListRequest = {
     ;; Only tasks that are in no project.
     ? loose: bool,
     ;; due_at >= due_from (inclusive) and due_at < due_to (exclusive).
-    ? due_from: Timestamp,
-    ? due_to: Timestamp,
+    ? due_from: timestamp,
+    ? due_to: timestamp,
     ;; For each timestamp, the response's due_counts says how many matching
     ;; rows (before visibility) have due_at before it. With state open the
     ;; list is in due order, so these are the row offsets where due-date
     ;; groups start: a client can place group headers in rows it has not
     ;; loaded yet. A far-future timestamp counts the rows that have a due
     ;; date (no-due-date rows come after them). At most 8.
-    ? due_before: [* Timestamp]
+    ? due_before: [* timestamp]
 }
 
 ;; List wrappers that carry a count of rows the caller may NOT see (private
@@ -810,8 +809,8 @@ Notification = {
     target_title: text,
     body: text,
     read: bool,
-    ? read_at: Timestamp,
-    created_at: Timestamp
+    ? read_at: timestamp,
+    created_at: timestamp
 }
 
 NotificationListRequest = {
@@ -1067,7 +1066,7 @@ ActAsTokenResponse = {
     token: text,
     domain: text,
     user_id: text,
-    expires_at: Timestamp,
+    expires_at: timestamp,
     grant_id: text,
     grantee: text,
     scopes: [* text]
@@ -1251,17 +1250,17 @@ CalendarStatus = {
     ready: bool,
     connected: bool,
     ? last_error: text,
-    ? sync_pending_since: Timestamp
+    ? sync_pending_since: timestamp
 }
 ConfigureCalendarRequest = { house_id: HouseID, enabled: bool }
 CalendarConnectResponse = { url: text }
 CompleteCalendarConnectRequest = { house_id: HouseID, grant_id: text, nonce: text }
-CalendarTrashEntry = { trash_id: text, event: Event, deleted_at: Timestamp, expires_at: Timestamp }
+CalendarTrashEntry = { trash_id: text, event: Event, deleted_at: timestamp, expires_at: timestamp }
 RestoreCalendarEventRequest = { house_id: HouseID, trash_id: text }
 CalendarMigrationRow = { event_id: EventID, title: text, disposition: text, reason: text }
 
-ProjectDeadlineRequest = { project_id: ProjectID, range_start: Timestamp, range_end: Timestamp }
-ProjectDeadline = { task_id: TaskID, title: text, due_at: Timestamp }
+ProjectDeadlineRequest = { project_id: ProjectID, range_start: timestamp, range_end: timestamp }
+ProjectDeadline = { task_id: TaskID, title: text, due_at: timestamp }
 ProjectDeadlineList = {
     enabled: bool,
     pending: bool,
@@ -1386,7 +1385,7 @@ AuditEntry = {
     ? before: text,
     ? after: text,
     ? detail: text,
-    @receive-only created_at: Timestamp
+    @receive-only created_at: timestamp
 }
 
 ;; Admin query over a house's audit log. cursor is the opaque keyset token
@@ -1396,8 +1395,8 @@ AuditQuery = {
     ? actor_member_id: MemberID,
     ? resource_type: text,
     ? action: text,
-    ? since: Timestamp,
-    ? until: Timestamp,
+    ? since: timestamp,
+    ? until: timestamp,
     ? cursor: text,
     ? limit: uint .default 100
 }
@@ -1413,7 +1412,7 @@ TrashItem = {
     resource_id: text,
     house_id: HouseID,
     ? title: text,
-    deleted_at: Timestamp,
+    deleted_at: timestamp,
     ? deleted_by_member_id: MemberID,
     deleted_op_id: text
 }

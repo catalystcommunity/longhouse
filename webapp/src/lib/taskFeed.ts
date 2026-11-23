@@ -291,15 +291,15 @@ export function dueGroupStarts(counts: number[] | null, labels: string[]): Group
 }
 /** Boundaries that split a due-ordered list into overdue, today, this week,
  *  later, and no date, the same cut points as derive.taskGroup. */
-export function dueBoundaries(now = new Date()): string[] {
+export function dueBoundaries(now = new Date()): Date[] {
     const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const day = 24 * 3600 * 1000;
     return [
-        new Date(startToday).toISOString(),
-        new Date(startToday + day).toISOString(),
-        new Date(startToday + 7 * day).toISOString(),
+        new Date(startToday),
+        new Date(startToday + day),
+        new Date(startToday + 7 * day),
         // Rows with any due date; the rest have none.
-        "9999-01-01T00:00:00Z",
+        new Date("9999-01-01T00:00:00Z"),
     ];
 }
 /** Row heights for rows not measured yet: they size the scrollbar until a

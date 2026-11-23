@@ -1,9 +1,30 @@
 # Optional catalystcal integration
 
-Longhouse uses catalystcal Go client v0.3.0. It supports the two required
-consent scopes, durable create and split receipts, and moved occurrence
-lookup. The integration is optional. Squizzlezig is the validation environment.
-Other deployments remain disabled until their operators configure them.
+The integration uses two consent scopes, create and split receipts, and
+occurrence lookup. Enable it only for houses that use CatalystCal.
+
+## Upgrade from text timestamps
+
+The Longhouse API and CatalystCal API now require CBOR tag 0 for an
+instant. CatalystCal also requires tag 1004 for an all-day date. The end
+date is exclusive. The Go clients use `time.Time` for instants. The
+TypeScript clients use `Date`.
+
+Longhouse pins the CatalystCal Go client at `v0.3.2` in `api/go.mod`.
+
+1. Deploy the CatalystCal `v0.3.2` API and web app in the same maintenance
+   window as the Longhouse API and web app.
+2. Distribute the matching Longhouse CLI. Regenerate the client packages
+   with the new Longhouse version before you distribute them. Reload open
+   browser tabs.
+3. On Squizzlezig, sign in, publish an event, and read it from Longhouse.
+   Check an all-day event across a clock change. Check a recurring event
+   and a project deadline.
+
+Longhouse can read publication, split, and deadline requests saved with
+the old codec. A retry uses the saved content and idempotency key.
+If you roll back, restore compatible API and client versions together.
+Resolve pending requests written by the new version before a rollback.
 
 ## Local assignments
 

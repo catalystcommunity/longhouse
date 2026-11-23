@@ -9,7 +9,7 @@ export function navigation() {
     if (options.replace) {
       window.history.replaceState({}, '', path);
       setURL(new URL(window.location.href));
-      activeRouter?.route('replace');
+      activeRouter?.route('urlchange');
     } else if (activeRouter) activeRouter.changePage(path);
     else { window.history.pushState({}, '', path); setURL(new URL(window.location.href)); }
   };

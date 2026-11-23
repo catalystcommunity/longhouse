@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -59,7 +58,7 @@ func (f *splitTestRemote) Call(ctx context.Context, service, op string, b []byte
 				successor.EventId = request.Event.EventId
 			}
 			original := f.event
-			f.receipt = &cal.SplitSeriesReceipt{SeriesId: request.Event.EventId, IdempotencyKey: request.IdempotencyKey, SuccessorId: successor.EventId, SplitAt: request.RecurrenceId, InPlace: f.inPlace, Created: true, CreatedAt: "2026-11-07T12:00:00Z", CalendarId: request.Event.CalendarId, SeriesState: "live", Series: &original, SuccessorState: "live", Successor: &successor}
+			f.receipt = &cal.SplitSeriesReceipt{SeriesId: request.Event.EventId, IdempotencyKey: request.IdempotencyKey, SuccessorId: successor.EventId, SplitAt: request.RecurrenceId, InPlace: f.inPlace, Created: true, CreatedAt: time.Date(2026, 11, 7, 12, 0, 0, 0, time.UTC), CalendarId: request.Event.CalendarId, SeriesState: "live", Series: &original, SuccessorState: "live", Successor: &successor}
 		}
 		if f.splitErr != nil {
 			return nil, f.splitErr
@@ -116,34 +115,31 @@ func (f *splitTestRemote) Call(ctx context.Context, service, op string, b []byte
 		if event == nil || request.RecurrenceId == nil {
 			return nil, &cal.ClientError{Code: 404, Message: "not available"}
 		}
-		start, err := time.Parse(time.RFC3339, string(*request.RecurrenceId))
-		if err != nil {
-			return nil, err
-		}
-		return cal.EncodeOccurrence(cal.Occurrence{Event: *event, RecurrenceId: request.RecurrenceId, Start: *request.RecurrenceId, End: cal.Timestamp(start.Add(time.Hour).Format(time.RFC3339)), Access: "owner"}), nil
+		start := *request.RecurrenceId
+		return cal.EncodeOccurrence(cal.Occurrence{Event: *event, RecurrenceId: request.RecurrenceId, Start: *request.RecurrenceId, End: start.Add(time.Hour), Access: "owner"}), nil
 	}
 	return f.calendarTestRemote.Call(ctx, service, op, b)
 }
-func (f *splitTestRemote) mapped(ids []cal.Timestamp) ([]byte, error) {
+func (f *splitTestRemote) mapped(ids []time.Time) ([]byte, error) {
 	if len(ids) > 500 {
 		return nil, errors.New("too many mapping IDs")
 	}
 	out := *f.receipt
 	out.Created = false
 	out.Mappings = nil
-	boundary, _ := time.Parse(time.RFC3339, string(out.SplitAt))
+	boundary := out.SplitAt
 	for _, rid := range ids {
-		original, _ := time.Parse(time.RFC3339, string(rid))
+		original := rid
 		target := out.SeriesId
 		mapped := rid
 		result := cal.SplitMapResult("original")
 		if !original.Before(boundary) {
 			target = out.SuccessorId
-			mapped = cal.Timestamp(original.Add(time.Hour).Format(time.RFC3339))
+			mapped = original.Add(time.Hour)
 			result = "successor"
 		}
 		mapping := cal.SplitOccurrenceMapping{RecurrenceId: rid, Result: result, EventId: &target, MappedRecurrenceId: &mapped}
-		if f.none[string(rid)] {
+		if f.none[rid.UTC().Format(time.RFC3339Nano)] {
 			mapping.Result = "none"
 			mapping.EventId = nil
 			mapping.MappedRecurrenceId = nil
@@ -151,7 +147,7 @@ func (f *splitTestRemote) mapped(ids []cal.Timestamp) ([]byte, error) {
 		out.Mappings = append(out.Mappings, mapping)
 	}
 	if f.badMapping && len(out.Mappings) > 0 {
-		out.Mappings[0].RecurrenceId = "1999-01-01T00:00:00Z"
+		out.Mappings[0].RecurrenceId = time.Date(1999, 1, 1, 0, 0, 0, 0, time.UTC)
 	}
 	return cal.EncodeSplitSeriesReceipt(out), nil
 }
@@ -165,11 +161,11 @@ func splitFixture(t *testing.T) (*calendarFixture, *splitTestRemote, []csil.Even
 	if _, err := f.svc.AcceptEvent(f.ownerCtx, csil.EventDecision{EventId: proposal.EventId, Revision: *proposal.Revision}); err != nil {
 		t.Fatal(err)
 	}
-	start, end := csil.Timestamp("2026-11-01T00:00:00Z"), csil.Timestamp("2026-12-01T00:00:00Z")
+	start, end := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
 	rows := []csil.Event{}
 	for _, day := range []int{10, 17, 24} {
-		rid := cal.Timestamp(fmt.Sprintf("2026-11-%02dT15:00:00Z", day))
-		remote.occurrence = &cal.Occurrence{Event: remote.event, Start: rid, End: cal.Timestamp(fmt.Sprintf("2026-11-%02dT16:00:00Z", day)), RecurrenceId: &rid, Access: "owner"}
+		rid := time.Date(2026, 11, day, 15, 0, 0, 0, time.UTC)
+		remote.occurrence = &cal.Occurrence{Event: remote.event, Start: rid, End: rid.Add(time.Hour), RecurrenceId: &rid, Access: "owner"}
 		found, err := f.svc.ListEvents(f.ownerCtx, csil.EventListRequest{HouseId: csil.HouseID(f.house), RangeStart: &start, RangeEnd: &end})
 		if err != nil || len(found) != 1 {
 			t.Fatalf("seed occurrence: %+v %v", found, err)
@@ -181,7 +177,7 @@ func splitFixture(t *testing.T) (*calendarFixture, *splitTestRemote, []csil.Even
 func splitEdit(e csil.Event) csil.Event {
 	scope := "this_and_future"
 	e.EditScope = &scope
-	start, end := csil.Timestamp("2026-11-17T16:00:00Z"), csil.Timestamp("2026-11-17T17:00:00Z")
+	start, end := time.Date(2026, 11, 17, 16, 0, 0, 0, time.UTC), time.Date(2026, 11, 17, 17, 0, 0, 0, time.UTC)
 	e.StartsAt = &start
 	e.EndsAt = &end
 	e.Title = "Changed future"
@@ -199,7 +195,7 @@ func TestCalendar_Postgres_SplitPreservesLinksAndUnbindsMissingOccurrence(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.EventId != rows[1].EventId || result.StartsAt == nil || *result.StartsAt != "2026-11-17T16:00:00Z" || result.RecurrenceRootEventId == nil || *result.RecurrenceRootEventId == *rows[0].RecurrenceRootEventId {
+	if result.EventId != rows[1].EventId || result.StartsAt == nil || result.StartsAt.Format(time.RFC3339) != "2026-11-17T16:00:00Z" || result.RecurrenceRootEventId == nil || *result.RecurrenceRootEventId == *rows[0].RecurrenceRootEventId {
 		t.Fatalf("wrong successor reference: %+v", result)
 	}
 	before, err := f.svc.GetEvent(f.ownerCtx, rows[0].EventId)

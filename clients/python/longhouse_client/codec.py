@@ -3,6 +3,7 @@
 
 import struct
 from typing import Any, Dict
+from datetime import datetime, timezone
 from .types import *
 
 
@@ -356,8 +357,8 @@ def _encode_house_value(v: "House") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["name"] = v.name
     csil_m["house_id"] = v.house_id
-    csil_m["created_at"] = v.created_at
-    csil_m["updated_at"] = v.updated_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
+    csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_x = v.description
     if csil_x is not None:
         csil_m["description"] = csil_x
@@ -369,8 +370,8 @@ def _decode_house_value(tree: Any) -> "House":
         house_id=_csil_expect_text(tree["house_id"]),
         name=_csil_expect_text(tree["name"]),
         description=(None if tree.get("description") is None else _csil_expect_text(tree["description"])),
-        created_at=_csil_expect_text(tree["created_at"]),
-        updated_at=_csil_expect_text(tree["updated_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        updated_at=_csil_ts_from_tree(tree["updated_at"]),
     )
 
 
@@ -398,17 +399,17 @@ def _encode_member_value(v: "Member") -> Dict[Any, Any]:
     csil_x = v.avatar_url
     if csil_x is not None:
         csil_m["avatar_url"] = csil_x
-    csil_m["created_at"] = v.created_at
-    csil_m["updated_at"] = v.updated_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
+    csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_x = v.display_name
     if csil_x is not None:
         csil_m["display_name"] = csil_x
     csil_x = v.last_seen_at
     if csil_x is not None:
-        csil_m["last_seen_at"] = csil_x
+        csil_m["last_seen_at"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_x = v.deactivated_at
     if csil_x is not None:
-        csil_m["deactivated_at"] = csil_x
+        csil_m["deactivated_at"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_m["linkkeys_domain"] = v.linkkeys_domain
     csil_m["linkkeys_user_id"] = v.linkkeys_user_id
     csil_x = v.cached_public_key
@@ -428,10 +429,10 @@ def _decode_member_value(tree: Any) -> "Member":
         avatar_url=(None if tree.get("avatar_url") is None else _csil_expect_text(tree["avatar_url"])),
         handle=(None if tree.get("handle") is None else _csil_expect_text(tree["handle"])),
         cached_public_key=(None if tree.get("cached_public_key") is None else _csil_expect_bytes(tree["cached_public_key"])),
-        created_at=_csil_expect_text(tree["created_at"]),
-        updated_at=_csil_expect_text(tree["updated_at"]),
-        last_seen_at=(None if tree.get("last_seen_at") is None else _csil_expect_text(tree["last_seen_at"])),
-        deactivated_at=(None if tree.get("deactivated_at") is None else _csil_expect_text(tree["deactivated_at"])),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        updated_at=_csil_ts_from_tree(tree["updated_at"]),
+        last_seen_at=(None if tree.get("last_seen_at") is None else _csil_ts_from_tree(tree["last_seen_at"])),
+        deactivated_at=(None if tree.get("deactivated_at") is None else _csil_ts_from_tree(tree["deactivated_at"])),
     )
 
 
@@ -450,7 +451,7 @@ def _encode_trusted_domain_value(v: "TrustedDomain") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["domain"] = v.domain
     csil_m["house_id"] = v.house_id
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_m["trusted_domain_id"] = v.trusted_domain_id
     return csil_m
 
@@ -460,7 +461,7 @@ def _decode_trusted_domain_value(tree: Any) -> "TrustedDomain":
         trusted_domain_id=_csil_expect_text(tree["trusted_domain_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
         domain=_csil_expect_text(tree["domain"]),
-        created_at=_csil_expect_text(tree["created_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
     )
 
 
@@ -480,8 +481,8 @@ def _encode_role_value(v: "Role") -> Dict[Any, Any]:
     csil_m["name"] = v.name
     csil_m["role_id"] = v.role_id
     csil_m["house_id"] = v.house_id
-    csil_m["created_at"] = v.created_at
-    csil_m["updated_at"] = v.updated_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
+    csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_x = v.description
     if csil_x is not None:
         csil_m["description"] = csil_x
@@ -494,8 +495,8 @@ def _decode_role_value(tree: Any) -> "Role":
         house_id=_csil_expect_text(tree["house_id"]),
         name=_csil_expect_text(tree["name"]),
         description=(None if tree.get("description") is None else _csil_expect_text(tree["description"])),
-        created_at=_csil_expect_text(tree["created_at"]),
-        updated_at=_csil_expect_text(tree["updated_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        updated_at=_csil_ts_from_tree(tree["updated_at"]),
     )
 
 
@@ -514,7 +515,7 @@ def _encode_member_role_value(v: "MemberRole") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["role_id"] = v.role_id
     csil_m["member_id"] = v.member_id
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     return csil_m
 
 def _decode_member_role_value(tree: Any) -> "MemberRole":
@@ -522,7 +523,7 @@ def _decode_member_role_value(tree: Any) -> "MemberRole":
     return MemberRole(
         member_id=_csil_expect_text(tree["member_id"]),
         role_id=_csil_expect_text(tree["role_id"]),
-        created_at=_csil_expect_text(tree["created_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
     )
 
 
@@ -548,7 +549,7 @@ def _encode_member_audit_value(v: "MemberAudit") -> Dict[Any, Any]:
     csil_x = v.target_id
     if csil_x is not None:
         csil_m["target_id"] = csil_x
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_x = v.target_type
     if csil_x is not None:
         csil_m["target_type"] = csil_x
@@ -569,7 +570,7 @@ def _decode_member_audit_value(tree: Any) -> "MemberAudit":
         target_type=(None if tree.get("target_type") is None else _csil_expect_text(tree["target_type"])),
         target_id=(None if tree.get("target_id") is None else _csil_expect_text(tree["target_id"])),
         detail=(None if tree.get("detail") is None else _csil_expect_text(tree["detail"])),
-        created_at=_csil_expect_text(tree["created_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
     )
 
 
@@ -589,8 +590,8 @@ def _encode_skill_value(v: "Skill") -> Dict[Any, Any]:
     csil_m["name"] = v.name
     csil_m["house_id"] = v.house_id
     csil_m["skill_id"] = v.skill_id
-    csil_m["created_at"] = v.created_at
-    csil_m["updated_at"] = v.updated_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
+    csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_x = v.description
     if csil_x is not None:
         csil_m["description"] = csil_x
@@ -603,8 +604,8 @@ def _decode_skill_value(tree: Any) -> "Skill":
         house_id=_csil_expect_text(tree["house_id"]),
         name=_csil_expect_text(tree["name"]),
         description=(None if tree.get("description") is None else _csil_expect_text(tree["description"])),
-        created_at=_csil_expect_text(tree["created_at"]),
-        updated_at=_csil_expect_text(tree["updated_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        updated_at=_csil_ts_from_tree(tree["updated_at"]),
     )
 
 
@@ -623,7 +624,7 @@ def _encode_member_skill_value(v: "MemberSkill") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["skill_id"] = v.skill_id
     csil_m["member_id"] = v.member_id
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     return csil_m
 
 def _decode_member_skill_value(tree: Any) -> "MemberSkill":
@@ -631,7 +632,7 @@ def _decode_member_skill_value(tree: Any) -> "MemberSkill":
     return MemberSkill(
         member_id=_csil_expect_text(tree["member_id"]),
         skill_id=_csil_expect_text(tree["skill_id"]),
-        created_at=_csil_expect_text(tree["created_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
     )
 
 
@@ -650,7 +651,7 @@ def _encode_group_skill_value(v: "GroupSkill") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["group_id"] = v.group_id
     csil_m["skill_id"] = v.skill_id
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     return csil_m
 
 def _decode_group_skill_value(tree: Any) -> "GroupSkill":
@@ -658,7 +659,7 @@ def _decode_group_skill_value(tree: Any) -> "GroupSkill":
     return GroupSkill(
         group_id=_csil_expect_text(tree["group_id"]),
         skill_id=_csil_expect_text(tree["skill_id"]),
-        created_at=_csil_expect_text(tree["created_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
     )
 
 
@@ -678,8 +679,8 @@ def _encode_group_value(v: "Group") -> Dict[Any, Any]:
     csil_m["name"] = v.name
     csil_m["group_id"] = v.group_id
     csil_m["house_id"] = v.house_id
-    csil_m["created_at"] = v.created_at
-    csil_m["updated_at"] = v.updated_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
+    csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_x = v.description
     if csil_x is not None:
         csil_m["description"] = csil_x
@@ -692,8 +693,8 @@ def _decode_group_value(tree: Any) -> "Group":
         house_id=_csil_expect_text(tree["house_id"]),
         name=_csil_expect_text(tree["name"]),
         description=(None if tree.get("description") is None else _csil_expect_text(tree["description"])),
-        created_at=_csil_expect_text(tree["created_at"]),
-        updated_at=_csil_expect_text(tree["updated_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        updated_at=_csil_ts_from_tree(tree["updated_at"]),
     )
 
 
@@ -712,7 +713,7 @@ def _encode_group_member_value(v: "GroupMember") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["group_id"] = v.group_id
     csil_m["member_id"] = v.member_id
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     return csil_m
 
 def _decode_group_member_value(tree: Any) -> "GroupMember":
@@ -720,7 +721,7 @@ def _decode_group_member_value(tree: Any) -> "GroupMember":
     return GroupMember(
         group_id=_csil_expect_text(tree["group_id"]),
         member_id=_csil_expect_text(tree["member_id"]),
-        created_at=_csil_expect_text(tree["created_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
     )
 
 
@@ -748,9 +749,9 @@ def _encode_project_value(v: "Project") -> Dict[Any, Any]:
     csil_x = v.personal
     if csil_x is not None:
         csil_m["personal"] = csil_x
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_m["project_id"] = v.project_id
-    csil_m["updated_at"] = v.updated_at
+    csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_x = v.visibility
     if csil_x is not None:
         csil_m["visibility"] = csil_x
@@ -774,8 +775,8 @@ def _decode_project_value(tree: Any) -> "Project":
         visibility=(None if tree.get("visibility") is None else _decode_access_level_value(tree["visibility"])),
         created_by_member_id=(None if tree.get("created_by_member_id") is None else _csil_expect_text(tree["created_by_member_id"])),
         personal=(None if tree.get("personal") is None else _csil_expect_bool(tree["personal"])),
-        created_at=_csil_expect_text(tree["created_at"]),
-        updated_at=_csil_expect_text(tree["updated_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        updated_at=_csil_ts_from_tree(tree["updated_at"]),
     )
 
 
@@ -794,7 +795,7 @@ def _encode_project_task_value(v: "ProjectTask") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["task_id"] = v.task_id
     csil_m["position"] = v.position
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_m["project_id"] = v.project_id
     return csil_m
 
@@ -804,7 +805,7 @@ def _decode_project_task_value(tree: Any) -> "ProjectTask":
         project_id=_csil_expect_text(tree["project_id"]),
         task_id=_csil_expect_text(tree["task_id"]),
         position=_csil_expect_int(tree["position"]),
-        created_at=_csil_expect_text(tree["created_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
     )
 
 
@@ -822,7 +823,7 @@ ProjectTask.from_cbor = staticmethod(_project_task_from_cbor)
 def _encode_project_member_value(v: "ProjectMember") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["member_id"] = v.member_id
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_m["project_id"] = v.project_id
     return csil_m
 
@@ -831,7 +832,7 @@ def _decode_project_member_value(tree: Any) -> "ProjectMember":
     return ProjectMember(
         project_id=_csil_expect_text(tree["project_id"]),
         member_id=_csil_expect_text(tree["member_id"]),
-        created_at=_csil_expect_text(tree["created_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
     )
 
 
@@ -849,7 +850,7 @@ ProjectMember.from_cbor = staticmethod(_project_member_from_cbor)
 def _encode_project_owner_value(v: "ProjectOwner") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["member_id"] = v.member_id
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_m["project_id"] = v.project_id
     return csil_m
 
@@ -858,7 +859,7 @@ def _decode_project_owner_value(tree: Any) -> "ProjectOwner":
     return ProjectOwner(
         project_id=_csil_expect_text(tree["project_id"]),
         member_id=_csil_expect_text(tree["member_id"]),
-        created_at=_csil_expect_text(tree["created_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
     )
 
 
@@ -878,9 +879,9 @@ def _encode_milestone_value(v: "Milestone") -> Dict[Any, Any]:
     csil_m["label"] = v.label
     csil_m["state"] = v.state
     csil_m["position"] = v.position
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_m["project_id"] = v.project_id
-    csil_m["updated_at"] = v.updated_at
+    csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_m["when_label"] = v.when_label
     csil_m["milestone_id"] = v.milestone_id
     return csil_m
@@ -894,8 +895,8 @@ def _decode_milestone_value(tree: Any) -> "Milestone":
         when_label=_csil_expect_text(tree["when_label"]),
         state=_decode_milestone_state_value(tree["state"]),
         position=_csil_expect_int(tree["position"]),
-        created_at=_csil_expect_text(tree["created_at"]),
-        updated_at=_csil_expect_text(tree["updated_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        updated_at=_csil_ts_from_tree(tree["updated_at"]),
     )
 
 
@@ -918,7 +919,7 @@ def _encode_event_value(v: "Event") -> Dict[Any, Any]:
         csil_m["all_day"] = csil_x
     csil_x = v.ends_at
     if csil_x is not None:
-        csil_m["ends_at"] = csil_x
+        csil_m["ends_at"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_m["event_id"] = v.event_id
     csil_m["house_id"] = v.house_id
     csil_x = v.location
@@ -932,12 +933,12 @@ def _encode_event_value(v: "Event") -> Dict[Any, Any]:
         csil_m["timezone"] = csil_x
     csil_x = v.starts_at
     if csil_x is not None:
-        csil_m["starts_at"] = csil_x
-    csil_m["created_at"] = v.created_at
+        csil_m["starts_at"] = CborTag(0, _csil_ts_to_text(csil_x))
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_x = v.edit_scope
     if csil_x is not None:
         csil_m["edit_scope"] = csil_x
-    csil_m["updated_at"] = v.updated_at
+    csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_x = v.description
     if csil_x is not None:
         csil_m["description"] = csil_x
@@ -962,7 +963,7 @@ def _encode_event_value(v: "Event") -> Dict[Any, Any]:
         csil_m["publication_error"] = csil_x
     csil_x = v.next_recurrence_at
     if csil_x is not None:
-        csil_m["next_recurrence_at"] = csil_x
+        csil_m["next_recurrence_at"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_x = v.recurrence_interval
     if csil_x is not None:
         csil_m["recurrence_interval"] = csil_x
@@ -992,8 +993,8 @@ def _decode_event_value(tree: Any) -> "Event":
         title=_csil_expect_text(tree["title"]),
         description=(None if tree.get("description") is None else _csil_expect_text(tree["description"])),
         location=(None if tree.get("location") is None else _csil_expect_text(tree["location"])),
-        starts_at=(None if tree.get("starts_at") is None else _csil_expect_text(tree["starts_at"])),
-        ends_at=(None if tree.get("ends_at") is None else _csil_expect_text(tree["ends_at"])),
+        starts_at=(None if tree.get("starts_at") is None else _csil_ts_from_tree(tree["starts_at"])),
+        ends_at=(None if tree.get("ends_at") is None else _csil_ts_from_tree(tree["ends_at"])),
         all_day=(None if tree.get("all_day") is None else _csil_expect_bool(tree["all_day"])),
         timezone=(None if tree.get("timezone") is None else _csil_expect_text(tree["timezone"])),
         recurrence_rule=(None if tree.get("recurrence_rule") is None else _csil_expect_text(tree["recurrence_rule"])),
@@ -1002,7 +1003,7 @@ def _decode_event_value(tree: Any) -> "Event":
         recurrence_interval=(None if tree.get("recurrence_interval") is None else _csil_expect_int(tree["recurrence_interval"])),
         recurrence_by_weekday=(None if tree.get("recurrence_by_weekday") is None else [_csil_expect_int(csil_e) for csil_e in _csil_expect_array(tree["recurrence_by_weekday"])]),
         recurrence_by_setpos=(None if tree.get("recurrence_by_setpos") is None else _csil_expect_int(tree["recurrence_by_setpos"])),
-        next_recurrence_at=(None if tree.get("next_recurrence_at") is None else _csil_expect_text(tree["next_recurrence_at"])),
+        next_recurrence_at=(None if tree.get("next_recurrence_at") is None else _csil_ts_from_tree(tree["next_recurrence_at"])),
         recurrence_root_event_id=(None if tree.get("recurrence_root_event_id") is None else _csil_expect_text(tree["recurrence_root_event_id"])),
         calendar_state=(None if tree.get("calendar_state") is None else _csil_expect_text(tree["calendar_state"])),
         revision=(None if tree.get("revision") is None else _csil_expect_uint(tree["revision"])),
@@ -1011,8 +1012,8 @@ def _decode_event_value(tree: Any) -> "Event":
         edit_pending_member_id=(None if tree.get("edit_pending_member_id") is None else _csil_expect_text(tree["edit_pending_member_id"])),
         calendar_unbound=(None if tree.get("calendar_unbound") is None else _csil_expect_bool(tree["calendar_unbound"])),
         edit_scope=(None if tree.get("edit_scope") is None else _csil_expect_text(tree["edit_scope"])),
-        created_at=_csil_expect_text(tree["created_at"]),
-        updated_at=_csil_expect_text(tree["updated_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        updated_at=_csil_ts_from_tree(tree["updated_at"]),
     )
 
 
@@ -1035,7 +1036,7 @@ def _encode_task_value(v: "Task") -> Dict[Any, Any]:
     csil_m["title"] = v.title
     csil_x = v.due_at
     if csil_x is not None:
-        csil_m["due_at"] = csil_x
+        csil_m["due_at"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_x = v.status
     if csil_x is not None:
         csil_m["status"] = csil_x
@@ -1044,11 +1045,11 @@ def _encode_task_value(v: "Task") -> Dict[Any, Any]:
     csil_x = v.assignees
     if csil_x is not None:
         csil_m["assignees"] = csil_x
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_x = v.deleted_at
     if csil_x is not None:
-        csil_m["deleted_at"] = csil_x
-    csil_m["updated_at"] = v.updated_at
+        csil_m["deleted_at"] = CborTag(0, _csil_ts_to_text(csil_x))
+    csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_x = v.visibility
     if csil_x is not None:
         csil_m["visibility"] = csil_x
@@ -1070,7 +1071,7 @@ def _encode_task_value(v: "Task") -> Dict[Any, Any]:
         csil_m["estimate_minutes"] = csil_x
     csil_x = v.next_recurrence_at
     if csil_x is not None:
-        csil_m["next_recurrence_at"] = csil_x
+        csil_m["next_recurrence_at"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_x = v.recurrence_interval
     if csil_x is not None:
         csil_m["recurrence_interval"] = csil_x
@@ -1101,7 +1102,7 @@ def _decode_task_value(tree: Any) -> "Task":
         title=_csil_expect_text(tree["title"]),
         description=(None if tree.get("description") is None else _csil_expect_text(tree["description"])),
         status=(None if tree.get("status") is None else _decode_task_status_value(tree["status"])),
-        due_at=(None if tree.get("due_at") is None else _csil_expect_text(tree["due_at"])),
+        due_at=(None if tree.get("due_at") is None else _csil_ts_from_tree(tree["due_at"])),
         tag=(None if tree.get("tag") is None else _csil_expect_text(tree["tag"])),
         estimate_minutes=(None if tree.get("estimate_minutes") is None else _csil_expect_uint(tree["estimate_minutes"])),
         recurrence_freq=(None if tree.get("recurrence_freq") is None else _decode_recurrence_freq_value(tree["recurrence_freq"])),
@@ -1109,11 +1110,11 @@ def _decode_task_value(tree: Any) -> "Task":
         recurrence_interval=(None if tree.get("recurrence_interval") is None else _csil_expect_int(tree["recurrence_interval"])),
         recurrence_by_weekday=(None if tree.get("recurrence_by_weekday") is None else [_csil_expect_int(csil_e) for csil_e in _csil_expect_array(tree["recurrence_by_weekday"])]),
         recurrence_by_setpos=(None if tree.get("recurrence_by_setpos") is None else _csil_expect_int(tree["recurrence_by_setpos"])),
-        next_recurrence_at=(None if tree.get("next_recurrence_at") is None else _csil_expect_text(tree["next_recurrence_at"])),
+        next_recurrence_at=(None if tree.get("next_recurrence_at") is None else _csil_ts_from_tree(tree["next_recurrence_at"])),
         recurrence_root_task_id=(None if tree.get("recurrence_root_task_id") is None else _csil_expect_text(tree["recurrence_root_task_id"])),
-        deleted_at=(None if tree.get("deleted_at") is None else _csil_expect_text(tree["deleted_at"])),
-        created_at=_csil_expect_text(tree["created_at"]),
-        updated_at=_csil_expect_text(tree["updated_at"]),
+        deleted_at=(None if tree.get("deleted_at") is None else _csil_ts_from_tree(tree["deleted_at"])),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        updated_at=_csil_ts_from_tree(tree["updated_at"]),
     )
 
 
@@ -1135,8 +1136,8 @@ def _encode_comment_value(v: "Comment") -> Dict[Any, Any]:
     csil_m["member_id"] = v.member_id
     csil_m["target_id"] = v.target_id
     csil_m["comment_id"] = v.comment_id
-    csil_m["created_at"] = v.created_at
-    csil_m["updated_at"] = v.updated_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
+    csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_m["target_type"] = v.target_type
     return csil_m
 
@@ -1149,8 +1150,8 @@ def _decode_comment_value(tree: Any) -> "Comment":
         target_type=_decode_target_type_value(tree["target_type"]),
         target_id=_csil_expect_text(tree["target_id"]),
         body=_csil_expect_text(tree["body"]),
-        created_at=_csil_expect_text(tree["created_at"]),
-        updated_at=_csil_expect_text(tree["updated_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        updated_at=_csil_ts_from_tree(tree["updated_at"]),
     )
 
 
@@ -1170,10 +1171,10 @@ def _encode_share_value(v: "Share") -> Dict[Any, Any]:
     csil_m["house_id"] = v.house_id
     csil_m["share_id"] = v.share_id
     csil_m["shared_by"] = v.shared_by
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_x = v.expires_at
     if csil_x is not None:
-        csil_m["expires_at"] = csil_x
+        csil_m["expires_at"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_m["resource_id"] = v.resource_id
     csil_x = v.access_level
     if csil_x is not None:
@@ -1194,8 +1195,8 @@ def _decode_share_value(tree: Any) -> "Share":
         resource_type=_decode_resource_type_value(tree["resource_type"]),
         resource_id=_csil_expect_text(tree["resource_id"]),
         access_level=(None if tree.get("access_level") is None else _decode_access_level_value(tree["access_level"])),
-        created_at=_csil_expect_text(tree["created_at"]),
-        expires_at=(None if tree.get("expires_at") is None else _csil_expect_text(tree["expires_at"])),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        expires_at=(None if tree.get("expires_at") is None else _csil_ts_from_tree(tree["expires_at"])),
     )
 
 
@@ -1433,7 +1434,7 @@ def _encode_login_response_value(v: "LoginResponse") -> Dict[Any, Any]:
     csil_m["token"] = v.token
     csil_m["domain"] = v.domain
     csil_m["user_id"] = v.user_id
-    csil_m["expires_at"] = v.expires_at
+    csil_m["expires_at"] = CborTag(0, _csil_ts_to_text(v.expires_at))
     csil_x = v.display_name
     if csil_x is not None:
         csil_m["display_name"] = csil_x
@@ -1446,7 +1447,7 @@ def _decode_login_response_value(tree: Any) -> "LoginResponse":
         domain=_csil_expect_text(tree["domain"]),
         user_id=_csil_expect_text(tree["user_id"]),
         display_name=(None if tree.get("display_name") is None else _csil_expect_text(tree["display_name"])),
-        expires_at=_csil_expect_text(tree["expires_at"]),
+        expires_at=_csil_ts_from_tree(tree["expires_at"]),
     )
 
 
@@ -1466,13 +1467,13 @@ def _encode_cli_token_response_value(v: "CliTokenResponse") -> Dict[Any, Any]:
     csil_m["token"] = v.token
     csil_m["domain"] = v.domain
     csil_m["user_id"] = v.user_id
-    csil_m["expires_at"] = v.expires_at
+    csil_m["expires_at"] = CborTag(0, _csil_ts_to_text(v.expires_at))
     csil_m["session_id"] = v.session_id
     csil_x = v.display_name
     if csil_x is not None:
         csil_m["display_name"] = csil_x
     csil_m["refresh_token"] = v.refresh_token
-    csil_m["refresh_expires_at"] = v.refresh_expires_at
+    csil_m["refresh_expires_at"] = CborTag(0, _csil_ts_to_text(v.refresh_expires_at))
     return csil_m
 
 def _decode_cli_token_response_value(tree: Any) -> "CliTokenResponse":
@@ -1482,9 +1483,9 @@ def _decode_cli_token_response_value(tree: Any) -> "CliTokenResponse":
         domain=_csil_expect_text(tree["domain"]),
         user_id=_csil_expect_text(tree["user_id"]),
         display_name=(None if tree.get("display_name") is None else _csil_expect_text(tree["display_name"])),
-        expires_at=_csil_expect_text(tree["expires_at"]),
+        expires_at=_csil_ts_from_tree(tree["expires_at"]),
         refresh_token=_csil_expect_text(tree["refresh_token"]),
-        refresh_expires_at=_csil_expect_text(tree["refresh_expires_at"]),
+        refresh_expires_at=_csil_ts_from_tree(tree["refresh_expires_at"]),
         session_id=_csil_expect_text(tree["session_id"]),
     )
 
@@ -1526,7 +1527,7 @@ BeginCliLoginRequest.from_cbor = staticmethod(_begin_cli_login_request_from_cbor
 def _encode_begin_cli_login_response_value(v: "BeginCliLoginResponse") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["user_code"] = v.user_code
-    csil_m["expires_at"] = v.expires_at
+    csil_m["expires_at"] = CborTag(0, _csil_ts_to_text(v.expires_at))
     csil_m["device_code"] = v.device_code
     csil_m["interval_seconds"] = v.interval_seconds
     csil_m["verification_url"] = v.verification_url
@@ -1538,7 +1539,7 @@ def _decode_begin_cli_login_response_value(tree: Any) -> "BeginCliLoginResponse"
         device_code=_csil_expect_text(tree["device_code"]),
         user_code=_csil_expect_text(tree["user_code"]),
         verification_url=_csil_expect_text(tree["verification_url"]),
-        expires_at=_csil_expect_text(tree["expires_at"]),
+        expires_at=_csil_ts_from_tree(tree["expires_at"]),
         interval_seconds=_csil_expect_uint(tree["interval_seconds"]),
     )
 
@@ -1580,7 +1581,7 @@ ApproveCliLoginRequest.from_cbor = staticmethod(_approve_cli_login_request_from_
 def _encode_cli_login_request_info_value(v: "CliLoginRequestInfo") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["user_code"] = v.user_code
-    csil_m["expires_at"] = v.expires_at
+    csil_m["expires_at"] = CborTag(0, _csil_ts_to_text(v.expires_at))
     csil_m["client_name"] = v.client_name
     return csil_m
 
@@ -1589,7 +1590,7 @@ def _decode_cli_login_request_info_value(tree: Any) -> "CliLoginRequestInfo":
     return CliLoginRequestInfo(
         user_code=_csil_expect_text(tree["user_code"]),
         client_name=_csil_expect_text(tree["client_name"]),
-        expires_at=_csil_expect_text(tree["expires_at"]),
+        expires_at=_csil_ts_from_tree(tree["expires_at"]),
     )
 
 
@@ -1708,14 +1709,14 @@ def _encode_cli_session_summary_value(v: "CliSessionSummary") -> Dict[Any, Any]:
     csil_x = v.current
     if csil_x is not None:
         csil_m["current"] = csil_x
-    csil_m["created_at"] = v.created_at
-    csil_m["expires_at"] = v.expires_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
+    csil_m["expires_at"] = CborTag(0, _csil_ts_to_text(v.expires_at))
     csil_x = v.revoked_at
     if csil_x is not None:
-        csil_m["revoked_at"] = csil_x
+        csil_m["revoked_at"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_m["session_id"] = v.session_id
     csil_m["client_name"] = v.client_name
-    csil_m["last_used_at"] = v.last_used_at
+    csil_m["last_used_at"] = CborTag(0, _csil_ts_to_text(v.last_used_at))
     return csil_m
 
 def _decode_cli_session_summary_value(tree: Any) -> "CliSessionSummary":
@@ -1723,10 +1724,10 @@ def _decode_cli_session_summary_value(tree: Any) -> "CliSessionSummary":
     return CliSessionSummary(
         session_id=_csil_expect_text(tree["session_id"]),
         client_name=_csil_expect_text(tree["client_name"]),
-        created_at=_csil_expect_text(tree["created_at"]),
-        last_used_at=_csil_expect_text(tree["last_used_at"]),
-        expires_at=_csil_expect_text(tree["expires_at"]),
-        revoked_at=(None if tree.get("revoked_at") is None else _csil_expect_text(tree["revoked_at"])),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
+        last_used_at=_csil_ts_from_tree(tree["last_used_at"]),
+        expires_at=_csil_ts_from_tree(tree["expires_at"]),
+        revoked_at=(None if tree.get("revoked_at") is None else _csil_ts_from_tree(tree["revoked_at"])),
         kind=(None if tree.get("kind") is None else _decode_session_kind_value(tree["kind"])),
         current=(None if tree.get("current") is None else _csil_expect_bool(tree["current"])),
     )
@@ -1881,7 +1882,7 @@ def _encode_me_response_value(v: "MeResponse") -> Dict[Any, Any]:
     csil_m["domain"] = v.domain
     csil_m["houses"] = [_encode_house_summary_value(csil_e) for csil_e in v.houses]
     csil_m["user_id"] = v.user_id
-    csil_m["expires_at"] = v.expires_at
+    csil_m["expires_at"] = CborTag(0, _csil_ts_to_text(v.expires_at))
     csil_x = v.display_name
     if csil_x is not None:
         csil_m["display_name"] = csil_x
@@ -1893,7 +1894,7 @@ def _decode_me_response_value(tree: Any) -> "MeResponse":
         domain=_csil_expect_text(tree["domain"]),
         user_id=_csil_expect_text(tree["user_id"]),
         display_name=(None if tree.get("display_name") is None else _csil_expect_text(tree["display_name"])),
-        expires_at=_csil_expect_text(tree["expires_at"]),
+        expires_at=_csil_ts_from_tree(tree["expires_at"]),
         houses=[_decode_house_summary_value(csil_e) for csil_e in _csil_expect_array(tree["houses"])],
     )
 
@@ -2043,18 +2044,18 @@ def _encode_event_list_request_value(v: "EventListRequest") -> Dict[Any, Any]:
     csil_m["house_id"] = v.house_id
     csil_x = v.range_end
     if csil_x is not None:
-        csil_m["range_end"] = csil_x
+        csil_m["range_end"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_x = v.range_start
     if csil_x is not None:
-        csil_m["range_start"] = csil_x
+        csil_m["range_start"] = CborTag(0, _csil_ts_to_text(csil_x))
     return csil_m
 
 def _decode_event_list_request_value(tree: Any) -> "EventListRequest":
     tree = _csil_expect_map(tree)
     return EventListRequest(
         house_id=_csil_expect_text(tree["house_id"]),
-        range_start=(None if tree.get("range_start") is None else _csil_expect_text(tree["range_start"])),
-        range_end=(None if tree.get("range_end") is None else _csil_expect_text(tree["range_end"])),
+        range_start=(None if tree.get("range_start") is None else _csil_ts_from_tree(tree["range_start"])),
+        range_end=(None if tree.get("range_end") is None else _csil_ts_from_tree(tree["range_end"])),
         limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
         offset=(None if tree.get("offset") is None else _csil_expect_uint(tree["offset"])),
     )
@@ -2087,17 +2088,17 @@ def _encode_task_list_request_value(v: "TaskListRequest") -> Dict[Any, Any]:
         csil_m["state"] = csil_x
     csil_x = v.due_to
     if csil_x is not None:
-        csil_m["due_to"] = csil_x
+        csil_m["due_to"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_x = v.offset
     if csil_x is not None:
         csil_m["offset"] = csil_x
     csil_x = v.due_from
     if csil_x is not None:
-        csil_m["due_from"] = csil_x
+        csil_m["due_from"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_m["house_id"] = v.house_id
     csil_x = v.due_before
     if csil_x is not None:
-        csil_m["due_before"] = csil_x
+        csil_m["due_before"] = [CborTag(0, _csil_ts_to_text(csil_e)) for csil_e in csil_x]
     return csil_m
 
 def _decode_task_list_request_value(tree: Any) -> "TaskListRequest":
@@ -2109,9 +2110,9 @@ def _decode_task_list_request_value(tree: Any) -> "TaskListRequest":
         state=(None if tree.get("state") is None else _decode_task_state_value(tree["state"])),
         mine=(None if tree.get("mine") is None else _csil_expect_bool(tree["mine"])),
         loose=(None if tree.get("loose") is None else _csil_expect_bool(tree["loose"])),
-        due_from=(None if tree.get("due_from") is None else _csil_expect_text(tree["due_from"])),
-        due_to=(None if tree.get("due_to") is None else _csil_expect_text(tree["due_to"])),
-        due_before=(None if tree.get("due_before") is None else [_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["due_before"])]),
+        due_from=(None if tree.get("due_from") is None else _csil_ts_from_tree(tree["due_from"])),
+        due_to=(None if tree.get("due_to") is None else _csil_ts_from_tree(tree["due_to"])),
+        due_before=(None if tree.get("due_before") is None else [_csil_ts_from_tree(csil_e) for csil_e in _csil_expect_array(tree["due_before"])]),
     )
 
 
@@ -2294,14 +2295,14 @@ def _encode_notification_value(v: "Notification") -> Dict[Any, Any]:
     csil_m["read"] = v.read
     csil_x = v.read_at
     if csil_x is not None:
-        csil_m["read_at"] = csil_x
+        csil_m["read_at"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_m["house_id"] = v.house_id
     csil_m["member_id"] = v.member_id
     csil_x = v.target_id
     if csil_x is not None:
         csil_m["target_id"] = csil_x
     csil_m["actor_name"] = v.actor_name
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_x = v.target_type
     if csil_x is not None:
         csil_m["target_type"] = csil_x
@@ -2326,8 +2327,8 @@ def _decode_notification_value(tree: Any) -> "Notification":
         target_title=_csil_expect_text(tree["target_title"]),
         body=_csil_expect_text(tree["body"]),
         read=_csil_expect_bool(tree["read"]),
-        read_at=(None if tree.get("read_at") is None else _csil_expect_text(tree["read_at"])),
-        created_at=_csil_expect_text(tree["created_at"]),
+        read_at=(None if tree.get("read_at") is None else _csil_ts_from_tree(tree["read_at"])),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
     )
 
 
@@ -3164,7 +3165,7 @@ def _encode_act_as_token_response_value(v: "ActAsTokenResponse") -> Dict[Any, An
     csil_m["grantee"] = v.grantee
     csil_m["user_id"] = v.user_id
     csil_m["grant_id"] = v.grant_id
-    csil_m["expires_at"] = v.expires_at
+    csil_m["expires_at"] = CborTag(0, _csil_ts_to_text(v.expires_at))
     return csil_m
 
 def _decode_act_as_token_response_value(tree: Any) -> "ActAsTokenResponse":
@@ -3173,7 +3174,7 @@ def _decode_act_as_token_response_value(tree: Any) -> "ActAsTokenResponse":
         token=_csil_expect_text(tree["token"]),
         domain=_csil_expect_text(tree["domain"]),
         user_id=_csil_expect_text(tree["user_id"]),
-        expires_at=_csil_expect_text(tree["expires_at"]),
+        expires_at=_csil_ts_from_tree(tree["expires_at"]),
         grant_id=_csil_expect_text(tree["grant_id"]),
         grantee=_csil_expect_text(tree["grantee"]),
         scopes=[_csil_expect_text(csil_e) for csil_e in _csil_expect_array(tree["scopes"])],
@@ -3282,7 +3283,7 @@ def _encode_calendar_status_value(v: "CalendarStatus") -> Dict[Any, Any]:
         csil_m["last_error"] = csil_x
     csil_x = v.sync_pending_since
     if csil_x is not None:
-        csil_m["sync_pending_since"] = csil_x
+        csil_m["sync_pending_since"] = CborTag(0, _csil_ts_to_text(csil_x))
     return csil_m
 
 def _decode_calendar_status_value(tree: Any) -> "CalendarStatus":
@@ -3294,7 +3295,7 @@ def _decode_calendar_status_value(tree: Any) -> "CalendarStatus":
         ready=_csil_expect_bool(tree["ready"]),
         connected=_csil_expect_bool(tree["connected"]),
         last_error=(None if tree.get("last_error") is None else _csil_expect_text(tree["last_error"])),
-        sync_pending_since=(None if tree.get("sync_pending_since") is None else _csil_expect_text(tree["sync_pending_since"])),
+        sync_pending_since=(None if tree.get("sync_pending_since") is None else _csil_ts_from_tree(tree["sync_pending_since"])),
     )
 
 
@@ -3388,8 +3389,8 @@ def _encode_calendar_trash_entry_value(v: "CalendarTrashEntry") -> Dict[Any, Any
     csil_m: Dict[Any, Any] = {}
     csil_m["event"] = _encode_event_value(v.event)
     csil_m["trash_id"] = v.trash_id
-    csil_m["deleted_at"] = v.deleted_at
-    csil_m["expires_at"] = v.expires_at
+    csil_m["deleted_at"] = CborTag(0, _csil_ts_to_text(v.deleted_at))
+    csil_m["expires_at"] = CborTag(0, _csil_ts_to_text(v.expires_at))
     return csil_m
 
 def _decode_calendar_trash_entry_value(tree: Any) -> "CalendarTrashEntry":
@@ -3397,8 +3398,8 @@ def _decode_calendar_trash_entry_value(tree: Any) -> "CalendarTrashEntry":
     return CalendarTrashEntry(
         trash_id=_csil_expect_text(tree["trash_id"]),
         event=_decode_event_value(tree["event"]),
-        deleted_at=_csil_expect_text(tree["deleted_at"]),
-        expires_at=_csil_expect_text(tree["expires_at"]),
+        deleted_at=_csil_ts_from_tree(tree["deleted_at"]),
+        expires_at=_csil_ts_from_tree(tree["expires_at"]),
     )
 
 
@@ -3469,17 +3470,17 @@ CalendarMigrationRow.from_cbor = staticmethod(_calendar_migration_row_from_cbor)
 
 def _encode_project_deadline_request_value(v: "ProjectDeadlineRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_m["range_end"] = v.range_end
+    csil_m["range_end"] = CborTag(0, _csil_ts_to_text(v.range_end))
     csil_m["project_id"] = v.project_id
-    csil_m["range_start"] = v.range_start
+    csil_m["range_start"] = CborTag(0, _csil_ts_to_text(v.range_start))
     return csil_m
 
 def _decode_project_deadline_request_value(tree: Any) -> "ProjectDeadlineRequest":
     tree = _csil_expect_map(tree)
     return ProjectDeadlineRequest(
         project_id=_csil_expect_text(tree["project_id"]),
-        range_start=_csil_expect_text(tree["range_start"]),
-        range_end=_csil_expect_text(tree["range_end"]),
+        range_start=_csil_ts_from_tree(tree["range_start"]),
+        range_end=_csil_ts_from_tree(tree["range_end"]),
     )
 
 
@@ -3497,7 +3498,7 @@ ProjectDeadlineRequest.from_cbor = staticmethod(_project_deadline_request_from_c
 def _encode_project_deadline_value(v: "ProjectDeadline") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["title"] = v.title
-    csil_m["due_at"] = v.due_at
+    csil_m["due_at"] = CborTag(0, _csil_ts_to_text(v.due_at))
     csil_m["task_id"] = v.task_id
     return csil_m
 
@@ -3506,7 +3507,7 @@ def _decode_project_deadline_value(tree: Any) -> "ProjectDeadline":
     return ProjectDeadline(
         task_id=_csil_expect_text(tree["task_id"]),
         title=_csil_expect_text(tree["title"]),
-        due_at=_csil_expect_text(tree["due_at"]),
+        due_at=_csil_ts_from_tree(tree["due_at"]),
     )
 
 
@@ -3572,7 +3573,7 @@ def _encode_audit_entry_value(v: "AuditEntry") -> Dict[Any, Any]:
     csil_x = v.house_id
     if csil_x is not None:
         csil_m["house_id"] = csil_x
-    csil_m["created_at"] = v.created_at
+    csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_x = v.resource_id
     if csil_x is not None:
         csil_m["resource_id"] = csil_x
@@ -3604,7 +3605,7 @@ def _decode_audit_entry_value(tree: Any) -> "AuditEntry":
         before=(None if tree.get("before") is None else _csil_expect_text(tree["before"])),
         after=(None if tree.get("after") is None else _csil_expect_text(tree["after"])),
         detail=(None if tree.get("detail") is None else _csil_expect_text(tree["detail"])),
-        created_at=_csil_expect_text(tree["created_at"]),
+        created_at=_csil_ts_from_tree(tree["created_at"]),
     )
 
 
@@ -3626,10 +3627,10 @@ def _encode_audit_query_value(v: "AuditQuery") -> Dict[Any, Any]:
         csil_m["limit"] = csil_x
     csil_x = v.since
     if csil_x is not None:
-        csil_m["since"] = csil_x
+        csil_m["since"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_x = v.until
     if csil_x is not None:
-        csil_m["until"] = csil_x
+        csil_m["until"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_x = v.action
     if csil_x is not None:
         csil_m["action"] = csil_x
@@ -3652,8 +3653,8 @@ def _decode_audit_query_value(tree: Any) -> "AuditQuery":
         actor_member_id=(None if tree.get("actor_member_id") is None else _csil_expect_text(tree["actor_member_id"])),
         resource_type=(None if tree.get("resource_type") is None else _csil_expect_text(tree["resource_type"])),
         action=(None if tree.get("action") is None else _csil_expect_text(tree["action"])),
-        since=(None if tree.get("since") is None else _csil_expect_text(tree["since"])),
-        until=(None if tree.get("until") is None else _csil_expect_text(tree["until"])),
+        since=(None if tree.get("since") is None else _csil_ts_from_tree(tree["since"])),
+        until=(None if tree.get("until") is None else _csil_ts_from_tree(tree["until"])),
         cursor=(None if tree.get("cursor") is None else _csil_expect_text(tree["cursor"])),
         limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
     )
@@ -3703,7 +3704,7 @@ def _encode_trash_item_value(v: "TrashItem") -> Dict[Any, Any]:
     if csil_x is not None:
         csil_m["title"] = csil_x
     csil_m["house_id"] = v.house_id
-    csil_m["deleted_at"] = v.deleted_at
+    csil_m["deleted_at"] = CborTag(0, _csil_ts_to_text(v.deleted_at))
     csil_m["resource_id"] = v.resource_id
     csil_m["deleted_op_id"] = v.deleted_op_id
     csil_m["resource_type"] = v.resource_type
@@ -3719,7 +3720,7 @@ def _decode_trash_item_value(tree: Any) -> "TrashItem":
         resource_id=_csil_expect_text(tree["resource_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
         title=(None if tree.get("title") is None else _csil_expect_text(tree["title"])),
-        deleted_at=_csil_expect_text(tree["deleted_at"]),
+        deleted_at=_csil_ts_from_tree(tree["deleted_at"]),
         deleted_by_member_id=(None if tree.get("deleted_by_member_id") is None else _csil_expect_text(tree["deleted_by_member_id"])),
         deleted_op_id=_csil_expect_text(tree["deleted_op_id"]),
     )
@@ -3829,84 +3830,84 @@ def _decode_task_status_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("open", "in_progress", "done", "cancelled"):
         raise CsilDecodeError(f"csil cbor: unknown task_status value {csil_v!r}")
-    return csil_v
+    return TaskStatus(csil_v)
 
 
 def _decode_target_type_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("event", "task", "project"):
         raise CsilDecodeError(f"csil cbor: unknown target_type value {csil_v!r}")
-    return csil_v
+    return TargetType(csil_v)
 
 
 def _decode_access_level_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("none", "read", "edit", "full"):
         raise CsilDecodeError(f"csil cbor: unknown access_level value {csil_v!r}")
-    return csil_v
+    return AccessLevel(csil_v)
 
 
 def _decode_grantee_type_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("member", "group"):
         raise CsilDecodeError(f"csil cbor: unknown grantee_type value {csil_v!r}")
-    return csil_v
+    return GranteeType(csil_v)
 
 
 def _decode_resource_type_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("event", "task", "house"):
         raise CsilDecodeError(f"csil cbor: unknown resource_type value {csil_v!r}")
-    return csil_v
+    return ResourceType(csil_v)
 
 
 def _decode_project_status_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("active", "archived"):
         raise CsilDecodeError(f"csil cbor: unknown project_status value {csil_v!r}")
-    return csil_v
+    return ProjectStatus(csil_v)
 
 
 def _decode_dependency_node_type_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("task", "project"):
         raise CsilDecodeError(f"csil cbor: unknown dependency_node_type value {csil_v!r}")
-    return csil_v
+    return DependencyNodeType(csil_v)
 
 
 def _decode_recurrence_freq_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("hourly", "daily", "weekly", "monthly", "quarterly", "yearly"):
         raise CsilDecodeError(f"csil cbor: unknown recurrence_freq value {csil_v!r}")
-    return csil_v
+    return RecurrenceFreq(csil_v)
 
 
 def _decode_milestone_state_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("done", "current", "future"):
         raise CsilDecodeError(f"csil cbor: unknown milestone_state value {csil_v!r}")
-    return csil_v
+    return MilestoneState(csil_v)
 
 
 def _decode_cli_login_status_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("pending", "denied", "expired", "complete"):
         raise CsilDecodeError(f"csil cbor: unknown cli_login_status value {csil_v!r}")
-    return csil_v
+    return CliLoginStatus(csil_v)
 
 
 def _decode_session_kind_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("cli", "browser"):
         raise CsilDecodeError(f"csil cbor: unknown session_kind value {csil_v!r}")
-    return csil_v
+    return SessionKind(csil_v)
 
 
 def _decode_task_state_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("open", "closed"):
         raise CsilDecodeError(f"csil cbor: unknown task_state value {csil_v!r}")
-    return csil_v
+    return TaskState(csil_v)
 
 
 def encode_house_get_house_request(csil_value) -> bytes:
@@ -4465,3 +4466,1738 @@ def encode_settings_get_settings_request(csil_value) -> bytes:
 def decode_settings_get_settings_request(data: bytes):
     csil_tree = cbor_decode(data)
     return _csil_expect_text(csil_tree)
+
+
+class ServiceErrorRefusal(Exception):
+    def __init__(self, value):
+        super().__init__(value)
+        self.value = value
+
+
+def encode_auth_begin_browser_login_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "BeginBrowserLoginResponse", cbor_encode(_encode_begin_browser_login_response_value(value))
+
+
+def encode_auth_get_act_as_scope_set_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "ActAsScopeSetResponse", cbor_encode(_encode_act_as_scope_set_response_value(value))
+
+
+def encode_auth_exchange_act_as_credential_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "ActAsTokenResponse", cbor_encode(_encode_act_as_token_response_value(value))
+
+
+def encode_auth_login_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "LoginResponse", cbor_encode(_encode_login_response_value(value))
+
+
+def encode_auth_complete_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "LoginResponse", cbor_encode(_encode_login_response_value(value))
+
+
+def encode_auth_refresh_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "LoginResponse", cbor_encode(_encode_login_response_value(value))
+
+
+def encode_auth_logout_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_auth_resume_session_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "LoginResponse", cbor_encode(_encode_login_response_value(value))
+
+
+def encode_auth_end_session_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_auth_me_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "MeResponse", cbor_encode(_encode_me_response_value(value))
+
+
+def encode_auth_begin_cli_login_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "BeginCliLoginResponse", cbor_encode(_encode_begin_cli_login_response_value(value))
+
+
+def encode_auth_inspect_cli_login_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CliLoginRequestInfo", cbor_encode(_encode_cli_login_request_info_value(value))
+
+
+def encode_auth_approve_cli_login_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_auth_deny_cli_login_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_auth_exchange_cli_login_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "ExchangeCliLoginResponse", cbor_encode(_encode_exchange_cli_login_response_value(value))
+
+
+def encode_auth_refresh_session_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CliTokenResponse", cbor_encode(_encode_cli_token_response_value(value))
+
+
+def encode_auth_list_sessions_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CliSessionsResponse", cbor_encode(_encode_cli_sessions_response_value(value))
+
+
+def encode_auth_revoke_session_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_dev_auth_list_dev_users_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "DevUsersResponse", cbor_encode(_encode_dev_users_response_value(value))
+
+
+def encode_dev_auth_dev_login_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "LoginResponse", cbor_encode(_encode_login_response_value(value))
+
+
+def encode_house_create_house_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "House", cbor_encode(_encode_house_value(value))
+
+
+def encode_house_get_house_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "House", cbor_encode(_encode_house_value(value))
+
+
+def encode_house_update_house_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "House", cbor_encode(_encode_house_value(value))
+
+
+def encode_house_delete_house_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_member_create_member_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Member", cbor_encode(_encode_member_value(value))
+
+
+def encode_member_get_member_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Member", cbor_encode(_encode_member_value(value))
+
+
+def encode_member_get_member_by_identity_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Member", cbor_encode(_encode_member_value(value))
+
+
+def encode_member_update_member_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Member", cbor_encode(_encode_member_value(value))
+
+
+def encode_member_deactivate_member_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_member_reactivate_member_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_trusted_domain_add_trusted_domain_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "TrustedDomain", cbor_encode(_encode_trusted_domain_value(value))
+
+
+def encode_trusted_domain_remove_trusted_domain_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_trusted_domain_is_domain_trusted_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "BoolResponse", cbor_encode(_encode_bool_response_value(value))
+
+
+def encode_role_create_role_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Role", cbor_encode(_encode_role_value(value))
+
+
+def encode_role_update_role_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Role", cbor_encode(_encode_role_value(value))
+
+
+def encode_role_delete_role_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_role_grant_role_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_role_revoke_role_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_skill_create_skill_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Skill", cbor_encode(_encode_skill_value(value))
+
+
+def encode_skill_update_skill_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Skill", cbor_encode(_encode_skill_value(value))
+
+
+def encode_skill_delete_skill_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_skill_add_member_skill_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_skill_remove_member_skill_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_skill_add_group_skill_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_skill_remove_group_skill_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_group_create_group_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Group", cbor_encode(_encode_group_value(value))
+
+
+def encode_group_update_group_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Group", cbor_encode(_encode_group_value(value))
+
+
+def encode_group_delete_group_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_group_add_group_member_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_group_remove_group_member_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_create_project_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Project", cbor_encode(_encode_project_value(value))
+
+
+def encode_project_get_project_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Project", cbor_encode(_encode_project_value(value))
+
+
+def encode_project_update_project_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Project", cbor_encode(_encode_project_value(value))
+
+
+def encode_project_delete_project_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_list_projects_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "ProjectList", cbor_encode(_encode_project_list_value(value))
+
+
+def encode_project_list_project_tasks_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "TaskList", cbor_encode(_encode_task_list_value(value))
+
+
+def encode_project_add_project_task_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_remove_project_task_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_set_project_task_position_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_add_project_member_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_remove_project_member_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_add_project_owner_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_remove_project_owner_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_create_milestone_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Milestone", cbor_encode(_encode_milestone_value(value))
+
+
+def encode_project_update_milestone_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Milestone", cbor_encode(_encode_milestone_value(value))
+
+
+def encode_project_delete_milestone_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_set_project_visibility_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Project", cbor_encode(_encode_project_value(value))
+
+
+def encode_project_put_project_grant_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_delete_project_grant_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_event_create_event_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Event", cbor_encode(_encode_event_value(value))
+
+
+def encode_event_get_event_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Event", cbor_encode(_encode_event_value(value))
+
+
+def encode_event_update_event_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Event", cbor_encode(_encode_event_value(value))
+
+
+def encode_event_delete_event_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_event_delete_event_and_future_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_event_get_calendar_view_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CalendarView", cbor_encode(_encode_calendar_view_value(value))
+
+
+def encode_event_set_calendar_view_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CalendarView", cbor_encode(_encode_calendar_view_value(value))
+
+
+def encode_event_accept_event_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Event", cbor_encode(_encode_event_value(value))
+
+
+def encode_event_recover_edit_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Event", cbor_encode(_encode_event_value(value))
+
+
+def encode_event_decline_event_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Event", cbor_encode(_encode_event_value(value))
+
+
+def encode_calendar_list_project_deadlines_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "ProjectDeadlineList", cbor_encode(_encode_project_deadline_list_value(value))
+
+
+def encode_calendar_get_status_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CalendarStatus", cbor_encode(_encode_calendar_status_value(value))
+
+
+def encode_calendar_configure_calendar_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CalendarStatus", cbor_encode(_encode_calendar_status_value(value))
+
+
+def encode_calendar_begin_connect_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CalendarConnectResponse", cbor_encode(_encode_calendar_connect_response_value(value))
+
+
+def encode_calendar_complete_connect_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CalendarStatus", cbor_encode(_encode_calendar_status_value(value))
+
+
+def encode_calendar_disconnect_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_calendar_restore_event_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Event", cbor_encode(_encode_event_value(value))
+
+
+def encode_task_create_task_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Task", cbor_encode(_encode_task_value(value))
+
+
+def encode_task_get_task_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Task", cbor_encode(_encode_task_value(value))
+
+
+def encode_task_update_task_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Task", cbor_encode(_encode_task_value(value))
+
+
+def encode_task_delete_task_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_task_list_tasks_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "TaskList", cbor_encode(_encode_task_list_value(value))
+
+
+def encode_task_create_personal_task_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Task", cbor_encode(_encode_task_value(value))
+
+
+def encode_task_set_task_visibility_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Task", cbor_encode(_encode_task_value(value))
+
+
+def encode_task_put_task_grant_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_task_delete_task_grant_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_dependency_add_dependency_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_dependency_remove_dependency_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_dependency_get_dependencies_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "DependencyGraph", cbor_encode(_encode_dependency_graph_value(value))
+
+
+def encode_comment_create_comment_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Comment", cbor_encode(_encode_comment_value(value))
+
+
+def encode_comment_get_comment_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Comment", cbor_encode(_encode_comment_value(value))
+
+
+def encode_comment_update_comment_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Comment", cbor_encode(_encode_comment_value(value))
+
+
+def encode_comment_delete_comment_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_notification_unread_count_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "NotificationUnreadCount", cbor_encode(_encode_notification_unread_count_value(value))
+
+
+def encode_notification_mark_read_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Notification", cbor_encode(_encode_notification_value(value))
+
+
+def encode_notification_mark_all_read_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_share_create_share_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Share", cbor_encode(_encode_share_value(value))
+
+
+def encode_share_delete_share_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_share_check_access_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Share", cbor_encode(_encode_share_value(value))
+
+
+def encode_settings_get_settings_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EffectiveSettings", cbor_encode(_encode_effective_settings_value(value))
+
+
+def encode_settings_update_settings_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EffectiveSettings", cbor_encode(_encode_effective_settings_value(value))
+
+
+def encode_bug_report_bug_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "Task", cbor_encode(_encode_task_value(value))
+
+
+def encode_audit_query_audit_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "AuditPage", cbor_encode(_encode_audit_page_value(value))
+
+
+def encode_trash_list_trash_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "TrashPage", cbor_encode(_encode_trash_page_value(value))
+
+
+def encode_trash_restore_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_trash_purge_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def resolve_rpc_reply(service, op, variant, payload):
+    if (service, op) == ("AuthService", "begin-browser-login"):
+        if variant == "BeginBrowserLoginResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "get-act-as-scope-set"):
+        if variant == "ActAsScopeSetResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "exchange-act-as-credential"):
+        if variant == "ActAsTokenResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "login"):
+        if variant == "LoginResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "complete"):
+        if variant == "LoginResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "refresh"):
+        if variant == "LoginResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "logout"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "resume-session"):
+        if variant == "LoginResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "end-session"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "me"):
+        if variant == "MeResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "begin-cli-login"):
+        if variant == "BeginCliLoginResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "inspect-cli-login"):
+        if variant == "CliLoginRequestInfo":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "approve-cli-login"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "deny-cli-login"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "exchange-cli-login"):
+        if variant == "ExchangeCliLoginResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "refresh-session"):
+        if variant == "CliTokenResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "list-sessions"):
+        if variant == "CliSessionsResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuthService", "revoke-session"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("DevAuthService", "list-dev-users"):
+        if variant == "DevUsersResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("DevAuthService", "dev-login"):
+        if variant == "LoginResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("HouseService", "create-house"):
+        if variant == "House":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("HouseService", "get-house"):
+        if variant == "House":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("HouseService", "update-house"):
+        if variant == "House":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("HouseService", "delete-house"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("MemberService", "create-member"):
+        if variant == "Member":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("MemberService", "get-member"):
+        if variant == "Member":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("MemberService", "get-member-by-identity"):
+        if variant == "Member":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("MemberService", "update-member"):
+        if variant == "Member":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("MemberService", "deactivate-member"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("MemberService", "reactivate-member"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TrustedDomainService", "add-trusted-domain"):
+        if variant == "TrustedDomain":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TrustedDomainService", "remove-trusted-domain"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TrustedDomainService", "is-domain-trusted"):
+        if variant == "BoolResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("RoleService", "create-role"):
+        if variant == "Role":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("RoleService", "update-role"):
+        if variant == "Role":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("RoleService", "delete-role"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("RoleService", "grant-role"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("RoleService", "revoke-role"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SkillService", "create-skill"):
+        if variant == "Skill":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SkillService", "update-skill"):
+        if variant == "Skill":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SkillService", "delete-skill"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SkillService", "add-member-skill"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SkillService", "remove-member-skill"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SkillService", "add-group-skill"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SkillService", "remove-group-skill"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("GroupService", "create-group"):
+        if variant == "Group":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("GroupService", "update-group"):
+        if variant == "Group":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("GroupService", "delete-group"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("GroupService", "add-group-member"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("GroupService", "remove-group-member"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "create-project"):
+        if variant == "Project":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "get-project"):
+        if variant == "Project":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "update-project"):
+        if variant == "Project":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "delete-project"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "list-projects"):
+        if variant == "ProjectList":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "list-project-tasks"):
+        if variant == "TaskList":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "add-project-task"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "remove-project-task"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "set-project-task-position"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "add-project-member"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "remove-project-member"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "add-project-owner"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "remove-project-owner"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "create-milestone"):
+        if variant == "Milestone":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "update-milestone"):
+        if variant == "Milestone":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "delete-milestone"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "set-project-visibility"):
+        if variant == "Project":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "put-project-grant"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "delete-project-grant"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "create-event"):
+        if variant == "Event":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "get-event"):
+        if variant == "Event":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "update-event"):
+        if variant == "Event":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "delete-event"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "delete-event-and-future"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "get-calendar-view"):
+        if variant == "CalendarView":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "set-calendar-view"):
+        if variant == "CalendarView":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "accept-event"):
+        if variant == "Event":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "recover-edit"):
+        if variant == "Event":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "decline-event"):
+        if variant == "Event":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CalendarService", "list-project-deadlines"):
+        if variant == "ProjectDeadlineList":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CalendarService", "get-status"):
+        if variant == "CalendarStatus":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CalendarService", "configure-calendar"):
+        if variant == "CalendarStatus":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CalendarService", "begin-connect"):
+        if variant == "CalendarConnectResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CalendarService", "complete-connect"):
+        if variant == "CalendarStatus":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CalendarService", "disconnect"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CalendarService", "restore-event"):
+        if variant == "Event":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TaskService", "create-task"):
+        if variant == "Task":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TaskService", "get-task"):
+        if variant == "Task":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TaskService", "update-task"):
+        if variant == "Task":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TaskService", "delete-task"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TaskService", "list-tasks"):
+        if variant == "TaskList":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TaskService", "create-personal-task"):
+        if variant == "Task":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TaskService", "set-task-visibility"):
+        if variant == "Task":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TaskService", "put-task-grant"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TaskService", "delete-task-grant"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("DependencyService", "add-dependency"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("DependencyService", "remove-dependency"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("DependencyService", "get-dependencies"):
+        if variant == "DependencyGraph":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CommentService", "create-comment"):
+        if variant == "Comment":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CommentService", "get-comment"):
+        if variant == "Comment":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CommentService", "update-comment"):
+        if variant == "Comment":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CommentService", "delete-comment"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("NotificationService", "unread-count"):
+        if variant == "NotificationUnreadCount":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("NotificationService", "mark-read"):
+        if variant == "Notification":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("NotificationService", "mark-all-read"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ShareService", "create-share"):
+        if variant == "Share":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ShareService", "delete-share"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ShareService", "check-access"):
+        if variant == "Share":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SettingsService", "get-settings"):
+        if variant == "EffectiveSettings":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SettingsService", "update-settings"):
+        if variant == "EffectiveSettings":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("BugService", "report-bug"):
+        if variant == "Task":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("AuditService", "query-audit"):
+        if variant == "AuditPage":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TrashService", "list-trash"):
+        if variant == "TrashPage":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TrashService", "restore"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TrashService", "purge"):
+        if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    return payload

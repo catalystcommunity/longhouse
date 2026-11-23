@@ -39,16 +39,7 @@ func (s *AuditService) QueryAudit(ctx context.Context, q csil.AuditQuery) (csil.
 		v := string(*q.ActorMemberId)
 		f.ActorMemberID = &v
 	}
-	if q.Since != nil {
-		if t, err := time.Parse(time.RFC3339, string(*q.Since)); err == nil {
-			f.Since = &t
-		}
-	}
-	if q.Until != nil {
-		if t, err := time.Parse(time.RFC3339, string(*q.Until)); err == nil {
-			f.Until = &t
-		}
-	}
+	f.Since, f.Until = q.Since, q.Until
 	limit := 100
 	if q.Limit != nil && *q.Limit > 0 {
 		limit = int(*q.Limit)

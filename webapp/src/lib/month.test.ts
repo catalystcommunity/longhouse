@@ -5,17 +5,17 @@ import type { Event } from "@longhouse/client";
 // Tiny event factory that pretends an all-day event for a single date —
 // enough to drive the grouping/spanning math without exercising the
 // transport's snake↔camel bridge.
-const isoOnDay = (y: number, m: number, d: number) => new Date(y, m - 1, d, 9).toISOString();
+const dayAtNine = (y: number, m: number, d: number) => new Date(y, m - 1, d, 9);
 
 const ev = (over: Partial<Event>): Event => ({
   eventId: "e",
   houseId: "h",
   ownerMemberId: "m",
   title: "x",
-  startsAt: isoOnDay(2026, 5, 1),
-  endsAt: isoOnDay(2026, 5, 1),
-  createdAt: "2026-05-01T00:00:00Z",
-  updatedAt: "2026-05-01T00:00:00Z",
+  startsAt: dayAtNine(2026, 5, 1),
+  endsAt: dayAtNine(2026, 5, 1),
+  createdAt: new Date("2026-05-01T00:00:00Z"),
+  updatedAt: new Date("2026-05-01T00:00:00Z"),
   ...over,
 });
 
@@ -43,8 +43,8 @@ describe("buildCells", () => {
 
 describe("groupSingleByDate", () => {
   it("groups single-day events and skips spans", () => {
-    const single = ev({ eventId: "s", startsAt: isoOnDay(2026, 5, 4), endsAt: isoOnDay(2026, 5, 4) });
-    const span = ev({ eventId: "p", startsAt: isoOnDay(2026, 5, 9), endsAt: isoOnDay(2026, 5, 10) });
+    const single = ev({ eventId: "s", startsAt: dayAtNine(2026, 5, 4), endsAt: dayAtNine(2026, 5, 4) });
+    const span = ev({ eventId: "p", startsAt: dayAtNine(2026, 5, 9), endsAt: dayAtNine(2026, 5, 10) });
     const map = groupSingleByDate([single, span]);
     expect(map.get("2026-05-04")?.length).toBe(1);
     expect(map.get("2026-05-09")).toBeUndefined();
@@ -54,7 +54,7 @@ describe("groupSingleByDate", () => {
 describe("placeSpans", () => {
   it("places multi-day events with the right row/col/span", () => {
     const cells = buildCells(2026, 4, "2026-05-18");
-    const span = ev({ eventId: "p", startsAt: isoOnDay(2026, 5, 9), endsAt: isoOnDay(2026, 5, 10) });
+    const span = ev({ eventId: "p", startsAt: dayAtNine(2026, 5, 9), endsAt: dayAtNine(2026, 5, 10) });
     const placements = placeSpans([span], cells);
     expect(placements.length).toBe(1);
     expect(placements[0].span).toBe(2);

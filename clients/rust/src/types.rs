@@ -1,6 +1,6 @@
 //! Generated types from CSIL specification
 
-#![allow(non_camel_case_types, clippy::large_enum_variant)]
+#![allow(clippy::large_enum_variant)]
 
 /// Returned by a generated `validate` method when a field violates one of its
 /// CSIL constraints. `field` names the offending field; `message` explains.
@@ -53,8 +53,6 @@ pub type NotificationID = String;
 pub type NotificationEventID = String;
 
 pub type CliSessionID = String;
-
-pub type Timestamp = String;
 
 /// TaskStatus variants
 #[derive(Debug, Clone, PartialEq)]
@@ -159,8 +157,8 @@ pub struct House {
     /// constraint: size in 1..=256
     pub name: String,
     pub description: Option<String>,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
+    pub updated_at: time::OffsetDateTime,
 }
 
 impl House {
@@ -190,10 +188,10 @@ pub struct Member {
     pub avatar_url: Option<String>,
     pub handle: Option<String>,
     pub cached_public_key: Option<Vec<u8>>,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
-    pub last_seen_at: Option<Timestamp>,
-    pub deactivated_at: Option<Timestamp>,
+    pub created_at: time::OffsetDateTime,
+    pub updated_at: time::OffsetDateTime,
+    pub last_seen_at: Option<time::OffsetDateTime>,
+    pub deactivated_at: Option<time::OffsetDateTime>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -201,7 +199,7 @@ pub struct TrustedDomain {
     pub trusted_domain_id: TrustedDomainID,
     pub house_id: HouseID,
     pub domain: String,
-    pub created_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -211,8 +209,8 @@ pub struct Role {
     /// constraint: size in 1..=128
     pub name: String,
     pub description: Option<String>,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
+    pub updated_at: time::OffsetDateTime,
 }
 
 impl Role {
@@ -235,7 +233,7 @@ impl Role {
 pub struct MemberRole {
     pub member_id: MemberID,
     pub role_id: RoleID,
-    pub created_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -248,7 +246,7 @@ pub struct MemberAudit {
     pub target_type: Option<String>,
     pub target_id: Option<String>,
     pub detail: Option<String>,
-    pub created_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -258,8 +256,8 @@ pub struct Skill {
     /// constraint: size in 1..=256
     pub name: String,
     pub description: Option<String>,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
+    pub updated_at: time::OffsetDateTime,
 }
 
 impl Skill {
@@ -282,14 +280,14 @@ impl Skill {
 pub struct MemberSkill {
     pub member_id: MemberID,
     pub skill_id: SkillID,
-    pub created_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GroupSkill {
     pub group_id: GroupID,
     pub skill_id: SkillID,
-    pub created_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -299,8 +297,8 @@ pub struct Group {
     /// constraint: size in 1..=256
     pub name: String,
     pub description: Option<String>,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
+    pub updated_at: time::OffsetDateTime,
 }
 
 impl Group {
@@ -323,7 +321,7 @@ impl Group {
 pub struct GroupMember {
     pub group_id: GroupID,
     pub member_id: MemberID,
-    pub created_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -340,8 +338,8 @@ pub struct Project {
     pub visibility: Option<AccessLevel>,
     pub created_by_member_id: Option<MemberID>,
     pub personal: Option<bool>,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
+    pub updated_at: time::OffsetDateTime,
 }
 
 impl Project {
@@ -365,21 +363,21 @@ pub struct ProjectTask {
     pub project_id: ProjectID,
     pub task_id: TaskID,
     pub position: i64,
-    pub created_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProjectMember {
     pub project_id: ProjectID,
     pub member_id: MemberID,
-    pub created_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProjectOwner {
     pub project_id: ProjectID,
     pub member_id: MemberID,
-    pub created_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -391,8 +389,8 @@ pub struct Milestone {
     pub when_label: String,
     pub state: MilestoneState,
     pub position: i64,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
+    pub updated_at: time::OffsetDateTime,
 }
 
 impl Milestone {
@@ -420,8 +418,8 @@ pub struct Event {
     pub title: String,
     pub description: Option<String>,
     pub location: Option<String>,
-    pub starts_at: Option<Timestamp>,
-    pub ends_at: Option<Timestamp>,
+    pub starts_at: Option<time::OffsetDateTime>,
+    pub ends_at: Option<time::OffsetDateTime>,
     /// default: false
     pub all_day: Option<bool>,
     pub timezone: Option<String>,
@@ -432,7 +430,7 @@ pub struct Event {
     pub recurrence_interval: Option<i64>,
     pub recurrence_by_weekday: Option<Vec<i64>>,
     pub recurrence_by_setpos: Option<i64>,
-    pub next_recurrence_at: Option<Timestamp>,
+    pub next_recurrence_at: Option<time::OffsetDateTime>,
     pub recurrence_root_event_id: Option<EventID>,
     pub calendar_state: Option<String>,
     pub revision: Option<u64>,
@@ -441,8 +439,8 @@ pub struct Event {
     pub edit_pending_member_id: Option<MemberID>,
     pub calendar_unbound: Option<bool>,
     pub edit_scope: Option<String>,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
+    pub updated_at: time::OffsetDateTime,
 }
 
 impl Event {
@@ -476,7 +474,7 @@ pub struct Task {
     pub description: Option<String>,
     /// default: "open"
     pub status: Option<TaskStatus>,
-    pub due_at: Option<Timestamp>,
+    pub due_at: Option<time::OffsetDateTime>,
     pub tag: Option<String>,
     pub estimate_minutes: Option<u64>,
     pub recurrence_freq: Option<RecurrenceFreq>,
@@ -485,11 +483,11 @@ pub struct Task {
     pub recurrence_interval: Option<i64>,
     pub recurrence_by_weekday: Option<Vec<i64>>,
     pub recurrence_by_setpos: Option<i64>,
-    pub next_recurrence_at: Option<Timestamp>,
+    pub next_recurrence_at: Option<time::OffsetDateTime>,
     pub recurrence_root_task_id: Option<TaskID>,
-    pub deleted_at: Option<Timestamp>,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
+    pub deleted_at: Option<time::OffsetDateTime>,
+    pub created_at: time::OffsetDateTime,
+    pub updated_at: time::OffsetDateTime,
 }
 
 impl Task {
@@ -517,8 +515,8 @@ pub struct Comment {
     pub target_id: String,
     /// constraint: size in 1..=10000
     pub body: String,
-    pub created_at: Timestamp,
-    pub updated_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
+    pub updated_at: time::OffsetDateTime,
 }
 
 impl Comment {
@@ -548,8 +546,8 @@ pub struct Share {
     pub resource_id: String,
     /// default: "read"
     pub access_level: Option<AccessLevel>,
-    pub created_at: Timestamp,
-    pub expires_at: Option<Timestamp>,
+    pub created_at: time::OffsetDateTime,
+    pub expires_at: Option<time::OffsetDateTime>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -612,7 +610,7 @@ pub struct LoginResponse {
     pub domain: String,
     pub user_id: String,
     pub display_name: Option<String>,
-    pub expires_at: Timestamp,
+    pub expires_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -621,9 +619,9 @@ pub struct CliTokenResponse {
     pub domain: String,
     pub user_id: String,
     pub display_name: Option<String>,
-    pub expires_at: Timestamp,
+    pub expires_at: time::OffsetDateTime,
     pub refresh_token: String,
-    pub refresh_expires_at: Timestamp,
+    pub refresh_expires_at: time::OffsetDateTime,
     pub session_id: CliSessionID,
 }
 
@@ -654,7 +652,7 @@ pub struct BeginCliLoginResponse {
     pub device_code: String,
     pub user_code: String,
     pub verification_url: String,
-    pub expires_at: Timestamp,
+    pub expires_at: time::OffsetDateTime,
     pub interval_seconds: u64,
 }
 
@@ -667,7 +665,7 @@ pub struct ApproveCliLoginRequest {
 pub struct CliLoginRequestInfo {
     pub user_code: String,
     pub client_name: String,
-    pub expires_at: Timestamp,
+    pub expires_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -695,10 +693,10 @@ pub struct RefreshSessionRequest {
 pub struct CliSessionSummary {
     pub session_id: CliSessionID,
     pub client_name: String,
-    pub created_at: Timestamp,
-    pub last_used_at: Timestamp,
-    pub expires_at: Timestamp,
-    pub revoked_at: Option<Timestamp>,
+    pub created_at: time::OffsetDateTime,
+    pub last_used_at: time::OffsetDateTime,
+    pub expires_at: time::OffsetDateTime,
+    pub revoked_at: Option<time::OffsetDateTime>,
     pub kind: Option<SessionKind>,
     pub current: Option<bool>,
 }
@@ -739,7 +737,7 @@ pub struct MeResponse {
     pub domain: String,
     pub user_id: String,
     pub display_name: Option<String>,
-    pub expires_at: Timestamp,
+    pub expires_at: time::OffsetDateTime,
     pub houses: Vec<HouseSummary>,
 }
 
@@ -774,8 +772,8 @@ pub struct HouseScopedListRequest {
 #[derive(Debug, Clone, PartialEq)]
 pub struct EventListRequest {
     pub house_id: HouseID,
-    pub range_start: Option<Timestamp>,
-    pub range_end: Option<Timestamp>,
+    pub range_start: Option<time::OffsetDateTime>,
+    pub range_end: Option<time::OffsetDateTime>,
     /// default: 50
     pub limit: Option<u64>,
     /// default: 0
@@ -792,9 +790,9 @@ pub struct TaskListRequest {
     pub state: Option<TaskState>,
     pub mine: Option<bool>,
     pub loose: Option<bool>,
-    pub due_from: Option<Timestamp>,
-    pub due_to: Option<Timestamp>,
-    pub due_before: Option<Vec<Timestamp>>,
+    pub due_from: Option<time::OffsetDateTime>,
+    pub due_to: Option<time::OffsetDateTime>,
+    pub due_before: Option<Vec<time::OffsetDateTime>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -855,8 +853,8 @@ pub struct Notification {
     pub target_title: String,
     pub body: String,
     pub read: bool,
-    pub read_at: Option<Timestamp>,
-    pub created_at: Timestamp,
+    pub read_at: Option<time::OffsetDateTime>,
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1086,7 +1084,7 @@ pub struct ActAsTokenResponse {
     pub token: String,
     pub domain: String,
     pub user_id: String,
-    pub expires_at: Timestamp,
+    pub expires_at: time::OffsetDateTime,
     pub grant_id: String,
     pub grantee: String,
     pub scopes: Vec<String>,
@@ -1119,7 +1117,7 @@ pub struct CalendarStatus {
     pub ready: bool,
     pub connected: bool,
     pub last_error: Option<String>,
-    pub sync_pending_since: Option<Timestamp>,
+    pub sync_pending_since: Option<time::OffsetDateTime>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1144,8 +1142,8 @@ pub struct CompleteCalendarConnectRequest {
 pub struct CalendarTrashEntry {
     pub trash_id: String,
     pub event: Event,
-    pub deleted_at: Timestamp,
-    pub expires_at: Timestamp,
+    pub deleted_at: time::OffsetDateTime,
+    pub expires_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1165,15 +1163,15 @@ pub struct CalendarMigrationRow {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProjectDeadlineRequest {
     pub project_id: ProjectID,
-    pub range_start: Timestamp,
-    pub range_end: Timestamp,
+    pub range_start: time::OffsetDateTime,
+    pub range_end: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProjectDeadline {
     pub task_id: TaskID,
     pub title: String,
-    pub due_at: Timestamp,
+    pub due_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1203,7 +1201,7 @@ pub struct AuditEntry {
     pub before: Option<String>,
     pub after: Option<String>,
     pub detail: Option<String>,
-    pub created_at: Timestamp,
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1212,8 +1210,8 @@ pub struct AuditQuery {
     pub actor_member_id: Option<MemberID>,
     pub resource_type: Option<String>,
     pub action: Option<String>,
-    pub since: Option<Timestamp>,
-    pub until: Option<Timestamp>,
+    pub since: Option<time::OffsetDateTime>,
+    pub until: Option<time::OffsetDateTime>,
     pub cursor: Option<String>,
     /// default: 100
     pub limit: Option<u64>,
@@ -1231,7 +1229,7 @@ pub struct TrashItem {
     pub resource_id: String,
     pub house_id: HouseID,
     pub title: Option<String>,
-    pub deleted_at: Timestamp,
+    pub deleted_at: time::OffsetDateTime,
     pub deleted_by_member_id: Option<MemberID>,
     pub deleted_op_id: String,
 }
