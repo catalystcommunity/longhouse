@@ -13,5 +13,4 @@ job:
   working_dir: /job
 environment:
   REACTORCIDE_LONGHOUSE_JOB: release
-  REACTORCIDE_REPO: "catalystcommunity/longhouse"
   GITHUB_PAT: "${secret:catalystcommunity/ci:githubpat}"
