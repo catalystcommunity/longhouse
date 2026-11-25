@@ -1130,6 +1130,51 @@ data class ActAsTokenResponse(
     val scopes: List<String>
 )
 
+/** Type alias for CalendarMigrationRowItems. */
+typealias CalendarMigrationRowItems = List<CalendarMigrationRow>
+
+/** Type alias for CalendarTrashEntryItems. */
+typealias CalendarTrashEntryItems = List<CalendarTrashEntry>
+
+/** Type alias for CommentItems. */
+typealias CommentItems = List<Comment>
+
+/** Type alias for EventItems. */
+typealias EventItems = List<Event>
+
+/** Type alias for GrantItems. */
+typealias GrantItems = List<Grant>
+
+/** Type alias for GroupItems. */
+typealias GroupItems = List<Group>
+
+/** Type alias for HouseItems. */
+typealias HouseItems = List<House>
+
+/** Type alias for MemberItems. */
+typealias MemberItems = List<Member>
+
+/** Type alias for MemberAuditItems. */
+typealias MemberAuditItems = List<MemberAudit>
+
+/** Type alias for MilestoneItems. */
+typealias MilestoneItems = List<Milestone>
+
+/** Type alias for NotificationItems. */
+typealias NotificationItems = List<Notification>
+
+/** Type alias for RoleItems. */
+typealias RoleItems = List<Role>
+
+/** Type alias for ShareItems. */
+typealias ShareItems = List<Share>
+
+/** Type alias for SkillItems. */
+typealias SkillItems = List<Skill>
+
+/** Type alias for TrustedDomainItems. */
+typealias TrustedDomainItems = List<TrustedDomain>
+
 /** CalendarSubscription record. */
 data class CalendarSubscription(
     // wire key: subject_member_id

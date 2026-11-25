@@ -55,7 +55,7 @@ pub type NotificationEventID = String;
 pub type CliSessionID = String;
 
 /// TaskStatus variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaskStatus {
     Open,
     InProgress,
@@ -64,7 +64,7 @@ pub enum TaskStatus {
 }
 
 /// TargetType variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TargetType {
     Event,
     Task,
@@ -72,7 +72,7 @@ pub enum TargetType {
 }
 
 /// AccessLevel variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AccessLevel {
     None,
     Read,
@@ -81,14 +81,14 @@ pub enum AccessLevel {
 }
 
 /// GranteeType variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GranteeType {
     Member,
     Group,
 }
 
 /// ResourceType variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ResourceType {
     Event,
     Task,
@@ -96,21 +96,21 @@ pub enum ResourceType {
 }
 
 /// ProjectStatus variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProjectStatus {
     Active,
     Archived,
 }
 
 /// DependencyNodeType variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DependencyNodeType {
     Task,
     Project,
 }
 
 /// RecurrenceFreq variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RecurrenceFreq {
     Hourly,
     Daily,
@@ -121,7 +121,7 @@ pub enum RecurrenceFreq {
 }
 
 /// MilestoneState variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MilestoneState {
     Done,
     Current,
@@ -129,7 +129,7 @@ pub enum MilestoneState {
 }
 
 /// CliLoginStatus variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CliLoginStatus {
     Pending,
     Denied,
@@ -138,14 +138,14 @@ pub enum CliLoginStatus {
 }
 
 /// SessionKind variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SessionKind {
     Cli,
     Browser,
 }
 
 /// TaskState variants
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaskState {
     Open,
     Closed,
@@ -1089,6 +1089,36 @@ pub struct ActAsTokenResponse {
     pub grantee: String,
     pub scopes: Vec<String>,
 }
+
+pub type CalendarMigrationRowItems = Vec<CalendarMigrationRow>;
+
+pub type CalendarTrashEntryItems = Vec<CalendarTrashEntry>;
+
+pub type CommentItems = Vec<Comment>;
+
+pub type EventItems = Vec<Event>;
+
+pub type GrantItems = Vec<Grant>;
+
+pub type GroupItems = Vec<Group>;
+
+pub type HouseItems = Vec<House>;
+
+pub type MemberItems = Vec<Member>;
+
+pub type MemberAuditItems = Vec<MemberAudit>;
+
+pub type MilestoneItems = Vec<Milestone>;
+
+pub type NotificationItems = Vec<Notification>;
+
+pub type RoleItems = Vec<Role>;
+
+pub type ShareItems = Vec<Share>;
+
+pub type SkillItems = Vec<Skill>;
+
+pub type TrustedDomainItems = Vec<TrustedDomain>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CalendarSubscription {

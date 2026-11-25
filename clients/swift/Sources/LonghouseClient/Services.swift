@@ -3,230 +3,231 @@
 
 /// Transport-level failures a router can raise (distinct from application errors,
 /// which ride inside the payload as a declared `/ ErrorType` arm).
-public enum CsilTransportError: Error, Equatable {
-    case unknownOperation(String)
-    case unknownOrdinal(UInt64)
+public enum CsilTransportError: Swift.Error, Equatable {
+  case unknownOperation(String)
+  case unknownOrdinal(UInt64)
 }
 
 /// AuthService is the server-side handler seam.
 public protocol AuthService {
-    func beginBrowserLogin(_ request: BeginBrowserLoginRequest) throws -> BeginBrowserLoginResponse
-    func getActAsScopeSet(_ request: ActAsScopeSetRequest) throws -> ActAsScopeSetResponse
-    func exchangeActAsCredential(_ request: ExchangeActAsCredentialRequest) throws -> ActAsTokenResponse
-    func login(_ request: LoginRequest) throws -> LoginResponse
-    func complete(_ request: CompleteRequest) throws -> LoginResponse
-    func refresh(_ request: EmptyRequest) throws -> LoginResponse
-    func logout(_ request: EmptyRequest) throws -> EmptyResponse
-    func resumeSession(_ request: EmptyRequest) throws -> LoginResponse
-    func endSession(_ request: EmptyRequest) throws -> EmptyResponse
-    func me(_ request: EmptyRequest) throws -> MeResponse
-    func beginCliLogin(_ request: BeginCliLoginRequest) throws -> BeginCliLoginResponse
-    func inspectCliLogin(_ request: ApproveCliLoginRequest) throws -> CliLoginRequestInfo
-    func approveCliLogin(_ request: ApproveCliLoginRequest) throws -> EmptyResponse
-    func denyCliLogin(_ request: DenyCliLoginRequest) throws -> EmptyResponse
-    func exchangeCliLogin(_ request: ExchangeCliLoginRequest) throws -> ExchangeCliLoginResponse
-    func refreshSession(_ request: RefreshSessionRequest) throws -> CliTokenResponse
-    func listSessions(_ request: EmptyRequest) throws -> CliSessionsResponse
-    func revokeSession(_ request: RevokeSessionRequest) throws -> EmptyResponse
+  func beginBrowserLogin(_ request: BeginBrowserLoginRequest) throws -> BeginBrowserLoginResponse
+  func getActAsScopeSet(_ request: ActAsScopeSetRequest) throws -> ActAsScopeSetResponse
+  func exchangeActAsCredential(
+    _ request: ExchangeActAsCredentialRequest
+  ) throws -> ActAsTokenResponse
+  func login(_ request: LoginRequest) throws -> LoginResponse
+  func complete(_ request: CompleteRequest) throws -> LoginResponse
+  func refresh(_ request: EmptyRequest) throws -> LoginResponse
+  func logout(_ request: EmptyRequest) throws -> EmptyResponse
+  func resumeSession(_ request: EmptyRequest) throws -> LoginResponse
+  func endSession(_ request: EmptyRequest) throws -> EmptyResponse
+  func me(_ request: EmptyRequest) throws -> MeResponse
+  func beginCliLogin(_ request: BeginCliLoginRequest) throws -> BeginCliLoginResponse
+  func inspectCliLogin(_ request: ApproveCliLoginRequest) throws -> CliLoginRequestInfo
+  func approveCliLogin(_ request: ApproveCliLoginRequest) throws -> EmptyResponse
+  func denyCliLogin(_ request: DenyCliLoginRequest) throws -> EmptyResponse
+  func exchangeCliLogin(_ request: ExchangeCliLoginRequest) throws -> ExchangeCliLoginResponse
+  func refreshSession(_ request: RefreshSessionRequest) throws -> CliTokenResponse
+  func listSessions(_ request: EmptyRequest) throws -> CliSessionsResponse
+  func revokeSession(_ request: RevokeSessionRequest) throws -> EmptyResponse
 }
 
 /// DevAuthService is the server-side handler seam.
 public protocol DevAuthService {
-    func listDevUsers(_ request: EmptyRequest) throws -> DevUsersResponse
-    func devLogin(_ request: DevLoginRequest) throws -> LoginResponse
+  func listDevUsers(_ request: EmptyRequest) throws -> DevUsersResponse
+  func devLogin(_ request: DevLoginRequest) throws -> LoginResponse
 }
 
 /// HouseService is the server-side handler seam.
 public protocol HouseService {
-    func createHouse(_ request: House) throws -> House
-    func getHouse(_ request: HouseId) throws -> House
-    func updateHouse(_ request: House) throws -> House
-    func deleteHouse(_ request: HouseId) throws -> EmptyResponse
-    func listHouses(_ request: HouseListRequest) throws -> [House]
+  func createHouse(_ request: House) throws -> House
+  func getHouse(_ request: HouseId) throws -> House
+  func updateHouse(_ request: House) throws -> House
+  func deleteHouse(_ request: HouseId) throws -> EmptyResponse
+  func listHouses(_ request: HouseListRequest) throws -> HouseItems
 }
 
 /// MemberService is the server-side handler seam.
 public protocol MemberService {
-    func createMember(_ request: Member) throws -> Member
-    func getMember(_ request: MemberId) throws -> Member
-    func getMemberByIdentity(_ request: Member) throws -> Member
-    func updateMember(_ request: Member) throws -> Member
-    func deactivateMember(_ request: MemberId) throws -> EmptyResponse
-    func reactivateMember(_ request: MemberId) throws -> EmptyResponse
-    func listMembers(_ request: HouseScopedListRequest) throws -> [Member]
+  func createMember(_ request: Member) throws -> Member
+  func getMember(_ request: MemberId) throws -> Member
+  func getMemberByIdentity(_ request: Member) throws -> Member
+  func updateMember(_ request: Member) throws -> Member
+  func deactivateMember(_ request: MemberId) throws -> EmptyResponse
+  func reactivateMember(_ request: MemberId) throws -> EmptyResponse
+  func listMembers(_ request: HouseScopedListRequest) throws -> MemberItems
 }
 
 /// TrustedDomainService is the server-side handler seam.
 public protocol TrustedDomainService {
-    func addTrustedDomain(_ request: TrustedDomain) throws -> TrustedDomain
-    func removeTrustedDomain(_ request: TrustedDomainId) throws -> EmptyResponse
-    func listTrustedDomains(_ request: HouseId) throws -> [TrustedDomain]
-    func isDomainTrusted(_ request: TrustedDomain) throws -> BoolResponse
+  func addTrustedDomain(_ request: TrustedDomain) throws -> TrustedDomain
+  func removeTrustedDomain(_ request: TrustedDomainId) throws -> EmptyResponse
+  func listTrustedDomains(_ request: HouseId) throws -> TrustedDomainItems
+  func isDomainTrusted(_ request: TrustedDomain) throws -> BoolResponse
 }
 
 /// RoleService is the server-side handler seam.
 public protocol RoleService {
-    func createRole(_ request: Role) throws -> Role
-    func updateRole(_ request: Role) throws -> Role
-    func deleteRole(_ request: RoleId) throws -> EmptyResponse
-    func listRoles(_ request: HouseScopedListRequest) throws -> [Role]
-    func grantRole(_ request: MemberRoleRef) throws -> EmptyResponse
-    func revokeRole(_ request: MemberRoleRef) throws -> EmptyResponse
-    func listMemberRoles(_ request: MemberScopedListRequest) throws -> [Role]
+  func createRole(_ request: Role) throws -> Role
+  func updateRole(_ request: Role) throws -> Role
+  func deleteRole(_ request: RoleId) throws -> EmptyResponse
+  func listRoles(_ request: HouseScopedListRequest) throws -> RoleItems
+  func grantRole(_ request: MemberRoleRef) throws -> EmptyResponse
+  func revokeRole(_ request: MemberRoleRef) throws -> EmptyResponse
+  func listMemberRoles(_ request: MemberScopedListRequest) throws -> RoleItems
 }
 
 /// SkillService is the server-side handler seam.
 public protocol SkillService {
-    func createSkill(_ request: Skill) throws -> Skill
-    func updateSkill(_ request: Skill) throws -> Skill
-    func deleteSkill(_ request: SkillId) throws -> EmptyResponse
-    func listSkills(_ request: HouseScopedListRequest) throws -> [Skill]
-    func addMemberSkill(_ request: MemberSkillRef) throws -> EmptyResponse
-    func removeMemberSkill(_ request: MemberSkillRef) throws -> EmptyResponse
-    func listMemberSkills(_ request: MemberScopedListRequest) throws -> [Skill]
-    func addGroupSkill(_ request: GroupSkillRef) throws -> EmptyResponse
-    func removeGroupSkill(_ request: GroupSkillRef) throws -> EmptyResponse
-    func listGroupSkills(_ request: GroupId) throws -> [Skill]
+  func createSkill(_ request: Skill) throws -> Skill
+  func updateSkill(_ request: Skill) throws -> Skill
+  func deleteSkill(_ request: SkillId) throws -> EmptyResponse
+  func listSkills(_ request: HouseScopedListRequest) throws -> SkillItems
+  func addMemberSkill(_ request: MemberSkillRef) throws -> EmptyResponse
+  func removeMemberSkill(_ request: MemberSkillRef) throws -> EmptyResponse
+  func listMemberSkills(_ request: MemberScopedListRequest) throws -> SkillItems
+  func addGroupSkill(_ request: GroupSkillRef) throws -> EmptyResponse
+  func removeGroupSkill(_ request: GroupSkillRef) throws -> EmptyResponse
+  func listGroupSkills(_ request: GroupId) throws -> SkillItems
 }
 
 /// GroupService is the server-side handler seam.
 public protocol GroupService {
-    func createGroup(_ request: Group) throws -> Group
-    func updateGroup(_ request: Group) throws -> Group
-    func deleteGroup(_ request: GroupId) throws -> EmptyResponse
-    func listGroups(_ request: HouseScopedListRequest) throws -> [Group]
-    func addGroupMember(_ request: GroupMemberRef) throws -> EmptyResponse
-    func removeGroupMember(_ request: GroupMemberRef) throws -> EmptyResponse
-    func listGroupMembers(_ request: MemberScopedListRequest) throws -> [Member]
+  func createGroup(_ request: Group) throws -> Group
+  func updateGroup(_ request: Group) throws -> Group
+  func deleteGroup(_ request: GroupId) throws -> EmptyResponse
+  func listGroups(_ request: HouseScopedListRequest) throws -> GroupItems
+  func addGroupMember(_ request: GroupMemberRef) throws -> EmptyResponse
+  func removeGroupMember(_ request: GroupMemberRef) throws -> EmptyResponse
+  func listGroupMembers(_ request: MemberScopedListRequest) throws -> MemberItems
 }
 
 /// ProjectService is the server-side handler seam.
 public protocol ProjectService {
-    func createProject(_ request: Project) throws -> Project
-    func getProject(_ request: ProjectId) throws -> Project
-    func updateProject(_ request: Project) throws -> Project
-    func deleteProject(_ request: ProjectId) throws -> EmptyResponse
-    func listProjects(_ request: HouseScopedListRequest) throws -> ProjectList
-    func listProjectTasks(_ request: ProjectScopedListRequest) throws -> TaskList
-    func addProjectTask(_ request: ProjectTaskOrderRequest) throws -> EmptyResponse
-    func removeProjectTask(_ request: ProjectTaskRef) throws -> EmptyResponse
-    func setProjectTaskPosition(_ request: ProjectTaskOrderRequest) throws -> EmptyResponse
-    func listProjectMembers(_ request: ProjectId) throws -> [Member]
-    func addProjectMember(_ request: ProjectMemberRef) throws -> EmptyResponse
-    func removeProjectMember(_ request: ProjectMemberRef) throws -> EmptyResponse
-    func listProjectOwners(_ request: ProjectId) throws -> [Member]
-    func addProjectOwner(_ request: ProjectOwnerRef) throws -> EmptyResponse
-    func removeProjectOwner(_ request: ProjectOwnerRef) throws -> EmptyResponse
-    func listMilestones(_ request: ProjectId) throws -> [Milestone]
-    func createMilestone(_ request: Milestone) throws -> Milestone
-    func updateMilestone(_ request: Milestone) throws -> Milestone
-    func deleteMilestone(_ request: MilestoneId) throws -> EmptyResponse
-    func setProjectVisibility(_ request: SetProjectVisibilityRequest) throws -> Project
-    func listProjectGrants(_ request: ProjectId) throws -> [Grant]
-    func putProjectGrant(_ request: PutProjectGrantRequest) throws -> EmptyResponse
-    func deleteProjectGrant(_ request: ProjectGrantRef) throws -> EmptyResponse
+  func createProject(_ request: Project) throws -> Project
+  func getProject(_ request: ProjectId) throws -> Project
+  func updateProject(_ request: Project) throws -> Project
+  func deleteProject(_ request: ProjectId) throws -> EmptyResponse
+  func listProjects(_ request: HouseScopedListRequest) throws -> ProjectList
+  func listProjectTasks(_ request: ProjectScopedListRequest) throws -> TaskList
+  func addProjectTask(_ request: ProjectTaskOrderRequest) throws -> EmptyResponse
+  func removeProjectTask(_ request: ProjectTaskRef) throws -> EmptyResponse
+  func setProjectTaskPosition(_ request: ProjectTaskOrderRequest) throws -> EmptyResponse
+  func listProjectMembers(_ request: ProjectId) throws -> MemberItems
+  func addProjectMember(_ request: ProjectMemberRef) throws -> EmptyResponse
+  func removeProjectMember(_ request: ProjectMemberRef) throws -> EmptyResponse
+  func listProjectOwners(_ request: ProjectId) throws -> MemberItems
+  func addProjectOwner(_ request: ProjectOwnerRef) throws -> EmptyResponse
+  func removeProjectOwner(_ request: ProjectOwnerRef) throws -> EmptyResponse
+  func listMilestones(_ request: ProjectId) throws -> MilestoneItems
+  func createMilestone(_ request: Milestone) throws -> Milestone
+  func updateMilestone(_ request: Milestone) throws -> Milestone
+  func deleteMilestone(_ request: MilestoneId) throws -> EmptyResponse
+  func setProjectVisibility(_ request: SetProjectVisibilityRequest) throws -> Project
+  func listProjectGrants(_ request: ProjectId) throws -> GrantItems
+  func putProjectGrant(_ request: PutProjectGrantRequest) throws -> EmptyResponse
+  func deleteProjectGrant(_ request: ProjectGrantRef) throws -> EmptyResponse
 }
 
 /// EventService is the server-side handler seam.
 public protocol EventService {
-    func createEvent(_ request: Event) throws -> Event
-    func getEvent(_ request: EventId) throws -> Event
-    func updateEvent(_ request: Event) throws -> Event
-    func deleteEvent(_ request: EventId) throws -> EmptyResponse
-    func deleteEventAndFuture(_ request: EventId) throws -> EmptyResponse
-    func listEvents(_ request: EventListRequest) throws -> [Event]
-    func getCalendarView(_ request: HouseId) throws -> CalendarView
-    func setCalendarView(_ request: CalendarView) throws -> CalendarView
-    func acceptEvent(_ request: EventDecision) throws -> Event
-    func recoverEdit(_ request: EventId) throws -> Event
-    func declineEvent(_ request: EventDecision) throws -> Event
-    func listLocalEvents(_ request: HouseId) throws -> [Event]
+  func createEvent(_ request: Event) throws -> Event
+  func getEvent(_ request: EventId) throws -> Event
+  func updateEvent(_ request: Event) throws -> Event
+  func deleteEvent(_ request: EventId) throws -> EmptyResponse
+  func deleteEventAndFuture(_ request: EventId) throws -> EmptyResponse
+  func listEvents(_ request: EventListRequest) throws -> EventItems
+  func getCalendarView(_ request: HouseId) throws -> CalendarView
+  func setCalendarView(_ request: CalendarView) throws -> CalendarView
+  func acceptEvent(_ request: EventDecision) throws -> Event
+  func recoverEdit(_ request: EventId) throws -> Event
+  func declineEvent(_ request: EventDecision) throws -> Event
+  func listLocalEvents(_ request: HouseId) throws -> EventItems
 }
 
 /// CalendarService is the server-side handler seam.
 public protocol CalendarService {
-    func listProjectDeadlines(_ request: ProjectDeadlineRequest) throws -> ProjectDeadlineList
-    func getStatus(_ request: HouseId) throws -> CalendarStatus
-    func configureCalendar(_ request: ConfigureCalendarRequest) throws -> CalendarStatus
-    func beginConnect(_ request: HouseId) throws -> CalendarConnectResponse
-    func completeConnect(_ request: CompleteCalendarConnectRequest) throws -> CalendarStatus
-    func disconnect(_ request: HouseId) throws -> EmptyResponse
-    func previewMigration(_ request: HouseId) throws -> [CalendarMigrationRow]
-    func listTrash(_ request: HouseId) throws -> [CalendarTrashEntry]
-    func restoreEvent(_ request: RestoreCalendarEventRequest) throws -> Event
+  func listProjectDeadlines(_ request: ProjectDeadlineRequest) throws -> ProjectDeadlineList
+  func getStatus(_ request: HouseId) throws -> CalendarStatus
+  func configureCalendar(_ request: ConfigureCalendarRequest) throws -> CalendarStatus
+  func beginConnect(_ request: HouseId) throws -> CalendarConnectResponse
+  func completeConnect(_ request: CompleteCalendarConnectRequest) throws -> CalendarStatus
+  func disconnect(_ request: HouseId) throws -> EmptyResponse
+  func previewMigration(_ request: HouseId) throws -> CalendarMigrationRowItems
+  func listTrash(_ request: HouseId) throws -> CalendarTrashEntryItems
+  func restoreEvent(_ request: RestoreCalendarEventRequest) throws -> Event
 }
 
 /// TaskService is the server-side handler seam.
 public protocol TaskService {
-    func createTask(_ request: Task) throws -> Task
-    func getTask(_ request: TaskId) throws -> Task
-    func updateTask(_ request: Task) throws -> Task
-    func deleteTask(_ request: TaskId) throws -> EmptyResponse
-    func listTasks(_ request: TaskListRequest) throws -> TaskList
-    func createPersonalTask(_ request: Task) throws -> Task
-    func setTaskVisibility(_ request: SetTaskVisibilityRequest) throws -> Task
-    func listTaskGrants(_ request: TaskId) throws -> [Grant]
-    func putTaskGrant(_ request: PutTaskGrantRequest) throws -> EmptyResponse
-    func deleteTaskGrant(_ request: TaskGrantRef) throws -> EmptyResponse
+  func createTask(_ request: Task) throws -> Task
+  func getTask(_ request: TaskId) throws -> Task
+  func updateTask(_ request: Task) throws -> Task
+  func deleteTask(_ request: TaskId) throws -> EmptyResponse
+  func listTasks(_ request: TaskListRequest) throws -> TaskList
+  func createPersonalTask(_ request: Task) throws -> Task
+  func setTaskVisibility(_ request: SetTaskVisibilityRequest) throws -> Task
+  func listTaskGrants(_ request: TaskId) throws -> GrantItems
+  func putTaskGrant(_ request: PutTaskGrantRequest) throws -> EmptyResponse
+  func deleteTaskGrant(_ request: TaskGrantRef) throws -> EmptyResponse
 }
 
 /// DependencyService is the server-side handler seam.
 public protocol DependencyService {
-    func addDependency(_ request: DependencyRef) throws -> EmptyResponse
-    func removeDependency(_ request: DependencyRef) throws -> EmptyResponse
-    func getDependencies(_ request: DependencyTarget) throws -> DependencyGraph
+  func addDependency(_ request: DependencyRef) throws -> EmptyResponse
+  func removeDependency(_ request: DependencyRef) throws -> EmptyResponse
+  func getDependencies(_ request: DependencyTarget) throws -> DependencyGraph
 }
 
 /// CommentService is the server-side handler seam.
 public protocol CommentService {
-    func createComment(_ request: Comment) throws -> Comment
-    func getComment(_ request: CommentId) throws -> Comment
-    func updateComment(_ request: Comment) throws -> Comment
-    func deleteComment(_ request: CommentId) throws -> EmptyResponse
-    func listComments(_ request: CommentListRequest) throws -> [Comment]
+  func createComment(_ request: Comment) throws -> Comment
+  func getComment(_ request: CommentId) throws -> Comment
+  func updateComment(_ request: Comment) throws -> Comment
+  func deleteComment(_ request: CommentId) throws -> EmptyResponse
+  func listComments(_ request: CommentListRequest) throws -> CommentItems
 }
 
 /// NotificationService is the server-side handler seam.
 public protocol NotificationService {
-    func listNotifications(_ request: NotificationListRequest) throws -> [Notification]
-    func unreadCount(_ request: HouseId) throws -> NotificationUnreadCount
-    func markRead(_ request: NotificationId) throws -> Notification
-    func markAllRead(_ request: HouseId) throws -> EmptyResponse
+  func listNotifications(_ request: NotificationListRequest) throws -> NotificationItems
+  func unreadCount(_ request: HouseId) throws -> NotificationUnreadCount
+  func markRead(_ request: NotificationId) throws -> Notification
+  func markAllRead(_ request: HouseId) throws -> EmptyResponse
 }
 
 /// ShareService is the server-side handler seam.
 public protocol ShareService {
-    func createShare(_ request: Share) throws -> Share
-    func deleteShare(_ request: ShareId) throws -> EmptyResponse
-    func listSharesByResource(_ request: ResourceRef) throws -> [Share]
-    func checkAccess(_ request: ShareAccessRequest) throws -> Share
+  func createShare(_ request: Share) throws -> Share
+  func deleteShare(_ request: ShareId) throws -> EmptyResponse
+  func listSharesByResource(_ request: ResourceRef) throws -> ShareItems
+  func checkAccess(_ request: ShareAccessRequest) throws -> Share
 }
 
 /// MemberAuditService is the server-side handler seam.
 public protocol MemberAuditService {
-    func listAuditsForMember(_ request: MemberScopedListRequest) throws -> [MemberAudit]
+  func listAuditsForMember(_ request: MemberScopedListRequest) throws -> MemberAuditItems
 }
 
 /// SettingsService is the server-side handler seam.
 public protocol SettingsService {
-    func getSettings(_ request: HouseId) throws -> EffectiveSettings
-    func updateSettings(_ request: UpdateSettingsRequest) throws -> EffectiveSettings
+  func getSettings(_ request: HouseId) throws -> EffectiveSettings
+  func updateSettings(_ request: UpdateSettingsRequest) throws -> EffectiveSettings
 }
 
 /// BugService is the server-side handler seam.
 public protocol BugService {
-    func reportBug(_ request: BugReportRequest) throws -> Task
+  func reportBug(_ request: BugReportRequest) throws -> Task
 }
 
 /// AuditService is the server-side handler seam.
 public protocol AuditService {
-    func queryAudit(_ request: AuditQuery) throws -> AuditPage
+  func queryAudit(_ request: AuditQuery) throws -> AuditPage
 }
 
 /// TrashService is the server-side handler seam.
 public protocol TrashService {
-    func listTrash(_ request: HouseScopedListRequest) throws -> TrashPage
-    func restore(_ request: RestoreRequest) throws -> EmptyResponse
-    func purge(_ request: PurgeRequest) throws -> EmptyResponse
+  func listTrash(_ request: HouseScopedListRequest) throws -> TrashPage
+  func restore(_ request: RestoreRequest) throws -> EmptyResponse
+  func purge(_ request: PurgeRequest) throws -> EmptyResponse
 }
-

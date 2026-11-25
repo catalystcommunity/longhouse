@@ -756,6 +756,36 @@ export interface ActAsTokenResponse {
   scopes: string[];
 }
 
+export type CalendarMigrationRowItems = CalendarMigrationRow[];
+
+export type CalendarTrashEntryItems = CalendarTrashEntry[];
+
+export type CommentItems = Comment[];
+
+export type EventItems = Event[];
+
+export type GrantItems = Grant[];
+
+export type GroupItems = Group[];
+
+export type HouseItems = House[];
+
+export type MemberItems = Member[];
+
+export type MemberAuditItems = MemberAudit[];
+
+export type MilestoneItems = Milestone[];
+
+export type NotificationItems = Notification[];
+
+export type RoleItems = Role[];
+
+export type ShareItems = Share[];
+
+export type SkillItems = Skill[];
+
+export type TrustedDomainItems = TrustedDomain[];
+
 export interface CalendarSubscription {
   subjectMemberId: MemberID;
   enabled: boolean;

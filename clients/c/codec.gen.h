@@ -70,6 +70,60 @@ static inline int csilc_buf_append(csilc_buf *b, const uint8_t *p, size_t n) {
     return 0;
 }
 
+/* The bytewise order of the encoded keys of map entries i and j (RFC 8949 4.2.1).
+ * marks[2k] is where entry k's key starts and marks[2k+1] where its value starts. */
+static inline int csilc_key_cmp(const uint8_t *base, const size_t *marks, size_t i, size_t j) {
+    size_t li = marks[2 * i + 1] - marks[2 * i];
+    size_t lj = marks[2 * j + 1] - marks[2 * j];
+    int c = memcmp(base + marks[2 * i], base + marks[2 * j], li < lj ? li : lj);
+    if (c) return c;
+    return li < lj ? -1 : (li > lj ? 1 : 0);
+}
+
+/* Reorder the n map entries already written into b (bounded by marks, with
+ * marks[2n] the end of the last entry) into canonical key order. A bottom-up merge
+ * sort needs no comparator context, which qsort cannot carry. Two equal keys are
+ * an error: canonical CBOR has no duplicate map keys. */
+static inline int csilc_sort_map_entries(csilc_buf *b, const size_t *marks, size_t n) {
+    if (n < 2) return 0;
+    if (n > SIZE_MAX / (2 * sizeof(size_t))) return -1;
+    size_t *order = (size_t *)malloc(2 * n * sizeof(size_t));
+    if (!order) return -1;
+    size_t *tmp = order + n;
+    for (size_t i = 0; i < n; i++) order[i] = i;
+    for (size_t w = 1; w < n; w = w > n / 2 ? n : w * 2) {
+        for (size_t lo = 0; lo < n; lo += 2 * w) {
+            size_t mid = w < n - lo ? lo + w : n;
+            size_t hi = 2 * w < n - lo ? lo + 2 * w : n;
+            size_t i = lo, j = mid, k = lo;
+            while (i < mid && j < hi) {
+                tmp[k++] = csilc_key_cmp(b->data, marks, order[j], order[i]) < 0 ? order[j++] : order[i++];
+            }
+            while (i < mid) tmp[k++] = order[i++];
+            while (j < hi) tmp[k++] = order[j++];
+        }
+        memcpy(order, tmp, n * sizeof(size_t));
+    }
+    for (size_t i = 1; i < n; i++) {
+        if (csilc_key_cmp(b->data, marks, order[i - 1], order[i]) == 0) { free(order); return -1; }
+    }
+    size_t start = marks[0];
+    size_t total = marks[2 * n] - start;
+    uint8_t *copy = (uint8_t *)malloc(total);
+    if (!copy) { free(order); return -1; }
+    memcpy(copy, b->data + start, total);
+    size_t at = start;
+    for (size_t i = 0; i < n; i++) {
+        size_t e = order[i];
+        size_t len = marks[2 * e + 2] - marks[2 * e];
+        memcpy(b->data + at, copy + (marks[2 * e] - start), len);
+        at += len;
+    }
+    free(copy);
+    free(order);
+    return 0;
+}
+
 /* Emit the initial byte (major type in the high three bits) plus the shortest-form
  * argument bytes for n, per deterministic encoding. */
 static inline int csilc_head(csilc_buf *b, uint8_t major, uint64_t n) {
@@ -224,6 +278,11 @@ typedef struct csilc_value csilc_value;
 typedef struct csilc_pair {
     csilc_value *key;
     csilc_value *val;
+    /* Where the key's encoded bytes start, relative to the map's own first byte,
+     * and how many there are. Offsets, not pointers, because the input buffer does
+     * not outlive the decode call. */
+    size_t key_at;
+    size_t key_len;
 } csilc_pair;
 
 struct csilc_value {
@@ -244,6 +303,15 @@ struct csilc_value {
         struct {
             csilc_pair *pairs;
             size_t count;
+            /* The encoded keys are strictly ascending in bytewise order (RFC 8949
+             * 4.2.1). A dynamic map must arrive so; a record may not. */
+            bool canonical;
+            /* Some encoded key occurs twice. Only computed when not canonical. */
+            bool duplicate;
+            /* Some key's head is longer than its value or length needs
+             * ("csil cbor: map key is not in shortest form"). Such a map is not
+             * canonical either, because one key would have two byte forms. */
+            bool long_key;
         } map;
         struct {
             uint64_t num;
@@ -344,6 +412,58 @@ static inline double csilc_half_to_double(uint16_t h) {
     return (double)f;
 }
 
+/* Whether the head of the already decoded item at b uses the shortest argument for
+ * its value or length (RFC 8949 4.2.1). A float (major 7) has no such rule. */
+static inline bool csilc_shortest_head(const uint8_t *b) {
+    uint8_t major = b[0] >> 5;
+    uint8_t low = b[0] & 0x1f;
+    if (major == 7 || low < 24) return true;
+    uint64_t arg = 0;
+    size_t width = (size_t)1 << (low - 24);
+    for (size_t i = 1; i <= width; i++) arg = (arg << 8) | (uint64_t)b[i];
+    static const uint64_t floor_of[] = {24u, 0x100u, 0x10000u, 0x100000000u};
+    return arg >= floor_of[low - 24];
+}
+
+/* The bytewise order of two encoded map keys of one map that starts at base. */
+static inline int csilc_span_cmp(const uint8_t *base, const csilc_pair *x, const csilc_pair *y) {
+    size_t n = x->key_len < y->key_len ? x->key_len : y->key_len;
+    int c = memcmp(base + x->key_at, base + y->key_at, n);
+    if (c) return c;
+    return x->key_len < y->key_len ? -1 : (x->key_len > y->key_len ? 1 : 0);
+}
+
+/* 1 when two of the n keys have the same encoding, 0 when not, -1 when out of
+ * memory. A merge sort of the key spans keeps this O(n log n) for a hostile map
+ * that is not in canonical order; a canonical map never comes here. */
+static inline int csilc_has_duplicate_key(const uint8_t *base, const csilc_pair *pairs, size_t n) {
+    if (n < 2) return 0;
+    if (n > SIZE_MAX / (2 * sizeof(size_t))) return -1;
+    size_t *order = (size_t *)malloc(2 * n * sizeof(size_t));
+    if (!order) return -1;
+    size_t *tmp = order + n;
+    for (size_t i = 0; i < n; i++) order[i] = i;
+    for (size_t w = 1; w < n; w = w > n / 2 ? n : w * 2) {
+        for (size_t lo = 0; lo < n; lo += 2 * w) {
+            size_t mid = w < n - lo ? lo + w : n;
+            size_t hi = 2 * w < n - lo ? lo + 2 * w : n;
+            size_t i = lo, j = mid, k = lo;
+            while (i < mid && j < hi) {
+                tmp[k++] = csilc_span_cmp(base, &pairs[order[j]], &pairs[order[i]]) < 0 ? order[j++] : order[i++];
+            }
+            while (i < mid) tmp[k++] = order[i++];
+            while (j < hi) tmp[k++] = order[j++];
+        }
+        memcpy(order, tmp, n * sizeof(size_t));
+    }
+    int dup = 0;
+    for (size_t i = 1; i < n && !dup; i++) {
+        if (csilc_span_cmp(base, &pairs[order[i - 1]], &pairs[order[i]]) == 0) dup = 1;
+    }
+    free(order);
+    return dup;
+}
+
 static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t len,
                               csilc_value *out, size_t *consumed, size_t depth) {
     if (depth > 64) return -1;
@@ -414,6 +534,8 @@ static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t
             if (!pairs) return -1;
         }
         size_t off = head;
+        bool canonical = true;
+        bool long_key = false;
         for (uint64_t i = 0; i < arg; i++) {
             if (i == cap) {
                 size_t grown = cap * 2 < (size_t)arg ? cap * 2 : (size_t)arg;
@@ -426,6 +548,11 @@ static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t
             if (!k || !v) return -1;
             size_t m = 0;
             if (csilc_decode_value(a, b + off, len - off, k, &m, depth + 1)) return -1;
+            pairs[i].key_at = off;
+            pairs[i].key_len = m;
+            if (!csilc_shortest_head(b + off)) long_key = true;
+            /* Comparing each key with the one before keeps the order check O(n). */
+            if (canonical && i > 0 && csilc_span_cmp(b, &pairs[i - 1], &pairs[i]) >= 0) canonical = false;
             off += m;
             if (csilc_decode_value(a, b + off, len - off, v, &m, depth + 1)) return -1;
             off += m;
@@ -435,6 +562,15 @@ static inline int csilc_decode_value(CsilCodecArena *a, const uint8_t *b, size_t
         out->kind = CSILC_MAP;
         out->as.map.pairs = pairs;
         out->as.map.count = (size_t)arg;
+        if (long_key) canonical = false;
+        out->as.map.canonical = canonical;
+        out->as.map.duplicate = false;
+        out->as.map.long_key = long_key;
+        if (!canonical) {
+            int dup = csilc_has_duplicate_key(b, pairs, (size_t)arg);
+            if (dup < 0) return -1;
+            out->as.map.duplicate = dup == 1;
+        }
         *consumed = off;
         return 0;
     }
@@ -605,6 +741,225 @@ static inline bool csilc_valid_date(const char *s) {
 static inline bool csilc_get_date(const csilc_value *v, const char **out) {
     return csilc_get_tagged_text(v, 1004, out) && v->as.tag.content->as.bytes.len == 10
         && csilc_valid_date(*out);
+}
+
+/* The longest canonical timestamp, `YYYY-MM-DDThh:mm:ss.fffffffffZ`, plus its NUL. */
+#define CSILC_TIMESTAMP_CAP 31
+/* `0001-01-01T00:00:00Z` and `9999-12-31T23:59:59Z` as epoch seconds. */
+#define CSILC_EPOCH_FIRST INT64_C(-62135596800)
+#define CSILC_EPOCH_LAST INT64_C(253402300799)
+
+static inline bool csilc_ts_digits(const char *s, size_t n, size_t at, size_t width, int64_t *out) {
+    if (at + width > n) return false;
+    int64_t v = 0;
+    for (size_t i = at; i < at + width; i++) {
+        if (s[i] < '0' || s[i] > '9') return false;
+        v = v * 10 + (s[i] - '0');
+    }
+    *out = v;
+    return true;
+}
+
+/* C division truncates toward zero; the civil-date arithmetic needs floor. */
+static inline int64_t csilc_floor_div(int64_t a, int64_t b) {
+    int64_t q = a / b;
+    return (a % b != 0 && ((a < 0) != (b < 0))) ? q - 1 : q;
+}
+
+static inline int64_t csilc_days_from_civil(int64_t y, int64_t m, int64_t d) {
+    y -= m <= 2;
+    int64_t era = csilc_floor_div(y, 400);
+    int64_t yoe = y - era * 400;
+    int64_t doy = (153 * (m > 2 ? m - 3 : m + 9) + 2) / 5 + d - 1;
+    int64_t doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    return era * 146097 + doe - 719468;
+}
+
+static inline void csilc_ts_put(char *out, size_t at, int64_t v, size_t width) {
+    while (width > 0) {
+        width--;
+        out[at + width] = (char)('0' + v % 10);
+        v /= 10;
+    }
+}
+
+/* Read the strict RFC 3339 form of the wire contract into UTC epoch seconds and
+ * nanoseconds. The year must be 0001 to 9999 after conversion to UTC. */
+static inline bool csilc_timestamp_parse(const char *s, size_t n, int64_t *epoch, int64_t *nanos_out) {
+    int64_t year, month, day, hour, minute, second, nanos = 0, offset = 0;
+    if (n < 20 || s[4] != '-' || s[7] != '-' || (s[10] != 'T' && s[10] != 't') ||
+        s[13] != ':' || s[16] != ':') {
+        return 0;
+    }
+    if (!csilc_ts_digits(s, n, 0, 4, &year) || !csilc_ts_digits(s, n, 5, 2, &month) ||
+        !csilc_ts_digits(s, n, 8, 2, &day) || !csilc_ts_digits(s, n, 11, 2, &hour) ||
+        !csilc_ts_digits(s, n, 14, 2, &minute) || !csilc_ts_digits(s, n, 17, 2, &second)) {
+        return 0;
+    }
+    bool leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    const int64_t days[] = {31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (year < 1 || month < 1 || month > 12 || day < 1 || day > days[month - 1] || hour > 23 ||
+        minute > 59 || second > 59) {
+        return 0;
+    }
+    size_t i = 19;
+    if (s[i] == '.') {
+        size_t start = ++i;
+        while (i < n && s[i] >= '0' && s[i] <= '9') i++;
+        size_t width = i - start;
+        if (width < 1 || width > 9 || !csilc_ts_digits(s, n, start, width, &nanos)) return 0;
+        for (; width < 9; width++) nanos *= 10;
+    }
+    if (i >= n) return 0;
+    if ((s[i] == 'Z' || s[i] == 'z') && i + 1 == n) {
+        offset = 0;
+    } else if ((s[i] == '+' || s[i] == '-') && i + 6 == n && s[i + 3] == ':') {
+        int64_t oh, om;
+        if (!csilc_ts_digits(s, n, i + 1, 2, &oh) || !csilc_ts_digits(s, n, i + 4, 2, &om) ||
+            oh > 23 || om > 59) {
+            return 0;
+        }
+        offset = (oh * 3600 + om * 60) * (s[i] == '-' ? -1 : 1);
+    } else {
+        return 0;
+    }
+    int64_t utc = csilc_days_from_civil(year, month, day) * 86400 + hour * 3600 + minute * 60 +
+                  second - offset;
+    if (utc < CSILC_EPOCH_FIRST || utc > CSILC_EPOCH_LAST) return false;
+    *epoch = utc;
+    *nanos_out = nanos;
+    return true;
+}
+
+/* Write the canonical UTC text for an instant already known to lie in years
+ * 0001 to 9999, so that both wire forms produce the same text. */
+static inline size_t csilc_timestamp_write(int64_t utc, int64_t nanos, char out[CSILC_TIMESTAMP_CAP]) {
+    int64_t z = csilc_floor_div(utc, 86400) + 719468;
+    int64_t sod = utc - csilc_floor_div(utc, 86400) * 86400;
+    int64_t era = csilc_floor_div(z, 146097);
+    int64_t doe = z - era * 146097;
+    int64_t yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    int64_t doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    int64_t mp = (5 * doy + 2) / 153;
+    int64_t d = doy - (153 * mp + 2) / 5 + 1;
+    int64_t m = mp < 10 ? mp + 3 : mp - 9;
+    int64_t y = yoe + era * 400 + (m <= 2);
+    csilc_ts_put(out, 0, y, 4);
+    out[4] = '-';
+    csilc_ts_put(out, 5, m, 2);
+    out[7] = '-';
+    csilc_ts_put(out, 8, d, 2);
+    out[10] = 'T';
+    csilc_ts_put(out, 11, sod / 3600, 2);
+    out[13] = ':';
+    csilc_ts_put(out, 14, sod / 60 % 60, 2);
+    out[16] = ':';
+    csilc_ts_put(out, 17, sod % 60, 2);
+    size_t len = 19;
+    if (nanos != 0) {
+        /* The fewest of 3, 6, or 9 digits that hold the value exactly, so every
+         * peer writes the same bytes for the same instant. */
+        size_t width = nanos % 1000000 == 0 ? 3 : nanos % 1000 == 0 ? 6 : 9;
+        int64_t scaled = width == 3 ? nanos / 1000000 : width == 6 ? nanos / 1000 : nanos;
+        out[len++] = '.';
+        csilc_ts_put(out, len, scaled, width);
+        len += width;
+    }
+    out[len++] = 'Z';
+    out[len] = 0;
+    return len;
+}
+
+/* Validate the strict RFC 3339 form of the wire contract and write the canonical
+ * UTC spelling to `out`, so equal instants compare equal as text. Returns the
+ * canonical length, or 0 when `s` is not a valid timestamp. */
+static inline size_t csilc_timestamp_canon(const char *s, size_t n, char out[CSILC_TIMESTAMP_CAP],
+                                           int64_t *epoch) {
+    int64_t nanos;
+    if (!csilc_timestamp_parse(s, n, epoch, &nanos)) return 0;
+    return csilc_timestamp_write(*epoch, nanos, out);
+}
+
+/* Decoded text that is already canonical is borrowed as is; only a value that
+ * needs normalizing costs an arena copy. */
+static inline bool csilc_get_timestamp(const csilc_value *v, CsilCodecArena *a, const char **text,
+                                       int64_t *epoch) {
+    const char *raw;
+    if (!csilc_get_tagged_text(v, 0, &raw)) return false;
+    size_t n = v->as.tag.content->as.bytes.len;
+    char buf[CSILC_TIMESTAMP_CAP];
+    size_t len = csilc_timestamp_canon(raw, n, buf, epoch);
+    if (!len) return false;
+    if (len == n && memcmp(buf, raw, n) == 0) {
+        *text = raw;
+        return true;
+    }
+    char *copy = (char *)csilc_arena_alloc(a, len + 1);
+    if (!copy) return false;
+    memcpy(copy, buf, len + 1);
+    *text = copy;
+    return true;
+}
+
+/* A caller-built value is normalized too, so the wire never carries an offset,
+ * lowercase separators, or a non-minimal fraction. */
+static inline int csilc_w_timestamp(csilc_buf *b, const char *text) {
+    char buf[CSILC_TIMESTAMP_CAP];
+    int64_t epoch;
+    size_t len = text ? csilc_timestamp_canon(text, strlen(text), buf, &epoch) : 0;
+    if (!len || csilc_w_tag(b, 0)) return -1;
+    return csilc_w_text(b, buf, len);
+}
+
+/* `cddl_time`: tag 1 around epoch seconds, kept as the same canonical text as a
+ * `timestamp` so both wire forms compare equal for one instant. */
+static inline bool csilc_get_epoch(const csilc_value *v, CsilCodecArena *a, const char **text,
+                                   int64_t *epoch) {
+    if (!v || v->kind != CSILC_TAG || v->as.tag.num != 1) return false;
+    const csilc_value *c = v->as.tag.content;
+    int64_t seconds, units = 0;
+    if (c->kind == CSILC_UINT) {
+        if (c->as.u > (uint64_t)CSILC_EPOCH_LAST) return false;
+        seconds = (int64_t)c->as.u;
+    } else if (c->kind == CSILC_NINT) {
+        seconds = c->as.i;
+    } else if (c->kind == CSILC_FLOAT) {
+        double value = c->as.f;
+        /* The range test also refuses NaN and infinity, and it comes before the
+         * conversion to an integer, which is undefined behavior out of range. */
+        if (!(value >= (double)(CSILC_EPOCH_FIRST - 1) && value <= (double)(CSILC_EPOCH_LAST + 1)))
+            return false;
+        seconds = (int64_t)value;
+        if ((double)seconds > value) seconds--;
+        /* Separate volatile stores keep the compiler from fusing the multiply and
+         * the add into one operation, which can round differently. */
+        volatile double scaled = (value - (double)seconds) * 1e9;
+        volatile double shifted = scaled + 0.5;
+        units = (int64_t)shifted;
+        if (units == 1000000000) {
+            seconds++;
+            units = 0;
+        }
+    } else {
+        return false;
+    }
+    if (seconds < CSILC_EPOCH_FIRST || seconds > CSILC_EPOCH_LAST) return false;
+    char buf[CSILC_TIMESTAMP_CAP];
+    size_t len = csilc_timestamp_write(seconds, units, buf);
+    char *copy = (char *)csilc_arena_alloc(a, len + 1);
+    if (!copy) return false;
+    memcpy(copy, buf, len + 1);
+    *text = copy;
+    *epoch = seconds;
+    return true;
+}
+
+static inline int csilc_w_epoch(csilc_buf *b, const char *text) {
+    int64_t seconds, nanos;
+    if (!text || !csilc_timestamp_parse(text, strlen(text), &seconds, &nanos) || csilc_w_tag(b, 1))
+        return -1;
+    if (nanos == 0) return csilc_w_int(b, seconds);
+    return csilc_w_f64(b, (double)seconds + (double)nanos / 1e9);
 }
 
 static inline bool csilc_get_decimal(const csilc_value *v, int64_t *exp, int64_t *mant) {
@@ -851,6 +1206,36 @@ static inline int csilc_enc_ExchangeActAsCredentialRequest(csilc_buf *b, const E
 static inline int csilc_dec_ExchangeActAsCredentialRequest(const csilc_value *m, CsilCodecArena *a, ExchangeActAsCredentialRequest *out);
 static inline int csilc_enc_ActAsTokenResponse(csilc_buf *b, const ActAsTokenResponse *v);
 static inline int csilc_dec_ActAsTokenResponse(const csilc_value *m, CsilCodecArena *a, ActAsTokenResponse *out);
+static inline int csilc_enc_CalendarMigrationRowItems(csilc_buf *b, const CalendarMigrationRowItems *v);
+static inline int csilc_dec_CalendarMigrationRowItems(const csilc_value *m, CsilCodecArena *a, CalendarMigrationRowItems *out);
+static inline int csilc_enc_CalendarTrashEntryItems(csilc_buf *b, const CalendarTrashEntryItems *v);
+static inline int csilc_dec_CalendarTrashEntryItems(const csilc_value *m, CsilCodecArena *a, CalendarTrashEntryItems *out);
+static inline int csilc_enc_CommentItems(csilc_buf *b, const CommentItems *v);
+static inline int csilc_dec_CommentItems(const csilc_value *m, CsilCodecArena *a, CommentItems *out);
+static inline int csilc_enc_EventItems(csilc_buf *b, const EventItems *v);
+static inline int csilc_dec_EventItems(const csilc_value *m, CsilCodecArena *a, EventItems *out);
+static inline int csilc_enc_GrantItems(csilc_buf *b, const GrantItems *v);
+static inline int csilc_dec_GrantItems(const csilc_value *m, CsilCodecArena *a, GrantItems *out);
+static inline int csilc_enc_GroupItems(csilc_buf *b, const GroupItems *v);
+static inline int csilc_dec_GroupItems(const csilc_value *m, CsilCodecArena *a, GroupItems *out);
+static inline int csilc_enc_HouseItems(csilc_buf *b, const HouseItems *v);
+static inline int csilc_dec_HouseItems(const csilc_value *m, CsilCodecArena *a, HouseItems *out);
+static inline int csilc_enc_MemberItems(csilc_buf *b, const MemberItems *v);
+static inline int csilc_dec_MemberItems(const csilc_value *m, CsilCodecArena *a, MemberItems *out);
+static inline int csilc_enc_MemberAuditItems(csilc_buf *b, const MemberAuditItems *v);
+static inline int csilc_dec_MemberAuditItems(const csilc_value *m, CsilCodecArena *a, MemberAuditItems *out);
+static inline int csilc_enc_MilestoneItems(csilc_buf *b, const MilestoneItems *v);
+static inline int csilc_dec_MilestoneItems(const csilc_value *m, CsilCodecArena *a, MilestoneItems *out);
+static inline int csilc_enc_NotificationItems(csilc_buf *b, const NotificationItems *v);
+static inline int csilc_dec_NotificationItems(const csilc_value *m, CsilCodecArena *a, NotificationItems *out);
+static inline int csilc_enc_RoleItems(csilc_buf *b, const RoleItems *v);
+static inline int csilc_dec_RoleItems(const csilc_value *m, CsilCodecArena *a, RoleItems *out);
+static inline int csilc_enc_ShareItems(csilc_buf *b, const ShareItems *v);
+static inline int csilc_dec_ShareItems(const csilc_value *m, CsilCodecArena *a, ShareItems *out);
+static inline int csilc_enc_SkillItems(csilc_buf *b, const SkillItems *v);
+static inline int csilc_dec_SkillItems(const csilc_value *m, CsilCodecArena *a, SkillItems *out);
+static inline int csilc_enc_TrustedDomainItems(csilc_buf *b, const TrustedDomainItems *v);
+static inline int csilc_dec_TrustedDomainItems(const csilc_value *m, CsilCodecArena *a, TrustedDomainItems *out);
 static inline int csilc_enc_CalendarSubscription(csilc_buf *b, const CalendarSubscription *v);
 static inline int csilc_dec_CalendarSubscription(const csilc_value *m, CsilCodecArena *a, CalendarSubscription *out);
 static inline int csilc_enc_CalendarView(csilc_buf *b, const CalendarView *v);
@@ -1203,11 +1588,9 @@ static inline int csilc_enc_House(csilc_buf *b, const House *v) {
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->updated_at).rfc3339)) return -1;
     if (v->description) {
         if (csilc_w_text(b, "description", 11)) return -1;
         if (csilc_w_text(b, (v->description), (v->description) ? strlen(v->description) : 0)) return -1;
@@ -1219,17 +1602,15 @@ static inline int csilc_enc_House(csilc_buf *b, const House *v) {
 static inline int csilc_dec_House(const csilc_value *m, CsilCodecArena *a, House *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "name");
     if (!csilc_get_text(csilc_f, &(out->name))) return -1;
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
-    (out->updated_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->updated_at).rfc3339, &(out->updated_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "description");
     out->description = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -1263,24 +1644,20 @@ static inline int csilc_enc_Member(csilc_buf *b, const Member *v) {
         if (csilc_w_text(b, (v->avatar_url), (v->avatar_url) ? strlen(v->avatar_url) : 0)) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->updated_at).rfc3339)) return -1;
     if (v->display_name) {
         if (csilc_w_text(b, "display_name", 12)) return -1;
         if (csilc_w_text(b, (v->display_name), (v->display_name) ? strlen(v->display_name) : 0)) return -1;
     }
     if (v->last_seen_at) {
         if (csilc_w_text(b, "last_seen_at", 12)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->last_seen_at)).rfc3339, ((*v->last_seen_at)).rfc3339 ? strlen(((*v->last_seen_at)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->last_seen_at)).rfc3339)) return -1;
     }
     if (v->deactivated_at) {
         if (csilc_w_text(b, "deactivated_at", 14)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->deactivated_at)).rfc3339, ((*v->deactivated_at)).rfc3339 ? strlen(((*v->deactivated_at)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->deactivated_at)).rfc3339)) return -1;
     }
     if (csilc_w_text(b, "linkkeys_domain", 15)) return -1;
     if (csilc_w_text(b, (v->linkkeys_domain), (v->linkkeys_domain) ? strlen(v->linkkeys_domain) : 0)) return -1;
@@ -1297,7 +1674,7 @@ static inline int csilc_enc_Member(csilc_buf *b, const Member *v) {
 static inline int csilc_dec_Member(const csilc_value *m, CsilCodecArena *a, Member *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "email");
     out->email = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "handle");
@@ -1309,11 +1686,9 @@ static inline int csilc_dec_Member(const csilc_value *m, CsilCodecArena *a, Memb
     csilc_f = csilc_map_get(m, "avatar_url");
     out->avatar_url = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
-    (out->updated_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->updated_at).rfc3339, &(out->updated_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "display_name");
     out->display_name = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "last_seen_at");
@@ -1321,8 +1696,7 @@ static inline int csilc_dec_Member(const csilc_value *m, CsilCodecArena *a, Memb
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->last_seen_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "deactivated_at");
@@ -1330,8 +1704,7 @@ static inline int csilc_dec_Member(const csilc_value *m, CsilCodecArena *a, Memb
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->deactivated_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "linkkeys_domain");
@@ -1358,8 +1731,7 @@ static inline int csilc_enc_TrustedDomain(csilc_buf *b, const TrustedDomain *v) 
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "trusted_domain_id", 17)) return -1;
     if (csilc_w_text(b, (v->trusted_domain_id), (v->trusted_domain_id) ? strlen(v->trusted_domain_id) : 0)) return -1;
     return 0;
@@ -1369,14 +1741,13 @@ static inline int csilc_enc_TrustedDomain(csilc_buf *b, const TrustedDomain *v) 
 static inline int csilc_dec_TrustedDomain(const csilc_value *m, CsilCodecArena *a, TrustedDomain *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "domain");
     if (!csilc_get_text(csilc_f, &(out->domain))) return -1;
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "trusted_domain_id");
     if (!csilc_get_text(csilc_f, &(out->trusted_domain_id))) return -1;
     return 0;
@@ -1394,11 +1765,9 @@ static inline int csilc_enc_Role(csilc_buf *b, const Role *v) {
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->updated_at).rfc3339)) return -1;
     if (v->description) {
         if (csilc_w_text(b, "description", 11)) return -1;
         if (csilc_w_text(b, (v->description), (v->description) ? strlen(v->description) : 0)) return -1;
@@ -1410,7 +1779,7 @@ static inline int csilc_enc_Role(csilc_buf *b, const Role *v) {
 static inline int csilc_dec_Role(const csilc_value *m, CsilCodecArena *a, Role *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "name");
     if (!csilc_get_text(csilc_f, &(out->name))) return -1;
     csilc_f = csilc_map_get(m, "role_id");
@@ -1418,11 +1787,9 @@ static inline int csilc_dec_Role(const csilc_value *m, CsilCodecArena *a, Role *
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
-    (out->updated_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->updated_at).rfc3339, &(out->updated_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "description");
     out->description = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -1437,8 +1804,7 @@ static inline int csilc_enc_MemberRole(csilc_buf *b, const MemberRole *v) {
     if (csilc_w_text(b, "member_id", 9)) return -1;
     if (csilc_w_text(b, (v->member_id), (v->member_id) ? strlen(v->member_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     return 0;
 }
 
@@ -1446,14 +1812,13 @@ static inline int csilc_enc_MemberRole(csilc_buf *b, const MemberRole *v) {
 static inline int csilc_dec_MemberRole(const csilc_value *m, CsilCodecArena *a, MemberRole *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "role_id");
     if (!csilc_get_text(csilc_f, &(out->role_id))) return -1;
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     return 0;
 }
 
@@ -1480,8 +1845,7 @@ static inline int csilc_enc_MemberAudit(csilc_buf *b, const MemberAudit *v) {
         if (csilc_w_text(b, (v->target_id), (v->target_id) ? strlen(v->target_id) : 0)) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (v->target_type) {
         if (csilc_w_text(b, "target_type", 11)) return -1;
         if (csilc_w_text(b, (v->target_type), (v->target_type) ? strlen(v->target_type) : 0)) return -1;
@@ -1499,7 +1863,7 @@ static inline int csilc_enc_MemberAudit(csilc_buf *b, const MemberAudit *v) {
 static inline int csilc_dec_MemberAudit(const csilc_value *m, CsilCodecArena *a, MemberAudit *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "action");
     if (!csilc_get_text(csilc_f, &(out->action))) return -1;
     csilc_f = csilc_map_get(m, "detail");
@@ -1511,8 +1875,7 @@ static inline int csilc_dec_MemberAudit(const csilc_value *m, CsilCodecArena *a,
     csilc_f = csilc_map_get(m, "target_id");
     out->target_id = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "target_type");
     out->target_type = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "actor_member_id");
@@ -1540,11 +1903,9 @@ static inline int csilc_enc_Skill(csilc_buf *b, const Skill *v) {
     if (csilc_w_text(b, "skill_id", 8)) return -1;
     if (csilc_w_text(b, (v->skill_id), (v->skill_id) ? strlen(v->skill_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->updated_at).rfc3339)) return -1;
     if (v->description) {
         if (csilc_w_text(b, "description", 11)) return -1;
         if (csilc_w_text(b, (v->description), (v->description) ? strlen(v->description) : 0)) return -1;
@@ -1556,7 +1917,7 @@ static inline int csilc_enc_Skill(csilc_buf *b, const Skill *v) {
 static inline int csilc_dec_Skill(const csilc_value *m, CsilCodecArena *a, Skill *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "name");
     if (!csilc_get_text(csilc_f, &(out->name))) return -1;
     csilc_f = csilc_map_get(m, "house_id");
@@ -1564,11 +1925,9 @@ static inline int csilc_dec_Skill(const csilc_value *m, CsilCodecArena *a, Skill
     csilc_f = csilc_map_get(m, "skill_id");
     if (!csilc_get_text(csilc_f, &(out->skill_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
-    (out->updated_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->updated_at).rfc3339, &(out->updated_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "description");
     out->description = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -1583,8 +1942,7 @@ static inline int csilc_enc_MemberSkill(csilc_buf *b, const MemberSkill *v) {
     if (csilc_w_text(b, "member_id", 9)) return -1;
     if (csilc_w_text(b, (v->member_id), (v->member_id) ? strlen(v->member_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     return 0;
 }
 
@@ -1592,14 +1950,13 @@ static inline int csilc_enc_MemberSkill(csilc_buf *b, const MemberSkill *v) {
 static inline int csilc_dec_MemberSkill(const csilc_value *m, CsilCodecArena *a, MemberSkill *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "skill_id");
     if (!csilc_get_text(csilc_f, &(out->skill_id))) return -1;
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     return 0;
 }
 
@@ -1612,8 +1969,7 @@ static inline int csilc_enc_GroupSkill(csilc_buf *b, const GroupSkill *v) {
     if (csilc_w_text(b, "skill_id", 8)) return -1;
     if (csilc_w_text(b, (v->skill_id), (v->skill_id) ? strlen(v->skill_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     return 0;
 }
 
@@ -1621,14 +1977,13 @@ static inline int csilc_enc_GroupSkill(csilc_buf *b, const GroupSkill *v) {
 static inline int csilc_dec_GroupSkill(const csilc_value *m, CsilCodecArena *a, GroupSkill *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "group_id");
     if (!csilc_get_text(csilc_f, &(out->group_id))) return -1;
     csilc_f = csilc_map_get(m, "skill_id");
     if (!csilc_get_text(csilc_f, &(out->skill_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     return 0;
 }
 
@@ -1644,11 +1999,9 @@ static inline int csilc_enc_Group(csilc_buf *b, const Group *v) {
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->updated_at).rfc3339)) return -1;
     if (v->description) {
         if (csilc_w_text(b, "description", 11)) return -1;
         if (csilc_w_text(b, (v->description), (v->description) ? strlen(v->description) : 0)) return -1;
@@ -1660,7 +2013,7 @@ static inline int csilc_enc_Group(csilc_buf *b, const Group *v) {
 static inline int csilc_dec_Group(const csilc_value *m, CsilCodecArena *a, Group *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "name");
     if (!csilc_get_text(csilc_f, &(out->name))) return -1;
     csilc_f = csilc_map_get(m, "group_id");
@@ -1668,11 +2021,9 @@ static inline int csilc_dec_Group(const csilc_value *m, CsilCodecArena *a, Group
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
-    (out->updated_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->updated_at).rfc3339, &(out->updated_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "description");
     out->description = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -1687,8 +2038,7 @@ static inline int csilc_enc_GroupMember(csilc_buf *b, const GroupMember *v) {
     if (csilc_w_text(b, "member_id", 9)) return -1;
     if (csilc_w_text(b, (v->member_id), (v->member_id) ? strlen(v->member_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     return 0;
 }
 
@@ -1696,14 +2046,13 @@ static inline int csilc_enc_GroupMember(csilc_buf *b, const GroupMember *v) {
 static inline int csilc_dec_GroupMember(const csilc_value *m, CsilCodecArena *a, GroupMember *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "group_id");
     if (!csilc_get_text(csilc_f, &(out->group_id))) return -1;
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     return 0;
 }
 
@@ -1734,13 +2083,11 @@ static inline int csilc_enc_Project(csilc_buf *b, const Project *v) {
         if (csilc_w_bool(b, ((*v->personal)))) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->updated_at).rfc3339)) return -1;
     if (v->visibility) {
         if (csilc_w_text(b, "visibility", 10)) return -1;
         if (csilc_enc_AccessLevel(b, &((*v->visibility)))) return -1;
@@ -1760,7 +2107,7 @@ static inline int csilc_enc_Project(csilc_buf *b, const Project *v) {
 static inline int csilc_dec_Project(const csilc_value *m, CsilCodecArena *a, Project *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "name");
     if (!csilc_get_text(csilc_f, &(out->name))) return -1;
     csilc_f = csilc_map_get(m, "status");
@@ -1784,13 +2131,11 @@ static inline int csilc_dec_Project(const csilc_value *m, CsilCodecArena *a, Pro
         out->personal = csilc_p;
     }
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
-    (out->updated_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->updated_at).rfc3339, &(out->updated_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "visibility");
     out->visibility = NULL;
     if (csilc_f) {
@@ -1821,8 +2166,7 @@ static inline int csilc_enc_ProjectTask(csilc_buf *b, const ProjectTask *v) {
     if (csilc_w_text(b, "position", 8)) return -1;
     if (csilc_w_int(b, (int64_t)(v->position))) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     return 0;
@@ -1832,14 +2176,13 @@ static inline int csilc_enc_ProjectTask(csilc_buf *b, const ProjectTask *v) {
 static inline int csilc_dec_ProjectTask(const csilc_value *m, CsilCodecArena *a, ProjectTask *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "task_id");
     if (!csilc_get_text(csilc_f, &(out->task_id))) return -1;
     csilc_f = csilc_map_get(m, "position");
     if (!csilc_as_i64(csilc_f, &(out->position))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     return 0;
@@ -1852,8 +2195,7 @@ static inline int csilc_enc_ProjectMember(csilc_buf *b, const ProjectMember *v) 
     if (csilc_w_text(b, "member_id", 9)) return -1;
     if (csilc_w_text(b, (v->member_id), (v->member_id) ? strlen(v->member_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     return 0;
@@ -1863,12 +2205,11 @@ static inline int csilc_enc_ProjectMember(csilc_buf *b, const ProjectMember *v) 
 static inline int csilc_dec_ProjectMember(const csilc_value *m, CsilCodecArena *a, ProjectMember *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     return 0;
@@ -1881,8 +2222,7 @@ static inline int csilc_enc_ProjectOwner(csilc_buf *b, const ProjectOwner *v) {
     if (csilc_w_text(b, "member_id", 9)) return -1;
     if (csilc_w_text(b, (v->member_id), (v->member_id) ? strlen(v->member_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     return 0;
@@ -1892,12 +2232,11 @@ static inline int csilc_enc_ProjectOwner(csilc_buf *b, const ProjectOwner *v) {
 static inline int csilc_dec_ProjectOwner(const csilc_value *m, CsilCodecArena *a, ProjectOwner *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     return 0;
@@ -1914,13 +2253,11 @@ static inline int csilc_enc_Milestone(csilc_buf *b, const Milestone *v) {
     if (csilc_w_text(b, "position", 8)) return -1;
     if (csilc_w_int(b, (int64_t)(v->position))) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->updated_at).rfc3339)) return -1;
     if (csilc_w_text(b, "when_label", 10)) return -1;
     if (csilc_w_text(b, (v->when_label), (v->when_label) ? strlen(v->when_label) : 0)) return -1;
     if (csilc_w_text(b, "milestone_id", 12)) return -1;
@@ -1932,7 +2269,7 @@ static inline int csilc_enc_Milestone(csilc_buf *b, const Milestone *v) {
 static inline int csilc_dec_Milestone(const csilc_value *m, CsilCodecArena *a, Milestone *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "label");
     if (!csilc_get_text(csilc_f, &(out->label))) return -1;
     csilc_f = csilc_map_get(m, "state");
@@ -1940,13 +2277,11 @@ static inline int csilc_dec_Milestone(const csilc_value *m, CsilCodecArena *a, M
     csilc_f = csilc_map_get(m, "position");
     if (!csilc_as_i64(csilc_f, &(out->position))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
-    (out->updated_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->updated_at).rfc3339, &(out->updated_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "when_label");
     if (!csilc_get_text(csilc_f, &(out->when_label))) return -1;
     csilc_f = csilc_map_get(m, "milestone_id");
@@ -1987,8 +2322,7 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
     }
     if (v->ends_at) {
         if (csilc_w_text(b, "ends_at", 7)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->ends_at)).rfc3339, ((*v->ends_at)).rfc3339 ? strlen(((*v->ends_at)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->ends_at)).rfc3339)) return -1;
     }
     if (csilc_w_text(b, "event_id", 8)) return -1;
     if (csilc_w_text(b, (v->event_id), (v->event_id) ? strlen(v->event_id) : 0)) return -1;
@@ -2008,19 +2342,16 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
     }
     if (v->starts_at) {
         if (csilc_w_text(b, "starts_at", 9)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->starts_at)).rfc3339, ((*v->starts_at)).rfc3339 ? strlen(((*v->starts_at)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->starts_at)).rfc3339)) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (v->edit_scope) {
         if (csilc_w_text(b, "edit_scope", 10)) return -1;
         if (csilc_w_text(b, (v->edit_scope), (v->edit_scope) ? strlen(v->edit_scope) : 0)) return -1;
     }
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->updated_at).rfc3339)) return -1;
     if (v->description) {
         if (csilc_w_text(b, "description", 11)) return -1;
         if (csilc_w_text(b, (v->description), (v->description) ? strlen(v->description) : 0)) return -1;
@@ -2053,8 +2384,7 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
     }
     if (v->next_recurrence_at) {
         if (csilc_w_text(b, "next_recurrence_at", 18)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->next_recurrence_at)).rfc3339, ((*v->next_recurrence_at)).rfc3339 ? strlen(((*v->next_recurrence_at)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->next_recurrence_at)).rfc3339)) return -1;
     }
     if (v->recurrence_interval) {
         if (csilc_w_text(b, "recurrence_interval", 19)) return -1;
@@ -2090,7 +2420,7 @@ static inline int csilc_enc_Event(csilc_buf *b, const Event *v) {
 static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "title");
     if (!csilc_get_text(csilc_f, &(out->title))) return -1;
     csilc_f = csilc_map_get(m, "all_day");
@@ -2106,8 +2436,7 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->ends_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "event_id");
@@ -2131,18 +2460,15 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->starts_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "edit_scope");
     out->edit_scope = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
-    (out->updated_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->updated_at).rfc3339, &(out->updated_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "description");
     out->description = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "calendar_state");
@@ -2182,8 +2508,7 @@ static inline int csilc_dec_Event(const csilc_value *m, CsilCodecArena *a, Event
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->next_recurrence_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "recurrence_interval");
@@ -2269,8 +2594,7 @@ static inline int csilc_enc_Task(csilc_buf *b, const Task *v) {
     if (csilc_w_text(b, (v->title), (v->title) ? strlen(v->title) : 0)) return -1;
     if (v->due_at) {
         if (csilc_w_text(b, "due_at", 6)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->due_at)).rfc3339, ((*v->due_at)).rfc3339 ? strlen(((*v->due_at)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->due_at)).rfc3339)) return -1;
     }
     if (v->status) {
         if (csilc_w_text(b, "status", 6)) return -1;
@@ -2288,16 +2612,13 @@ static inline int csilc_enc_Task(csilc_buf *b, const Task *v) {
         }
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (v->deleted_at) {
         if (csilc_w_text(b, "deleted_at", 10)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->deleted_at)).rfc3339, ((*v->deleted_at)).rfc3339 ? strlen(((*v->deleted_at)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->deleted_at)).rfc3339)) return -1;
     }
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->updated_at).rfc3339)) return -1;
     if (v->visibility) {
         if (csilc_w_text(b, "visibility", 10)) return -1;
         if (csilc_enc_AccessLevel(b, &((*v->visibility)))) return -1;
@@ -2326,8 +2647,7 @@ static inline int csilc_enc_Task(csilc_buf *b, const Task *v) {
     }
     if (v->next_recurrence_at) {
         if (csilc_w_text(b, "next_recurrence_at", 18)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->next_recurrence_at)).rfc3339, ((*v->next_recurrence_at)).rfc3339 ? strlen(((*v->next_recurrence_at)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->next_recurrence_at)).rfc3339)) return -1;
     }
     if (v->recurrence_interval) {
         if (csilc_w_text(b, "recurrence_interval", 19)) return -1;
@@ -2359,7 +2679,7 @@ static inline int csilc_enc_Task(csilc_buf *b, const Task *v) {
 static inline int csilc_dec_Task(const csilc_value *m, CsilCodecArena *a, Task *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "tag");
     out->tag = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "title");
@@ -2369,8 +2689,7 @@ static inline int csilc_dec_Task(const csilc_value *m, CsilCodecArena *a, Task *
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->due_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "status");
@@ -2397,20 +2716,17 @@ static inline int csilc_dec_Task(const csilc_value *m, CsilCodecArena *a, Task *
         }
     }
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "deleted_at");
     out->deleted_at = NULL;
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->deleted_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
-    (out->updated_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->updated_at).rfc3339, &(out->updated_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "visibility");
     out->visibility = NULL;
     if (csilc_f) {
@@ -2460,8 +2776,7 @@ static inline int csilc_dec_Task(const csilc_value *m, CsilCodecArena *a, Task *
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->next_recurrence_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "recurrence_interval");
@@ -2525,11 +2840,9 @@ static inline int csilc_enc_Comment(csilc_buf *b, const Comment *v) {
     if (csilc_w_text(b, "comment_id", 10)) return -1;
     if (csilc_w_text(b, (v->comment_id), (v->comment_id) ? strlen(v->comment_id) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "updated_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->updated_at).rfc3339, (v->updated_at).rfc3339 ? strlen((v->updated_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->updated_at).rfc3339)) return -1;
     if (csilc_w_text(b, "target_type", 11)) return -1;
     if (csilc_enc_TargetType(b, &(v->target_type))) return -1;
     return 0;
@@ -2539,7 +2852,7 @@ static inline int csilc_enc_Comment(csilc_buf *b, const Comment *v) {
 static inline int csilc_dec_Comment(const csilc_value *m, CsilCodecArena *a, Comment *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "body");
     if (!csilc_get_text(csilc_f, &(out->body))) return -1;
     csilc_f = csilc_map_get(m, "house_id");
@@ -2551,11 +2864,9 @@ static inline int csilc_dec_Comment(const csilc_value *m, CsilCodecArena *a, Com
     csilc_f = csilc_map_get(m, "comment_id");
     if (!csilc_get_text(csilc_f, &(out->comment_id))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "updated_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->updated_at).rfc3339)) return -1;
-    (out->updated_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->updated_at).rfc3339, &(out->updated_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "target_type");
     if (csilc_dec_TargetType(csilc_f, a, &(out->target_type))) return -1;
     return 0;
@@ -2574,12 +2885,10 @@ static inline int csilc_enc_Share(csilc_buf *b, const Share *v) {
     if (csilc_w_text(b, "shared_by", 9)) return -1;
     if (csilc_w_text(b, (v->shared_by), (v->shared_by) ? strlen(v->shared_by) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (v->expires_at) {
         if (csilc_w_text(b, "expires_at", 10)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->expires_at)).rfc3339, ((*v->expires_at)).rfc3339 ? strlen(((*v->expires_at)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->expires_at)).rfc3339)) return -1;
     }
     if (csilc_w_text(b, "resource_id", 11)) return -1;
     if (csilc_w_text(b, (v->resource_id), (v->resource_id) ? strlen(v->resource_id) : 0)) return -1;
@@ -2600,7 +2909,7 @@ static inline int csilc_enc_Share(csilc_buf *b, const Share *v) {
 static inline int csilc_dec_Share(const csilc_value *m, CsilCodecArena *a, Share *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "share_id");
@@ -2608,15 +2917,13 @@ static inline int csilc_dec_Share(const csilc_value *m, CsilCodecArena *a, Share
     csilc_f = csilc_map_get(m, "shared_by");
     if (!csilc_get_text(csilc_f, &(out->shared_by))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
     out->expires_at = NULL;
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->expires_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "resource_id");
@@ -2660,7 +2967,7 @@ static inline int csilc_enc_HouseSummary(csilc_buf *b, const HouseSummary *v) {
 static inline int csilc_dec_HouseSummary(const csilc_value *m, CsilCodecArena *a, HouseSummary *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "name");
     if (!csilc_get_text(csilc_f, &(out->name))) return -1;
     csilc_f = csilc_map_get(m, "roles");
@@ -2701,7 +3008,7 @@ static inline int csilc_enc_HouseRoles(csilc_buf *b, const HouseRoles *v) {
 static inline int csilc_dec_HouseRoles(const csilc_value *m, CsilCodecArena *a, HouseRoles *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "house");
     if (!csilc_get_text(csilc_f, &(out->house))) return -1;
     csilc_f = csilc_map_get(m, "roles");
@@ -2742,7 +3049,7 @@ static inline int csilc_enc_ActAsDelegation(csilc_buf *b, const ActAsDelegation 
 static inline int csilc_dec_ActAsDelegation(const csilc_value *m, CsilCodecArena *a, ActAsDelegation *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "scopes");
     if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
     out->scopes_count = csilc_f->as.array.count;
@@ -2797,7 +3104,7 @@ static inline int csilc_enc_Identity(csilc_buf *b, const Identity *v) {
 static inline int csilc_dec_Identity(const csilc_value *m, CsilCodecArena *a, Identity *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "exp");
     if (!csilc_as_i64(csilc_f, &(out->exp))) return -1;
     csilc_f = csilc_map_get(m, "iat");
@@ -2843,7 +3150,7 @@ static inline int csilc_enc_LoginRequest(csilc_buf *b, const LoginRequest *v) {
 static inline int csilc_dec_LoginRequest(const csilc_value *m, CsilCodecArena *a, LoginRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "signed_assertion");
     if (!csilc_get_text(csilc_f, &(out->signed_assertion))) return -1;
     return 0;
@@ -2865,7 +3172,7 @@ static inline int csilc_enc_BeginBrowserLoginRequest(csilc_buf *b, const BeginBr
 static inline int csilc_dec_BeginBrowserLoginRequest(const csilc_value *m, CsilCodecArena *a, BeginBrowserLoginRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "login");
     out->login = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -2884,7 +3191,7 @@ static inline int csilc_enc_BeginBrowserLoginResponse(csilc_buf *b, const BeginB
 static inline int csilc_dec_BeginBrowserLoginResponse(const csilc_value *m, CsilCodecArena *a, BeginBrowserLoginResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "redirect_url");
     if (!csilc_get_text(csilc_f, &(out->redirect_url))) return -1;
     return 0;
@@ -2903,7 +3210,7 @@ static inline int csilc_enc_CompleteRequest(csilc_buf *b, const CompleteRequest 
 static inline int csilc_dec_CompleteRequest(const csilc_value *m, CsilCodecArena *a, CompleteRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "encrypted_token");
     if (!csilc_get_text(csilc_f, &(out->encrypted_token))) return -1;
     return 0;
@@ -2921,8 +3228,7 @@ static inline int csilc_enc_LoginResponse(csilc_buf *b, const LoginResponse *v) 
     if (csilc_w_text(b, "user_id", 7)) return -1;
     if (csilc_w_text(b, (v->user_id), (v->user_id) ? strlen(v->user_id) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->expires_at).rfc3339)) return -1;
     if (v->display_name) {
         if (csilc_w_text(b, "display_name", 12)) return -1;
         if (csilc_w_text(b, (v->display_name), (v->display_name) ? strlen(v->display_name) : 0)) return -1;
@@ -2934,7 +3240,7 @@ static inline int csilc_enc_LoginResponse(csilc_buf *b, const LoginResponse *v) 
 static inline int csilc_dec_LoginResponse(const csilc_value *m, CsilCodecArena *a, LoginResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "token");
     if (!csilc_get_text(csilc_f, &(out->token))) return -1;
     csilc_f = csilc_map_get(m, "domain");
@@ -2942,8 +3248,7 @@ static inline int csilc_dec_LoginResponse(const csilc_value *m, CsilCodecArena *
     csilc_f = csilc_map_get(m, "user_id");
     if (!csilc_get_text(csilc_f, &(out->user_id))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
-    (out->expires_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->expires_at).rfc3339, &(out->expires_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "display_name");
     out->display_name = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -2961,8 +3266,7 @@ static inline int csilc_enc_CliTokenResponse(csilc_buf *b, const CliTokenRespons
     if (csilc_w_text(b, "user_id", 7)) return -1;
     if (csilc_w_text(b, (v->user_id), (v->user_id) ? strlen(v->user_id) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->expires_at).rfc3339)) return -1;
     if (csilc_w_text(b, "session_id", 10)) return -1;
     if (csilc_w_text(b, (v->session_id), (v->session_id) ? strlen(v->session_id) : 0)) return -1;
     if (v->display_name) {
@@ -2972,8 +3276,7 @@ static inline int csilc_enc_CliTokenResponse(csilc_buf *b, const CliTokenRespons
     if (csilc_w_text(b, "refresh_token", 13)) return -1;
     if (csilc_w_text(b, (v->refresh_token), (v->refresh_token) ? strlen(v->refresh_token) : 0)) return -1;
     if (csilc_w_text(b, "refresh_expires_at", 18)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->refresh_expires_at).rfc3339, (v->refresh_expires_at).rfc3339 ? strlen((v->refresh_expires_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->refresh_expires_at).rfc3339)) return -1;
     return 0;
 }
 
@@ -2981,7 +3284,7 @@ static inline int csilc_enc_CliTokenResponse(csilc_buf *b, const CliTokenRespons
 static inline int csilc_dec_CliTokenResponse(const csilc_value *m, CsilCodecArena *a, CliTokenResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "token");
     if (!csilc_get_text(csilc_f, &(out->token))) return -1;
     csilc_f = csilc_map_get(m, "domain");
@@ -2989,8 +3292,7 @@ static inline int csilc_dec_CliTokenResponse(const csilc_value *m, CsilCodecAren
     csilc_f = csilc_map_get(m, "user_id");
     if (!csilc_get_text(csilc_f, &(out->user_id))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
-    (out->expires_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->expires_at).rfc3339, &(out->expires_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "session_id");
     if (!csilc_get_text(csilc_f, &(out->session_id))) return -1;
     csilc_f = csilc_map_get(m, "display_name");
@@ -2998,8 +3300,7 @@ static inline int csilc_dec_CliTokenResponse(const csilc_value *m, CsilCodecAren
     csilc_f = csilc_map_get(m, "refresh_token");
     if (!csilc_get_text(csilc_f, &(out->refresh_token))) return -1;
     csilc_f = csilc_map_get(m, "refresh_expires_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->refresh_expires_at).rfc3339)) return -1;
-    (out->refresh_expires_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->refresh_expires_at).rfc3339, &(out->refresh_expires_at).epoch_seconds)) return -1;
     return 0;
 }
 
@@ -3016,7 +3317,7 @@ static inline int csilc_enc_BeginCliLoginRequest(csilc_buf *b, const BeginCliLog
 static inline int csilc_dec_BeginCliLoginRequest(const csilc_value *m, CsilCodecArena *a, BeginCliLoginRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "client_name");
     if (!csilc_get_text(csilc_f, &(out->client_name))) return -1;
     return 0;
@@ -3029,8 +3330,7 @@ static inline int csilc_enc_BeginCliLoginResponse(csilc_buf *b, const BeginCliLo
     if (csilc_w_text(b, "user_code", 9)) return -1;
     if (csilc_w_text(b, (v->user_code), (v->user_code) ? strlen(v->user_code) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->expires_at).rfc3339)) return -1;
     if (csilc_w_text(b, "device_code", 11)) return -1;
     if (csilc_w_text(b, (v->device_code), (v->device_code) ? strlen(v->device_code) : 0)) return -1;
     if (csilc_w_text(b, "interval_seconds", 16)) return -1;
@@ -3044,12 +3344,11 @@ static inline int csilc_enc_BeginCliLoginResponse(csilc_buf *b, const BeginCliLo
 static inline int csilc_dec_BeginCliLoginResponse(const csilc_value *m, CsilCodecArena *a, BeginCliLoginResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "user_code");
     if (!csilc_get_text(csilc_f, &(out->user_code))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
-    (out->expires_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->expires_at).rfc3339, &(out->expires_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "device_code");
     if (!csilc_get_text(csilc_f, &(out->device_code))) return -1;
     csilc_f = csilc_map_get(m, "interval_seconds");
@@ -3072,7 +3371,7 @@ static inline int csilc_enc_ApproveCliLoginRequest(csilc_buf *b, const ApproveCl
 static inline int csilc_dec_ApproveCliLoginRequest(const csilc_value *m, CsilCodecArena *a, ApproveCliLoginRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "user_code");
     if (!csilc_get_text(csilc_f, &(out->user_code))) return -1;
     return 0;
@@ -3085,8 +3384,7 @@ static inline int csilc_enc_CliLoginRequestInfo(csilc_buf *b, const CliLoginRequ
     if (csilc_w_text(b, "user_code", 9)) return -1;
     if (csilc_w_text(b, (v->user_code), (v->user_code) ? strlen(v->user_code) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->expires_at).rfc3339)) return -1;
     if (csilc_w_text(b, "client_name", 11)) return -1;
     if (csilc_w_text(b, (v->client_name), (v->client_name) ? strlen(v->client_name) : 0)) return -1;
     return 0;
@@ -3096,12 +3394,11 @@ static inline int csilc_enc_CliLoginRequestInfo(csilc_buf *b, const CliLoginRequ
 static inline int csilc_dec_CliLoginRequestInfo(const csilc_value *m, CsilCodecArena *a, CliLoginRequestInfo *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "user_code");
     if (!csilc_get_text(csilc_f, &(out->user_code))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
-    (out->expires_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->expires_at).rfc3339, &(out->expires_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "client_name");
     if (!csilc_get_text(csilc_f, &(out->client_name))) return -1;
     return 0;
@@ -3120,7 +3417,7 @@ static inline int csilc_enc_DenyCliLoginRequest(csilc_buf *b, const DenyCliLogin
 static inline int csilc_dec_DenyCliLoginRequest(const csilc_value *m, CsilCodecArena *a, DenyCliLoginRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "user_code");
     if (!csilc_get_text(csilc_f, &(out->user_code))) return -1;
     return 0;
@@ -3139,7 +3436,7 @@ static inline int csilc_enc_ExchangeCliLoginRequest(csilc_buf *b, const Exchange
 static inline int csilc_dec_ExchangeCliLoginRequest(const csilc_value *m, CsilCodecArena *a, ExchangeCliLoginRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "device_code");
     if (!csilc_get_text(csilc_f, &(out->device_code))) return -1;
     return 0;
@@ -3163,7 +3460,7 @@ static inline int csilc_enc_ExchangeCliLoginResponse(csilc_buf *b, const Exchang
 static inline int csilc_dec_ExchangeCliLoginResponse(const csilc_value *m, CsilCodecArena *a, ExchangeCliLoginResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "status");
     if (csilc_dec_CliLoginStatus(csilc_f, a, &(out->status))) return -1;
     csilc_f = csilc_map_get(m, "session");
@@ -3190,7 +3487,7 @@ static inline int csilc_enc_RefreshSessionRequest(csilc_buf *b, const RefreshSes
 static inline int csilc_dec_RefreshSessionRequest(const csilc_value *m, CsilCodecArena *a, RefreshSessionRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "refresh_token");
     if (!csilc_get_text(csilc_f, &(out->refresh_token))) return -1;
     return 0;
@@ -3212,23 +3509,19 @@ static inline int csilc_enc_CliSessionSummary(csilc_buf *b, const CliSessionSumm
         if (csilc_w_bool(b, ((*v->current)))) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->expires_at).rfc3339)) return -1;
     if (v->revoked_at) {
         if (csilc_w_text(b, "revoked_at", 10)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->revoked_at)).rfc3339, ((*v->revoked_at)).rfc3339 ? strlen(((*v->revoked_at)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->revoked_at)).rfc3339)) return -1;
     }
     if (csilc_w_text(b, "session_id", 10)) return -1;
     if (csilc_w_text(b, (v->session_id), (v->session_id) ? strlen(v->session_id) : 0)) return -1;
     if (csilc_w_text(b, "client_name", 11)) return -1;
     if (csilc_w_text(b, (v->client_name), (v->client_name) ? strlen(v->client_name) : 0)) return -1;
     if (csilc_w_text(b, "last_used_at", 12)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->last_used_at).rfc3339, (v->last_used_at).rfc3339 ? strlen((v->last_used_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->last_used_at).rfc3339)) return -1;
     return 0;
 }
 
@@ -3236,7 +3529,7 @@ static inline int csilc_enc_CliSessionSummary(csilc_buf *b, const CliSessionSumm
 static inline int csilc_dec_CliSessionSummary(const csilc_value *m, CsilCodecArena *a, CliSessionSummary *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "kind");
     out->kind = NULL;
     if (csilc_f) {
@@ -3254,18 +3547,15 @@ static inline int csilc_dec_CliSessionSummary(const csilc_value *m, CsilCodecAre
         out->current = csilc_p;
     }
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
-    (out->expires_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->expires_at).rfc3339, &(out->expires_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "revoked_at");
     out->revoked_at = NULL;
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->revoked_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "session_id");
@@ -3273,8 +3563,7 @@ static inline int csilc_dec_CliSessionSummary(const csilc_value *m, CsilCodecAre
     csilc_f = csilc_map_get(m, "client_name");
     if (!csilc_get_text(csilc_f, &(out->client_name))) return -1;
     csilc_f = csilc_map_get(m, "last_used_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->last_used_at).rfc3339)) return -1;
-    (out->last_used_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->last_used_at).rfc3339, &(out->last_used_at).epoch_seconds)) return -1;
     return 0;
 }
 
@@ -3294,7 +3583,7 @@ static inline int csilc_enc_CliSessionsResponse(csilc_buf *b, const CliSessionsR
 static inline int csilc_dec_CliSessionsResponse(const csilc_value *m, CsilCodecArena *a, CliSessionsResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "sessions");
     if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
     out->sessions_count = csilc_f->as.array.count;
@@ -3322,7 +3611,7 @@ static inline int csilc_enc_RevokeSessionRequest(csilc_buf *b, const RevokeSessi
 static inline int csilc_dec_RevokeSessionRequest(const csilc_value *m, CsilCodecArena *a, RevokeSessionRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "session_id");
     if (!csilc_get_text(csilc_f, &(out->session_id))) return -1;
     return 0;
@@ -3365,7 +3654,7 @@ static inline int csilc_enc_DevUserEntry(csilc_buf *b, const DevUserEntry *v) {
 static inline int csilc_dec_DevUserEntry(const csilc_value *m, CsilCodecArena *a, DevUserEntry *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "roles");
     if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
     out->roles_count = csilc_f->as.array.count;
@@ -3408,7 +3697,7 @@ static inline int csilc_enc_DevUsersResponse(csilc_buf *b, const DevUsersRespons
 static inline int csilc_dec_DevUsersResponse(const csilc_value *m, CsilCodecArena *a, DevUsersResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "users");
     if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
     out->users_count = csilc_f->as.array.count;
@@ -3436,7 +3725,7 @@ static inline int csilc_enc_DevLoginRequest(csilc_buf *b, const DevLoginRequest 
 static inline int csilc_dec_DevLoginRequest(const csilc_value *m, CsilCodecArena *a, DevLoginRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     return 0;
@@ -3457,8 +3746,7 @@ static inline int csilc_enc_MeResponse(csilc_buf *b, const MeResponse *v) {
     if (csilc_w_text(b, "user_id", 7)) return -1;
     if (csilc_w_text(b, (v->user_id), (v->user_id) ? strlen(v->user_id) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->expires_at).rfc3339)) return -1;
     if (v->display_name) {
         if (csilc_w_text(b, "display_name", 12)) return -1;
         if (csilc_w_text(b, (v->display_name), (v->display_name) ? strlen(v->display_name) : 0)) return -1;
@@ -3470,7 +3758,7 @@ static inline int csilc_enc_MeResponse(csilc_buf *b, const MeResponse *v) {
 static inline int csilc_dec_MeResponse(const csilc_value *m, CsilCodecArena *a, MeResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "domain");
     if (!csilc_get_text(csilc_f, &(out->domain))) return -1;
     csilc_f = csilc_map_get(m, "houses");
@@ -3487,8 +3775,7 @@ static inline int csilc_dec_MeResponse(const csilc_value *m, CsilCodecArena *a, 
     csilc_f = csilc_map_get(m, "user_id");
     if (!csilc_get_text(csilc_f, &(out->user_id))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
-    (out->expires_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->expires_at).rfc3339, &(out->expires_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "display_name");
     out->display_name = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     return 0;
@@ -3506,7 +3793,7 @@ static inline int csilc_enc_EmptyRequest(csilc_buf *b, const EmptyRequest *v) {
 static inline int csilc_dec_EmptyRequest(const csilc_value *m, CsilCodecArena *a, EmptyRequest *out) {
     (void)a;
     (void)out;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     return 0;
 }
 
@@ -3522,7 +3809,7 @@ static inline int csilc_enc_EmptyResponse(csilc_buf *b, const EmptyResponse *v) 
 static inline int csilc_dec_EmptyResponse(const csilc_value *m, CsilCodecArena *a, EmptyResponse *out) {
     (void)a;
     (void)out;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     return 0;
 }
 
@@ -3539,7 +3826,7 @@ static inline int csilc_enc_BoolResponse(csilc_buf *b, const BoolResponse *v) {
 static inline int csilc_dec_BoolResponse(const csilc_value *m, CsilCodecArena *a, BoolResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "value");
     if (!csilc_as_bool(csilc_f, &(out->value))) return -1;
     return 0;
@@ -3566,7 +3853,7 @@ static inline int csilc_enc_HouseListRequest(csilc_buf *b, const HouseListReques
 static inline int csilc_dec_HouseListRequest(const csilc_value *m, CsilCodecArena *a, HouseListRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "limit");
     out->limit = NULL;
     if (csilc_f) {
@@ -3609,7 +3896,7 @@ static inline int csilc_enc_HouseScopedListRequest(csilc_buf *b, const HouseScop
 static inline int csilc_dec_HouseScopedListRequest(const csilc_value *m, CsilCodecArena *a, HouseScopedListRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "limit");
     out->limit = NULL;
     if (csilc_f) {
@@ -3651,13 +3938,11 @@ static inline int csilc_enc_EventListRequest(csilc_buf *b, const EventListReques
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (v->range_end) {
         if (csilc_w_text(b, "range_end", 9)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->range_end)).rfc3339, ((*v->range_end)).rfc3339 ? strlen(((*v->range_end)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->range_end)).rfc3339)) return -1;
     }
     if (v->range_start) {
         if (csilc_w_text(b, "range_start", 11)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->range_start)).rfc3339, ((*v->range_start)).rfc3339 ? strlen(((*v->range_start)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->range_start)).rfc3339)) return -1;
     }
     return 0;
 }
@@ -3666,7 +3951,7 @@ static inline int csilc_enc_EventListRequest(csilc_buf *b, const EventListReques
 static inline int csilc_dec_EventListRequest(const csilc_value *m, CsilCodecArena *a, EventListRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "limit");
     out->limit = NULL;
     if (csilc_f) {
@@ -3690,8 +3975,7 @@ static inline int csilc_dec_EventListRequest(const csilc_value *m, CsilCodecAren
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->range_end = csilc_p;
     }
     csilc_f = csilc_map_get(m, "range_start");
@@ -3699,8 +3983,7 @@ static inline int csilc_dec_EventListRequest(const csilc_value *m, CsilCodecAren
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->range_start = csilc_p;
     }
     return 0;
@@ -3736,8 +4019,7 @@ static inline int csilc_enc_TaskListRequest(csilc_buf *b, const TaskListRequest 
     }
     if (v->due_to) {
         if (csilc_w_text(b, "due_to", 6)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->due_to)).rfc3339, ((*v->due_to)).rfc3339 ? strlen(((*v->due_to)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->due_to)).rfc3339)) return -1;
     }
     if (v->offset) {
         if (csilc_w_text(b, "offset", 6)) return -1;
@@ -3745,8 +4027,7 @@ static inline int csilc_enc_TaskListRequest(csilc_buf *b, const TaskListRequest 
     }
     if (v->due_from) {
         if (csilc_w_text(b, "due_from", 8)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->due_from)).rfc3339, ((*v->due_from)).rfc3339 ? strlen(((*v->due_from)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->due_from)).rfc3339)) return -1;
     }
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
@@ -3754,8 +4035,7 @@ static inline int csilc_enc_TaskListRequest(csilc_buf *b, const TaskListRequest 
         if (csilc_w_text(b, "due_before", 10)) return -1;
         if (csilc_w_array_head(b, v->due_before_count)) return -1;
         for (size_t csilc_i = 0; csilc_i < v->due_before_count; csilc_i++) {
-            if (csilc_w_tag(b, 0)) return -1;
-            if (csilc_w_text(b, (v->due_before[csilc_i]).rfc3339, (v->due_before[csilc_i]).rfc3339 ? strlen((v->due_before[csilc_i]).rfc3339) : 0)) return -1;
+            if (csilc_w_timestamp(b, (v->due_before[csilc_i]).rfc3339)) return -1;
         }
     }
     return 0;
@@ -3765,7 +4045,7 @@ static inline int csilc_enc_TaskListRequest(csilc_buf *b, const TaskListRequest 
 static inline int csilc_dec_TaskListRequest(const csilc_value *m, CsilCodecArena *a, TaskListRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "mine");
     out->mine = NULL;
     if (csilc_f) {
@@ -3803,8 +4083,7 @@ static inline int csilc_dec_TaskListRequest(const csilc_value *m, CsilCodecArena
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->due_to = csilc_p;
     }
     csilc_f = csilc_map_get(m, "offset");
@@ -3820,8 +4099,7 @@ static inline int csilc_dec_TaskListRequest(const csilc_value *m, CsilCodecArena
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->due_from = csilc_p;
     }
     csilc_f = csilc_map_get(m, "house_id");
@@ -3834,8 +4112,7 @@ static inline int csilc_dec_TaskListRequest(const csilc_value *m, CsilCodecArena
         out->due_before = (CsilTimestamp *)csilc_arena_alloc(a, out->due_before_count * sizeof(CsilTimestamp));
         if (!out->due_before) return -1;
         for (size_t csilc_i = 0; csilc_i < out->due_before_count; csilc_i++) {
-            if (!csilc_get_tagged_text(&csilc_f->as.array.items[csilc_i], 0, &(out->due_before[csilc_i]).rfc3339)) return -1;
-            (out->due_before[csilc_i]).epoch_seconds = 0;
+            if (!csilc_get_timestamp(&csilc_f->as.array.items[csilc_i], a, &(out->due_before[csilc_i]).rfc3339, &(out->due_before[csilc_i]).epoch_seconds)) return -1;
         }
     }
     return 0;
@@ -3872,7 +4149,7 @@ static inline int csilc_enc_TaskList(csilc_buf *b, const TaskList *v) {
 static inline int csilc_dec_TaskList(const csilc_value *m, CsilCodecArena *a, TaskList *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "tasks");
     if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
     out->tasks_count = csilc_f->as.array.count;
@@ -3926,7 +4203,7 @@ static inline int csilc_enc_ProjectList(csilc_buf *b, const ProjectList *v) {
 static inline int csilc_dec_ProjectList(const csilc_value *m, CsilCodecArena *a, ProjectList *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "projects");
     if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
     out->projects_count = csilc_f->as.array.count;
@@ -3968,7 +4245,7 @@ static inline int csilc_enc_MemberScopedListRequest(csilc_buf *b, const MemberSc
 static inline int csilc_dec_MemberScopedListRequest(const csilc_value *m, CsilCodecArena *a, MemberScopedListRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "limit");
     out->limit = NULL;
     if (csilc_f) {
@@ -4022,7 +4299,7 @@ static inline int csilc_enc_ProjectScopedListRequest(csilc_buf *b, const Project
 static inline int csilc_dec_ProjectScopedListRequest(const csilc_value *m, CsilCodecArena *a, ProjectScopedListRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "limit");
     out->limit = NULL;
     if (csilc_f) {
@@ -4079,7 +4356,7 @@ static inline int csilc_enc_CommentListRequest(csilc_buf *b, const CommentListRe
 static inline int csilc_dec_CommentListRequest(const csilc_value *m, CsilCodecArena *a, CommentListRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "limit");
     out->limit = NULL;
     if (csilc_f) {
@@ -4119,8 +4396,7 @@ static inline int csilc_enc_Notification(csilc_buf *b, const Notification *v) {
     if (csilc_w_bool(b, (v->read))) return -1;
     if (v->read_at) {
         if (csilc_w_text(b, "read_at", 7)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->read_at)).rfc3339, ((*v->read_at)).rfc3339 ? strlen(((*v->read_at)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->read_at)).rfc3339)) return -1;
     }
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
@@ -4133,8 +4409,7 @@ static inline int csilc_enc_Notification(csilc_buf *b, const Notification *v) {
     if (csilc_w_text(b, "actor_name", 10)) return -1;
     if (csilc_w_text(b, (v->actor_name), (v->actor_name) ? strlen(v->actor_name) : 0)) return -1;
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (v->target_type) {
         if (csilc_w_text(b, "target_type", 11)) return -1;
         if (csilc_w_text(b, (v->target_type), (v->target_type) ? strlen(v->target_type) : 0)) return -1;
@@ -4154,7 +4429,7 @@ static inline int csilc_enc_Notification(csilc_buf *b, const Notification *v) {
 static inline int csilc_dec_Notification(const csilc_value *m, CsilCodecArena *a, Notification *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "body");
     if (!csilc_get_text(csilc_f, &(out->body))) return -1;
     csilc_f = csilc_map_get(m, "kind");
@@ -4166,8 +4441,7 @@ static inline int csilc_dec_Notification(const csilc_value *m, CsilCodecArena *a
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->read_at = csilc_p;
     }
     csilc_f = csilc_map_get(m, "house_id");
@@ -4179,8 +4453,7 @@ static inline int csilc_dec_Notification(const csilc_value *m, CsilCodecArena *a
     csilc_f = csilc_map_get(m, "actor_name");
     if (!csilc_get_text(csilc_f, &(out->actor_name))) return -1;
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "target_type");
     out->target_type = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "target_title");
@@ -4226,7 +4499,7 @@ static inline int csilc_enc_NotificationListRequest(csilc_buf *b, const Notifica
 static inline int csilc_dec_NotificationListRequest(const csilc_value *m, CsilCodecArena *a, NotificationListRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "limit");
     out->limit = NULL;
     if (csilc_f) {
@@ -4269,7 +4542,7 @@ static inline int csilc_enc_NotificationUnreadCount(csilc_buf *b, const Notifica
 static inline int csilc_dec_NotificationUnreadCount(const csilc_value *m, CsilCodecArena *a, NotificationUnreadCount *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "count");
     if (!csilc_as_u64(csilc_f, &(out->count))) return -1;
     return 0;
@@ -4294,7 +4567,7 @@ static inline int csilc_enc_ShareAccessRequest(csilc_buf *b, const ShareAccessRe
 static inline int csilc_dec_ShareAccessRequest(const csilc_value *m, CsilCodecArena *a, ShareAccessRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "resource_id");
     if (!csilc_get_text(csilc_f, &(out->resource_id))) return -1;
     csilc_f = csilc_map_get(m, "resource_type");
@@ -4321,7 +4594,7 @@ static inline int csilc_enc_ResourceRef(csilc_buf *b, const ResourceRef *v) {
 static inline int csilc_dec_ResourceRef(const csilc_value *m, CsilCodecArena *a, ResourceRef *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "resource_id");
     if (!csilc_get_text(csilc_f, &(out->resource_id))) return -1;
     csilc_f = csilc_map_get(m, "resource_type");
@@ -4344,7 +4617,7 @@ static inline int csilc_enc_MemberRoleRef(csilc_buf *b, const MemberRoleRef *v) 
 static inline int csilc_dec_MemberRoleRef(const csilc_value *m, CsilCodecArena *a, MemberRoleRef *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "role_id");
     if (!csilc_get_text(csilc_f, &(out->role_id))) return -1;
     csilc_f = csilc_map_get(m, "member_id");
@@ -4367,7 +4640,7 @@ static inline int csilc_enc_MemberSkillRef(csilc_buf *b, const MemberSkillRef *v
 static inline int csilc_dec_MemberSkillRef(const csilc_value *m, CsilCodecArena *a, MemberSkillRef *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "skill_id");
     if (!csilc_get_text(csilc_f, &(out->skill_id))) return -1;
     csilc_f = csilc_map_get(m, "member_id");
@@ -4390,7 +4663,7 @@ static inline int csilc_enc_GroupSkillRef(csilc_buf *b, const GroupSkillRef *v) 
 static inline int csilc_dec_GroupSkillRef(const csilc_value *m, CsilCodecArena *a, GroupSkillRef *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "group_id");
     if (!csilc_get_text(csilc_f, &(out->group_id))) return -1;
     csilc_f = csilc_map_get(m, "skill_id");
@@ -4413,7 +4686,7 @@ static inline int csilc_enc_GroupMemberRef(csilc_buf *b, const GroupMemberRef *v
 static inline int csilc_dec_GroupMemberRef(const csilc_value *m, CsilCodecArena *a, GroupMemberRef *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "group_id");
     if (!csilc_get_text(csilc_f, &(out->group_id))) return -1;
     csilc_f = csilc_map_get(m, "member_id");
@@ -4436,7 +4709,7 @@ static inline int csilc_enc_ProjectTaskRef(csilc_buf *b, const ProjectTaskRef *v
 static inline int csilc_dec_ProjectTaskRef(const csilc_value *m, CsilCodecArena *a, ProjectTaskRef *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "task_id");
     if (!csilc_get_text(csilc_f, &(out->task_id))) return -1;
     csilc_f = csilc_map_get(m, "project_id");
@@ -4461,7 +4734,7 @@ static inline int csilc_enc_ProjectTaskOrderRequest(csilc_buf *b, const ProjectT
 static inline int csilc_dec_ProjectTaskOrderRequest(const csilc_value *m, CsilCodecArena *a, ProjectTaskOrderRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "task_id");
     if (!csilc_get_text(csilc_f, &(out->task_id))) return -1;
     csilc_f = csilc_map_get(m, "position");
@@ -4486,7 +4759,7 @@ static inline int csilc_enc_ProjectMemberRef(csilc_buf *b, const ProjectMemberRe
 static inline int csilc_dec_ProjectMemberRef(const csilc_value *m, CsilCodecArena *a, ProjectMemberRef *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "project_id");
@@ -4509,7 +4782,7 @@ static inline int csilc_enc_ProjectOwnerRef(csilc_buf *b, const ProjectOwnerRef 
 static inline int csilc_dec_ProjectOwnerRef(const csilc_value *m, CsilCodecArena *a, ProjectOwnerRef *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "member_id");
     if (!csilc_get_text(csilc_f, &(out->member_id))) return -1;
     csilc_f = csilc_map_get(m, "project_id");
@@ -4536,7 +4809,7 @@ static inline int csilc_enc_DependencyRef(csilc_buf *b, const DependencyRef *v) 
 static inline int csilc_dec_DependencyRef(const csilc_value *m, CsilCodecArena *a, DependencyRef *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "dependent_id");
     if (!csilc_get_text(csilc_f, &(out->dependent_id))) return -1;
     csilc_f = csilc_map_get(m, "dependency_id");
@@ -4563,7 +4836,7 @@ static inline int csilc_enc_DependencyTarget(csilc_buf *b, const DependencyTarge
 static inline int csilc_dec_DependencyTarget(const csilc_value *m, CsilCodecArena *a, DependencyTarget *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "id");
     if (!csilc_get_text(csilc_f, &(out->id))) return -1;
     csilc_f = csilc_map_get(m, "type");
@@ -4593,7 +4866,7 @@ static inline int csilc_enc_DependencyNode(csilc_buf *b, const DependencyNode *v
 static inline int csilc_dec_DependencyNode(const csilc_value *m, CsilCodecArena *a, DependencyNode *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "id");
     if (!csilc_get_text(csilc_f, &(out->id))) return -1;
     csilc_f = csilc_map_get(m, "type");
@@ -4626,7 +4899,7 @@ static inline int csilc_enc_DependencyGraph(csilc_buf *b, const DependencyGraph 
 static inline int csilc_dec_DependencyGraph(const csilc_value *m, CsilCodecArena *a, DependencyGraph *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "dependents");
     if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
     out->dependents_count = csilc_f->as.array.count;
@@ -4669,7 +4942,7 @@ static inline int csilc_enc_Grant(csilc_buf *b, const Grant *v) {
 static inline int csilc_dec_Grant(const csilc_value *m, CsilCodecArena *a, Grant *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "grantee_id");
     if (!csilc_get_text(csilc_f, &(out->grantee_id))) return -1;
     csilc_f = csilc_map_get(m, "access_level");
@@ -4696,7 +4969,7 @@ static inline int csilc_enc_TaskGrantRef(csilc_buf *b, const TaskGrantRef *v) {
 static inline int csilc_dec_TaskGrantRef(const csilc_value *m, CsilCodecArena *a, TaskGrantRef *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "task_id");
     if (!csilc_get_text(csilc_f, &(out->task_id))) return -1;
     csilc_f = csilc_map_get(m, "grantee_id");
@@ -4725,7 +4998,7 @@ static inline int csilc_enc_PutTaskGrantRequest(csilc_buf *b, const PutTaskGrant
 static inline int csilc_dec_PutTaskGrantRequest(const csilc_value *m, CsilCodecArena *a, PutTaskGrantRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "task_id");
     if (!csilc_get_text(csilc_f, &(out->task_id))) return -1;
     csilc_f = csilc_map_get(m, "grantee_id");
@@ -4752,7 +5025,7 @@ static inline int csilc_enc_SetTaskVisibilityRequest(csilc_buf *b, const SetTask
 static inline int csilc_dec_SetTaskVisibilityRequest(const csilc_value *m, CsilCodecArena *a, SetTaskVisibilityRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "task_id");
     if (!csilc_get_text(csilc_f, &(out->task_id))) return -1;
     csilc_f = csilc_map_get(m, "visibility");
@@ -4777,7 +5050,7 @@ static inline int csilc_enc_ProjectGrantRef(csilc_buf *b, const ProjectGrantRef 
 static inline int csilc_dec_ProjectGrantRef(const csilc_value *m, CsilCodecArena *a, ProjectGrantRef *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "grantee_id");
     if (!csilc_get_text(csilc_f, &(out->grantee_id))) return -1;
     csilc_f = csilc_map_get(m, "project_id");
@@ -4806,7 +5079,7 @@ static inline int csilc_enc_PutProjectGrantRequest(csilc_buf *b, const PutProjec
 static inline int csilc_dec_PutProjectGrantRequest(const csilc_value *m, CsilCodecArena *a, PutProjectGrantRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "grantee_id");
     if (!csilc_get_text(csilc_f, &(out->grantee_id))) return -1;
     csilc_f = csilc_map_get(m, "project_id");
@@ -4833,7 +5106,7 @@ static inline int csilc_enc_SetProjectVisibilityRequest(csilc_buf *b, const SetP
 static inline int csilc_dec_SetProjectVisibilityRequest(const csilc_value *m, CsilCodecArena *a, SetProjectVisibilityRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     csilc_f = csilc_map_get(m, "visibility");
@@ -4872,7 +5145,7 @@ static inline int csilc_enc_EffectiveSettings(csilc_buf *b, const EffectiveSetti
 static inline int csilc_dec_EffectiveSettings(const csilc_value *m, CsilCodecArena *a, EffectiveSettings *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "bug_reports_enabled");
     out->bug_reports_enabled = NULL;
     if (csilc_f) {
@@ -4923,7 +5196,7 @@ static inline int csilc_enc_UpdateSettingsRequest(csilc_buf *b, const UpdateSett
 static inline int csilc_dec_UpdateSettingsRequest(const csilc_value *m, CsilCodecArena *a, UpdateSettingsRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "settings");
@@ -4951,7 +5224,7 @@ static inline int csilc_enc_BugReportRequest(csilc_buf *b, const BugReportReques
 static inline int csilc_dec_BugReportRequest(const csilc_value *m, CsilCodecArena *a, BugReportRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "title");
     if (!csilc_get_text(csilc_f, &(out->title))) return -1;
     csilc_f = csilc_map_get(m, "house_id");
@@ -4976,7 +5249,7 @@ static inline int csilc_enc_ServiceError(csilc_buf *b, const ServiceError *v) {
 static inline int csilc_dec_ServiceError(const csilc_value *m, CsilCodecArena *a, ServiceError *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "code");
     if (!csilc_as_u64(csilc_f, &(out->code))) return -1;
     csilc_f = csilc_map_get(m, "message");
@@ -5020,7 +5293,7 @@ static inline int csilc_enc_ActAsScopeSetRequest(csilc_buf *b, const ActAsScopeS
 static inline int csilc_dec_ActAsScopeSetRequest(const csilc_value *m, CsilCodecArena *a, ActAsScopeSetRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "scopes");
     if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
     out->scopes_count = csilc_f->as.array.count;
@@ -5056,7 +5329,7 @@ static inline int csilc_enc_ActAsScopeSetResponse(csilc_buf *b, const ActAsScope
 static inline int csilc_dec_ActAsScopeSetResponse(const csilc_value *m, CsilCodecArena *a, ActAsScopeSetResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "signed_scope_set");
     if (!csilc_get_bytes(csilc_f, &(out->signed_scope_set).data, &(out->signed_scope_set).len)) return -1;
     return 0;
@@ -5075,7 +5348,7 @@ static inline int csilc_enc_ExchangeActAsCredentialRequest(csilc_buf *b, const E
 static inline int csilc_dec_ExchangeActAsCredentialRequest(const csilc_value *m, CsilCodecArena *a, ExchangeActAsCredentialRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "credential");
     if (!csilc_get_bytes(csilc_f, &(out->credential).data, &(out->credential).len)) return -1;
     return 0;
@@ -5101,8 +5374,7 @@ static inline int csilc_enc_ActAsTokenResponse(csilc_buf *b, const ActAsTokenRes
     if (csilc_w_text(b, "grant_id", 8)) return -1;
     if (csilc_w_text(b, (v->grant_id), (v->grant_id) ? strlen(v->grant_id) : 0)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->expires_at).rfc3339)) return -1;
     return 0;
 }
 
@@ -5110,7 +5382,7 @@ static inline int csilc_enc_ActAsTokenResponse(csilc_buf *b, const ActAsTokenRes
 static inline int csilc_dec_ActAsTokenResponse(const csilc_value *m, CsilCodecArena *a, ActAsTokenResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "token");
     if (!csilc_get_text(csilc_f, &(out->token))) return -1;
     csilc_f = csilc_map_get(m, "domain");
@@ -5133,8 +5405,367 @@ static inline int csilc_dec_ActAsTokenResponse(const csilc_value *m, CsilCodecAr
     csilc_f = csilc_map_get(m, "grant_id");
     if (!csilc_get_text(csilc_f, &(out->grant_id))) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
-    (out->expires_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->expires_at).rfc3339, &(out->expires_at).epoch_seconds)) return -1;
+    return 0;
+}
+
+/* csilc_enc_CalendarMigrationRowItems writes CalendarMigrationRowItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_CalendarMigrationRowItems(csilc_buf *b, const CalendarMigrationRowItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_CalendarMigrationRow(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_CalendarMigrationRowItems reads CalendarMigrationRowItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_CalendarMigrationRowItems(const csilc_value *m, CsilCodecArena *a, CalendarMigrationRowItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (CalendarMigrationRow *)csilc_arena_alloc(a, out->count * sizeof(CalendarMigrationRow));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_CalendarMigrationRow(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_CalendarTrashEntryItems writes CalendarTrashEntryItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_CalendarTrashEntryItems(csilc_buf *b, const CalendarTrashEntryItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_CalendarTrashEntry(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_CalendarTrashEntryItems reads CalendarTrashEntryItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_CalendarTrashEntryItems(const csilc_value *m, CsilCodecArena *a, CalendarTrashEntryItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (CalendarTrashEntry *)csilc_arena_alloc(a, out->count * sizeof(CalendarTrashEntry));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_CalendarTrashEntry(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_CommentItems writes CommentItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_CommentItems(csilc_buf *b, const CommentItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_Comment(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_CommentItems reads CommentItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_CommentItems(const csilc_value *m, CsilCodecArena *a, CommentItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (Comment *)csilc_arena_alloc(a, out->count * sizeof(Comment));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_Comment(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_EventItems writes EventItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_EventItems(csilc_buf *b, const EventItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_Event(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_EventItems reads EventItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_EventItems(const csilc_value *m, CsilCodecArena *a, EventItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (Event *)csilc_arena_alloc(a, out->count * sizeof(Event));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_Event(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_GrantItems writes GrantItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_GrantItems(csilc_buf *b, const GrantItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_Grant(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_GrantItems reads GrantItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_GrantItems(const csilc_value *m, CsilCodecArena *a, GrantItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (Grant *)csilc_arena_alloc(a, out->count * sizeof(Grant));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_Grant(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_GroupItems writes GroupItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_GroupItems(csilc_buf *b, const GroupItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_Group(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_GroupItems reads GroupItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_GroupItems(const csilc_value *m, CsilCodecArena *a, GroupItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (Group *)csilc_arena_alloc(a, out->count * sizeof(Group));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_Group(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_HouseItems writes HouseItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_HouseItems(csilc_buf *b, const HouseItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_House(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_HouseItems reads HouseItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_HouseItems(const csilc_value *m, CsilCodecArena *a, HouseItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (House *)csilc_arena_alloc(a, out->count * sizeof(House));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_House(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_MemberItems writes MemberItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_MemberItems(csilc_buf *b, const MemberItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_Member(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_MemberItems reads MemberItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_MemberItems(const csilc_value *m, CsilCodecArena *a, MemberItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (Member *)csilc_arena_alloc(a, out->count * sizeof(Member));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_Member(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_MemberAuditItems writes MemberAuditItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_MemberAuditItems(csilc_buf *b, const MemberAuditItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_MemberAudit(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_MemberAuditItems reads MemberAuditItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_MemberAuditItems(const csilc_value *m, CsilCodecArena *a, MemberAuditItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (MemberAudit *)csilc_arena_alloc(a, out->count * sizeof(MemberAudit));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_MemberAudit(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_MilestoneItems writes MilestoneItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_MilestoneItems(csilc_buf *b, const MilestoneItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_Milestone(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_MilestoneItems reads MilestoneItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_MilestoneItems(const csilc_value *m, CsilCodecArena *a, MilestoneItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (Milestone *)csilc_arena_alloc(a, out->count * sizeof(Milestone));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_Milestone(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_NotificationItems writes NotificationItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_NotificationItems(csilc_buf *b, const NotificationItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_Notification(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_NotificationItems reads NotificationItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_NotificationItems(const csilc_value *m, CsilCodecArena *a, NotificationItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (Notification *)csilc_arena_alloc(a, out->count * sizeof(Notification));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_Notification(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_RoleItems writes RoleItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_RoleItems(csilc_buf *b, const RoleItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_Role(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_RoleItems reads RoleItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_RoleItems(const csilc_value *m, CsilCodecArena *a, RoleItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (Role *)csilc_arena_alloc(a, out->count * sizeof(Role));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_Role(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_ShareItems writes ShareItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_ShareItems(csilc_buf *b, const ShareItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_Share(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_ShareItems reads ShareItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_ShareItems(const csilc_value *m, CsilCodecArena *a, ShareItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (Share *)csilc_arena_alloc(a, out->count * sizeof(Share));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_Share(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_SkillItems writes SkillItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_SkillItems(csilc_buf *b, const SkillItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_Skill(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_SkillItems reads SkillItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_SkillItems(const csilc_value *m, CsilCodecArena *a, SkillItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (Skill *)csilc_arena_alloc(a, out->count * sizeof(Skill));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_Skill(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
+    return 0;
+}
+
+/* csilc_enc_TrustedDomainItems writes TrustedDomainItems as a CBOR array of encoded elements. */
+static inline int csilc_enc_TrustedDomainItems(csilc_buf *b, const TrustedDomainItems *v) {
+    if (csilc_w_array_head(b, v->count)) return -1;
+    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
+        if (csilc_enc_TrustedDomain(b, &(v->items[csilc_i]))) return -1;
+    }
+    return 0;
+}
+
+/* csilc_dec_TrustedDomainItems reads TrustedDomainItems from a decoded CBOR array (arena-borrowed). */
+static inline int csilc_dec_TrustedDomainItems(const csilc_value *m, CsilCodecArena *a, TrustedDomainItems *out) {
+    if (!m || m->kind != CSILC_ARRAY) return -1;
+    out->count = m->as.array.count;
+    out->items = NULL;
+    if (out->count) {
+        out->items = (TrustedDomain *)csilc_arena_alloc(a, out->count * sizeof(TrustedDomain));
+        if (!out->items) return -1;
+        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
+            if (csilc_dec_TrustedDomain(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
+        }
+    }
     return 0;
 }
 
@@ -5153,7 +5784,7 @@ static inline int csilc_enc_CalendarSubscription(csilc_buf *b, const CalendarSub
 static inline int csilc_dec_CalendarSubscription(const csilc_value *m, CsilCodecArena *a, CalendarSubscription *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "enabled");
     if (!csilc_as_bool(csilc_f, &(out->enabled))) return -1;
     csilc_f = csilc_map_get(m, "subject_member_id");
@@ -5184,7 +5815,7 @@ static inline int csilc_enc_CalendarView(csilc_buf *b, const CalendarView *v) {
 static inline int csilc_dec_CalendarView(const csilc_value *m, CsilCodecArena *a, CalendarView *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "subscriptions");
@@ -5218,7 +5849,7 @@ static inline int csilc_enc_EventDecision(csilc_buf *b, const EventDecision *v) 
 static inline int csilc_dec_EventDecision(const csilc_value *m, CsilCodecArena *a, EventDecision *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "event_id");
     if (!csilc_get_text(csilc_f, &(out->event_id))) return -1;
     csilc_f = csilc_map_get(m, "revision");
@@ -5248,8 +5879,7 @@ static inline int csilc_enc_CalendarStatus(csilc_buf *b, const CalendarStatus *v
     }
     if (v->sync_pending_since) {
         if (csilc_w_text(b, "sync_pending_since", 18)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->sync_pending_since)).rfc3339, ((*v->sync_pending_since)).rfc3339 ? strlen(((*v->sync_pending_since)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->sync_pending_since)).rfc3339)) return -1;
     }
     return 0;
 }
@@ -5258,7 +5888,7 @@ static inline int csilc_enc_CalendarStatus(csilc_buf *b, const CalendarStatus *v
 static inline int csilc_dec_CalendarStatus(const csilc_value *m, CsilCodecArena *a, CalendarStatus *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "ready");
     if (!csilc_as_bool(csilc_f, &(out->ready))) return -1;
     csilc_f = csilc_map_get(m, "enabled");
@@ -5276,8 +5906,7 @@ static inline int csilc_dec_CalendarStatus(const csilc_value *m, CsilCodecArena 
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->sync_pending_since = csilc_p;
     }
     return 0;
@@ -5298,7 +5927,7 @@ static inline int csilc_enc_ConfigureCalendarRequest(csilc_buf *b, const Configu
 static inline int csilc_dec_ConfigureCalendarRequest(const csilc_value *m, CsilCodecArena *a, ConfigureCalendarRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "enabled");
     if (!csilc_as_bool(csilc_f, &(out->enabled))) return -1;
     csilc_f = csilc_map_get(m, "house_id");
@@ -5319,7 +5948,7 @@ static inline int csilc_enc_CalendarConnectResponse(csilc_buf *b, const Calendar
 static inline int csilc_dec_CalendarConnectResponse(const csilc_value *m, CsilCodecArena *a, CalendarConnectResponse *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "url");
     if (!csilc_get_text(csilc_f, &(out->url))) return -1;
     return 0;
@@ -5342,7 +5971,7 @@ static inline int csilc_enc_CompleteCalendarConnectRequest(csilc_buf *b, const C
 static inline int csilc_dec_CompleteCalendarConnectRequest(const csilc_value *m, CsilCodecArena *a, CompleteCalendarConnectRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "nonce");
     if (!csilc_get_text(csilc_f, &(out->nonce))) return -1;
     csilc_f = csilc_map_get(m, "grant_id");
@@ -5361,11 +5990,9 @@ static inline int csilc_enc_CalendarTrashEntry(csilc_buf *b, const CalendarTrash
     if (csilc_w_text(b, "trash_id", 8)) return -1;
     if (csilc_w_text(b, (v->trash_id), (v->trash_id) ? strlen(v->trash_id) : 0)) return -1;
     if (csilc_w_text(b, "deleted_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->deleted_at).rfc3339, (v->deleted_at).rfc3339 ? strlen((v->deleted_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->deleted_at).rfc3339)) return -1;
     if (csilc_w_text(b, "expires_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->expires_at).rfc3339, (v->expires_at).rfc3339 ? strlen((v->expires_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->expires_at).rfc3339)) return -1;
     return 0;
 }
 
@@ -5373,17 +6000,15 @@ static inline int csilc_enc_CalendarTrashEntry(csilc_buf *b, const CalendarTrash
 static inline int csilc_dec_CalendarTrashEntry(const csilc_value *m, CsilCodecArena *a, CalendarTrashEntry *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "event");
     if (csilc_dec_Event(csilc_f, a, &(out->event))) return -1;
     csilc_f = csilc_map_get(m, "trash_id");
     if (!csilc_get_text(csilc_f, &(out->trash_id))) return -1;
     csilc_f = csilc_map_get(m, "deleted_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->deleted_at).rfc3339)) return -1;
-    (out->deleted_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->deleted_at).rfc3339, &(out->deleted_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "expires_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->expires_at).rfc3339)) return -1;
-    (out->expires_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->expires_at).rfc3339, &(out->expires_at).epoch_seconds)) return -1;
     return 0;
 }
 
@@ -5402,7 +6027,7 @@ static inline int csilc_enc_RestoreCalendarEventRequest(csilc_buf *b, const Rest
 static inline int csilc_dec_RestoreCalendarEventRequest(const csilc_value *m, CsilCodecArena *a, RestoreCalendarEventRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "trash_id");
@@ -5429,7 +6054,7 @@ static inline int csilc_enc_CalendarMigrationRow(csilc_buf *b, const CalendarMig
 static inline int csilc_dec_CalendarMigrationRow(const csilc_value *m, CsilCodecArena *a, CalendarMigrationRow *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "title");
     if (!csilc_get_text(csilc_f, &(out->title))) return -1;
     csilc_f = csilc_map_get(m, "reason");
@@ -5446,13 +6071,11 @@ static inline int csilc_enc_ProjectDeadlineRequest(csilc_buf *b, const ProjectDe
     size_t csilc_n = 3;
     if (csilc_w_map_head(b, csilc_n)) return -1;
     if (csilc_w_text(b, "range_end", 9)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->range_end).rfc3339, (v->range_end).rfc3339 ? strlen((v->range_end).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->range_end).rfc3339)) return -1;
     if (csilc_w_text(b, "project_id", 10)) return -1;
     if (csilc_w_text(b, (v->project_id), (v->project_id) ? strlen(v->project_id) : 0)) return -1;
     if (csilc_w_text(b, "range_start", 11)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->range_start).rfc3339, (v->range_start).rfc3339 ? strlen((v->range_start).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->range_start).rfc3339)) return -1;
     return 0;
 }
 
@@ -5460,15 +6083,13 @@ static inline int csilc_enc_ProjectDeadlineRequest(csilc_buf *b, const ProjectDe
 static inline int csilc_dec_ProjectDeadlineRequest(const csilc_value *m, CsilCodecArena *a, ProjectDeadlineRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "range_end");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->range_end).rfc3339)) return -1;
-    (out->range_end).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->range_end).rfc3339, &(out->range_end).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "project_id");
     if (!csilc_get_text(csilc_f, &(out->project_id))) return -1;
     csilc_f = csilc_map_get(m, "range_start");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->range_start).rfc3339)) return -1;
-    (out->range_start).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->range_start).rfc3339, &(out->range_start).epoch_seconds)) return -1;
     return 0;
 }
 
@@ -5479,8 +6100,7 @@ static inline int csilc_enc_ProjectDeadline(csilc_buf *b, const ProjectDeadline 
     if (csilc_w_text(b, "title", 5)) return -1;
     if (csilc_w_text(b, (v->title), (v->title) ? strlen(v->title) : 0)) return -1;
     if (csilc_w_text(b, "due_at", 6)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->due_at).rfc3339, (v->due_at).rfc3339 ? strlen((v->due_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->due_at).rfc3339)) return -1;
     if (csilc_w_text(b, "task_id", 7)) return -1;
     if (csilc_w_text(b, (v->task_id), (v->task_id) ? strlen(v->task_id) : 0)) return -1;
     return 0;
@@ -5490,12 +6110,11 @@ static inline int csilc_enc_ProjectDeadline(csilc_buf *b, const ProjectDeadline 
 static inline int csilc_dec_ProjectDeadline(const csilc_value *m, CsilCodecArena *a, ProjectDeadline *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "title");
     if (!csilc_get_text(csilc_f, &(out->title))) return -1;
     csilc_f = csilc_map_get(m, "due_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->due_at).rfc3339)) return -1;
-    (out->due_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->due_at).rfc3339, &(out->due_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "task_id");
     if (!csilc_get_text(csilc_f, &(out->task_id))) return -1;
     return 0;
@@ -5528,7 +6147,7 @@ static inline int csilc_enc_ProjectDeadlineList(csilc_buf *b, const ProjectDeadl
 static inline int csilc_dec_ProjectDeadlineList(const csilc_value *m, CsilCodecArena *a, ProjectDeadlineList *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "enabled");
     if (!csilc_as_bool(csilc_f, &(out->enabled))) return -1;
     csilc_f = csilc_map_get(m, "pending");
@@ -5587,8 +6206,7 @@ static inline int csilc_enc_AuditEntry(csilc_buf *b, const AuditEntry *v) {
         if (csilc_w_text(b, ((*v->house_id)), ((*v->house_id)) ? strlen((*v->house_id)) : 0)) return -1;
     }
     if (csilc_w_text(b, "created_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->created_at).rfc3339, (v->created_at).rfc3339 ? strlen((v->created_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->created_at).rfc3339)) return -1;
     if (v->resource_id) {
         if (csilc_w_text(b, "resource_id", 11)) return -1;
         if (csilc_w_text(b, (v->resource_id), (v->resource_id) ? strlen(v->resource_id) : 0)) return -1;
@@ -5614,7 +6232,7 @@ static inline int csilc_enc_AuditEntry(csilc_buf *b, const AuditEntry *v) {
 static inline int csilc_dec_AuditEntry(const csilc_value *m, CsilCodecArena *a, AuditEntry *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "after");
     out->after = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "action");
@@ -5638,8 +6256,7 @@ static inline int csilc_dec_AuditEntry(const csilc_value *m, CsilCodecArena *a, 
         out->house_id = csilc_p;
     }
     csilc_f = csilc_map_get(m, "created_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->created_at).rfc3339)) return -1;
-    (out->created_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->created_at).rfc3339, &(out->created_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "resource_id");
     out->resource_id = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "actor_domain");
@@ -5678,13 +6295,11 @@ static inline int csilc_enc_AuditQuery(csilc_buf *b, const AuditQuery *v) {
     }
     if (v->since) {
         if (csilc_w_text(b, "since", 5)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->since)).rfc3339, ((*v->since)).rfc3339 ? strlen(((*v->since)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->since)).rfc3339)) return -1;
     }
     if (v->until) {
         if (csilc_w_text(b, "until", 5)) return -1;
-        if (csilc_w_tag(b, 0)) return -1;
-        if (csilc_w_text(b, ((*v->until)).rfc3339, ((*v->until)).rfc3339 ? strlen(((*v->until)).rfc3339) : 0)) return -1;
+        if (csilc_w_timestamp(b, ((*v->until)).rfc3339)) return -1;
     }
     if (v->action) {
         if (csilc_w_text(b, "action", 6)) return -1;
@@ -5711,7 +6326,7 @@ static inline int csilc_enc_AuditQuery(csilc_buf *b, const AuditQuery *v) {
 static inline int csilc_dec_AuditQuery(const csilc_value *m, CsilCodecArena *a, AuditQuery *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "limit");
     out->limit = NULL;
     if (csilc_f) {
@@ -5725,8 +6340,7 @@ static inline int csilc_dec_AuditQuery(const csilc_value *m, CsilCodecArena *a, 
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->since = csilc_p;
     }
     csilc_f = csilc_map_get(m, "until");
@@ -5734,8 +6348,7 @@ static inline int csilc_dec_AuditQuery(const csilc_value *m, CsilCodecArena *a, 
     if (csilc_f) {
         CsilTimestamp *csilc_p = (CsilTimestamp *)csilc_arena_alloc(a, sizeof(CsilTimestamp));
         if (!csilc_p) return -1;
-        if (!csilc_get_tagged_text(csilc_f, 0, &((*csilc_p)).rfc3339)) return -1;
-        ((*csilc_p)).epoch_seconds = 0;
+        if (!csilc_get_timestamp(csilc_f, a, &((*csilc_p)).rfc3339, &((*csilc_p)).epoch_seconds)) return -1;
         out->until = csilc_p;
     }
     csilc_f = csilc_map_get(m, "action");
@@ -5778,7 +6391,7 @@ static inline int csilc_enc_AuditPage(csilc_buf *b, const AuditPage *v) {
 static inline int csilc_dec_AuditPage(const csilc_value *m, CsilCodecArena *a, AuditPage *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "entries");
     if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
     out->entries_count = csilc_f->as.array.count;
@@ -5808,8 +6421,7 @@ static inline int csilc_enc_TrashItem(csilc_buf *b, const TrashItem *v) {
     if (csilc_w_text(b, "house_id", 8)) return -1;
     if (csilc_w_text(b, (v->house_id), (v->house_id) ? strlen(v->house_id) : 0)) return -1;
     if (csilc_w_text(b, "deleted_at", 10)) return -1;
-    if (csilc_w_tag(b, 0)) return -1;
-    if (csilc_w_text(b, (v->deleted_at).rfc3339, (v->deleted_at).rfc3339 ? strlen((v->deleted_at).rfc3339) : 0)) return -1;
+    if (csilc_w_timestamp(b, (v->deleted_at).rfc3339)) return -1;
     if (csilc_w_text(b, "resource_id", 11)) return -1;
     if (csilc_w_text(b, (v->resource_id), (v->resource_id) ? strlen(v->resource_id) : 0)) return -1;
     if (csilc_w_text(b, "deleted_op_id", 13)) return -1;
@@ -5827,14 +6439,13 @@ static inline int csilc_enc_TrashItem(csilc_buf *b, const TrashItem *v) {
 static inline int csilc_dec_TrashItem(const csilc_value *m, CsilCodecArena *a, TrashItem *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "title");
     out->title = (csilc_f && csilc_f->kind == CSILC_TEXT) ? (char *)csilc_f->as.bytes.ptr : NULL;
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "deleted_at");
-    if (!csilc_get_tagged_text(csilc_f, 0, &(out->deleted_at).rfc3339)) return -1;
-    (out->deleted_at).epoch_seconds = 0;
+    if (!csilc_get_timestamp(csilc_f, a, &(out->deleted_at).rfc3339, &(out->deleted_at).epoch_seconds)) return -1;
     csilc_f = csilc_map_get(m, "resource_id");
     if (!csilc_get_text(csilc_f, &(out->resource_id))) return -1;
     csilc_f = csilc_map_get(m, "deleted_op_id");
@@ -5873,7 +6484,7 @@ static inline int csilc_enc_TrashPage(csilc_buf *b, const TrashPage *v) {
 static inline int csilc_dec_TrashPage(const csilc_value *m, CsilCodecArena *a, TrashPage *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "items");
     if (!csilc_f || csilc_f->kind != CSILC_ARRAY) return -1;
     out->items_count = csilc_f->as.array.count;
@@ -5918,7 +6529,7 @@ static inline int csilc_enc_RestoreRequest(csilc_buf *b, const RestoreRequest *v
 static inline int csilc_dec_RestoreRequest(const csilc_value *m, CsilCodecArena *a, RestoreRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "resource_id");
@@ -5947,7 +6558,7 @@ static inline int csilc_enc_PurgeRequest(csilc_buf *b, const PurgeRequest *v) {
 static inline int csilc_dec_PurgeRequest(const csilc_value *m, CsilCodecArena *a, PurgeRequest *out) {
     (void)a;
     const csilc_value *csilc_f;
-    if (!m || m->kind != CSILC_MAP) return -1;
+    if (!m || m->kind != CSILC_MAP || m->as.map.duplicate || m->as.map.long_key) return -1;
     csilc_f = csilc_map_get(m, "house_id");
     if (!csilc_get_text(csilc_f, &(out->house_id))) return -1;
     csilc_f = csilc_map_get(m, "resource_id");
@@ -5957,98 +6568,9 @@ static inline int csilc_dec_PurgeRequest(const csilc_value *m, CsilCodecArena *a
     return 0;
 }
 
-/* CsilHouseList is a named list alias. */
-typedef struct CsilHouseList {
-    House *items;
-    size_t count;
-} CsilHouseList;
-
-/* CsilMemberList is a named list alias. */
-typedef struct CsilMemberList {
-    Member *items;
-    size_t count;
-} CsilMemberList;
-
-/* CsilTrustedDomainList is a named list alias. */
-typedef struct CsilTrustedDomainList {
-    TrustedDomain *items;
-    size_t count;
-} CsilTrustedDomainList;
-
-/* CsilRoleList is a named list alias. */
-typedef struct CsilRoleList {
-    Role *items;
-    size_t count;
-} CsilRoleList;
-
-/* CsilSkillList is a named list alias. */
-typedef struct CsilSkillList {
-    Skill *items;
-    size_t count;
-} CsilSkillList;
-
-/* CsilGroupList is a named list alias. */
-typedef struct CsilGroupList {
-    Group *items;
-    size_t count;
-} CsilGroupList;
-
-/* CsilMilestoneList is a named list alias. */
-typedef struct CsilMilestoneList {
-    Milestone *items;
-    size_t count;
-} CsilMilestoneList;
-
-/* CsilGrantList is a named list alias. */
-typedef struct CsilGrantList {
-    Grant *items;
-    size_t count;
-} CsilGrantList;
-
-/* CsilEventList is a named list alias. */
-typedef struct CsilEventList {
-    Event *items;
-    size_t count;
-} CsilEventList;
-
-/* CsilCalendarMigrationRowList is a named list alias. */
-typedef struct CsilCalendarMigrationRowList {
-    CalendarMigrationRow *items;
-    size_t count;
-} CsilCalendarMigrationRowList;
-
-/* CsilCalendarTrashEntryList is a named list alias. */
-typedef struct CsilCalendarTrashEntryList {
-    CalendarTrashEntry *items;
-    size_t count;
-} CsilCalendarTrashEntryList;
-
-/* CsilCommentList is a named list alias. */
-typedef struct CsilCommentList {
-    Comment *items;
-    size_t count;
-} CsilCommentList;
-
-/* CsilNotificationList is a named list alias. */
-typedef struct CsilNotificationList {
-    Notification *items;
-    size_t count;
-} CsilNotificationList;
-
-/* CsilShareList is a named list alias. */
-typedef struct CsilShareList {
-    Share *items;
-    size_t count;
-} CsilShareList;
-
-/* CsilMemberAuditList is a named list alias. */
-typedef struct CsilMemberAuditList {
-    MemberAudit *items;
-    size_t count;
-} CsilMemberAuditList;
-
 /* csilc_enc_HouseID writes a bare HouseID value. */
 static inline int csilc_enc_HouseID(csilc_buf *b, const HouseID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6056,36 +6578,14 @@ static inline int csilc_enc_HouseID(csilc_buf *b, const HouseID *v) {
 /* csilc_dec_HouseID reads a bare HouseID value (arena-borrowed). */
 static inline int csilc_dec_HouseID(const csilc_value *m, CsilCodecArena *a, HouseID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
-    return 0;
-}
-
-/* csilc_enc_CsilHouseList writes CsilHouseList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilHouseList(csilc_buf *b, const CsilHouseList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_House(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilHouseList reads CsilHouseList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilHouseList(const csilc_value *m, CsilCodecArena *a, CsilHouseList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (House *)csilc_arena_alloc(a, out->count * sizeof(House));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_House(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
     return 0;
 }
 
 /* csilc_enc_MemberID writes a bare MemberID value. */
 static inline int csilc_enc_MemberID(csilc_buf *b, const MemberID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6093,36 +6593,14 @@ static inline int csilc_enc_MemberID(csilc_buf *b, const MemberID *v) {
 /* csilc_dec_MemberID reads a bare MemberID value (arena-borrowed). */
 static inline int csilc_dec_MemberID(const csilc_value *m, CsilCodecArena *a, MemberID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
-    return 0;
-}
-
-/* csilc_enc_CsilMemberList writes CsilMemberList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilMemberList(csilc_buf *b, const CsilMemberList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_Member(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilMemberList reads CsilMemberList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilMemberList(const csilc_value *m, CsilCodecArena *a, CsilMemberList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (Member *)csilc_arena_alloc(a, out->count * sizeof(Member));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_Member(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
     return 0;
 }
 
 /* csilc_enc_TrustedDomainID writes a bare TrustedDomainID value. */
 static inline int csilc_enc_TrustedDomainID(csilc_buf *b, const TrustedDomainID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6130,36 +6608,14 @@ static inline int csilc_enc_TrustedDomainID(csilc_buf *b, const TrustedDomainID 
 /* csilc_dec_TrustedDomainID reads a bare TrustedDomainID value (arena-borrowed). */
 static inline int csilc_dec_TrustedDomainID(const csilc_value *m, CsilCodecArena *a, TrustedDomainID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
-    return 0;
-}
-
-/* csilc_enc_CsilTrustedDomainList writes CsilTrustedDomainList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilTrustedDomainList(csilc_buf *b, const CsilTrustedDomainList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_TrustedDomain(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilTrustedDomainList reads CsilTrustedDomainList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilTrustedDomainList(const csilc_value *m, CsilCodecArena *a, CsilTrustedDomainList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (TrustedDomain *)csilc_arena_alloc(a, out->count * sizeof(TrustedDomain));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_TrustedDomain(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
     return 0;
 }
 
 /* csilc_enc_RoleID writes a bare RoleID value. */
 static inline int csilc_enc_RoleID(csilc_buf *b, const RoleID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6167,36 +6623,14 @@ static inline int csilc_enc_RoleID(csilc_buf *b, const RoleID *v) {
 /* csilc_dec_RoleID reads a bare RoleID value (arena-borrowed). */
 static inline int csilc_dec_RoleID(const csilc_value *m, CsilCodecArena *a, RoleID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
-    return 0;
-}
-
-/* csilc_enc_CsilRoleList writes CsilRoleList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilRoleList(csilc_buf *b, const CsilRoleList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_Role(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilRoleList reads CsilRoleList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilRoleList(const csilc_value *m, CsilCodecArena *a, CsilRoleList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (Role *)csilc_arena_alloc(a, out->count * sizeof(Role));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_Role(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
     return 0;
 }
 
 /* csilc_enc_SkillID writes a bare SkillID value. */
 static inline int csilc_enc_SkillID(csilc_buf *b, const SkillID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6204,36 +6638,14 @@ static inline int csilc_enc_SkillID(csilc_buf *b, const SkillID *v) {
 /* csilc_dec_SkillID reads a bare SkillID value (arena-borrowed). */
 static inline int csilc_dec_SkillID(const csilc_value *m, CsilCodecArena *a, SkillID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
-    return 0;
-}
-
-/* csilc_enc_CsilSkillList writes CsilSkillList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilSkillList(csilc_buf *b, const CsilSkillList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_Skill(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilSkillList reads CsilSkillList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilSkillList(const csilc_value *m, CsilCodecArena *a, CsilSkillList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (Skill *)csilc_arena_alloc(a, out->count * sizeof(Skill));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_Skill(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
     return 0;
 }
 
 /* csilc_enc_GroupID writes a bare GroupID value. */
 static inline int csilc_enc_GroupID(csilc_buf *b, const GroupID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6241,36 +6653,14 @@ static inline int csilc_enc_GroupID(csilc_buf *b, const GroupID *v) {
 /* csilc_dec_GroupID reads a bare GroupID value (arena-borrowed). */
 static inline int csilc_dec_GroupID(const csilc_value *m, CsilCodecArena *a, GroupID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
-    return 0;
-}
-
-/* csilc_enc_CsilGroupList writes CsilGroupList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilGroupList(csilc_buf *b, const CsilGroupList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_Group(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilGroupList reads CsilGroupList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilGroupList(const csilc_value *m, CsilCodecArena *a, CsilGroupList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (Group *)csilc_arena_alloc(a, out->count * sizeof(Group));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_Group(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
     return 0;
 }
 
 /* csilc_enc_ProjectID writes a bare ProjectID value. */
 static inline int csilc_enc_ProjectID(csilc_buf *b, const ProjectID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6278,36 +6668,14 @@ static inline int csilc_enc_ProjectID(csilc_buf *b, const ProjectID *v) {
 /* csilc_dec_ProjectID reads a bare ProjectID value (arena-borrowed). */
 static inline int csilc_dec_ProjectID(const csilc_value *m, CsilCodecArena *a, ProjectID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
-    return 0;
-}
-
-/* csilc_enc_CsilMilestoneList writes CsilMilestoneList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilMilestoneList(csilc_buf *b, const CsilMilestoneList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_Milestone(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilMilestoneList reads CsilMilestoneList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilMilestoneList(const csilc_value *m, CsilCodecArena *a, CsilMilestoneList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (Milestone *)csilc_arena_alloc(a, out->count * sizeof(Milestone));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_Milestone(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
     return 0;
 }
 
 /* csilc_enc_MilestoneID writes a bare MilestoneID value. */
 static inline int csilc_enc_MilestoneID(csilc_buf *b, const MilestoneID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6315,36 +6683,14 @@ static inline int csilc_enc_MilestoneID(csilc_buf *b, const MilestoneID *v) {
 /* csilc_dec_MilestoneID reads a bare MilestoneID value (arena-borrowed). */
 static inline int csilc_dec_MilestoneID(const csilc_value *m, CsilCodecArena *a, MilestoneID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
-    return 0;
-}
-
-/* csilc_enc_CsilGrantList writes CsilGrantList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilGrantList(csilc_buf *b, const CsilGrantList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_Grant(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilGrantList reads CsilGrantList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilGrantList(const csilc_value *m, CsilCodecArena *a, CsilGrantList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (Grant *)csilc_arena_alloc(a, out->count * sizeof(Grant));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_Grant(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
     return 0;
 }
 
 /* csilc_enc_EventID writes a bare EventID value. */
 static inline int csilc_enc_EventID(csilc_buf *b, const EventID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6352,84 +6698,14 @@ static inline int csilc_enc_EventID(csilc_buf *b, const EventID *v) {
 /* csilc_dec_EventID reads a bare EventID value (arena-borrowed). */
 static inline int csilc_dec_EventID(const csilc_value *m, CsilCodecArena *a, EventID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
-    return 0;
-}
-
-/* csilc_enc_CsilEventList writes CsilEventList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilEventList(csilc_buf *b, const CsilEventList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_Event(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilEventList reads CsilEventList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilEventList(const csilc_value *m, CsilCodecArena *a, CsilEventList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (Event *)csilc_arena_alloc(a, out->count * sizeof(Event));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_Event(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
-    return 0;
-}
-
-/* csilc_enc_CsilCalendarMigrationRowList writes CsilCalendarMigrationRowList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilCalendarMigrationRowList(csilc_buf *b, const CsilCalendarMigrationRowList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_CalendarMigrationRow(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilCalendarMigrationRowList reads CsilCalendarMigrationRowList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilCalendarMigrationRowList(const csilc_value *m, CsilCodecArena *a, CsilCalendarMigrationRowList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (CalendarMigrationRow *)csilc_arena_alloc(a, out->count * sizeof(CalendarMigrationRow));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_CalendarMigrationRow(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
-    return 0;
-}
-
-/* csilc_enc_CsilCalendarTrashEntryList writes CsilCalendarTrashEntryList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilCalendarTrashEntryList(csilc_buf *b, const CsilCalendarTrashEntryList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_CalendarTrashEntry(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilCalendarTrashEntryList reads CsilCalendarTrashEntryList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilCalendarTrashEntryList(const csilc_value *m, CsilCodecArena *a, CsilCalendarTrashEntryList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (CalendarTrashEntry *)csilc_arena_alloc(a, out->count * sizeof(CalendarTrashEntry));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_CalendarTrashEntry(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
     return 0;
 }
 
 /* csilc_enc_TaskID writes a bare TaskID value. */
 static inline int csilc_enc_TaskID(csilc_buf *b, const TaskID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6437,12 +6713,14 @@ static inline int csilc_enc_TaskID(csilc_buf *b, const TaskID *v) {
 /* csilc_dec_TaskID reads a bare TaskID value (arena-borrowed). */
 static inline int csilc_dec_TaskID(const csilc_value *m, CsilCodecArena *a, TaskID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
     return 0;
 }
 
 /* csilc_enc_CommentID writes a bare CommentID value. */
 static inline int csilc_enc_CommentID(csilc_buf *b, const CommentID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6450,60 +6728,14 @@ static inline int csilc_enc_CommentID(csilc_buf *b, const CommentID *v) {
 /* csilc_dec_CommentID reads a bare CommentID value (arena-borrowed). */
 static inline int csilc_dec_CommentID(const csilc_value *m, CsilCodecArena *a, CommentID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
-    return 0;
-}
-
-/* csilc_enc_CsilCommentList writes CsilCommentList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilCommentList(csilc_buf *b, const CsilCommentList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_Comment(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilCommentList reads CsilCommentList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilCommentList(const csilc_value *m, CsilCodecArena *a, CsilCommentList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (Comment *)csilc_arena_alloc(a, out->count * sizeof(Comment));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_Comment(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
-    return 0;
-}
-
-/* csilc_enc_CsilNotificationList writes CsilNotificationList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilNotificationList(csilc_buf *b, const CsilNotificationList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_Notification(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilNotificationList reads CsilNotificationList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilNotificationList(const csilc_value *m, CsilCodecArena *a, CsilNotificationList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (Notification *)csilc_arena_alloc(a, out->count * sizeof(Notification));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_Notification(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
     return 0;
 }
 
 /* csilc_enc_NotificationID writes a bare NotificationID value. */
 static inline int csilc_enc_NotificationID(csilc_buf *b, const NotificationID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6511,12 +6743,14 @@ static inline int csilc_enc_NotificationID(csilc_buf *b, const NotificationID *v
 /* csilc_dec_NotificationID reads a bare NotificationID value (arena-borrowed). */
 static inline int csilc_dec_NotificationID(const csilc_value *m, CsilCodecArena *a, NotificationID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
     return 0;
 }
 
 /* csilc_enc_ShareID writes a bare ShareID value. */
 static inline int csilc_enc_ShareID(csilc_buf *b, const ShareID *v) {
+    (void)v;
     if (csilc_w_text(b, ((*v)), ((*v)) ? strlen((*v)) : 0)) return -1;
     return 0;
 }
@@ -6524,55 +6758,8 @@ static inline int csilc_enc_ShareID(csilc_buf *b, const ShareID *v) {
 /* csilc_dec_ShareID reads a bare ShareID value (arena-borrowed). */
 static inline int csilc_dec_ShareID(const csilc_value *m, CsilCodecArena *a, ShareID *out) {
     (void)a;
+    (void)out;
     if (!csilc_get_text(m, &((*out)))) return -1;
-    return 0;
-}
-
-/* csilc_enc_CsilShareList writes CsilShareList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilShareList(csilc_buf *b, const CsilShareList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_Share(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilShareList reads CsilShareList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilShareList(const csilc_value *m, CsilCodecArena *a, CsilShareList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (Share *)csilc_arena_alloc(a, out->count * sizeof(Share));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_Share(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
-    return 0;
-}
-
-/* csilc_enc_CsilMemberAuditList writes CsilMemberAuditList as a CBOR array of encoded elements. */
-static inline int csilc_enc_CsilMemberAuditList(csilc_buf *b, const CsilMemberAuditList *v) {
-    if (csilc_w_array_head(b, v->count)) return -1;
-    for (size_t csilc_i = 0; csilc_i < v->count; csilc_i++) {
-        if (csilc_enc_MemberAudit(b, &(v->items[csilc_i]))) return -1;
-    }
-    return 0;
-}
-
-/* csilc_dec_CsilMemberAuditList reads CsilMemberAuditList from a decoded CBOR array (arena-borrowed). */
-static inline int csilc_dec_CsilMemberAuditList(const csilc_value *m, CsilCodecArena *a, CsilMemberAuditList *out) {
-    if (!m || m->kind != CSILC_ARRAY) return -1;
-    out->count = m->as.array.count;
-    out->items = NULL;
-    if (out->count) {
-        out->items = (MemberAudit *)csilc_arena_alloc(a, out->count * sizeof(MemberAudit));
-        if (!out->items) return -1;
-        for (size_t csilc_i = 0; csilc_i < out->count; csilc_i++) {
-            if (csilc_dec_MemberAudit(&m->as.array.items[csilc_i], a, &(out->items[csilc_i]))) return -1;
-        }
-    }
     return 0;
 }
 
@@ -8899,6 +9086,351 @@ static inline int csil_decode_ActAsTokenResponse(const uint8_t *in, size_t len, 
     return 0;
 }
 
+/* Encode a CalendarMigrationRowItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CalendarMigrationRowItems(const CalendarMigrationRowItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CalendarMigrationRowItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CalendarMigrationRowItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CalendarMigrationRowItems(const uint8_t *in, size_t len, CalendarMigrationRowItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CalendarMigrationRowItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CalendarTrashEntryItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CalendarTrashEntryItems(const CalendarTrashEntryItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CalendarTrashEntryItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CalendarTrashEntryItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CalendarTrashEntryItems(const uint8_t *in, size_t len, CalendarTrashEntryItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CalendarTrashEntryItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a CommentItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_CommentItems(const CommentItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_CommentItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a CommentItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_CommentItems(const uint8_t *in, size_t len, CommentItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_CommentItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a EventItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_EventItems(const EventItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_EventItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a EventItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_EventItems(const uint8_t *in, size_t len, EventItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_EventItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a GrantItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_GrantItems(const GrantItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_GrantItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a GrantItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_GrantItems(const uint8_t *in, size_t len, GrantItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_GrantItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a GroupItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_GroupItems(const GroupItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_GroupItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a GroupItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_GroupItems(const uint8_t *in, size_t len, GroupItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_GroupItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a HouseItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_HouseItems(const HouseItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_HouseItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a HouseItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_HouseItems(const uint8_t *in, size_t len, HouseItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_HouseItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a MemberItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_MemberItems(const MemberItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_MemberItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a MemberItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_MemberItems(const uint8_t *in, size_t len, MemberItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_MemberItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a MemberAuditItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_MemberAuditItems(const MemberAuditItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_MemberAuditItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a MemberAuditItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_MemberAuditItems(const uint8_t *in, size_t len, MemberAuditItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_MemberAuditItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a MilestoneItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_MilestoneItems(const MilestoneItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_MilestoneItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a MilestoneItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_MilestoneItems(const uint8_t *in, size_t len, MilestoneItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_MilestoneItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a NotificationItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_NotificationItems(const NotificationItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_NotificationItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a NotificationItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_NotificationItems(const uint8_t *in, size_t len, NotificationItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_NotificationItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a RoleItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_RoleItems(const RoleItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_RoleItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a RoleItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_RoleItems(const uint8_t *in, size_t len, RoleItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_RoleItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a ShareItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_ShareItems(const ShareItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_ShareItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a ShareItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_ShareItems(const uint8_t *in, size_t len, ShareItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_ShareItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a SkillItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_SkillItems(const SkillItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_SkillItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a SkillItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_SkillItems(const uint8_t *in, size_t len, SkillItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_SkillItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
+/* Encode a TrustedDomainItems to CBOR. On success *out is a malloc'd buffer of
+ * *out_len bytes the caller frees with free(); returns non-zero on failure. */
+static inline int csil_encode_TrustedDomainItems(const TrustedDomainItems *v, uint8_t **out, size_t *out_len) {
+    csilc_buf b;
+    csilc_buf_init(&b);
+    if (csilc_enc_TrustedDomainItems(&b, v)) { csilc_buf_dispose(&b); return -1; }
+    *out = b.data;
+    *out_len = b.len;
+    return 0;
+}
+
+/* Decode CBOR into a TrustedDomainItems. On success *owner holds the backing
+ * storage (every string/bytes/array inside *out borrows from it); free it
+ * once with csil_codec_arena_free when done. Returns non-zero on failure. */
+static inline int csil_decode_TrustedDomainItems(const uint8_t *in, size_t len, TrustedDomainItems *out, CsilCodecArena **owner) {
+    CsilCodecArena *a;
+    const csilc_value *root;
+    if (csilc_decode(in, len, &a, &root)) return -1;
+    if (csilc_dec_TrustedDomainItems(root, a, out)) { csil_codec_arena_free(a); return -1; }
+    *owner = a;
+    return 0;
+}
+
 /* Encode a CalendarSubscription to CBOR. On success *out is a malloc'd buffer of
  * *out_len bytes the caller frees with free(); returns non-zero on failure. */
 static inline int csil_encode_CalendarSubscription(const CalendarSubscription *v, uint8_t **out, size_t *out_len) {
@@ -9382,29 +9914,6 @@ static inline int csil_decode_HouseID(const uint8_t *in, size_t len, HouseID *ou
     return 0;
 }
 
-/* Encode a CsilHouseList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilHouseList(const CsilHouseList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilHouseList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilHouseList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilHouseList(const uint8_t *in, size_t len, CsilHouseList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilHouseList(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
 /* Encode a MemberID to CBOR. On success *out is a malloc'd buffer of
  * *out_len bytes the caller frees with free(); returns non-zero on failure. */
 static inline int csil_encode_MemberID(const MemberID *v, uint8_t **out, size_t *out_len) {
@@ -9424,29 +9933,6 @@ static inline int csil_decode_MemberID(const uint8_t *in, size_t len, MemberID *
     const csilc_value *root;
     if (csilc_decode(in, len, &a, &root)) return -1;
     if (csilc_dec_MemberID(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
-/* Encode a CsilMemberList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilMemberList(const CsilMemberList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilMemberList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilMemberList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilMemberList(const uint8_t *in, size_t len, CsilMemberList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilMemberList(root, a, out)) { csil_codec_arena_free(a); return -1; }
     *owner = a;
     return 0;
 }
@@ -9474,29 +9960,6 @@ static inline int csil_decode_TrustedDomainID(const uint8_t *in, size_t len, Tru
     return 0;
 }
 
-/* Encode a CsilTrustedDomainList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilTrustedDomainList(const CsilTrustedDomainList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilTrustedDomainList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilTrustedDomainList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilTrustedDomainList(const uint8_t *in, size_t len, CsilTrustedDomainList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilTrustedDomainList(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
 /* Encode a RoleID to CBOR. On success *out is a malloc'd buffer of
  * *out_len bytes the caller frees with free(); returns non-zero on failure. */
 static inline int csil_encode_RoleID(const RoleID *v, uint8_t **out, size_t *out_len) {
@@ -9516,29 +9979,6 @@ static inline int csil_decode_RoleID(const uint8_t *in, size_t len, RoleID *out,
     const csilc_value *root;
     if (csilc_decode(in, len, &a, &root)) return -1;
     if (csilc_dec_RoleID(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
-/* Encode a CsilRoleList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilRoleList(const CsilRoleList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilRoleList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilRoleList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilRoleList(const uint8_t *in, size_t len, CsilRoleList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilRoleList(root, a, out)) { csil_codec_arena_free(a); return -1; }
     *owner = a;
     return 0;
 }
@@ -9566,29 +10006,6 @@ static inline int csil_decode_SkillID(const uint8_t *in, size_t len, SkillID *ou
     return 0;
 }
 
-/* Encode a CsilSkillList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilSkillList(const CsilSkillList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilSkillList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilSkillList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilSkillList(const uint8_t *in, size_t len, CsilSkillList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilSkillList(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
 /* Encode a GroupID to CBOR. On success *out is a malloc'd buffer of
  * *out_len bytes the caller frees with free(); returns non-zero on failure. */
 static inline int csil_encode_GroupID(const GroupID *v, uint8_t **out, size_t *out_len) {
@@ -9608,29 +10025,6 @@ static inline int csil_decode_GroupID(const uint8_t *in, size_t len, GroupID *ou
     const csilc_value *root;
     if (csilc_decode(in, len, &a, &root)) return -1;
     if (csilc_dec_GroupID(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
-/* Encode a CsilGroupList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilGroupList(const CsilGroupList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilGroupList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilGroupList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilGroupList(const uint8_t *in, size_t len, CsilGroupList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilGroupList(root, a, out)) { csil_codec_arena_free(a); return -1; }
     *owner = a;
     return 0;
 }
@@ -9658,29 +10052,6 @@ static inline int csil_decode_ProjectID(const uint8_t *in, size_t len, ProjectID
     return 0;
 }
 
-/* Encode a CsilMilestoneList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilMilestoneList(const CsilMilestoneList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilMilestoneList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilMilestoneList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilMilestoneList(const uint8_t *in, size_t len, CsilMilestoneList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilMilestoneList(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
 /* Encode a MilestoneID to CBOR. On success *out is a malloc'd buffer of
  * *out_len bytes the caller frees with free(); returns non-zero on failure. */
 static inline int csil_encode_MilestoneID(const MilestoneID *v, uint8_t **out, size_t *out_len) {
@@ -9704,29 +10075,6 @@ static inline int csil_decode_MilestoneID(const uint8_t *in, size_t len, Milesto
     return 0;
 }
 
-/* Encode a CsilGrantList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilGrantList(const CsilGrantList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilGrantList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilGrantList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilGrantList(const uint8_t *in, size_t len, CsilGrantList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilGrantList(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
 /* Encode a EventID to CBOR. On success *out is a malloc'd buffer of
  * *out_len bytes the caller frees with free(); returns non-zero on failure. */
 static inline int csil_encode_EventID(const EventID *v, uint8_t **out, size_t *out_len) {
@@ -9746,75 +10094,6 @@ static inline int csil_decode_EventID(const uint8_t *in, size_t len, EventID *ou
     const csilc_value *root;
     if (csilc_decode(in, len, &a, &root)) return -1;
     if (csilc_dec_EventID(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
-/* Encode a CsilEventList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilEventList(const CsilEventList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilEventList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilEventList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilEventList(const uint8_t *in, size_t len, CsilEventList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilEventList(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
-/* Encode a CsilCalendarMigrationRowList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilCalendarMigrationRowList(const CsilCalendarMigrationRowList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilCalendarMigrationRowList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilCalendarMigrationRowList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilCalendarMigrationRowList(const uint8_t *in, size_t len, CsilCalendarMigrationRowList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilCalendarMigrationRowList(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
-/* Encode a CsilCalendarTrashEntryList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilCalendarTrashEntryList(const CsilCalendarTrashEntryList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilCalendarTrashEntryList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilCalendarTrashEntryList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilCalendarTrashEntryList(const uint8_t *in, size_t len, CsilCalendarTrashEntryList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilCalendarTrashEntryList(root, a, out)) { csil_codec_arena_free(a); return -1; }
     *owner = a;
     return 0;
 }
@@ -9865,52 +10144,6 @@ static inline int csil_decode_CommentID(const uint8_t *in, size_t len, CommentID
     return 0;
 }
 
-/* Encode a CsilCommentList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilCommentList(const CsilCommentList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilCommentList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilCommentList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilCommentList(const uint8_t *in, size_t len, CsilCommentList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilCommentList(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
-/* Encode a CsilNotificationList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilNotificationList(const CsilNotificationList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilNotificationList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilNotificationList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilNotificationList(const uint8_t *in, size_t len, CsilNotificationList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilNotificationList(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
 /* Encode a NotificationID to CBOR. On success *out is a malloc'd buffer of
  * *out_len bytes the caller frees with free(); returns non-zero on failure. */
 static inline int csil_encode_NotificationID(const NotificationID *v, uint8_t **out, size_t *out_len) {
@@ -9953,52 +10186,6 @@ static inline int csil_decode_ShareID(const uint8_t *in, size_t len, ShareID *ou
     const csilc_value *root;
     if (csilc_decode(in, len, &a, &root)) return -1;
     if (csilc_dec_ShareID(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
-/* Encode a CsilShareList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilShareList(const CsilShareList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilShareList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilShareList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilShareList(const uint8_t *in, size_t len, CsilShareList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilShareList(root, a, out)) { csil_codec_arena_free(a); return -1; }
-    *owner = a;
-    return 0;
-}
-
-/* Encode a CsilMemberAuditList to CBOR. On success *out is a malloc'd buffer of
- * *out_len bytes the caller frees with free(); returns non-zero on failure. */
-static inline int csil_encode_CsilMemberAuditList(const CsilMemberAuditList *v, uint8_t **out, size_t *out_len) {
-    csilc_buf b;
-    csilc_buf_init(&b);
-    if (csilc_enc_CsilMemberAuditList(&b, v)) { csilc_buf_dispose(&b); return -1; }
-    *out = b.data;
-    *out_len = b.len;
-    return 0;
-}
-
-/* Decode CBOR into a CsilMemberAuditList. On success *owner holds the backing
- * storage (every string/bytes/array inside *out borrows from it); free it
- * once with csil_codec_arena_free when done. Returns non-zero on failure. */
-static inline int csil_decode_CsilMemberAuditList(const uint8_t *in, size_t len, CsilMemberAuditList *out, CsilCodecArena **owner) {
-    CsilCodecArena *a;
-    const csilc_value *root;
-    if (csilc_decode(in, len, &a, &root)) return -1;
-    if (csilc_dec_CsilMemberAuditList(root, a, out)) { csil_codec_arena_free(a); return -1; }
     *owner = a;
     return 0;
 }
@@ -10603,6 +10790,31 @@ static inline int csil_decode_HouseServiceDeleteHouseReply(const char *variant, 
     return -1;
 }
 
+static inline int csil_encode_HouseServiceListHousesReply(const HouseServiceListHousesReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case HouseServiceListHousesReply_as_house_items:
+        *variant = "HouseItems";
+        return csil_encode_HouseItems(&reply->value.as_house_items, payload, len);
+    case HouseServiceListHousesReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_HouseServiceListHousesReply(const char *variant, const uint8_t *payload, size_t len, HouseServiceListHousesReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "HouseItems") == 0) {
+        reply->kind = HouseServiceListHousesReply_as_house_items;
+        return csil_decode_HouseItems(payload, len, &reply->value.as_house_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = HouseServiceListHousesReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
 static inline int csil_encode_MemberServiceCreateMemberReply(const MemberServiceCreateMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
     switch (reply->kind) {
     case MemberServiceCreateMemberReply_as_member:
@@ -10753,6 +10965,31 @@ static inline int csil_decode_MemberServiceReactivateMemberReply(const char *var
     return -1;
 }
 
+static inline int csil_encode_MemberServiceListMembersReply(const MemberServiceListMembersReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case MemberServiceListMembersReply_as_member_items:
+        *variant = "MemberItems";
+        return csil_encode_MemberItems(&reply->value.as_member_items, payload, len);
+    case MemberServiceListMembersReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_MemberServiceListMembersReply(const char *variant, const uint8_t *payload, size_t len, MemberServiceListMembersReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "MemberItems") == 0) {
+        reply->kind = MemberServiceListMembersReply_as_member_items;
+        return csil_decode_MemberItems(payload, len, &reply->value.as_member_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = MemberServiceListMembersReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
 static inline int csil_encode_TrustedDomainServiceAddTrustedDomainReply(const TrustedDomainServiceAddTrustedDomainReply *reply, const char **variant, uint8_t **payload, size_t *len) {
     switch (reply->kind) {
     case TrustedDomainServiceAddTrustedDomainReply_as_trusted_domain:
@@ -10798,6 +11035,31 @@ static inline int csil_decode_TrustedDomainServiceRemoveTrustedDomainReply(const
     }
     if (strcmp(variant, "ServiceError") == 0) {
         reply->kind = TrustedDomainServiceRemoveTrustedDomainReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TrustedDomainServiceListTrustedDomainsReply(const TrustedDomainServiceListTrustedDomainsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TrustedDomainServiceListTrustedDomainsReply_as_trusted_domain_items:
+        *variant = "TrustedDomainItems";
+        return csil_encode_TrustedDomainItems(&reply->value.as_trusted_domain_items, payload, len);
+    case TrustedDomainServiceListTrustedDomainsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TrustedDomainServiceListTrustedDomainsReply(const char *variant, const uint8_t *payload, size_t len, TrustedDomainServiceListTrustedDomainsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "TrustedDomainItems") == 0) {
+        reply->kind = TrustedDomainServiceListTrustedDomainsReply_as_trusted_domain_items;
+        return csil_decode_TrustedDomainItems(payload, len, &reply->value.as_trusted_domain_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TrustedDomainServiceListTrustedDomainsReply_as_service_error;
         return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
     }
     return -1;
@@ -10903,6 +11165,31 @@ static inline int csil_decode_RoleServiceDeleteRoleReply(const char *variant, co
     return -1;
 }
 
+static inline int csil_encode_RoleServiceListRolesReply(const RoleServiceListRolesReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case RoleServiceListRolesReply_as_role_items:
+        *variant = "RoleItems";
+        return csil_encode_RoleItems(&reply->value.as_role_items, payload, len);
+    case RoleServiceListRolesReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_RoleServiceListRolesReply(const char *variant, const uint8_t *payload, size_t len, RoleServiceListRolesReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "RoleItems") == 0) {
+        reply->kind = RoleServiceListRolesReply_as_role_items;
+        return csil_decode_RoleItems(payload, len, &reply->value.as_role_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = RoleServiceListRolesReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
 static inline int csil_encode_RoleServiceGrantRoleReply(const RoleServiceGrantRoleReply *reply, const char **variant, uint8_t **payload, size_t *len) {
     switch (reply->kind) {
     case RoleServiceGrantRoleReply_as_empty_response:
@@ -10948,6 +11235,31 @@ static inline int csil_decode_RoleServiceRevokeRoleReply(const char *variant, co
     }
     if (strcmp(variant, "ServiceError") == 0) {
         reply->kind = RoleServiceRevokeRoleReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_RoleServiceListMemberRolesReply(const RoleServiceListMemberRolesReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case RoleServiceListMemberRolesReply_as_role_items:
+        *variant = "RoleItems";
+        return csil_encode_RoleItems(&reply->value.as_role_items, payload, len);
+    case RoleServiceListMemberRolesReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_RoleServiceListMemberRolesReply(const char *variant, const uint8_t *payload, size_t len, RoleServiceListMemberRolesReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "RoleItems") == 0) {
+        reply->kind = RoleServiceListMemberRolesReply_as_role_items;
+        return csil_decode_RoleItems(payload, len, &reply->value.as_role_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = RoleServiceListMemberRolesReply_as_service_error;
         return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
     }
     return -1;
@@ -11028,6 +11340,31 @@ static inline int csil_decode_SkillServiceDeleteSkillReply(const char *variant, 
     return -1;
 }
 
+static inline int csil_encode_SkillServiceListSkillsReply(const SkillServiceListSkillsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SkillServiceListSkillsReply_as_skill_items:
+        *variant = "SkillItems";
+        return csil_encode_SkillItems(&reply->value.as_skill_items, payload, len);
+    case SkillServiceListSkillsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SkillServiceListSkillsReply(const char *variant, const uint8_t *payload, size_t len, SkillServiceListSkillsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "SkillItems") == 0) {
+        reply->kind = SkillServiceListSkillsReply_as_skill_items;
+        return csil_decode_SkillItems(payload, len, &reply->value.as_skill_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SkillServiceListSkillsReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
 static inline int csil_encode_SkillServiceAddMemberSkillReply(const SkillServiceAddMemberSkillReply *reply, const char **variant, uint8_t **payload, size_t *len) {
     switch (reply->kind) {
     case SkillServiceAddMemberSkillReply_as_empty_response:
@@ -11078,6 +11415,31 @@ static inline int csil_decode_SkillServiceRemoveMemberSkillReply(const char *var
     return -1;
 }
 
+static inline int csil_encode_SkillServiceListMemberSkillsReply(const SkillServiceListMemberSkillsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SkillServiceListMemberSkillsReply_as_skill_items:
+        *variant = "SkillItems";
+        return csil_encode_SkillItems(&reply->value.as_skill_items, payload, len);
+    case SkillServiceListMemberSkillsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SkillServiceListMemberSkillsReply(const char *variant, const uint8_t *payload, size_t len, SkillServiceListMemberSkillsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "SkillItems") == 0) {
+        reply->kind = SkillServiceListMemberSkillsReply_as_skill_items;
+        return csil_decode_SkillItems(payload, len, &reply->value.as_skill_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SkillServiceListMemberSkillsReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
 static inline int csil_encode_SkillServiceAddGroupSkillReply(const SkillServiceAddGroupSkillReply *reply, const char **variant, uint8_t **payload, size_t *len) {
     switch (reply->kind) {
     case SkillServiceAddGroupSkillReply_as_empty_response:
@@ -11123,6 +11485,31 @@ static inline int csil_decode_SkillServiceRemoveGroupSkillReply(const char *vari
     }
     if (strcmp(variant, "ServiceError") == 0) {
         reply->kind = SkillServiceRemoveGroupSkillReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_SkillServiceListGroupSkillsReply(const SkillServiceListGroupSkillsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case SkillServiceListGroupSkillsReply_as_skill_items:
+        *variant = "SkillItems";
+        return csil_encode_SkillItems(&reply->value.as_skill_items, payload, len);
+    case SkillServiceListGroupSkillsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_SkillServiceListGroupSkillsReply(const char *variant, const uint8_t *payload, size_t len, SkillServiceListGroupSkillsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "SkillItems") == 0) {
+        reply->kind = SkillServiceListGroupSkillsReply_as_skill_items;
+        return csil_decode_SkillItems(payload, len, &reply->value.as_skill_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = SkillServiceListGroupSkillsReply_as_service_error;
         return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
     }
     return -1;
@@ -11203,6 +11590,31 @@ static inline int csil_decode_GroupServiceDeleteGroupReply(const char *variant, 
     return -1;
 }
 
+static inline int csil_encode_GroupServiceListGroupsReply(const GroupServiceListGroupsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case GroupServiceListGroupsReply_as_group_items:
+        *variant = "GroupItems";
+        return csil_encode_GroupItems(&reply->value.as_group_items, payload, len);
+    case GroupServiceListGroupsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_GroupServiceListGroupsReply(const char *variant, const uint8_t *payload, size_t len, GroupServiceListGroupsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "GroupItems") == 0) {
+        reply->kind = GroupServiceListGroupsReply_as_group_items;
+        return csil_decode_GroupItems(payload, len, &reply->value.as_group_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = GroupServiceListGroupsReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
 static inline int csil_encode_GroupServiceAddGroupMemberReply(const GroupServiceAddGroupMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
     switch (reply->kind) {
     case GroupServiceAddGroupMemberReply_as_empty_response:
@@ -11248,6 +11660,31 @@ static inline int csil_decode_GroupServiceRemoveGroupMemberReply(const char *var
     }
     if (strcmp(variant, "ServiceError") == 0) {
         reply->kind = GroupServiceRemoveGroupMemberReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_GroupServiceListGroupMembersReply(const GroupServiceListGroupMembersReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case GroupServiceListGroupMembersReply_as_member_items:
+        *variant = "MemberItems";
+        return csil_encode_MemberItems(&reply->value.as_member_items, payload, len);
+    case GroupServiceListGroupMembersReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_GroupServiceListGroupMembersReply(const char *variant, const uint8_t *payload, size_t len, GroupServiceListGroupMembersReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "MemberItems") == 0) {
+        reply->kind = GroupServiceListGroupMembersReply_as_member_items;
+        return csil_decode_MemberItems(payload, len, &reply->value.as_member_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = GroupServiceListGroupMembersReply_as_service_error;
         return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
     }
     return -1;
@@ -11478,6 +11915,31 @@ static inline int csil_decode_ProjectServiceSetProjectTaskPositionReply(const ch
     return -1;
 }
 
+static inline int csil_encode_ProjectServiceListProjectMembersReply(const ProjectServiceListProjectMembersReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceListProjectMembersReply_as_member_items:
+        *variant = "MemberItems";
+        return csil_encode_MemberItems(&reply->value.as_member_items, payload, len);
+    case ProjectServiceListProjectMembersReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceListProjectMembersReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceListProjectMembersReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "MemberItems") == 0) {
+        reply->kind = ProjectServiceListProjectMembersReply_as_member_items;
+        return csil_decode_MemberItems(payload, len, &reply->value.as_member_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceListProjectMembersReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
 static inline int csil_encode_ProjectServiceAddProjectMemberReply(const ProjectServiceAddProjectMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
     switch (reply->kind) {
     case ProjectServiceAddProjectMemberReply_as_empty_response:
@@ -11528,6 +11990,31 @@ static inline int csil_decode_ProjectServiceRemoveProjectMemberReply(const char 
     return -1;
 }
 
+static inline int csil_encode_ProjectServiceListProjectOwnersReply(const ProjectServiceListProjectOwnersReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceListProjectOwnersReply_as_member_items:
+        *variant = "MemberItems";
+        return csil_encode_MemberItems(&reply->value.as_member_items, payload, len);
+    case ProjectServiceListProjectOwnersReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceListProjectOwnersReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceListProjectOwnersReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "MemberItems") == 0) {
+        reply->kind = ProjectServiceListProjectOwnersReply_as_member_items;
+        return csil_decode_MemberItems(payload, len, &reply->value.as_member_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceListProjectOwnersReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
 static inline int csil_encode_ProjectServiceAddProjectOwnerReply(const ProjectServiceAddProjectOwnerReply *reply, const char **variant, uint8_t **payload, size_t *len) {
     switch (reply->kind) {
     case ProjectServiceAddProjectOwnerReply_as_empty_response:
@@ -11573,6 +12060,31 @@ static inline int csil_decode_ProjectServiceRemoveProjectOwnerReply(const char *
     }
     if (strcmp(variant, "ServiceError") == 0) {
         reply->kind = ProjectServiceRemoveProjectOwnerReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceListMilestonesReply(const ProjectServiceListMilestonesReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceListMilestonesReply_as_milestone_items:
+        *variant = "MilestoneItems";
+        return csil_encode_MilestoneItems(&reply->value.as_milestone_items, payload, len);
+    case ProjectServiceListMilestonesReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceListMilestonesReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceListMilestonesReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "MilestoneItems") == 0) {
+        reply->kind = ProjectServiceListMilestonesReply_as_milestone_items;
+        return csil_decode_MilestoneItems(payload, len, &reply->value.as_milestone_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceListMilestonesReply_as_service_error;
         return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
     }
     return -1;
@@ -11673,6 +12185,31 @@ static inline int csil_decode_ProjectServiceSetProjectVisibilityReply(const char
     }
     if (strcmp(variant, "ServiceError") == 0) {
         reply->kind = ProjectServiceSetProjectVisibilityReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_ProjectServiceListProjectGrantsReply(const ProjectServiceListProjectGrantsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ProjectServiceListProjectGrantsReply_as_grant_items:
+        *variant = "GrantItems";
+        return csil_encode_GrantItems(&reply->value.as_grant_items, payload, len);
+    case ProjectServiceListProjectGrantsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ProjectServiceListProjectGrantsReply(const char *variant, const uint8_t *payload, size_t len, ProjectServiceListProjectGrantsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "GrantItems") == 0) {
+        reply->kind = ProjectServiceListProjectGrantsReply_as_grant_items;
+        return csil_decode_GrantItems(payload, len, &reply->value.as_grant_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ProjectServiceListProjectGrantsReply_as_service_error;
         return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
     }
     return -1;
@@ -11853,6 +12390,31 @@ static inline int csil_decode_EventServiceDeleteEventAndFutureReply(const char *
     return -1;
 }
 
+static inline int csil_encode_EventServiceListEventsReply(const EventServiceListEventsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceListEventsReply_as_event_items:
+        *variant = "EventItems";
+        return csil_encode_EventItems(&reply->value.as_event_items, payload, len);
+    case EventServiceListEventsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceListEventsReply(const char *variant, const uint8_t *payload, size_t len, EventServiceListEventsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EventItems") == 0) {
+        reply->kind = EventServiceListEventsReply_as_event_items;
+        return csil_decode_EventItems(payload, len, &reply->value.as_event_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceListEventsReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
 static inline int csil_encode_EventServiceGetCalendarViewReply(const EventServiceGetCalendarViewReply *reply, const char **variant, uint8_t **payload, size_t *len) {
     switch (reply->kind) {
     case EventServiceGetCalendarViewReply_as_calendar_view:
@@ -11973,6 +12535,31 @@ static inline int csil_decode_EventServiceDeclineEventReply(const char *variant,
     }
     if (strcmp(variant, "ServiceError") == 0) {
         reply->kind = EventServiceDeclineEventReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_EventServiceListLocalEventsReply(const EventServiceListLocalEventsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case EventServiceListLocalEventsReply_as_event_items:
+        *variant = "EventItems";
+        return csil_encode_EventItems(&reply->value.as_event_items, payload, len);
+    case EventServiceListLocalEventsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_EventServiceListLocalEventsReply(const char *variant, const uint8_t *payload, size_t len, EventServiceListLocalEventsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "EventItems") == 0) {
+        reply->kind = EventServiceListLocalEventsReply_as_event_items;
+        return csil_decode_EventItems(payload, len, &reply->value.as_event_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = EventServiceListLocalEventsReply_as_service_error;
         return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
     }
     return -1;
@@ -12123,6 +12710,56 @@ static inline int csil_decode_CalendarServiceDisconnectReply(const char *variant
     }
     if (strcmp(variant, "ServiceError") == 0) {
         reply->kind = CalendarServiceDisconnectReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CalendarServicePreviewMigrationReply(const CalendarServicePreviewMigrationReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CalendarServicePreviewMigrationReply_as_calendar_migration_row_items:
+        *variant = "CalendarMigrationRowItems";
+        return csil_encode_CalendarMigrationRowItems(&reply->value.as_calendar_migration_row_items, payload, len);
+    case CalendarServicePreviewMigrationReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CalendarServicePreviewMigrationReply(const char *variant, const uint8_t *payload, size_t len, CalendarServicePreviewMigrationReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CalendarMigrationRowItems") == 0) {
+        reply->kind = CalendarServicePreviewMigrationReply_as_calendar_migration_row_items;
+        return csil_decode_CalendarMigrationRowItems(payload, len, &reply->value.as_calendar_migration_row_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CalendarServicePreviewMigrationReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_CalendarServiceListTrashReply(const CalendarServiceListTrashReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CalendarServiceListTrashReply_as_calendar_trash_entry_items:
+        *variant = "CalendarTrashEntryItems";
+        return csil_encode_CalendarTrashEntryItems(&reply->value.as_calendar_trash_entry_items, payload, len);
+    case CalendarServiceListTrashReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CalendarServiceListTrashReply(const char *variant, const uint8_t *payload, size_t len, CalendarServiceListTrashReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CalendarTrashEntryItems") == 0) {
+        reply->kind = CalendarServiceListTrashReply_as_calendar_trash_entry_items;
+        return csil_decode_CalendarTrashEntryItems(payload, len, &reply->value.as_calendar_trash_entry_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CalendarServiceListTrashReply_as_service_error;
         return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
     }
     return -1;
@@ -12323,6 +12960,31 @@ static inline int csil_decode_TaskServiceSetTaskVisibilityReply(const char *vari
     }
     if (strcmp(variant, "ServiceError") == 0) {
         reply->kind = TaskServiceSetTaskVisibilityReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_TaskServiceListTaskGrantsReply(const TaskServiceListTaskGrantsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case TaskServiceListTaskGrantsReply_as_grant_items:
+        *variant = "GrantItems";
+        return csil_encode_GrantItems(&reply->value.as_grant_items, payload, len);
+    case TaskServiceListTaskGrantsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_TaskServiceListTaskGrantsReply(const char *variant, const uint8_t *payload, size_t len, TaskServiceListTaskGrantsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "GrantItems") == 0) {
+        reply->kind = TaskServiceListTaskGrantsReply_as_grant_items;
+        return csil_decode_GrantItems(payload, len, &reply->value.as_grant_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = TaskServiceListTaskGrantsReply_as_service_error;
         return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
     }
     return -1;
@@ -12553,6 +13215,56 @@ static inline int csil_decode_CommentServiceDeleteCommentReply(const char *varia
     return -1;
 }
 
+static inline int csil_encode_CommentServiceListCommentsReply(const CommentServiceListCommentsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case CommentServiceListCommentsReply_as_comment_items:
+        *variant = "CommentItems";
+        return csil_encode_CommentItems(&reply->value.as_comment_items, payload, len);
+    case CommentServiceListCommentsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_CommentServiceListCommentsReply(const char *variant, const uint8_t *payload, size_t len, CommentServiceListCommentsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "CommentItems") == 0) {
+        reply->kind = CommentServiceListCommentsReply_as_comment_items;
+        return csil_decode_CommentItems(payload, len, &reply->value.as_comment_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = CommentServiceListCommentsReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_NotificationServiceListNotificationsReply(const NotificationServiceListNotificationsReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case NotificationServiceListNotificationsReply_as_notification_items:
+        *variant = "NotificationItems";
+        return csil_encode_NotificationItems(&reply->value.as_notification_items, payload, len);
+    case NotificationServiceListNotificationsReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_NotificationServiceListNotificationsReply(const char *variant, const uint8_t *payload, size_t len, NotificationServiceListNotificationsReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "NotificationItems") == 0) {
+        reply->kind = NotificationServiceListNotificationsReply_as_notification_items;
+        return csil_decode_NotificationItems(payload, len, &reply->value.as_notification_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = NotificationServiceListNotificationsReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
 static inline int csil_encode_NotificationServiceUnreadCountReply(const NotificationServiceUnreadCountReply *reply, const char **variant, uint8_t **payload, size_t *len) {
     switch (reply->kind) {
     case NotificationServiceUnreadCountReply_as_notification_unread_count:
@@ -12678,6 +13390,31 @@ static inline int csil_decode_ShareServiceDeleteShareReply(const char *variant, 
     return -1;
 }
 
+static inline int csil_encode_ShareServiceListSharesByResourceReply(const ShareServiceListSharesByResourceReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case ShareServiceListSharesByResourceReply_as_share_items:
+        *variant = "ShareItems";
+        return csil_encode_ShareItems(&reply->value.as_share_items, payload, len);
+    case ShareServiceListSharesByResourceReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_ShareServiceListSharesByResourceReply(const char *variant, const uint8_t *payload, size_t len, ShareServiceListSharesByResourceReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "ShareItems") == 0) {
+        reply->kind = ShareServiceListSharesByResourceReply_as_share_items;
+        return csil_decode_ShareItems(payload, len, &reply->value.as_share_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = ShareServiceListSharesByResourceReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
 static inline int csil_encode_ShareServiceCheckAccessReply(const ShareServiceCheckAccessReply *reply, const char **variant, uint8_t **payload, size_t *len) {
     switch (reply->kind) {
     case ShareServiceCheckAccessReply_as_share:
@@ -12698,6 +13435,31 @@ static inline int csil_decode_ShareServiceCheckAccessReply(const char *variant, 
     }
     if (strcmp(variant, "ServiceError") == 0) {
         reply->kind = ShareServiceCheckAccessReply_as_service_error;
+        return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
+    }
+    return -1;
+}
+
+static inline int csil_encode_MemberAuditServiceListAuditsForMemberReply(const MemberAuditServiceListAuditsForMemberReply *reply, const char **variant, uint8_t **payload, size_t *len) {
+    switch (reply->kind) {
+    case MemberAuditServiceListAuditsForMemberReply_as_member_audit_items:
+        *variant = "MemberAuditItems";
+        return csil_encode_MemberAuditItems(&reply->value.as_member_audit_items, payload, len);
+    case MemberAuditServiceListAuditsForMemberReply_as_service_error:
+        *variant = "ServiceError";
+        return csil_encode_ServiceError(&reply->value.as_service_error, payload, len);
+    }
+    return -1;
+}
+
+static inline int csil_decode_MemberAuditServiceListAuditsForMemberReply(const char *variant, const uint8_t *payload, size_t len, MemberAuditServiceListAuditsForMemberReply *reply, CsilCodecArena **owner) {
+    if (!variant) return -1;
+    if (strcmp(variant, "MemberAuditItems") == 0) {
+        reply->kind = MemberAuditServiceListAuditsForMemberReply_as_member_audit_items;
+        return csil_decode_MemberAuditItems(payload, len, &reply->value.as_member_audit_items, owner);
+    }
+    if (strcmp(variant, "ServiceError") == 0) {
+        reply->kind = MemberAuditServiceListAuditsForMemberReply_as_service_error;
         return csil_decode_ServiceError(payload, len, &reply->value.as_service_error, owner);
     }
     return -1;

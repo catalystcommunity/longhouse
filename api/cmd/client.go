@@ -17,8 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/catalystcommunity/longhouse/api/internal/csil"
-	"github.com/catalystcommunity/longhouse/api/internal/transport"
+	"github.com/catalystcommunity/csilgen/transports/go"
 	longhouseclient "github.com/catalystcommunity/longhouse/clients/go"
 )
 
@@ -65,17 +64,13 @@ func LoginCLI(flags map[string]string) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	responseBytes, err := callLonghouse(ctx, baseURL, "begin-cli-login",
-		csil.EncodeBeginCliLoginRequest(csil.BeginCliLoginRequest{ClientName: clientName}), "")
+	authClient := cliAuthClient(baseURL, "")
+	login, err := authClient.BeginCliLogin(ctx, longhouseclient.BeginCliLoginRequest{ClientName: clientName})
 	if err != nil {
 		if ctx.Err() != nil {
 			return cliCanceled("login canceled")
 		}
 		return err
-	}
-	login, err := csil.DecodeBeginCliLoginResponse(responseBytes)
-	if err != nil {
-		return fmt.Errorf("decode login response: %w", err)
 	}
 
 	loginOutput := io.Writer(os.Stdout)
@@ -98,20 +93,15 @@ func LoginCLI(flags map[string]string) error {
 	defer ticker.Stop()
 
 	for {
-		exchangeBytes, callErr := callLonghouse(ctx, baseURL, "exchange-cli-login",
-			csil.EncodeExchangeCliLoginRequest(csil.ExchangeCliLoginRequest{DeviceCode: login.DeviceCode}), "")
+		exchange, callErr := authClient.ExchangeCliLogin(ctx, longhouseclient.ExchangeCliLoginRequest{DeviceCode: login.DeviceCode})
 		if callErr != nil {
 			if ctx.Err() != nil {
 				return cliCanceled("login canceled")
 			}
 			return callErr
 		}
-		exchange, decodeErr := csil.DecodeExchangeCliLoginResponse(exchangeBytes)
-		if decodeErr != nil {
-			return fmt.Errorf("decode login exchange: %w", decodeErr)
-		}
 		switch exchange.Status {
-		case csil.CliLoginStatus("complete"):
+		case longhouseclient.CliLoginStatus("complete"):
 			if exchange.Session == nil {
 				return errors.New("server completed login without a session")
 			}
@@ -132,11 +122,11 @@ func LoginCLI(flags map[string]string) error {
 			}
 			fmt.Printf("Authorized as %s.\n", name)
 			return nil
-		case csil.CliLoginStatus("denied"):
+		case longhouseclient.CliLoginStatus("denied"):
 			return errors.New("CLI authorization was denied")
-		case csil.CliLoginStatus("expired"):
+		case longhouseclient.CliLoginStatus("expired"):
 			return errors.New("CLI authorization expired; run login again")
-		case csil.CliLoginStatus("pending"):
+		case longhouseclient.CliLoginStatus("pending"):
 			// Wait below.
 		default:
 			return fmt.Errorf("server returned unknown login status %q", exchange.Status)
@@ -168,13 +158,9 @@ func StatusCLI(flags map[string]string) error {
 			return err
 		}
 	}
-	responseBytes, err := callLonghouse(context.Background(), baseURL, "me", csil.EncodeEmptyRequest(csil.EmptyRequest{}), credentials.Token)
+	me, err := cliAuthClient(baseURL, credentials.Token).Me(context.Background(), longhouseclient.EmptyRequest{})
 	if err != nil {
 		return err
-	}
-	me, err := csil.DecodeMeResponse(responseBytes)
-	if err != nil {
-		return fmt.Errorf("decode account response: %w", err)
 	}
 	name := credentials.DisplayName
 	if name == "" {
@@ -237,8 +223,8 @@ func LogoutCLI(flags map[string]string) error {
 			return fmt.Errorf("could not refresh before revocation: %w", err)
 		}
 	}
-	_, err = callLonghouse(context.Background(), baseURL, "revoke-session",
-		csil.EncodeRevokeSessionRequest(csil.RevokeSessionRequest{SessionId: csil.CliSessionID(credentials.SessionID)}), credentials.Token)
+	_, err = cliAuthClient(baseURL, credentials.Token).RevokeSession(context.Background(),
+		longhouseclient.RevokeSessionRequest{SessionId: longhouseclient.CliSessionID(credentials.SessionID)})
 	if err != nil {
 		if isInvalidSessionError(err) {
 			if removeErr := removeCredentialsForProfile(credentials.Profile); removeErr != nil {
@@ -265,14 +251,10 @@ func LogoutCLI(flags map[string]string) error {
 func refreshCredentials(ctx context.Context, credentials *cliCredentials) error {
 	profileName := credentials.Profile
 	houseID := credentials.HouseID
-	responseBytes, err := callLonghouse(ctx, credentials.URL, "refresh-session",
-		csil.EncodeRefreshSessionRequest(csil.RefreshSessionRequest{RefreshToken: credentials.RefreshToken}), "")
+	response, err := cliAuthClient(credentials.URL, "").RefreshSession(ctx,
+		longhouseclient.RefreshSessionRequest{RefreshToken: credentials.RefreshToken})
 	if err != nil {
 		return err
-	}
-	response, err := csil.DecodeCliTokenResponse(responseBytes)
-	if err != nil {
-		return fmt.Errorf("decode refresh response: %w", err)
 	}
 	*credentials = credentialsFromResponse(credentials.URL, response)
 	credentials.Profile = profileName
@@ -280,7 +262,7 @@ func refreshCredentials(ctx context.Context, credentials *cliCredentials) error 
 	return writeCredentials(credentials)
 }
 
-func credentialsFromResponse(baseURL string, response csil.CliTokenResponse) cliCredentials {
+func credentialsFromResponse(baseURL string, response longhouseclient.CliTokenResponse) cliCredentials {
 	displayName := ""
 	if response.DisplayName != nil {
 		displayName = *response.DisplayName
@@ -303,63 +285,8 @@ func accessTokenNeedsRefresh(credentials *cliCredentials) bool {
 	return err != nil || time.Until(expiresAt) < 5*time.Minute
 }
 
-func callLonghouse(ctx context.Context, baseURL, op string, payload []byte, bearer string) ([]byte, error) {
-	return callLonghouseService(ctx, baseURL, "AuthService", op, payload, bearer)
-}
-
-func callLonghouseService(ctx context.Context, baseURL, service, op string, payload []byte, bearer string) ([]byte, error) {
-	endpoint, err := rpcEndpoint(baseURL)
-	if err != nil {
-		return nil, err
-	}
-	reqEnvelope := transport.NewRpcRequest(service, op, payload)
-	body, err := reqEnvelope.Encode()
-	if err != nil {
-		return nil, fmt.Errorf("encode request envelope: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/cbor")
-	req.Header.Set("Accept", "application/cbor")
-	if bearer != "" {
-		req.Header.Set("Authorization", "Bearer "+bearer)
-	}
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("call Longhouse: %w", err)
-	}
-	defer resp.Body.Close()
-	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, maxCLIResponseBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("read Longhouse response: %w", err)
-	}
-	if len(responseBody) > maxCLIResponseBytes {
-		return nil, errors.New("Longhouse response is too large")
-	}
-	rpcResponse, err := transport.DecodeRpcResponse(responseBody)
-	if err != nil {
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("Longhouse returned HTTP %d", resp.StatusCode)
-		}
-		return nil, fmt.Errorf("decode response envelope: %w", err)
-	}
-	if err := rpcResponse.AsTransportError(); err != nil {
-		return nil, err
-	}
-	if rpcResponse.Variant != nil && *rpcResponse.Variant == "ServiceError" {
-		serviceError, decodeErr := csil.DecodeServiceError(rpcResponse.Payload)
-		if decodeErr != nil {
-			return nil, fmt.Errorf("decode service error: %w", decodeErr)
-		}
-		return nil, &longhouseServiceError{Status: resp.StatusCode, Code: serviceError.Code, Message: serviceError.Message}
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Longhouse returned HTTP %d", resp.StatusCode)
-	}
-	return rpcResponse.Payload, nil
+func cliAuthClient(baseURL, bearer string) *longhouseclient.AuthClient {
+	return longhouseclient.NewAuthClient(&generatedClientTransport{baseURL: baseURL, bearer: bearer})
 }
 
 type generatedClientTransport struct {
@@ -370,7 +297,63 @@ type generatedClientTransport struct {
 var _ longhouseclient.Transport = (*generatedClientTransport)(nil)
 
 func (t *generatedClientTransport) Call(ctx context.Context, service, op string, payload []byte) ([]byte, error) {
-	return callLonghouseService(ctx, t.baseURL, service, op, payload, t.bearer)
+	reply, err := t.CallReply(ctx, service, op, payload)
+	return reply.Payload, err
+}
+
+func (t *generatedClientTransport) CallReply(ctx context.Context, service, op string, payload []byte) (longhouseclient.WireReply, error) {
+	endpoint, err := rpcEndpoint(t.baseURL)
+	if err != nil {
+		return longhouseclient.WireReply{}, err
+	}
+	reqEnvelope := transport.NewRpcRequest(service, op, payload)
+	body, err := reqEnvelope.Encode()
+	if err != nil {
+		return longhouseclient.WireReply{}, fmt.Errorf("encode request envelope: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return longhouseclient.WireReply{}, err
+	}
+	req.Header.Set("Content-Type", "application/cbor")
+	req.Header.Set("Accept", "application/cbor")
+	if t.bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+t.bearer)
+	}
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return longhouseclient.WireReply{}, fmt.Errorf("call Longhouse: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, maxCLIResponseBytes+1))
+	if err != nil {
+		return longhouseclient.WireReply{}, fmt.Errorf("read Longhouse response: %w", err)
+	}
+	if len(responseBody) > maxCLIResponseBytes {
+		return longhouseclient.WireReply{}, errors.New("Longhouse response is too large")
+	}
+	rpcResponse, err := transport.DecodeRpcResponse(responseBody)
+	if err != nil {
+		if resp.StatusCode != http.StatusOK {
+			return longhouseclient.WireReply{}, fmt.Errorf("Longhouse returned HTTP %d", resp.StatusCode)
+		}
+		return longhouseclient.WireReply{}, fmt.Errorf("decode response envelope: %w", err)
+	}
+	if err := rpcResponse.AsTransportError(); err != nil {
+		return longhouseclient.WireReply{}, err
+	}
+	if rpcResponse.Variant != nil && *rpcResponse.Variant == "ServiceError" {
+		serviceError, decodeErr := longhouseclient.DecodeServiceError(rpcResponse.Payload)
+		if decodeErr != nil {
+			return longhouseclient.WireReply{}, fmt.Errorf("decode service error: %w", decodeErr)
+		}
+		return longhouseclient.WireReply{}, &longhouseServiceError{Status: resp.StatusCode, Code: serviceError.Code, Message: serviceError.Message}
+	}
+	if resp.StatusCode != http.StatusOK {
+		return longhouseclient.WireReply{}, fmt.Errorf("Longhouse returned HTTP %d", resp.StatusCode)
+	}
+	return longhouseclient.WireReply{Variant: rpcResponse.Variant, Payload: rpcResponse.Payload}, nil
 }
 
 func cliURL(flags map[string]string, credentials *cliCredentials) (string, error) {

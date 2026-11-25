@@ -3,7 +3,7 @@
 
 import struct
 from typing import Any, Dict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from .types import *
 
 
@@ -71,6 +71,19 @@ def _csil_enc(v: Any, out: bytearray) -> None:
     elif isinstance(v, CborTag):
         _csil_head(6, v.tag, out)
         _csil_enc(v.value, out)
+    elif isinstance(v, _CsilDynMap):
+        # RFC 8949 section 4.2.1: a dynamic map is written in the bytewise order of
+        # its encoded keys, which is not Python's string or number order.
+        pairs = []
+        for key, val in v.items():
+            key_out = bytearray()
+            _csil_enc(key, key_out)
+            pairs.append((bytes(key_out), val))
+        pairs.sort(key=lambda pair: pair[0])
+        _csil_head(5, len(pairs), out)
+        for key_bytes, val in pairs:
+            out += key_bytes
+            _csil_enc(val, out)
     elif isinstance(v, dict):
         _csil_head(5, len(v), out)
         for key, val in v.items():
@@ -91,12 +104,62 @@ def cbor_encode(value: Any) -> bytes:
     return bytes(out)
 
 
+# Every encode entry point refuses a bad value with ValueError only, so a caller
+# needs one `except`. A value of the wrong shape (None for a map, a short tuple)
+# otherwise fails as whatever the tree builder happens to touch first.
+def _csil_encode_tree(build: Any) -> bytes:
+    try:
+        return cbor_encode(build())
+    except ValueError:
+        raise
+    except (TypeError, AttributeError, IndexError, KeyError, OverflowError) as exc:
+        raise ValueError(f"csil cbor: cannot encode value: {exc!r}") from exc
+
+
+# `True == 1` in Python, but CSIL bool and int are distinct wire types.
+def _csil_same_literal(v: Any, expected: Any) -> bool:
+    return isinstance(v, bool) == isinstance(expected, bool) and v == expected
+
+
+# The decoder refuses a literal field or enum value outside the declared set, so
+# the encoder refuses it too instead of writing bytes no peer accepts.
+def _csil_enc_literal(v: Any, expected: Any) -> Any:
+    if not _csil_same_literal(v, expected):
+        raise ValueError(f"csil cbor: expected literal {expected!r}, got {v!r}")
+    return expected
+
+
+def _csil_enc_enum(v: Any, members: Any) -> Any:
+    for member in members:
+        if _csil_same_literal(v, member):
+            return member
+    raise ValueError(f"csil cbor: {v!r} is not a member of the declared enum")
+
+
+def _csil_enc_tuple(v: Any, arity: int) -> Any:
+    if not isinstance(v, (list, tuple)) or len(v) != arity:
+        raise ValueError(f"csil cbor: expected a {arity}-element tuple, got {v!r}")
+    return v
+
+
+class CsilDecodeError(ValueError):
+    """Bytes that do not decode to the CSIL-declared value: malformed CBOR
+    (truncated input, a bad head byte, too deep nesting) or a well-formed value
+    of the wrong shape.
+
+    Subclasses ValueError so existing `except ValueError` call sites still
+    catch it; the distinct type lets a caller narrow on decode failures.
+    """
+
+
 def _csil_read_arg(b: bytes, pos: int, low: int):
     if low < 24:
         return low, pos + 1
     width = {24: 1, 25: 2, 26: 4, 27: 8}.get(low)
-    if width is None or len(b) - pos - 1 < width:
-        raise ValueError("csilgen: truncated argument")
+    if width is None:
+        raise CsilDecodeError("csilgen: bad head")
+    if len(b) - pos - 1 < width:
+        raise CsilDecodeError("csilgen: truncated argument")
     if low == 24:
         return b[pos + 1], pos + 2
     if low == 25:
@@ -105,14 +168,29 @@ def _csil_read_arg(b: bytes, pos: int, low: int):
         return int.from_bytes(b[pos + 1 : pos + 5], "big"), pos + 5
     if low == 27:
         return int.from_bytes(b[pos + 1 : pos + 9], "big"), pos + 9
-    raise ValueError("csilgen: bad head")
+    raise CsilDecodeError("csilgen: bad head")
+
+
+# The smallest argument each long head form may carry; a smaller one fits a
+# shorter head. Only the key heads are checked: a key with two byte forms would
+# defeat the canonical-order check.
+_CSIL_HEAD_MINIMUM = {24: 24, 25: 0x100, 26: 0x10000, 27: 0x100000000}
+
+
+def _csil_head_is_shortest(b: bytes, pos: int) -> bool:
+    ib = b[pos]
+    minimum = _CSIL_HEAD_MINIMUM.get(ib & 0x1F)
+    if minimum is None or ib >> 5 == 7:
+        return True
+    arg, _ = _csil_read_arg(b, pos, ib & 0x1F)
+    return arg >= minimum
 
 
 def _csil_dec(b: bytes, pos: int, depth: int):
     if depth > 64:
-        raise ValueError("csilgen: nesting limit exceeded")
+        raise CsilDecodeError("csilgen: nesting limit exceeded")
     if pos >= len(b):
-        raise ValueError("csilgen: unexpected end of input")
+        raise CsilDecodeError("csilgen: unexpected end of input")
     ib = b[pos]
     major = ib >> 5
     low = ib & 0x1F
@@ -123,11 +201,15 @@ def _csil_dec(b: bytes, pos: int, depth: int):
             return True, pos + 1
         if low in (22, 23):
             return None, pos + 1
+        if low in (25, 26, 27) and len(b) - pos - 1 < {25: 2, 26: 4, 27: 8}[low]:
+            raise CsilDecodeError("csilgen: truncated float")
+        if low == 25:
+            return struct.unpack(">e", b[pos + 1 : pos + 3])[0], pos + 3
         if low == 26:
             return struct.unpack(">f", b[pos + 1 : pos + 5])[0], pos + 5
         if low == 27:
             return struct.unpack(">d", b[pos + 1 : pos + 9])[0], pos + 9
-        raise ValueError("csilgen: unsupported simple value")
+        raise CsilDecodeError("csilgen: unsupported simple value")
     arg, pos = _csil_read_arg(b, pos, low)
     if major == 0:
         return arg, pos
@@ -135,15 +217,18 @@ def _csil_dec(b: bytes, pos: int, depth: int):
         return -1 - arg, pos
     if major == 2:
         if arg > len(b) - pos:
-            raise ValueError("csilgen: truncated byte string")
+            raise CsilDecodeError("csilgen: truncated byte string")
         return bytes(b[pos : pos + arg]), pos + arg
     if major == 3:
         if arg > len(b) - pos:
-            raise ValueError("csilgen: truncated text string")
-        return b[pos : pos + arg].decode("utf-8"), pos + arg
+            raise CsilDecodeError("csilgen: truncated text string")
+        try:
+            return b[pos : pos + arg].decode("utf-8"), pos + arg
+        except UnicodeDecodeError:
+            raise CsilDecodeError("csilgen: invalid UTF-8 in text string") from None
     if major == 4:
         if arg > len(b) - pos:
-            raise ValueError("csilgen: array length exceeds remaining input")
+            raise CsilDecodeError("csilgen: array length exceeds remaining input")
         items = []
         for _ in range(arg):
             item, pos = _csil_dec(b, pos, depth + 1)
@@ -151,33 +236,41 @@ def _csil_dec(b: bytes, pos: int, depth: int):
         return items, pos
     if major == 5:
         if arg > len(b) - pos:
-            raise ValueError("csilgen: map length exceeds remaining input")
-        result: Dict[Any, Any] = {}
+            raise CsilDecodeError("csilgen: map length exceeds remaining input")
+        result = _CsilWireMap()
+        previous = None
         for _ in range(arg):
+            start = pos
             key, pos = _csil_dec(b, pos, depth + 1)
+            if not _csil_head_is_shortest(b, start):
+                raise CsilDecodeError("csil cbor: map key is not in shortest form")
+            # Comparing each raw key with the one before keeps the order check O(n);
+            # a dynamic-map decoder reads the flag, a record decoder ignores it.
+            raw = b[start:pos]
+            if previous is not None and raw <= previous:
+                result.canonical = False
+            previous = raw
             val, pos = _csil_dec(b, pos, depth + 1)
+            try:
+                repeated = key in result
+            except TypeError:
+                raise CsilDecodeError("csilgen: map key is not hashable") from None
+            if repeated:
+                raise CsilDecodeError(f"csil cbor: duplicate key {key!r}")
             result[key] = val
         return result, pos
     if major == 6:
         inner, pos = _csil_dec(b, pos, depth + 1)
         return CborTag(arg, inner), pos
-    raise ValueError("csilgen: bad major type")
+    raise CsilDecodeError("csilgen: bad major type")
 
 
 def cbor_decode(data: bytes) -> Any:
     """Decode canonical CBOR bytes into a value tree."""
     value, pos = _csil_dec(data, 0, 0)
     if pos != len(data):
-        raise ValueError("csilgen: trailing bytes")
+        raise CsilDecodeError("csilgen: trailing bytes")
     return value
-
-
-class CsilDecodeError(ValueError):
-    """A decoded CBOR value's major type does not match its CSIL-declared type.
-
-    Subclasses ValueError so existing `except ValueError` call sites still
-    catch it; the distinct type lets a caller narrow on schema violations.
-    """
 
 
 # The value-tree type-check gate every scalar field decode passes through: the
@@ -226,6 +319,31 @@ def _csil_expect_bytes(v: Any) -> bytes:
 def _csil_expect_array(v: Any) -> list:
     if not isinstance(v, list):
         raise CsilDecodeError(f"csil cbor: expected array, got {type(v).__name__}")
+    return v
+
+
+class _CsilMap(dict):
+    # A record decoder reads required fields as `tree["key"]`; a missing key must
+    # fail as a decode error, not as a bare KeyError.
+    def __missing__(self, key: Any) -> Any:
+        raise CsilDecodeError(f"csil cbor: missing field {key!r}")
+
+
+class _CsilWireMap(dict):
+    # A decoded CBOR map, with whether its keys arrived in canonical order.
+    canonical = True
+
+
+class _CsilDynMap(dict):
+    # Marks a dynamic map (`{ * K => V }`) for the encoder, which writes its keys in
+    # canonical order; a record keeps the order the codec builds it in.
+    pass
+
+
+def _csil_expect_dyn_map(v: Any) -> dict:
+    v = _csil_expect_map(v)
+    if not getattr(v, "canonical", True):
+        raise CsilDecodeError("csil cbor: map keys are not in canonical order")
     return v
 
 
@@ -320,18 +438,100 @@ def _csil_decode_enum(v: Any, members: Any, expect: Any) -> Any:
 
 
 def _csil_ts_to_text(dt: Any) -> str:
-    # The contract pins tag-0 timestamps to RFC3339 UTC with a `Z` offset.
-    text = dt.astimezone(timezone.utc).isoformat()
-    return text.replace("+00:00", "Z")
+    # A naive datetime has no instant: `astimezone` would guess the host's local
+    # zone, so two hosts could write different bytes for the same value.
+    if not isinstance(dt, datetime) or dt.utcoffset() is None:
+        raise ValueError("csil cbor: a timestamp must be a tz-aware datetime")
+    try:
+        utc = dt.astimezone(timezone.utc)
+    except OverflowError:
+        raise ValueError("csil cbor: timestamp is outside years 0001-9999 in UTC") from None
+    text = (
+        f"{utc.year:04d}-{utc.month:02d}-{utc.day:02d}"
+        f"T{utc.hour:02d}:{utc.minute:02d}:{utc.second:02d}"
+    )
+    if utc.microsecond % 1000 == 0 and utc.microsecond:
+        text += f".{utc.microsecond // 1000:03d}"
+    elif utc.microsecond:
+        text += f".{utc.microsecond:06d}"
+    return text + "Z"
 
 
-def _csil_ts_from_tree(node: Any) -> Any:
-    text = _csil_expect_tag(node, 0)
+_CSIL_ASCII_DIGITS = "0123456789"
+_CSIL_MONTH_DAYS = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+
+
+# `int()` also reads non-ASCII digits (e.g. full-width), which the contract forbids.
+def _csil_ts_field(text: str, start: int, width: int) -> int:
+    part = text[start:start + width]
+    if len(part) != width or any(c not in _CSIL_ASCII_DIGITS for c in part):
+        raise CsilDecodeError(f"csil cbor: invalid RFC 3339 timestamp {text!r}")
+    return int(part)
+
+
+# `datetime.fromisoformat` accepts shapes the contract forbids (a space for `T`, no
+# offset, week dates), so the grammar is read field by field instead.
+def _csil_ts_from_text(text: Any) -> Any:
     if not isinstance(text, str):
         raise CsilDecodeError(
             f"csil cbor: timestamp content must be text, got {type(text).__name__}"
         )
-    return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    bad = CsilDecodeError(f"csil cbor: invalid RFC 3339 timestamp {text!r}")
+    if len(text) < 20 or text[4] != "-" or text[7] != "-" or text[10] not in "Tt":
+        raise bad
+    if text[13] != ":" or text[16] != ":":
+        raise bad
+    year = _csil_ts_field(text, 0, 4)
+    month = _csil_ts_field(text, 5, 2)
+    day = _csil_ts_field(text, 8, 2)
+    hour = _csil_ts_field(text, 11, 2)
+    minute = _csil_ts_field(text, 14, 2)
+    second = _csil_ts_field(text, 17, 2)
+    pos = 19
+    micros = 0
+    if text[pos] == ".":
+        end = pos + 1
+        while end < len(text) and text[end] in _CSIL_ASCII_DIGITS:
+            end += 1
+        fraction = text[pos + 1:end]
+        if not 1 <= len(fraction) <= 9:
+            raise bad
+        # `datetime` holds microseconds; a decoder never rounds or cuts a digit.
+        if fraction[6:].strip("0"):
+            raise CsilDecodeError(f"csil cbor: timestamp {text!r} is finer than microseconds")
+        micros = int(fraction[:6].ljust(6, "0"))
+        pos = end
+    zone = text[pos:]
+    if zone in ("Z", "z"):
+        offset = 0
+    elif len(zone) == 6 and zone[0] in "+-" and zone[3] == ":":
+        offset_hour = _csil_ts_field(zone, 1, 2)
+        offset_minute = _csil_ts_field(zone, 4, 2)
+        if offset_hour > 23 or offset_minute > 59:
+            raise bad
+        offset = offset_hour * 60 + offset_minute
+        if zone[0] == "-":
+            offset = -offset
+    else:
+        raise bad
+    leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+    if not 1 <= month <= 12:
+        raise bad
+    month_days = 29 if month == 2 and leap else _CSIL_MONTH_DAYS[month - 1]
+    if not 1 <= day <= month_days or hour > 23 or minute > 59 or second > 59:
+        raise bad
+    # A written year 0000 is refused by `datetime` itself, as the contract requires.
+    try:
+        local = datetime(year, month, day, hour, minute, second, micros, tzinfo=timezone.utc)
+        return local - timedelta(minutes=offset)
+    except (ValueError, OverflowError):
+        raise CsilDecodeError(
+            f"csil cbor: timestamp {text!r} is outside years 0001-9999"
+        ) from None
+
+
+def _csil_ts_from_tree(node: Any) -> Any:
+    return _csil_ts_from_text(_csil_expect_tag(node, 0))
 
 
 def _csil_decimal_to_pair(d: Any) -> list:
@@ -365,7 +565,7 @@ def _encode_house_value(v: "House") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_house_value(tree: Any) -> "House":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return House(
         house_id=_csil_expect_text(tree["house_id"]),
         name=_csil_expect_text(tree["name"]),
@@ -376,7 +576,7 @@ def _decode_house_value(tree: Any) -> "House":
 
 
 def _house_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_house_value(self))
+    return _csil_encode_tree(lambda: _encode_house_value(self))
 
 
 def _house_from_cbor(data: bytes) -> "House":
@@ -418,7 +618,7 @@ def _encode_member_value(v: "Member") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_member_value(tree: Any) -> "Member":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Member(
         member_id=_csil_expect_text(tree["member_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -437,7 +637,7 @@ def _decode_member_value(tree: Any) -> "Member":
 
 
 def _member_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_member_value(self))
+    return _csil_encode_tree(lambda: _encode_member_value(self))
 
 
 def _member_from_cbor(data: bytes) -> "Member":
@@ -456,7 +656,7 @@ def _encode_trusted_domain_value(v: "TrustedDomain") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_trusted_domain_value(tree: Any) -> "TrustedDomain":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return TrustedDomain(
         trusted_domain_id=_csil_expect_text(tree["trusted_domain_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -466,7 +666,7 @@ def _decode_trusted_domain_value(tree: Any) -> "TrustedDomain":
 
 
 def _trusted_domain_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_trusted_domain_value(self))
+    return _csil_encode_tree(lambda: _encode_trusted_domain_value(self))
 
 
 def _trusted_domain_from_cbor(data: bytes) -> "TrustedDomain":
@@ -489,7 +689,7 @@ def _encode_role_value(v: "Role") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_role_value(tree: Any) -> "Role":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Role(
         role_id=_csil_expect_text(tree["role_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -501,7 +701,7 @@ def _decode_role_value(tree: Any) -> "Role":
 
 
 def _role_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_role_value(self))
+    return _csil_encode_tree(lambda: _encode_role_value(self))
 
 
 def _role_from_cbor(data: bytes) -> "Role":
@@ -519,7 +719,7 @@ def _encode_member_role_value(v: "MemberRole") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_member_role_value(tree: Any) -> "MemberRole":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return MemberRole(
         member_id=_csil_expect_text(tree["member_id"]),
         role_id=_csil_expect_text(tree["role_id"]),
@@ -528,7 +728,7 @@ def _decode_member_role_value(tree: Any) -> "MemberRole":
 
 
 def _member_role_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_member_role_value(self))
+    return _csil_encode_tree(lambda: _encode_member_role_value(self))
 
 
 def _member_role_from_cbor(data: bytes) -> "MemberRole":
@@ -560,7 +760,7 @@ def _encode_member_audit_value(v: "MemberAudit") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_member_audit_value(tree: Any) -> "MemberAudit":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return MemberAudit(
         audit_id=_csil_expect_text(tree["audit_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -575,7 +775,7 @@ def _decode_member_audit_value(tree: Any) -> "MemberAudit":
 
 
 def _member_audit_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_member_audit_value(self))
+    return _csil_encode_tree(lambda: _encode_member_audit_value(self))
 
 
 def _member_audit_from_cbor(data: bytes) -> "MemberAudit":
@@ -598,7 +798,7 @@ def _encode_skill_value(v: "Skill") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_skill_value(tree: Any) -> "Skill":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Skill(
         skill_id=_csil_expect_text(tree["skill_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -610,7 +810,7 @@ def _decode_skill_value(tree: Any) -> "Skill":
 
 
 def _skill_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_skill_value(self))
+    return _csil_encode_tree(lambda: _encode_skill_value(self))
 
 
 def _skill_from_cbor(data: bytes) -> "Skill":
@@ -628,7 +828,7 @@ def _encode_member_skill_value(v: "MemberSkill") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_member_skill_value(tree: Any) -> "MemberSkill":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return MemberSkill(
         member_id=_csil_expect_text(tree["member_id"]),
         skill_id=_csil_expect_text(tree["skill_id"]),
@@ -637,7 +837,7 @@ def _decode_member_skill_value(tree: Any) -> "MemberSkill":
 
 
 def _member_skill_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_member_skill_value(self))
+    return _csil_encode_tree(lambda: _encode_member_skill_value(self))
 
 
 def _member_skill_from_cbor(data: bytes) -> "MemberSkill":
@@ -655,7 +855,7 @@ def _encode_group_skill_value(v: "GroupSkill") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_group_skill_value(tree: Any) -> "GroupSkill":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return GroupSkill(
         group_id=_csil_expect_text(tree["group_id"]),
         skill_id=_csil_expect_text(tree["skill_id"]),
@@ -664,7 +864,7 @@ def _decode_group_skill_value(tree: Any) -> "GroupSkill":
 
 
 def _group_skill_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_group_skill_value(self))
+    return _csil_encode_tree(lambda: _encode_group_skill_value(self))
 
 
 def _group_skill_from_cbor(data: bytes) -> "GroupSkill":
@@ -687,7 +887,7 @@ def _encode_group_value(v: "Group") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_group_value(tree: Any) -> "Group":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Group(
         group_id=_csil_expect_text(tree["group_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -699,7 +899,7 @@ def _decode_group_value(tree: Any) -> "Group":
 
 
 def _group_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_group_value(self))
+    return _csil_encode_tree(lambda: _encode_group_value(self))
 
 
 def _group_from_cbor(data: bytes) -> "Group":
@@ -717,7 +917,7 @@ def _encode_group_member_value(v: "GroupMember") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_group_member_value(tree: Any) -> "GroupMember":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return GroupMember(
         group_id=_csil_expect_text(tree["group_id"]),
         member_id=_csil_expect_text(tree["member_id"]),
@@ -726,7 +926,7 @@ def _decode_group_member_value(tree: Any) -> "GroupMember":
 
 
 def _group_member_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_group_member_value(self))
+    return _csil_encode_tree(lambda: _encode_group_member_value(self))
 
 
 def _group_member_from_cbor(data: bytes) -> "GroupMember":
@@ -741,7 +941,7 @@ def _encode_project_value(v: "Project") -> Dict[Any, Any]:
     csil_m["name"] = v.name
     csil_x = v.status
     if csil_x is not None:
-        csil_m["status"] = csil_x
+        csil_m["status"] = _encode_project_status_value(csil_x)
     csil_x = v.category
     if csil_x is not None:
         csil_m["category"] = csil_x
@@ -754,7 +954,7 @@ def _encode_project_value(v: "Project") -> Dict[Any, Any]:
     csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_x = v.visibility
     if csil_x is not None:
-        csil_m["visibility"] = csil_x
+        csil_m["visibility"] = _encode_access_level_value(csil_x)
     csil_x = v.description
     if csil_x is not None:
         csil_m["description"] = csil_x
@@ -764,7 +964,7 @@ def _encode_project_value(v: "Project") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_project_value(tree: Any) -> "Project":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Project(
         project_id=_csil_expect_text(tree["project_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -781,7 +981,7 @@ def _decode_project_value(tree: Any) -> "Project":
 
 
 def _project_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_value(self))
+    return _csil_encode_tree(lambda: _encode_project_value(self))
 
 
 def _project_from_cbor(data: bytes) -> "Project":
@@ -800,7 +1000,7 @@ def _encode_project_task_value(v: "ProjectTask") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_project_task_value(tree: Any) -> "ProjectTask":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectTask(
         project_id=_csil_expect_text(tree["project_id"]),
         task_id=_csil_expect_text(tree["task_id"]),
@@ -810,7 +1010,7 @@ def _decode_project_task_value(tree: Any) -> "ProjectTask":
 
 
 def _project_task_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_task_value(self))
+    return _csil_encode_tree(lambda: _encode_project_task_value(self))
 
 
 def _project_task_from_cbor(data: bytes) -> "ProjectTask":
@@ -828,7 +1028,7 @@ def _encode_project_member_value(v: "ProjectMember") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_project_member_value(tree: Any) -> "ProjectMember":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectMember(
         project_id=_csil_expect_text(tree["project_id"]),
         member_id=_csil_expect_text(tree["member_id"]),
@@ -837,7 +1037,7 @@ def _decode_project_member_value(tree: Any) -> "ProjectMember":
 
 
 def _project_member_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_member_value(self))
+    return _csil_encode_tree(lambda: _encode_project_member_value(self))
 
 
 def _project_member_from_cbor(data: bytes) -> "ProjectMember":
@@ -855,7 +1055,7 @@ def _encode_project_owner_value(v: "ProjectOwner") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_project_owner_value(tree: Any) -> "ProjectOwner":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectOwner(
         project_id=_csil_expect_text(tree["project_id"]),
         member_id=_csil_expect_text(tree["member_id"]),
@@ -864,7 +1064,7 @@ def _decode_project_owner_value(tree: Any) -> "ProjectOwner":
 
 
 def _project_owner_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_owner_value(self))
+    return _csil_encode_tree(lambda: _encode_project_owner_value(self))
 
 
 def _project_owner_from_cbor(data: bytes) -> "ProjectOwner":
@@ -877,7 +1077,7 @@ ProjectOwner.from_cbor = staticmethod(_project_owner_from_cbor)
 def _encode_milestone_value(v: "Milestone") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["label"] = v.label
-    csil_m["state"] = v.state
+    csil_m["state"] = _encode_milestone_state_value(v.state)
     csil_m["position"] = v.position
     csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_m["project_id"] = v.project_id
@@ -887,7 +1087,7 @@ def _encode_milestone_value(v: "Milestone") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_milestone_value(tree: Any) -> "Milestone":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Milestone(
         milestone_id=_csil_expect_text(tree["milestone_id"]),
         project_id=_csil_expect_text(tree["project_id"]),
@@ -901,7 +1101,7 @@ def _decode_milestone_value(tree: Any) -> "Milestone":
 
 
 def _milestone_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_milestone_value(self))
+    return _csil_encode_tree(lambda: _encode_milestone_value(self))
 
 
 def _milestone_from_cbor(data: bytes) -> "Milestone":
@@ -948,7 +1148,7 @@ def _encode_event_value(v: "Event") -> Dict[Any, Any]:
     csil_m["owner_member_id"] = v.owner_member_id
     csil_x = v.recurrence_freq
     if csil_x is not None:
-        csil_m["recurrence_freq"] = csil_x
+        csil_m["recurrence_freq"] = _encode_recurrence_freq_value(csil_x)
     csil_x = v.recurrence_rule
     if csil_x is not None:
         csil_m["recurrence_rule"] = csil_x
@@ -985,7 +1185,7 @@ def _encode_event_value(v: "Event") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_event_value(tree: Any) -> "Event":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Event(
         event_id=_csil_expect_text(tree["event_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -1018,7 +1218,7 @@ def _decode_event_value(tree: Any) -> "Event":
 
 
 def _event_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_event_value(self))
+    return _csil_encode_tree(lambda: _encode_event_value(self))
 
 
 def _event_from_cbor(data: bytes) -> "Event":
@@ -1039,7 +1239,7 @@ def _encode_task_value(v: "Task") -> Dict[Any, Any]:
         csil_m["due_at"] = CborTag(0, _csil_ts_to_text(csil_x))
     csil_x = v.status
     if csil_x is not None:
-        csil_m["status"] = csil_x
+        csil_m["status"] = _encode_task_status_value(csil_x)
     csil_m["task_id"] = v.task_id
     csil_m["house_id"] = v.house_id
     csil_x = v.assignees
@@ -1052,7 +1252,7 @@ def _encode_task_value(v: "Task") -> Dict[Any, Any]:
     csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
     csil_x = v.visibility
     if csil_x is not None:
-        csil_m["visibility"] = csil_x
+        csil_m["visibility"] = _encode_access_level_value(csil_x)
     csil_x = v.description
     if csil_x is not None:
         csil_m["description"] = csil_x
@@ -1062,7 +1262,7 @@ def _encode_task_value(v: "Task") -> Dict[Any, Any]:
     csil_m["owner_member_id"] = v.owner_member_id
     csil_x = v.recurrence_freq
     if csil_x is not None:
-        csil_m["recurrence_freq"] = csil_x
+        csil_m["recurrence_freq"] = _encode_recurrence_freq_value(csil_x)
     csil_x = v.clear_recurrence
     if csil_x is not None:
         csil_m["clear_recurrence"] = csil_x
@@ -1090,7 +1290,7 @@ def _encode_task_value(v: "Task") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_task_value(tree: Any) -> "Task":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Task(
         task_id=_csil_expect_text(tree["task_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -1119,7 +1319,7 @@ def _decode_task_value(tree: Any) -> "Task":
 
 
 def _task_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_task_value(self))
+    return _csil_encode_tree(lambda: _encode_task_value(self))
 
 
 def _task_from_cbor(data: bytes) -> "Task":
@@ -1138,11 +1338,11 @@ def _encode_comment_value(v: "Comment") -> Dict[Any, Any]:
     csil_m["comment_id"] = v.comment_id
     csil_m["created_at"] = CborTag(0, _csil_ts_to_text(v.created_at))
     csil_m["updated_at"] = CborTag(0, _csil_ts_to_text(v.updated_at))
-    csil_m["target_type"] = v.target_type
+    csil_m["target_type"] = _encode_target_type_value(v.target_type)
     return csil_m
 
 def _decode_comment_value(tree: Any) -> "Comment":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Comment(
         comment_id=_csil_expect_text(tree["comment_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -1156,7 +1356,7 @@ def _decode_comment_value(tree: Any) -> "Comment":
 
 
 def _comment_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_comment_value(self))
+    return _csil_encode_tree(lambda: _encode_comment_value(self))
 
 
 def _comment_from_cbor(data: bytes) -> "Comment":
@@ -1178,14 +1378,14 @@ def _encode_share_value(v: "Share") -> Dict[Any, Any]:
     csil_m["resource_id"] = v.resource_id
     csil_x = v.access_level
     if csil_x is not None:
-        csil_m["access_level"] = csil_x
-    csil_m["resource_type"] = v.resource_type
+        csil_m["access_level"] = _encode_access_level_value(csil_x)
+    csil_m["resource_type"] = _encode_resource_type_value(v.resource_type)
     csil_m["linkkeys_domain"] = v.linkkeys_domain
     csil_m["linkkeys_user_id"] = v.linkkeys_user_id
     return csil_m
 
 def _decode_share_value(tree: Any) -> "Share":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Share(
         share_id=_csil_expect_text(tree["share_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -1201,7 +1401,7 @@ def _decode_share_value(tree: Any) -> "Share":
 
 
 def _share_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_share_value(self))
+    return _csil_encode_tree(lambda: _encode_share_value(self))
 
 
 def _share_from_cbor(data: bytes) -> "Share":
@@ -1220,7 +1420,7 @@ def _encode_house_summary_value(v: "HouseSummary") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_house_summary_value(tree: Any) -> "HouseSummary":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return HouseSummary(
         house_id=_csil_expect_text(tree["house_id"]),
         name=_csil_expect_text(tree["name"]),
@@ -1230,7 +1430,7 @@ def _decode_house_summary_value(tree: Any) -> "HouseSummary":
 
 
 def _house_summary_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_house_summary_value(self))
+    return _csil_encode_tree(lambda: _encode_house_summary_value(self))
 
 
 def _house_summary_from_cbor(data: bytes) -> "HouseSummary":
@@ -1248,7 +1448,7 @@ def _encode_house_roles_value(v: "HouseRoles") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_house_roles_value(tree: Any) -> "HouseRoles":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return HouseRoles(
         house=_csil_expect_text(tree["house"]),
         member=_csil_expect_text(tree["member"]),
@@ -1257,7 +1457,7 @@ def _decode_house_roles_value(tree: Any) -> "HouseRoles":
 
 
 def _house_roles_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_house_roles_value(self))
+    return _csil_encode_tree(lambda: _encode_house_roles_value(self))
 
 
 def _house_roles_from_cbor(data: bytes) -> "HouseRoles":
@@ -1276,7 +1476,7 @@ def _encode_act_as_delegation_value(v: "ActAsDelegation") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_act_as_delegation_value(tree: Any) -> "ActAsDelegation":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ActAsDelegation(
         grant_expires_at=_csil_expect_int(tree["grant_expires_at"]),
         grant_id=_csil_expect_text(tree["grant_id"]),
@@ -1286,7 +1486,7 @@ def _decode_act_as_delegation_value(tree: Any) -> "ActAsDelegation":
 
 
 def _act_as_delegation_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_act_as_delegation_value(self))
+    return _csil_encode_tree(lambda: _encode_act_as_delegation_value(self))
 
 
 def _act_as_delegation_from_cbor(data: bytes) -> "ActAsDelegation":
@@ -1312,7 +1512,7 @@ def _encode_identity_value(v: "Identity") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_identity_value(tree: Any) -> "Identity":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Identity(
         delegation=(None if tree.get("delegation") is None else _decode_act_as_delegation_value(tree["delegation"])),
         domain=_csil_expect_text(tree["domain"]),
@@ -1325,7 +1525,7 @@ def _decode_identity_value(tree: Any) -> "Identity":
 
 
 def _identity_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_identity_value(self))
+    return _csil_encode_tree(lambda: _encode_identity_value(self))
 
 
 def _identity_from_cbor(data: bytes) -> "Identity":
@@ -1341,14 +1541,14 @@ def _encode_login_request_value(v: "LoginRequest") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_login_request_value(tree: Any) -> "LoginRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return LoginRequest(
         signed_assertion=_csil_expect_text(tree["signed_assertion"]),
     )
 
 
 def _login_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_login_request_value(self))
+    return _csil_encode_tree(lambda: _encode_login_request_value(self))
 
 
 def _login_request_from_cbor(data: bytes) -> "LoginRequest":
@@ -1366,14 +1566,14 @@ def _encode_begin_browser_login_request_value(v: "BeginBrowserLoginRequest") -> 
     return csil_m
 
 def _decode_begin_browser_login_request_value(tree: Any) -> "BeginBrowserLoginRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return BeginBrowserLoginRequest(
         login=(None if tree.get("login") is None else _csil_expect_text(tree["login"])),
     )
 
 
 def _begin_browser_login_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_begin_browser_login_request_value(self))
+    return _csil_encode_tree(lambda: _encode_begin_browser_login_request_value(self))
 
 
 def _begin_browser_login_request_from_cbor(data: bytes) -> "BeginBrowserLoginRequest":
@@ -1389,14 +1589,14 @@ def _encode_begin_browser_login_response_value(v: "BeginBrowserLoginResponse") -
     return csil_m
 
 def _decode_begin_browser_login_response_value(tree: Any) -> "BeginBrowserLoginResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return BeginBrowserLoginResponse(
         redirect_url=_csil_expect_text(tree["redirect_url"]),
     )
 
 
 def _begin_browser_login_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_begin_browser_login_response_value(self))
+    return _csil_encode_tree(lambda: _encode_begin_browser_login_response_value(self))
 
 
 def _begin_browser_login_response_from_cbor(data: bytes) -> "BeginBrowserLoginResponse":
@@ -1412,14 +1612,14 @@ def _encode_complete_request_value(v: "CompleteRequest") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_complete_request_value(tree: Any) -> "CompleteRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CompleteRequest(
         encrypted_token=_csil_expect_text(tree["encrypted_token"]),
     )
 
 
 def _complete_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_complete_request_value(self))
+    return _csil_encode_tree(lambda: _encode_complete_request_value(self))
 
 
 def _complete_request_from_cbor(data: bytes) -> "CompleteRequest":
@@ -1441,7 +1641,7 @@ def _encode_login_response_value(v: "LoginResponse") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_login_response_value(tree: Any) -> "LoginResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return LoginResponse(
         token=_csil_expect_text(tree["token"]),
         domain=_csil_expect_text(tree["domain"]),
@@ -1452,7 +1652,7 @@ def _decode_login_response_value(tree: Any) -> "LoginResponse":
 
 
 def _login_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_login_response_value(self))
+    return _csil_encode_tree(lambda: _encode_login_response_value(self))
 
 
 def _login_response_from_cbor(data: bytes) -> "LoginResponse":
@@ -1477,7 +1677,7 @@ def _encode_cli_token_response_value(v: "CliTokenResponse") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_cli_token_response_value(tree: Any) -> "CliTokenResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CliTokenResponse(
         token=_csil_expect_text(tree["token"]),
         domain=_csil_expect_text(tree["domain"]),
@@ -1491,7 +1691,7 @@ def _decode_cli_token_response_value(tree: Any) -> "CliTokenResponse":
 
 
 def _cli_token_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_cli_token_response_value(self))
+    return _csil_encode_tree(lambda: _encode_cli_token_response_value(self))
 
 
 def _cli_token_response_from_cbor(data: bytes) -> "CliTokenResponse":
@@ -1507,14 +1707,14 @@ def _encode_begin_cli_login_request_value(v: "BeginCliLoginRequest") -> Dict[Any
     return csil_m
 
 def _decode_begin_cli_login_request_value(tree: Any) -> "BeginCliLoginRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return BeginCliLoginRequest(
         client_name=_csil_expect_text(tree["client_name"]),
     )
 
 
 def _begin_cli_login_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_begin_cli_login_request_value(self))
+    return _csil_encode_tree(lambda: _encode_begin_cli_login_request_value(self))
 
 
 def _begin_cli_login_request_from_cbor(data: bytes) -> "BeginCliLoginRequest":
@@ -1534,7 +1734,7 @@ def _encode_begin_cli_login_response_value(v: "BeginCliLoginResponse") -> Dict[A
     return csil_m
 
 def _decode_begin_cli_login_response_value(tree: Any) -> "BeginCliLoginResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return BeginCliLoginResponse(
         device_code=_csil_expect_text(tree["device_code"]),
         user_code=_csil_expect_text(tree["user_code"]),
@@ -1545,7 +1745,7 @@ def _decode_begin_cli_login_response_value(tree: Any) -> "BeginCliLoginResponse"
 
 
 def _begin_cli_login_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_begin_cli_login_response_value(self))
+    return _csil_encode_tree(lambda: _encode_begin_cli_login_response_value(self))
 
 
 def _begin_cli_login_response_from_cbor(data: bytes) -> "BeginCliLoginResponse":
@@ -1561,14 +1761,14 @@ def _encode_approve_cli_login_request_value(v: "ApproveCliLoginRequest") -> Dict
     return csil_m
 
 def _decode_approve_cli_login_request_value(tree: Any) -> "ApproveCliLoginRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ApproveCliLoginRequest(
         user_code=_csil_expect_text(tree["user_code"]),
     )
 
 
 def _approve_cli_login_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_approve_cli_login_request_value(self))
+    return _csil_encode_tree(lambda: _encode_approve_cli_login_request_value(self))
 
 
 def _approve_cli_login_request_from_cbor(data: bytes) -> "ApproveCliLoginRequest":
@@ -1586,7 +1786,7 @@ def _encode_cli_login_request_info_value(v: "CliLoginRequestInfo") -> Dict[Any, 
     return csil_m
 
 def _decode_cli_login_request_info_value(tree: Any) -> "CliLoginRequestInfo":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CliLoginRequestInfo(
         user_code=_csil_expect_text(tree["user_code"]),
         client_name=_csil_expect_text(tree["client_name"]),
@@ -1595,7 +1795,7 @@ def _decode_cli_login_request_info_value(tree: Any) -> "CliLoginRequestInfo":
 
 
 def _cli_login_request_info_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_cli_login_request_info_value(self))
+    return _csil_encode_tree(lambda: _encode_cli_login_request_info_value(self))
 
 
 def _cli_login_request_info_from_cbor(data: bytes) -> "CliLoginRequestInfo":
@@ -1611,14 +1811,14 @@ def _encode_deny_cli_login_request_value(v: "DenyCliLoginRequest") -> Dict[Any, 
     return csil_m
 
 def _decode_deny_cli_login_request_value(tree: Any) -> "DenyCliLoginRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return DenyCliLoginRequest(
         user_code=_csil_expect_text(tree["user_code"]),
     )
 
 
 def _deny_cli_login_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_deny_cli_login_request_value(self))
+    return _csil_encode_tree(lambda: _encode_deny_cli_login_request_value(self))
 
 
 def _deny_cli_login_request_from_cbor(data: bytes) -> "DenyCliLoginRequest":
@@ -1634,14 +1834,14 @@ def _encode_exchange_cli_login_request_value(v: "ExchangeCliLoginRequest") -> Di
     return csil_m
 
 def _decode_exchange_cli_login_request_value(tree: Any) -> "ExchangeCliLoginRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ExchangeCliLoginRequest(
         device_code=_csil_expect_text(tree["device_code"]),
     )
 
 
 def _exchange_cli_login_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_exchange_cli_login_request_value(self))
+    return _csil_encode_tree(lambda: _encode_exchange_cli_login_request_value(self))
 
 
 def _exchange_cli_login_request_from_cbor(data: bytes) -> "ExchangeCliLoginRequest":
@@ -1653,14 +1853,14 @@ ExchangeCliLoginRequest.from_cbor = staticmethod(_exchange_cli_login_request_fro
 
 def _encode_exchange_cli_login_response_value(v: "ExchangeCliLoginResponse") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
-    csil_m["status"] = v.status
+    csil_m["status"] = _encode_cli_login_status_value(v.status)
     csil_x = v.session
     if csil_x is not None:
         csil_m["session"] = _encode_cli_token_response_value(csil_x)
     return csil_m
 
 def _decode_exchange_cli_login_response_value(tree: Any) -> "ExchangeCliLoginResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ExchangeCliLoginResponse(
         status=_decode_cli_login_status_value(tree["status"]),
         session=(None if tree.get("session") is None else _decode_cli_token_response_value(tree["session"])),
@@ -1668,7 +1868,7 @@ def _decode_exchange_cli_login_response_value(tree: Any) -> "ExchangeCliLoginRes
 
 
 def _exchange_cli_login_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_exchange_cli_login_response_value(self))
+    return _csil_encode_tree(lambda: _encode_exchange_cli_login_response_value(self))
 
 
 def _exchange_cli_login_response_from_cbor(data: bytes) -> "ExchangeCliLoginResponse":
@@ -1684,14 +1884,14 @@ def _encode_refresh_session_request_value(v: "RefreshSessionRequest") -> Dict[An
     return csil_m
 
 def _decode_refresh_session_request_value(tree: Any) -> "RefreshSessionRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return RefreshSessionRequest(
         refresh_token=_csil_expect_text(tree["refresh_token"]),
     )
 
 
 def _refresh_session_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_refresh_session_request_value(self))
+    return _csil_encode_tree(lambda: _encode_refresh_session_request_value(self))
 
 
 def _refresh_session_request_from_cbor(data: bytes) -> "RefreshSessionRequest":
@@ -1705,7 +1905,7 @@ def _encode_cli_session_summary_value(v: "CliSessionSummary") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_x = v.kind
     if csil_x is not None:
-        csil_m["kind"] = csil_x
+        csil_m["kind"] = _encode_session_kind_value(csil_x)
     csil_x = v.current
     if csil_x is not None:
         csil_m["current"] = csil_x
@@ -1720,7 +1920,7 @@ def _encode_cli_session_summary_value(v: "CliSessionSummary") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_cli_session_summary_value(tree: Any) -> "CliSessionSummary":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CliSessionSummary(
         session_id=_csil_expect_text(tree["session_id"]),
         client_name=_csil_expect_text(tree["client_name"]),
@@ -1734,7 +1934,7 @@ def _decode_cli_session_summary_value(tree: Any) -> "CliSessionSummary":
 
 
 def _cli_session_summary_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_cli_session_summary_value(self))
+    return _csil_encode_tree(lambda: _encode_cli_session_summary_value(self))
 
 
 def _cli_session_summary_from_cbor(data: bytes) -> "CliSessionSummary":
@@ -1750,14 +1950,14 @@ def _encode_cli_sessions_response_value(v: "CliSessionsResponse") -> Dict[Any, A
     return csil_m
 
 def _decode_cli_sessions_response_value(tree: Any) -> "CliSessionsResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CliSessionsResponse(
         sessions=[_decode_cli_session_summary_value(csil_e) for csil_e in _csil_expect_array(tree["sessions"])],
     )
 
 
 def _cli_sessions_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_cli_sessions_response_value(self))
+    return _csil_encode_tree(lambda: _encode_cli_sessions_response_value(self))
 
 
 def _cli_sessions_response_from_cbor(data: bytes) -> "CliSessionsResponse":
@@ -1773,14 +1973,14 @@ def _encode_revoke_session_request_value(v: "RevokeSessionRequest") -> Dict[Any,
     return csil_m
 
 def _decode_revoke_session_request_value(tree: Any) -> "RevokeSessionRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return RevokeSessionRequest(
         session_id=_csil_expect_text(tree["session_id"]),
     )
 
 
 def _revoke_session_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_revoke_session_request_value(self))
+    return _csil_encode_tree(lambda: _encode_revoke_session_request_value(self))
 
 
 def _revoke_session_request_from_cbor(data: bytes) -> "RevokeSessionRequest":
@@ -1808,7 +2008,7 @@ def _encode_dev_user_entry_value(v: "DevUserEntry") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_dev_user_entry_value(tree: Any) -> "DevUserEntry":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return DevUserEntry(
         member_id=_csil_expect_text(tree["member_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -1821,7 +2021,7 @@ def _decode_dev_user_entry_value(tree: Any) -> "DevUserEntry":
 
 
 def _dev_user_entry_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_dev_user_entry_value(self))
+    return _csil_encode_tree(lambda: _encode_dev_user_entry_value(self))
 
 
 def _dev_user_entry_from_cbor(data: bytes) -> "DevUserEntry":
@@ -1837,14 +2037,14 @@ def _encode_dev_users_response_value(v: "DevUsersResponse") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_dev_users_response_value(tree: Any) -> "DevUsersResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return DevUsersResponse(
         users=[_decode_dev_user_entry_value(csil_e) for csil_e in _csil_expect_array(tree["users"])],
     )
 
 
 def _dev_users_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_dev_users_response_value(self))
+    return _csil_encode_tree(lambda: _encode_dev_users_response_value(self))
 
 
 def _dev_users_response_from_cbor(data: bytes) -> "DevUsersResponse":
@@ -1860,14 +2060,14 @@ def _encode_dev_login_request_value(v: "DevLoginRequest") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_dev_login_request_value(tree: Any) -> "DevLoginRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return DevLoginRequest(
         member_id=_csil_expect_text(tree["member_id"]),
     )
 
 
 def _dev_login_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_dev_login_request_value(self))
+    return _csil_encode_tree(lambda: _encode_dev_login_request_value(self))
 
 
 def _dev_login_request_from_cbor(data: bytes) -> "DevLoginRequest":
@@ -1889,7 +2089,7 @@ def _encode_me_response_value(v: "MeResponse") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_me_response_value(tree: Any) -> "MeResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return MeResponse(
         domain=_csil_expect_text(tree["domain"]),
         user_id=_csil_expect_text(tree["user_id"]),
@@ -1900,7 +2100,7 @@ def _decode_me_response_value(tree: Any) -> "MeResponse":
 
 
 def _me_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_me_response_value(self))
+    return _csil_encode_tree(lambda: _encode_me_response_value(self))
 
 
 def _me_response_from_cbor(data: bytes) -> "MeResponse":
@@ -1915,12 +2115,12 @@ def _encode_empty_request_value(v: "EmptyRequest") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_empty_request_value(tree: Any) -> "EmptyRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return EmptyRequest()
 
 
 def _empty_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_empty_request_value(self))
+    return _csil_encode_tree(lambda: _encode_empty_request_value(self))
 
 
 def _empty_request_from_cbor(data: bytes) -> "EmptyRequest":
@@ -1935,12 +2135,12 @@ def _encode_empty_response_value(v: "EmptyResponse") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_empty_response_value(tree: Any) -> "EmptyResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return EmptyResponse()
 
 
 def _empty_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_empty_response_value(self))
+    return _csil_encode_tree(lambda: _encode_empty_response_value(self))
 
 
 def _empty_response_from_cbor(data: bytes) -> "EmptyResponse":
@@ -1956,14 +2156,14 @@ def _encode_bool_response_value(v: "BoolResponse") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_bool_response_value(tree: Any) -> "BoolResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return BoolResponse(
         value=_csil_expect_bool(tree["value"]),
     )
 
 
 def _bool_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_bool_response_value(self))
+    return _csil_encode_tree(lambda: _encode_bool_response_value(self))
 
 
 def _bool_response_from_cbor(data: bytes) -> "BoolResponse":
@@ -1984,7 +2184,7 @@ def _encode_house_list_request_value(v: "HouseListRequest") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_house_list_request_value(tree: Any) -> "HouseListRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return HouseListRequest(
         limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
         offset=(None if tree.get("offset") is None else _csil_expect_uint(tree["offset"])),
@@ -1992,7 +2192,7 @@ def _decode_house_list_request_value(tree: Any) -> "HouseListRequest":
 
 
 def _house_list_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_house_list_request_value(self))
+    return _csil_encode_tree(lambda: _encode_house_list_request_value(self))
 
 
 def _house_list_request_from_cbor(data: bytes) -> "HouseListRequest":
@@ -2014,7 +2214,7 @@ def _encode_house_scoped_list_request_value(v: "HouseScopedListRequest") -> Dict
     return csil_m
 
 def _decode_house_scoped_list_request_value(tree: Any) -> "HouseScopedListRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return HouseScopedListRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
@@ -2023,7 +2223,7 @@ def _decode_house_scoped_list_request_value(tree: Any) -> "HouseScopedListReques
 
 
 def _house_scoped_list_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_house_scoped_list_request_value(self))
+    return _csil_encode_tree(lambda: _encode_house_scoped_list_request_value(self))
 
 
 def _house_scoped_list_request_from_cbor(data: bytes) -> "HouseScopedListRequest":
@@ -2051,7 +2251,7 @@ def _encode_event_list_request_value(v: "EventListRequest") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_event_list_request_value(tree: Any) -> "EventListRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return EventListRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         range_start=(None if tree.get("range_start") is None else _csil_ts_from_tree(tree["range_start"])),
@@ -2062,7 +2262,7 @@ def _decode_event_list_request_value(tree: Any) -> "EventListRequest":
 
 
 def _event_list_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_event_list_request_value(self))
+    return _csil_encode_tree(lambda: _encode_event_list_request_value(self))
 
 
 def _event_list_request_from_cbor(data: bytes) -> "EventListRequest":
@@ -2085,7 +2285,7 @@ def _encode_task_list_request_value(v: "TaskListRequest") -> Dict[Any, Any]:
         csil_m["loose"] = csil_x
     csil_x = v.state
     if csil_x is not None:
-        csil_m["state"] = csil_x
+        csil_m["state"] = _encode_task_state_value(csil_x)
     csil_x = v.due_to
     if csil_x is not None:
         csil_m["due_to"] = CborTag(0, _csil_ts_to_text(csil_x))
@@ -2102,7 +2302,7 @@ def _encode_task_list_request_value(v: "TaskListRequest") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_task_list_request_value(tree: Any) -> "TaskListRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return TaskListRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         limit=(None if tree.get("limit") is None else _csil_expect_uint(tree["limit"])),
@@ -2117,7 +2317,7 @@ def _decode_task_list_request_value(tree: Any) -> "TaskListRequest":
 
 
 def _task_list_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_task_list_request_value(self))
+    return _csil_encode_tree(lambda: _encode_task_list_request_value(self))
 
 
 def _task_list_request_from_cbor(data: bytes) -> "TaskListRequest":
@@ -2140,7 +2340,7 @@ def _encode_task_list_value(v: "TaskList") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_task_list_value(tree: Any) -> "TaskList":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return TaskList(
         tasks=[_decode_task_value(csil_e) for csil_e in _csil_expect_array(tree["tasks"])],
         hidden_count=_csil_expect_uint(tree["hidden_count"]),
@@ -2150,7 +2350,7 @@ def _decode_task_list_value(tree: Any) -> "TaskList":
 
 
 def _task_list_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_task_list_value(self))
+    return _csil_encode_tree(lambda: _encode_task_list_value(self))
 
 
 def _task_list_from_cbor(data: bytes) -> "TaskList":
@@ -2167,7 +2367,7 @@ def _encode_project_list_value(v: "ProjectList") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_project_list_value(tree: Any) -> "ProjectList":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectList(
         projects=[_decode_project_value(csil_e) for csil_e in _csil_expect_array(tree["projects"])],
         hidden_count=_csil_expect_uint(tree["hidden_count"]),
@@ -2175,7 +2375,7 @@ def _decode_project_list_value(tree: Any) -> "ProjectList":
 
 
 def _project_list_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_list_value(self))
+    return _csil_encode_tree(lambda: _encode_project_list_value(self))
 
 
 def _project_list_from_cbor(data: bytes) -> "ProjectList":
@@ -2198,7 +2398,7 @@ def _encode_member_scoped_list_request_value(v: "MemberScopedListRequest") -> Di
     return csil_m
 
 def _decode_member_scoped_list_request_value(tree: Any) -> "MemberScopedListRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return MemberScopedListRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         member_id=_csil_expect_text(tree["member_id"]),
@@ -2208,7 +2408,7 @@ def _decode_member_scoped_list_request_value(tree: Any) -> "MemberScopedListRequ
 
 
 def _member_scoped_list_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_member_scoped_list_request_value(self))
+    return _csil_encode_tree(lambda: _encode_member_scoped_list_request_value(self))
 
 
 def _member_scoped_list_request_from_cbor(data: bytes) -> "MemberScopedListRequest":
@@ -2225,7 +2425,7 @@ def _encode_project_scoped_list_request_value(v: "ProjectScopedListRequest") -> 
         csil_m["limit"] = csil_x
     csil_x = v.state
     if csil_x is not None:
-        csil_m["state"] = csil_x
+        csil_m["state"] = _encode_task_state_value(csil_x)
     csil_x = v.offset
     if csil_x is not None:
         csil_m["offset"] = csil_x
@@ -2234,7 +2434,7 @@ def _encode_project_scoped_list_request_value(v: "ProjectScopedListRequest") -> 
     return csil_m
 
 def _decode_project_scoped_list_request_value(tree: Any) -> "ProjectScopedListRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectScopedListRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         project_id=_csil_expect_text(tree["project_id"]),
@@ -2245,7 +2445,7 @@ def _decode_project_scoped_list_request_value(tree: Any) -> "ProjectScopedListRe
 
 
 def _project_scoped_list_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_scoped_list_request_value(self))
+    return _csil_encode_tree(lambda: _encode_project_scoped_list_request_value(self))
 
 
 def _project_scoped_list_request_from_cbor(data: bytes) -> "ProjectScopedListRequest":
@@ -2264,11 +2464,11 @@ def _encode_comment_list_request_value(v: "CommentListRequest") -> Dict[Any, Any
     if csil_x is not None:
         csil_m["offset"] = csil_x
     csil_m["target_id"] = v.target_id
-    csil_m["target_type"] = v.target_type
+    csil_m["target_type"] = _encode_target_type_value(v.target_type)
     return csil_m
 
 def _decode_comment_list_request_value(tree: Any) -> "CommentListRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CommentListRequest(
         target_type=_decode_target_type_value(tree["target_type"]),
         target_id=_csil_expect_text(tree["target_id"]),
@@ -2278,7 +2478,7 @@ def _decode_comment_list_request_value(tree: Any) -> "CommentListRequest":
 
 
 def _comment_list_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_comment_list_request_value(self))
+    return _csil_encode_tree(lambda: _encode_comment_list_request_value(self))
 
 
 def _comment_list_request_from_cbor(data: bytes) -> "CommentListRequest":
@@ -2314,7 +2514,7 @@ def _encode_notification_value(v: "Notification") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_notification_value(tree: Any) -> "Notification":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Notification(
         notification_id=_csil_expect_text(tree["notification_id"]),
         house_id=_csil_expect_text(tree["house_id"]),
@@ -2333,7 +2533,7 @@ def _decode_notification_value(tree: Any) -> "Notification":
 
 
 def _notification_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_notification_value(self))
+    return _csil_encode_tree(lambda: _encode_notification_value(self))
 
 
 def _notification_from_cbor(data: bytes) -> "Notification":
@@ -2358,7 +2558,7 @@ def _encode_notification_list_request_value(v: "NotificationListRequest") -> Dic
     return csil_m
 
 def _decode_notification_list_request_value(tree: Any) -> "NotificationListRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return NotificationListRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         unread_only=(None if tree.get("unread_only") is None else _csil_expect_bool(tree["unread_only"])),
@@ -2368,7 +2568,7 @@ def _decode_notification_list_request_value(tree: Any) -> "NotificationListReque
 
 
 def _notification_list_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_notification_list_request_value(self))
+    return _csil_encode_tree(lambda: _encode_notification_list_request_value(self))
 
 
 def _notification_list_request_from_cbor(data: bytes) -> "NotificationListRequest":
@@ -2384,14 +2584,14 @@ def _encode_notification_unread_count_value(v: "NotificationUnreadCount") -> Dic
     return csil_m
 
 def _decode_notification_unread_count_value(tree: Any) -> "NotificationUnreadCount":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return NotificationUnreadCount(
         count=_csil_expect_uint(tree["count"]),
     )
 
 
 def _notification_unread_count_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_notification_unread_count_value(self))
+    return _csil_encode_tree(lambda: _encode_notification_unread_count_value(self))
 
 
 def _notification_unread_count_from_cbor(data: bytes) -> "NotificationUnreadCount":
@@ -2404,13 +2604,13 @@ NotificationUnreadCount.from_cbor = staticmethod(_notification_unread_count_from
 def _encode_share_access_request_value(v: "ShareAccessRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["resource_id"] = v.resource_id
-    csil_m["resource_type"] = v.resource_type
+    csil_m["resource_type"] = _encode_resource_type_value(v.resource_type)
     csil_m["linkkeys_domain"] = v.linkkeys_domain
     csil_m["linkkeys_user_id"] = v.linkkeys_user_id
     return csil_m
 
 def _decode_share_access_request_value(tree: Any) -> "ShareAccessRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ShareAccessRequest(
         linkkeys_domain=_csil_expect_text(tree["linkkeys_domain"]),
         linkkeys_user_id=_csil_expect_text(tree["linkkeys_user_id"]),
@@ -2420,7 +2620,7 @@ def _decode_share_access_request_value(tree: Any) -> "ShareAccessRequest":
 
 
 def _share_access_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_share_access_request_value(self))
+    return _csil_encode_tree(lambda: _encode_share_access_request_value(self))
 
 
 def _share_access_request_from_cbor(data: bytes) -> "ShareAccessRequest":
@@ -2433,11 +2633,11 @@ ShareAccessRequest.from_cbor = staticmethod(_share_access_request_from_cbor)
 def _encode_resource_ref_value(v: "ResourceRef") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["resource_id"] = v.resource_id
-    csil_m["resource_type"] = v.resource_type
+    csil_m["resource_type"] = _encode_resource_type_value(v.resource_type)
     return csil_m
 
 def _decode_resource_ref_value(tree: Any) -> "ResourceRef":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ResourceRef(
         resource_type=_decode_resource_type_value(tree["resource_type"]),
         resource_id=_csil_expect_text(tree["resource_id"]),
@@ -2445,7 +2645,7 @@ def _decode_resource_ref_value(tree: Any) -> "ResourceRef":
 
 
 def _resource_ref_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_resource_ref_value(self))
+    return _csil_encode_tree(lambda: _encode_resource_ref_value(self))
 
 
 def _resource_ref_from_cbor(data: bytes) -> "ResourceRef":
@@ -2462,7 +2662,7 @@ def _encode_member_role_ref_value(v: "MemberRoleRef") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_member_role_ref_value(tree: Any) -> "MemberRoleRef":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return MemberRoleRef(
         member_id=_csil_expect_text(tree["member_id"]),
         role_id=_csil_expect_text(tree["role_id"]),
@@ -2470,7 +2670,7 @@ def _decode_member_role_ref_value(tree: Any) -> "MemberRoleRef":
 
 
 def _member_role_ref_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_member_role_ref_value(self))
+    return _csil_encode_tree(lambda: _encode_member_role_ref_value(self))
 
 
 def _member_role_ref_from_cbor(data: bytes) -> "MemberRoleRef":
@@ -2487,7 +2687,7 @@ def _encode_member_skill_ref_value(v: "MemberSkillRef") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_member_skill_ref_value(tree: Any) -> "MemberSkillRef":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return MemberSkillRef(
         member_id=_csil_expect_text(tree["member_id"]),
         skill_id=_csil_expect_text(tree["skill_id"]),
@@ -2495,7 +2695,7 @@ def _decode_member_skill_ref_value(tree: Any) -> "MemberSkillRef":
 
 
 def _member_skill_ref_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_member_skill_ref_value(self))
+    return _csil_encode_tree(lambda: _encode_member_skill_ref_value(self))
 
 
 def _member_skill_ref_from_cbor(data: bytes) -> "MemberSkillRef":
@@ -2512,7 +2712,7 @@ def _encode_group_skill_ref_value(v: "GroupSkillRef") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_group_skill_ref_value(tree: Any) -> "GroupSkillRef":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return GroupSkillRef(
         group_id=_csil_expect_text(tree["group_id"]),
         skill_id=_csil_expect_text(tree["skill_id"]),
@@ -2520,7 +2720,7 @@ def _decode_group_skill_ref_value(tree: Any) -> "GroupSkillRef":
 
 
 def _group_skill_ref_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_group_skill_ref_value(self))
+    return _csil_encode_tree(lambda: _encode_group_skill_ref_value(self))
 
 
 def _group_skill_ref_from_cbor(data: bytes) -> "GroupSkillRef":
@@ -2537,7 +2737,7 @@ def _encode_group_member_ref_value(v: "GroupMemberRef") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_group_member_ref_value(tree: Any) -> "GroupMemberRef":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return GroupMemberRef(
         group_id=_csil_expect_text(tree["group_id"]),
         member_id=_csil_expect_text(tree["member_id"]),
@@ -2545,7 +2745,7 @@ def _decode_group_member_ref_value(tree: Any) -> "GroupMemberRef":
 
 
 def _group_member_ref_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_group_member_ref_value(self))
+    return _csil_encode_tree(lambda: _encode_group_member_ref_value(self))
 
 
 def _group_member_ref_from_cbor(data: bytes) -> "GroupMemberRef":
@@ -2562,7 +2762,7 @@ def _encode_project_task_ref_value(v: "ProjectTaskRef") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_project_task_ref_value(tree: Any) -> "ProjectTaskRef":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectTaskRef(
         project_id=_csil_expect_text(tree["project_id"]),
         task_id=_csil_expect_text(tree["task_id"]),
@@ -2570,7 +2770,7 @@ def _decode_project_task_ref_value(tree: Any) -> "ProjectTaskRef":
 
 
 def _project_task_ref_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_task_ref_value(self))
+    return _csil_encode_tree(lambda: _encode_project_task_ref_value(self))
 
 
 def _project_task_ref_from_cbor(data: bytes) -> "ProjectTaskRef":
@@ -2588,7 +2788,7 @@ def _encode_project_task_order_request_value(v: "ProjectTaskOrderRequest") -> Di
     return csil_m
 
 def _decode_project_task_order_request_value(tree: Any) -> "ProjectTaskOrderRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectTaskOrderRequest(
         project_id=_csil_expect_text(tree["project_id"]),
         task_id=_csil_expect_text(tree["task_id"]),
@@ -2597,7 +2797,7 @@ def _decode_project_task_order_request_value(tree: Any) -> "ProjectTaskOrderRequ
 
 
 def _project_task_order_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_task_order_request_value(self))
+    return _csil_encode_tree(lambda: _encode_project_task_order_request_value(self))
 
 
 def _project_task_order_request_from_cbor(data: bytes) -> "ProjectTaskOrderRequest":
@@ -2614,7 +2814,7 @@ def _encode_project_member_ref_value(v: "ProjectMemberRef") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_project_member_ref_value(tree: Any) -> "ProjectMemberRef":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectMemberRef(
         project_id=_csil_expect_text(tree["project_id"]),
         member_id=_csil_expect_text(tree["member_id"]),
@@ -2622,7 +2822,7 @@ def _decode_project_member_ref_value(tree: Any) -> "ProjectMemberRef":
 
 
 def _project_member_ref_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_member_ref_value(self))
+    return _csil_encode_tree(lambda: _encode_project_member_ref_value(self))
 
 
 def _project_member_ref_from_cbor(data: bytes) -> "ProjectMemberRef":
@@ -2639,7 +2839,7 @@ def _encode_project_owner_ref_value(v: "ProjectOwnerRef") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_project_owner_ref_value(tree: Any) -> "ProjectOwnerRef":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectOwnerRef(
         project_id=_csil_expect_text(tree["project_id"]),
         member_id=_csil_expect_text(tree["member_id"]),
@@ -2647,7 +2847,7 @@ def _decode_project_owner_ref_value(tree: Any) -> "ProjectOwnerRef":
 
 
 def _project_owner_ref_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_owner_ref_value(self))
+    return _csil_encode_tree(lambda: _encode_project_owner_ref_value(self))
 
 
 def _project_owner_ref_from_cbor(data: bytes) -> "ProjectOwnerRef":
@@ -2661,12 +2861,12 @@ def _encode_dependency_ref_value(v: "DependencyRef") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["dependent_id"] = v.dependent_id
     csil_m["dependency_id"] = v.dependency_id
-    csil_m["dependent_type"] = v.dependent_type
-    csil_m["dependency_type"] = v.dependency_type
+    csil_m["dependent_type"] = _encode_dependency_node_type_value(v.dependent_type)
+    csil_m["dependency_type"] = _encode_dependency_node_type_value(v.dependency_type)
     return csil_m
 
 def _decode_dependency_ref_value(tree: Any) -> "DependencyRef":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return DependencyRef(
         dependent_type=_decode_dependency_node_type_value(tree["dependent_type"]),
         dependent_id=_csil_expect_text(tree["dependent_id"]),
@@ -2676,7 +2876,7 @@ def _decode_dependency_ref_value(tree: Any) -> "DependencyRef":
 
 
 def _dependency_ref_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_dependency_ref_value(self))
+    return _csil_encode_tree(lambda: _encode_dependency_ref_value(self))
 
 
 def _dependency_ref_from_cbor(data: bytes) -> "DependencyRef":
@@ -2689,11 +2889,11 @@ DependencyRef.from_cbor = staticmethod(_dependency_ref_from_cbor)
 def _encode_dependency_target_value(v: "DependencyTarget") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
-    csil_m["type"] = v.type
+    csil_m["type"] = _encode_dependency_node_type_value(v.type)
     return csil_m
 
 def _decode_dependency_target_value(tree: Any) -> "DependencyTarget":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return DependencyTarget(
         type=_decode_dependency_node_type_value(tree["type"]),
         id=_csil_expect_text(tree["id"]),
@@ -2701,7 +2901,7 @@ def _decode_dependency_target_value(tree: Any) -> "DependencyTarget":
 
 
 def _dependency_target_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_dependency_target_value(self))
+    return _csil_encode_tree(lambda: _encode_dependency_target_value(self))
 
 
 def _dependency_target_from_cbor(data: bytes) -> "DependencyTarget":
@@ -2714,7 +2914,7 @@ DependencyTarget.from_cbor = staticmethod(_dependency_target_from_cbor)
 def _encode_dependency_node_value(v: "DependencyNode") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["id"] = v.id
-    csil_m["type"] = v.type
+    csil_m["type"] = _encode_dependency_node_type_value(v.type)
     csil_m["title"] = v.title
     csil_x = v.status
     if csil_x is not None:
@@ -2722,7 +2922,7 @@ def _encode_dependency_node_value(v: "DependencyNode") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_dependency_node_value(tree: Any) -> "DependencyNode":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return DependencyNode(
         type=_decode_dependency_node_type_value(tree["type"]),
         id=_csil_expect_text(tree["id"]),
@@ -2732,7 +2932,7 @@ def _decode_dependency_node_value(tree: Any) -> "DependencyNode":
 
 
 def _dependency_node_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_dependency_node_value(self))
+    return _csil_encode_tree(lambda: _encode_dependency_node_value(self))
 
 
 def _dependency_node_from_cbor(data: bytes) -> "DependencyNode":
@@ -2749,7 +2949,7 @@ def _encode_dependency_graph_value(v: "DependencyGraph") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_dependency_graph_value(tree: Any) -> "DependencyGraph":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return DependencyGraph(
         dependencies=[_decode_dependency_node_value(csil_e) for csil_e in _csil_expect_array(tree["dependencies"])],
         dependents=[_decode_dependency_node_value(csil_e) for csil_e in _csil_expect_array(tree["dependents"])],
@@ -2757,7 +2957,7 @@ def _decode_dependency_graph_value(tree: Any) -> "DependencyGraph":
 
 
 def _dependency_graph_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_dependency_graph_value(self))
+    return _csil_encode_tree(lambda: _encode_dependency_graph_value(self))
 
 
 def _dependency_graph_from_cbor(data: bytes) -> "DependencyGraph":
@@ -2770,12 +2970,12 @@ DependencyGraph.from_cbor = staticmethod(_dependency_graph_from_cbor)
 def _encode_grant_value(v: "Grant") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["grantee_id"] = v.grantee_id
-    csil_m["access_level"] = v.access_level
-    csil_m["grantee_type"] = v.grantee_type
+    csil_m["access_level"] = _encode_access_level_value(v.access_level)
+    csil_m["grantee_type"] = _encode_grantee_type_value(v.grantee_type)
     return csil_m
 
 def _decode_grant_value(tree: Any) -> "Grant":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return Grant(
         grantee_type=_decode_grantee_type_value(tree["grantee_type"]),
         grantee_id=_csil_expect_text(tree["grantee_id"]),
@@ -2784,7 +2984,7 @@ def _decode_grant_value(tree: Any) -> "Grant":
 
 
 def _grant_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_grant_value(self))
+    return _csil_encode_tree(lambda: _encode_grant_value(self))
 
 
 def _grant_from_cbor(data: bytes) -> "Grant":
@@ -2798,11 +2998,11 @@ def _encode_task_grant_ref_value(v: "TaskGrantRef") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["task_id"] = v.task_id
     csil_m["grantee_id"] = v.grantee_id
-    csil_m["grantee_type"] = v.grantee_type
+    csil_m["grantee_type"] = _encode_grantee_type_value(v.grantee_type)
     return csil_m
 
 def _decode_task_grant_ref_value(tree: Any) -> "TaskGrantRef":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return TaskGrantRef(
         task_id=_csil_expect_text(tree["task_id"]),
         grantee_type=_decode_grantee_type_value(tree["grantee_type"]),
@@ -2811,7 +3011,7 @@ def _decode_task_grant_ref_value(tree: Any) -> "TaskGrantRef":
 
 
 def _task_grant_ref_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_task_grant_ref_value(self))
+    return _csil_encode_tree(lambda: _encode_task_grant_ref_value(self))
 
 
 def _task_grant_ref_from_cbor(data: bytes) -> "TaskGrantRef":
@@ -2825,12 +3025,12 @@ def _encode_put_task_grant_request_value(v: "PutTaskGrantRequest") -> Dict[Any, 
     csil_m: Dict[Any, Any] = {}
     csil_m["task_id"] = v.task_id
     csil_m["grantee_id"] = v.grantee_id
-    csil_m["access_level"] = v.access_level
-    csil_m["grantee_type"] = v.grantee_type
+    csil_m["access_level"] = _encode_access_level_value(v.access_level)
+    csil_m["grantee_type"] = _encode_grantee_type_value(v.grantee_type)
     return csil_m
 
 def _decode_put_task_grant_request_value(tree: Any) -> "PutTaskGrantRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return PutTaskGrantRequest(
         task_id=_csil_expect_text(tree["task_id"]),
         grantee_type=_decode_grantee_type_value(tree["grantee_type"]),
@@ -2840,7 +3040,7 @@ def _decode_put_task_grant_request_value(tree: Any) -> "PutTaskGrantRequest":
 
 
 def _put_task_grant_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_put_task_grant_request_value(self))
+    return _csil_encode_tree(lambda: _encode_put_task_grant_request_value(self))
 
 
 def _put_task_grant_request_from_cbor(data: bytes) -> "PutTaskGrantRequest":
@@ -2853,11 +3053,11 @@ PutTaskGrantRequest.from_cbor = staticmethod(_put_task_grant_request_from_cbor)
 def _encode_set_task_visibility_request_value(v: "SetTaskVisibilityRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["task_id"] = v.task_id
-    csil_m["visibility"] = v.visibility
+    csil_m["visibility"] = _encode_access_level_value(v.visibility)
     return csil_m
 
 def _decode_set_task_visibility_request_value(tree: Any) -> "SetTaskVisibilityRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return SetTaskVisibilityRequest(
         task_id=_csil_expect_text(tree["task_id"]),
         visibility=_decode_access_level_value(tree["visibility"]),
@@ -2865,7 +3065,7 @@ def _decode_set_task_visibility_request_value(tree: Any) -> "SetTaskVisibilityRe
 
 
 def _set_task_visibility_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_set_task_visibility_request_value(self))
+    return _csil_encode_tree(lambda: _encode_set_task_visibility_request_value(self))
 
 
 def _set_task_visibility_request_from_cbor(data: bytes) -> "SetTaskVisibilityRequest":
@@ -2879,11 +3079,11 @@ def _encode_project_grant_ref_value(v: "ProjectGrantRef") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["grantee_id"] = v.grantee_id
     csil_m["project_id"] = v.project_id
-    csil_m["grantee_type"] = v.grantee_type
+    csil_m["grantee_type"] = _encode_grantee_type_value(v.grantee_type)
     return csil_m
 
 def _decode_project_grant_ref_value(tree: Any) -> "ProjectGrantRef":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectGrantRef(
         project_id=_csil_expect_text(tree["project_id"]),
         grantee_type=_decode_grantee_type_value(tree["grantee_type"]),
@@ -2892,7 +3092,7 @@ def _decode_project_grant_ref_value(tree: Any) -> "ProjectGrantRef":
 
 
 def _project_grant_ref_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_grant_ref_value(self))
+    return _csil_encode_tree(lambda: _encode_project_grant_ref_value(self))
 
 
 def _project_grant_ref_from_cbor(data: bytes) -> "ProjectGrantRef":
@@ -2906,12 +3106,12 @@ def _encode_put_project_grant_request_value(v: "PutProjectGrantRequest") -> Dict
     csil_m: Dict[Any, Any] = {}
     csil_m["grantee_id"] = v.grantee_id
     csil_m["project_id"] = v.project_id
-    csil_m["access_level"] = v.access_level
-    csil_m["grantee_type"] = v.grantee_type
+    csil_m["access_level"] = _encode_access_level_value(v.access_level)
+    csil_m["grantee_type"] = _encode_grantee_type_value(v.grantee_type)
     return csil_m
 
 def _decode_put_project_grant_request_value(tree: Any) -> "PutProjectGrantRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return PutProjectGrantRequest(
         project_id=_csil_expect_text(tree["project_id"]),
         grantee_type=_decode_grantee_type_value(tree["grantee_type"]),
@@ -2921,7 +3121,7 @@ def _decode_put_project_grant_request_value(tree: Any) -> "PutProjectGrantReques
 
 
 def _put_project_grant_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_put_project_grant_request_value(self))
+    return _csil_encode_tree(lambda: _encode_put_project_grant_request_value(self))
 
 
 def _put_project_grant_request_from_cbor(data: bytes) -> "PutProjectGrantRequest":
@@ -2934,11 +3134,11 @@ PutProjectGrantRequest.from_cbor = staticmethod(_put_project_grant_request_from_
 def _encode_set_project_visibility_request_value(v: "SetProjectVisibilityRequest") -> Dict[Any, Any]:
     csil_m: Dict[Any, Any] = {}
     csil_m["project_id"] = v.project_id
-    csil_m["visibility"] = v.visibility
+    csil_m["visibility"] = _encode_access_level_value(v.visibility)
     return csil_m
 
 def _decode_set_project_visibility_request_value(tree: Any) -> "SetProjectVisibilityRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return SetProjectVisibilityRequest(
         project_id=_csil_expect_text(tree["project_id"]),
         visibility=_decode_access_level_value(tree["visibility"]),
@@ -2946,7 +3146,7 @@ def _decode_set_project_visibility_request_value(tree: Any) -> "SetProjectVisibi
 
 
 def _set_project_visibility_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_set_project_visibility_request_value(self))
+    return _csil_encode_tree(lambda: _encode_set_project_visibility_request_value(self))
 
 
 def _set_project_visibility_request_from_cbor(data: bytes) -> "SetProjectVisibilityRequest":
@@ -2969,11 +3169,11 @@ def _encode_effective_settings_value(v: "EffectiveSettings") -> Dict[Any, Any]:
         csil_m["session_lifetime_hours"] = csil_x
     csil_x = v.default_project_visibility
     if csil_x is not None:
-        csil_m["default_project_visibility"] = csil_x
+        csil_m["default_project_visibility"] = _encode_access_level_value(csil_x)
     return csil_m
 
 def _decode_effective_settings_value(tree: Any) -> "EffectiveSettings":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return EffectiveSettings(
         bug_reports_enabled=(None if tree.get("bug_reports_enabled") is None else _csil_expect_bool(tree["bug_reports_enabled"])),
         bug_reports_project_id=(None if tree.get("bug_reports_project_id") is None else _csil_expect_text(tree["bug_reports_project_id"])),
@@ -2983,7 +3183,7 @@ def _decode_effective_settings_value(tree: Any) -> "EffectiveSettings":
 
 
 def _effective_settings_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_effective_settings_value(self))
+    return _csil_encode_tree(lambda: _encode_effective_settings_value(self))
 
 
 def _effective_settings_from_cbor(data: bytes) -> "EffectiveSettings":
@@ -3000,7 +3200,7 @@ def _encode_update_settings_request_value(v: "UpdateSettingsRequest") -> Dict[An
     return csil_m
 
 def _decode_update_settings_request_value(tree: Any) -> "UpdateSettingsRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return UpdateSettingsRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         settings=_decode_effective_settings_value(tree["settings"]),
@@ -3008,7 +3208,7 @@ def _decode_update_settings_request_value(tree: Any) -> "UpdateSettingsRequest":
 
 
 def _update_settings_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_update_settings_request_value(self))
+    return _csil_encode_tree(lambda: _encode_update_settings_request_value(self))
 
 
 def _update_settings_request_from_cbor(data: bytes) -> "UpdateSettingsRequest":
@@ -3028,7 +3228,7 @@ def _encode_bug_report_request_value(v: "BugReportRequest") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_bug_report_request_value(tree: Any) -> "BugReportRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return BugReportRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         title=_csil_expect_text(tree["title"]),
@@ -3037,7 +3237,7 @@ def _decode_bug_report_request_value(tree: Any) -> "BugReportRequest":
 
 
 def _bug_report_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_bug_report_request_value(self))
+    return _csil_encode_tree(lambda: _encode_bug_report_request_value(self))
 
 
 def _bug_report_request_from_cbor(data: bytes) -> "BugReportRequest":
@@ -3054,7 +3254,7 @@ def _encode_service_error_value(v: "ServiceError") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_service_error_value(tree: Any) -> "ServiceError":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ServiceError(
         code=_csil_expect_uint(tree["code"]),
         message=_csil_expect_text(tree["message"]),
@@ -3062,7 +3262,7 @@ def _decode_service_error_value(tree: Any) -> "ServiceError":
 
 
 def _service_error_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_service_error_value(self))
+    return _csil_encode_tree(lambda: _encode_service_error_value(self))
 
 
 def _service_error_from_cbor(data: bytes) -> "ServiceError":
@@ -3090,7 +3290,7 @@ def _encode_act_as_scope_set_request_value(v: "ActAsScopeSetRequest") -> Dict[An
     return csil_m
 
 def _decode_act_as_scope_set_request_value(tree: Any) -> "ActAsScopeSetRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ActAsScopeSetRequest(
         grantee_domain=(None if tree.get("grantee_domain") is None else _csil_expect_text(tree["grantee_domain"])),
         grantee_user_id=(None if tree.get("grantee_user_id") is None else _csil_expect_text(tree["grantee_user_id"])),
@@ -3101,7 +3301,7 @@ def _decode_act_as_scope_set_request_value(tree: Any) -> "ActAsScopeSetRequest":
 
 
 def _act_as_scope_set_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_act_as_scope_set_request_value(self))
+    return _csil_encode_tree(lambda: _encode_act_as_scope_set_request_value(self))
 
 
 def _act_as_scope_set_request_from_cbor(data: bytes) -> "ActAsScopeSetRequest":
@@ -3117,14 +3317,14 @@ def _encode_act_as_scope_set_response_value(v: "ActAsScopeSetResponse") -> Dict[
     return csil_m
 
 def _decode_act_as_scope_set_response_value(tree: Any) -> "ActAsScopeSetResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ActAsScopeSetResponse(
         signed_scope_set=_csil_expect_bytes(tree["signed_scope_set"]),
     )
 
 
 def _act_as_scope_set_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_act_as_scope_set_response_value(self))
+    return _csil_encode_tree(lambda: _encode_act_as_scope_set_response_value(self))
 
 
 def _act_as_scope_set_response_from_cbor(data: bytes) -> "ActAsScopeSetResponse":
@@ -3140,14 +3340,14 @@ def _encode_exchange_act_as_credential_request_value(v: "ExchangeActAsCredential
     return csil_m
 
 def _decode_exchange_act_as_credential_request_value(tree: Any) -> "ExchangeActAsCredentialRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ExchangeActAsCredentialRequest(
         credential=_csil_expect_bytes(tree["credential"]),
     )
 
 
 def _exchange_act_as_credential_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_exchange_act_as_credential_request_value(self))
+    return _csil_encode_tree(lambda: _encode_exchange_act_as_credential_request_value(self))
 
 
 def _exchange_act_as_credential_request_from_cbor(data: bytes) -> "ExchangeActAsCredentialRequest":
@@ -3169,7 +3369,7 @@ def _encode_act_as_token_response_value(v: "ActAsTokenResponse") -> Dict[Any, An
     return csil_m
 
 def _decode_act_as_token_response_value(tree: Any) -> "ActAsTokenResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ActAsTokenResponse(
         token=_csil_expect_text(tree["token"]),
         domain=_csil_expect_text(tree["domain"]),
@@ -3182,7 +3382,7 @@ def _decode_act_as_token_response_value(tree: Any) -> "ActAsTokenResponse":
 
 
 def _act_as_token_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_act_as_token_response_value(self))
+    return _csil_encode_tree(lambda: _encode_act_as_token_response_value(self))
 
 
 def _act_as_token_response_from_cbor(data: bytes) -> "ActAsTokenResponse":
@@ -3199,7 +3399,7 @@ def _encode_calendar_subscription_value(v: "CalendarSubscription") -> Dict[Any, 
     return csil_m
 
 def _decode_calendar_subscription_value(tree: Any) -> "CalendarSubscription":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CalendarSubscription(
         subject_member_id=_csil_expect_text(tree["subject_member_id"]),
         enabled=_csil_expect_bool(tree["enabled"]),
@@ -3207,7 +3407,7 @@ def _decode_calendar_subscription_value(tree: Any) -> "CalendarSubscription":
 
 
 def _calendar_subscription_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_calendar_subscription_value(self))
+    return _csil_encode_tree(lambda: _encode_calendar_subscription_value(self))
 
 
 def _calendar_subscription_from_cbor(data: bytes) -> "CalendarSubscription":
@@ -3227,7 +3427,7 @@ def _encode_calendar_view_value(v: "CalendarView") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_calendar_view_value(tree: Any) -> "CalendarView":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CalendarView(
         house_id=_csil_expect_text(tree["house_id"]),
         viewer_member_id=_csil_expect_text(tree["viewer_member_id"]),
@@ -3236,7 +3436,7 @@ def _decode_calendar_view_value(tree: Any) -> "CalendarView":
 
 
 def _calendar_view_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_calendar_view_value(self))
+    return _csil_encode_tree(lambda: _encode_calendar_view_value(self))
 
 
 def _calendar_view_from_cbor(data: bytes) -> "CalendarView":
@@ -3253,7 +3453,7 @@ def _encode_event_decision_value(v: "EventDecision") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_event_decision_value(tree: Any) -> "EventDecision":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return EventDecision(
         event_id=_csil_expect_text(tree["event_id"]),
         revision=_csil_expect_uint(tree["revision"]),
@@ -3261,7 +3461,7 @@ def _decode_event_decision_value(tree: Any) -> "EventDecision":
 
 
 def _event_decision_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_event_decision_value(self))
+    return _csil_encode_tree(lambda: _encode_event_decision_value(self))
 
 
 def _event_decision_from_cbor(data: bytes) -> "EventDecision":
@@ -3287,7 +3487,7 @@ def _encode_calendar_status_value(v: "CalendarStatus") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_calendar_status_value(tree: Any) -> "CalendarStatus":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CalendarStatus(
         house_id=_csil_expect_text(tree["house_id"]),
         available=_csil_expect_bool(tree["available"]),
@@ -3300,7 +3500,7 @@ def _decode_calendar_status_value(tree: Any) -> "CalendarStatus":
 
 
 def _calendar_status_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_calendar_status_value(self))
+    return _csil_encode_tree(lambda: _encode_calendar_status_value(self))
 
 
 def _calendar_status_from_cbor(data: bytes) -> "CalendarStatus":
@@ -3317,7 +3517,7 @@ def _encode_configure_calendar_request_value(v: "ConfigureCalendarRequest") -> D
     return csil_m
 
 def _decode_configure_calendar_request_value(tree: Any) -> "ConfigureCalendarRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ConfigureCalendarRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         enabled=_csil_expect_bool(tree["enabled"]),
@@ -3325,7 +3525,7 @@ def _decode_configure_calendar_request_value(tree: Any) -> "ConfigureCalendarReq
 
 
 def _configure_calendar_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_configure_calendar_request_value(self))
+    return _csil_encode_tree(lambda: _encode_configure_calendar_request_value(self))
 
 
 def _configure_calendar_request_from_cbor(data: bytes) -> "ConfigureCalendarRequest":
@@ -3341,14 +3541,14 @@ def _encode_calendar_connect_response_value(v: "CalendarConnectResponse") -> Dic
     return csil_m
 
 def _decode_calendar_connect_response_value(tree: Any) -> "CalendarConnectResponse":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CalendarConnectResponse(
         url=_csil_expect_text(tree["url"]),
     )
 
 
 def _calendar_connect_response_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_calendar_connect_response_value(self))
+    return _csil_encode_tree(lambda: _encode_calendar_connect_response_value(self))
 
 
 def _calendar_connect_response_from_cbor(data: bytes) -> "CalendarConnectResponse":
@@ -3366,7 +3566,7 @@ def _encode_complete_calendar_connect_request_value(v: "CompleteCalendarConnectR
     return csil_m
 
 def _decode_complete_calendar_connect_request_value(tree: Any) -> "CompleteCalendarConnectRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CompleteCalendarConnectRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         grant_id=_csil_expect_text(tree["grant_id"]),
@@ -3375,7 +3575,7 @@ def _decode_complete_calendar_connect_request_value(tree: Any) -> "CompleteCalen
 
 
 def _complete_calendar_connect_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_complete_calendar_connect_request_value(self))
+    return _csil_encode_tree(lambda: _encode_complete_calendar_connect_request_value(self))
 
 
 def _complete_calendar_connect_request_from_cbor(data: bytes) -> "CompleteCalendarConnectRequest":
@@ -3394,7 +3594,7 @@ def _encode_calendar_trash_entry_value(v: "CalendarTrashEntry") -> Dict[Any, Any
     return csil_m
 
 def _decode_calendar_trash_entry_value(tree: Any) -> "CalendarTrashEntry":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CalendarTrashEntry(
         trash_id=_csil_expect_text(tree["trash_id"]),
         event=_decode_event_value(tree["event"]),
@@ -3404,7 +3604,7 @@ def _decode_calendar_trash_entry_value(tree: Any) -> "CalendarTrashEntry":
 
 
 def _calendar_trash_entry_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_calendar_trash_entry_value(self))
+    return _csil_encode_tree(lambda: _encode_calendar_trash_entry_value(self))
 
 
 def _calendar_trash_entry_from_cbor(data: bytes) -> "CalendarTrashEntry":
@@ -3421,7 +3621,7 @@ def _encode_restore_calendar_event_request_value(v: "RestoreCalendarEventRequest
     return csil_m
 
 def _decode_restore_calendar_event_request_value(tree: Any) -> "RestoreCalendarEventRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return RestoreCalendarEventRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         trash_id=_csil_expect_text(tree["trash_id"]),
@@ -3429,7 +3629,7 @@ def _decode_restore_calendar_event_request_value(tree: Any) -> "RestoreCalendarE
 
 
 def _restore_calendar_event_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_restore_calendar_event_request_value(self))
+    return _csil_encode_tree(lambda: _encode_restore_calendar_event_request_value(self))
 
 
 def _restore_calendar_event_request_from_cbor(data: bytes) -> "RestoreCalendarEventRequest":
@@ -3448,7 +3648,7 @@ def _encode_calendar_migration_row_value(v: "CalendarMigrationRow") -> Dict[Any,
     return csil_m
 
 def _decode_calendar_migration_row_value(tree: Any) -> "CalendarMigrationRow":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return CalendarMigrationRow(
         event_id=_csil_expect_text(tree["event_id"]),
         title=_csil_expect_text(tree["title"]),
@@ -3458,7 +3658,7 @@ def _decode_calendar_migration_row_value(tree: Any) -> "CalendarMigrationRow":
 
 
 def _calendar_migration_row_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_calendar_migration_row_value(self))
+    return _csil_encode_tree(lambda: _encode_calendar_migration_row_value(self))
 
 
 def _calendar_migration_row_from_cbor(data: bytes) -> "CalendarMigrationRow":
@@ -3476,7 +3676,7 @@ def _encode_project_deadline_request_value(v: "ProjectDeadlineRequest") -> Dict[
     return csil_m
 
 def _decode_project_deadline_request_value(tree: Any) -> "ProjectDeadlineRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectDeadlineRequest(
         project_id=_csil_expect_text(tree["project_id"]),
         range_start=_csil_ts_from_tree(tree["range_start"]),
@@ -3485,7 +3685,7 @@ def _decode_project_deadline_request_value(tree: Any) -> "ProjectDeadlineRequest
 
 
 def _project_deadline_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_deadline_request_value(self))
+    return _csil_encode_tree(lambda: _encode_project_deadline_request_value(self))
 
 
 def _project_deadline_request_from_cbor(data: bytes) -> "ProjectDeadlineRequest":
@@ -3503,7 +3703,7 @@ def _encode_project_deadline_value(v: "ProjectDeadline") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_project_deadline_value(tree: Any) -> "ProjectDeadline":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectDeadline(
         task_id=_csil_expect_text(tree["task_id"]),
         title=_csil_expect_text(tree["title"]),
@@ -3512,7 +3712,7 @@ def _decode_project_deadline_value(tree: Any) -> "ProjectDeadline":
 
 
 def _project_deadline_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_deadline_value(self))
+    return _csil_encode_tree(lambda: _encode_project_deadline_value(self))
 
 
 def _project_deadline_from_cbor(data: bytes) -> "ProjectDeadline":
@@ -3534,7 +3734,7 @@ def _encode_project_deadline_list_value(v: "ProjectDeadlineList") -> Dict[Any, A
     return csil_m
 
 def _decode_project_deadline_list_value(tree: Any) -> "ProjectDeadlineList":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return ProjectDeadlineList(
         enabled=_csil_expect_bool(tree["enabled"]),
         pending=_csil_expect_bool(tree["pending"]),
@@ -3545,7 +3745,7 @@ def _decode_project_deadline_list_value(tree: Any) -> "ProjectDeadlineList":
 
 
 def _project_deadline_list_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_project_deadline_list_value(self))
+    return _csil_encode_tree(lambda: _encode_project_deadline_list_value(self))
 
 
 def _project_deadline_list_from_cbor(data: bytes) -> "ProjectDeadlineList":
@@ -3589,7 +3789,7 @@ def _encode_audit_entry_value(v: "AuditEntry") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_audit_entry_value(tree: Any) -> "AuditEntry":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return AuditEntry(
         audit_id=_csil_expect_text(tree["audit_id"]),
         house_id=(None if tree.get("house_id") is None else _csil_expect_text(tree["house_id"])),
@@ -3610,7 +3810,7 @@ def _decode_audit_entry_value(tree: Any) -> "AuditEntry":
 
 
 def _audit_entry_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_audit_entry_value(self))
+    return _csil_encode_tree(lambda: _encode_audit_entry_value(self))
 
 
 def _audit_entry_from_cbor(data: bytes) -> "AuditEntry":
@@ -3647,7 +3847,7 @@ def _encode_audit_query_value(v: "AuditQuery") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_audit_query_value(tree: Any) -> "AuditQuery":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return AuditQuery(
         house_id=_csil_expect_text(tree["house_id"]),
         actor_member_id=(None if tree.get("actor_member_id") is None else _csil_expect_text(tree["actor_member_id"])),
@@ -3661,7 +3861,7 @@ def _decode_audit_query_value(tree: Any) -> "AuditQuery":
 
 
 def _audit_query_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_audit_query_value(self))
+    return _csil_encode_tree(lambda: _encode_audit_query_value(self))
 
 
 def _audit_query_from_cbor(data: bytes) -> "AuditQuery":
@@ -3680,7 +3880,7 @@ def _encode_audit_page_value(v: "AuditPage") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_audit_page_value(tree: Any) -> "AuditPage":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return AuditPage(
         entries=[_decode_audit_entry_value(csil_e) for csil_e in _csil_expect_array(tree["entries"])],
         next_cursor=(None if tree.get("next_cursor") is None else _csil_expect_text(tree["next_cursor"])),
@@ -3688,7 +3888,7 @@ def _decode_audit_page_value(tree: Any) -> "AuditPage":
 
 
 def _audit_page_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_audit_page_value(self))
+    return _csil_encode_tree(lambda: _encode_audit_page_value(self))
 
 
 def _audit_page_from_cbor(data: bytes) -> "AuditPage":
@@ -3714,7 +3914,7 @@ def _encode_trash_item_value(v: "TrashItem") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_trash_item_value(tree: Any) -> "TrashItem":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return TrashItem(
         resource_type=_csil_expect_text(tree["resource_type"]),
         resource_id=_csil_expect_text(tree["resource_id"]),
@@ -3727,7 +3927,7 @@ def _decode_trash_item_value(tree: Any) -> "TrashItem":
 
 
 def _trash_item_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_trash_item_value(self))
+    return _csil_encode_tree(lambda: _encode_trash_item_value(self))
 
 
 def _trash_item_from_cbor(data: bytes) -> "TrashItem":
@@ -3746,7 +3946,7 @@ def _encode_trash_page_value(v: "TrashPage") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_trash_page_value(tree: Any) -> "TrashPage":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return TrashPage(
         items=[_decode_trash_item_value(csil_e) for csil_e in _csil_expect_array(tree["items"])],
         next_cursor=(None if tree.get("next_cursor") is None else _csil_expect_text(tree["next_cursor"])),
@@ -3754,7 +3954,7 @@ def _decode_trash_page_value(tree: Any) -> "TrashPage":
 
 
 def _trash_page_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_trash_page_value(self))
+    return _csil_encode_tree(lambda: _encode_trash_page_value(self))
 
 
 def _trash_page_from_cbor(data: bytes) -> "TrashPage":
@@ -3779,7 +3979,7 @@ def _encode_restore_request_value(v: "RestoreRequest") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_restore_request_value(tree: Any) -> "RestoreRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return RestoreRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         deleted_op_id=(None if tree.get("deleted_op_id") is None else _csil_expect_text(tree["deleted_op_id"])),
@@ -3789,7 +3989,7 @@ def _decode_restore_request_value(tree: Any) -> "RestoreRequest":
 
 
 def _restore_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_restore_request_value(self))
+    return _csil_encode_tree(lambda: _encode_restore_request_value(self))
 
 
 def _restore_request_from_cbor(data: bytes) -> "RestoreRequest":
@@ -3807,7 +4007,7 @@ def _encode_purge_request_value(v: "PurgeRequest") -> Dict[Any, Any]:
     return csil_m
 
 def _decode_purge_request_value(tree: Any) -> "PurgeRequest":
-    tree = _csil_expect_map(tree)
+    tree = _CsilMap(_csil_expect_map(tree))
     return PurgeRequest(
         house_id=_csil_expect_text(tree["house_id"]),
         resource_type=_csil_expect_text(tree["resource_type"]),
@@ -3816,7 +4016,7 @@ def _decode_purge_request_value(tree: Any) -> "PurgeRequest":
 
 
 def _purge_request_to_cbor(self) -> bytes:
-    return cbor_encode(_encode_purge_request_value(self))
+    return _csil_encode_tree(lambda: _encode_purge_request_value(self))
 
 
 def _purge_request_from_cbor(data: bytes) -> "PurgeRequest":
@@ -3826,11 +4026,19 @@ def _purge_request_from_cbor(data: bytes) -> "PurgeRequest":
 PurgeRequest.to_cbor = _purge_request_to_cbor
 PurgeRequest.from_cbor = staticmethod(_purge_request_from_cbor)
 
+def _encode_task_status_value(csil_v):
+    return _csil_enc_enum(csil_v, ("open", "in_progress", "done", "cancelled"))
+
+
 def _decode_task_status_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("open", "in_progress", "done", "cancelled"):
         raise CsilDecodeError(f"csil cbor: unknown task_status value {csil_v!r}")
     return TaskStatus(csil_v)
+
+
+def _encode_target_type_value(csil_v):
+    return _csil_enc_enum(csil_v, ("event", "task", "project"))
 
 
 def _decode_target_type_value(csil_v):
@@ -3840,11 +4048,19 @@ def _decode_target_type_value(csil_v):
     return TargetType(csil_v)
 
 
+def _encode_access_level_value(csil_v):
+    return _csil_enc_enum(csil_v, ("none", "read", "edit", "full"))
+
+
 def _decode_access_level_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("none", "read", "edit", "full"):
         raise CsilDecodeError(f"csil cbor: unknown access_level value {csil_v!r}")
     return AccessLevel(csil_v)
+
+
+def _encode_grantee_type_value(csil_v):
+    return _csil_enc_enum(csil_v, ("member", "group"))
 
 
 def _decode_grantee_type_value(csil_v):
@@ -3854,11 +4070,19 @@ def _decode_grantee_type_value(csil_v):
     return GranteeType(csil_v)
 
 
+def _encode_resource_type_value(csil_v):
+    return _csil_enc_enum(csil_v, ("event", "task", "house"))
+
+
 def _decode_resource_type_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("event", "task", "house"):
         raise CsilDecodeError(f"csil cbor: unknown resource_type value {csil_v!r}")
     return ResourceType(csil_v)
+
+
+def _encode_project_status_value(csil_v):
+    return _csil_enc_enum(csil_v, ("active", "archived"))
 
 
 def _decode_project_status_value(csil_v):
@@ -3868,11 +4092,19 @@ def _decode_project_status_value(csil_v):
     return ProjectStatus(csil_v)
 
 
+def _encode_dependency_node_type_value(csil_v):
+    return _csil_enc_enum(csil_v, ("task", "project"))
+
+
 def _decode_dependency_node_type_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("task", "project"):
         raise CsilDecodeError(f"csil cbor: unknown dependency_node_type value {csil_v!r}")
     return DependencyNodeType(csil_v)
+
+
+def _encode_recurrence_freq_value(csil_v):
+    return _csil_enc_enum(csil_v, ("hourly", "daily", "weekly", "monthly", "quarterly", "yearly"))
 
 
 def _decode_recurrence_freq_value(csil_v):
@@ -3882,11 +4114,19 @@ def _decode_recurrence_freq_value(csil_v):
     return RecurrenceFreq(csil_v)
 
 
+def _encode_milestone_state_value(csil_v):
+    return _csil_enc_enum(csil_v, ("done", "current", "future"))
+
+
 def _decode_milestone_state_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("done", "current", "future"):
         raise CsilDecodeError(f"csil cbor: unknown milestone_state value {csil_v!r}")
     return MilestoneState(csil_v)
+
+
+def _encode_cli_login_status_value(csil_v):
+    return _csil_enc_enum(csil_v, ("pending", "denied", "expired", "complete"))
 
 
 def _decode_cli_login_status_value(csil_v):
@@ -3896,11 +4136,19 @@ def _decode_cli_login_status_value(csil_v):
     return CliLoginStatus(csil_v)
 
 
+def _encode_session_kind_value(csil_v):
+    return _csil_enc_enum(csil_v, ("cli", "browser"))
+
+
 def _decode_session_kind_value(csil_v):
     csil_v = _csil_expect_text(csil_v)
     if csil_v not in ("cli", "browser"):
         raise CsilDecodeError(f"csil cbor: unknown session_kind value {csil_v!r}")
     return SessionKind(csil_v)
+
+
+def _encode_task_state_value(csil_v):
+    return _csil_enc_enum(csil_v, ("open", "closed"))
 
 
 def _decode_task_state_value(csil_v):
@@ -3911,7 +4159,7 @@ def _decode_task_state_value(csil_v):
 
 
 def encode_house_get_house_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_house_get_house_request(data: bytes):
@@ -3920,7 +4168,7 @@ def decode_house_get_house_request(data: bytes):
 
 
 def encode_house_delete_house_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_house_delete_house_request(data: bytes):
@@ -3929,7 +4177,7 @@ def decode_house_delete_house_request(data: bytes):
 
 
 def encode_house_list_houses_response(csil_value) -> bytes:
-    return cbor_encode([_encode_house_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_house_value(csil_e) for csil_e in csil_value])
 
 
 def decode_house_list_houses_response(data: bytes):
@@ -3938,7 +4186,7 @@ def decode_house_list_houses_response(data: bytes):
 
 
 def encode_member_get_member_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_member_get_member_request(data: bytes):
@@ -3947,7 +4195,7 @@ def decode_member_get_member_request(data: bytes):
 
 
 def encode_member_deactivate_member_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_member_deactivate_member_request(data: bytes):
@@ -3956,7 +4204,7 @@ def decode_member_deactivate_member_request(data: bytes):
 
 
 def encode_member_reactivate_member_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_member_reactivate_member_request(data: bytes):
@@ -3965,7 +4213,7 @@ def decode_member_reactivate_member_request(data: bytes):
 
 
 def encode_member_list_members_response(csil_value) -> bytes:
-    return cbor_encode([_encode_member_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_member_value(csil_e) for csil_e in csil_value])
 
 
 def decode_member_list_members_response(data: bytes):
@@ -3974,7 +4222,7 @@ def decode_member_list_members_response(data: bytes):
 
 
 def encode_trusted_domain_remove_trusted_domain_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_trusted_domain_remove_trusted_domain_request(data: bytes):
@@ -3983,7 +4231,7 @@ def decode_trusted_domain_remove_trusted_domain_request(data: bytes):
 
 
 def encode_trusted_domain_list_trusted_domains_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_trusted_domain_list_trusted_domains_request(data: bytes):
@@ -3992,7 +4240,7 @@ def decode_trusted_domain_list_trusted_domains_request(data: bytes):
 
 
 def encode_trusted_domain_list_trusted_domains_response(csil_value) -> bytes:
-    return cbor_encode([_encode_trusted_domain_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_trusted_domain_value(csil_e) for csil_e in csil_value])
 
 
 def decode_trusted_domain_list_trusted_domains_response(data: bytes):
@@ -4001,7 +4249,7 @@ def decode_trusted_domain_list_trusted_domains_response(data: bytes):
 
 
 def encode_role_delete_role_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_role_delete_role_request(data: bytes):
@@ -4010,7 +4258,7 @@ def decode_role_delete_role_request(data: bytes):
 
 
 def encode_role_list_roles_response(csil_value) -> bytes:
-    return cbor_encode([_encode_role_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_role_value(csil_e) for csil_e in csil_value])
 
 
 def decode_role_list_roles_response(data: bytes):
@@ -4019,7 +4267,7 @@ def decode_role_list_roles_response(data: bytes):
 
 
 def encode_role_list_member_roles_response(csil_value) -> bytes:
-    return cbor_encode([_encode_role_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_role_value(csil_e) for csil_e in csil_value])
 
 
 def decode_role_list_member_roles_response(data: bytes):
@@ -4028,7 +4276,7 @@ def decode_role_list_member_roles_response(data: bytes):
 
 
 def encode_skill_delete_skill_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_skill_delete_skill_request(data: bytes):
@@ -4037,7 +4285,7 @@ def decode_skill_delete_skill_request(data: bytes):
 
 
 def encode_skill_list_skills_response(csil_value) -> bytes:
-    return cbor_encode([_encode_skill_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_skill_value(csil_e) for csil_e in csil_value])
 
 
 def decode_skill_list_skills_response(data: bytes):
@@ -4046,7 +4294,7 @@ def decode_skill_list_skills_response(data: bytes):
 
 
 def encode_skill_list_member_skills_response(csil_value) -> bytes:
-    return cbor_encode([_encode_skill_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_skill_value(csil_e) for csil_e in csil_value])
 
 
 def decode_skill_list_member_skills_response(data: bytes):
@@ -4055,7 +4303,7 @@ def decode_skill_list_member_skills_response(data: bytes):
 
 
 def encode_skill_list_group_skills_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_skill_list_group_skills_request(data: bytes):
@@ -4064,7 +4312,7 @@ def decode_skill_list_group_skills_request(data: bytes):
 
 
 def encode_skill_list_group_skills_response(csil_value) -> bytes:
-    return cbor_encode([_encode_skill_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_skill_value(csil_e) for csil_e in csil_value])
 
 
 def decode_skill_list_group_skills_response(data: bytes):
@@ -4073,7 +4321,7 @@ def decode_skill_list_group_skills_response(data: bytes):
 
 
 def encode_group_delete_group_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_group_delete_group_request(data: bytes):
@@ -4082,7 +4330,7 @@ def decode_group_delete_group_request(data: bytes):
 
 
 def encode_group_list_groups_response(csil_value) -> bytes:
-    return cbor_encode([_encode_group_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_group_value(csil_e) for csil_e in csil_value])
 
 
 def decode_group_list_groups_response(data: bytes):
@@ -4091,7 +4339,7 @@ def decode_group_list_groups_response(data: bytes):
 
 
 def encode_group_list_group_members_response(csil_value) -> bytes:
-    return cbor_encode([_encode_member_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_member_value(csil_e) for csil_e in csil_value])
 
 
 def decode_group_list_group_members_response(data: bytes):
@@ -4100,7 +4348,7 @@ def decode_group_list_group_members_response(data: bytes):
 
 
 def encode_project_get_project_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_project_get_project_request(data: bytes):
@@ -4109,7 +4357,7 @@ def decode_project_get_project_request(data: bytes):
 
 
 def encode_project_delete_project_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_project_delete_project_request(data: bytes):
@@ -4118,7 +4366,7 @@ def decode_project_delete_project_request(data: bytes):
 
 
 def encode_project_list_project_members_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_project_list_project_members_request(data: bytes):
@@ -4127,7 +4375,7 @@ def decode_project_list_project_members_request(data: bytes):
 
 
 def encode_project_list_project_members_response(csil_value) -> bytes:
-    return cbor_encode([_encode_member_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_member_value(csil_e) for csil_e in csil_value])
 
 
 def decode_project_list_project_members_response(data: bytes):
@@ -4136,7 +4384,7 @@ def decode_project_list_project_members_response(data: bytes):
 
 
 def encode_project_list_project_owners_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_project_list_project_owners_request(data: bytes):
@@ -4145,7 +4393,7 @@ def decode_project_list_project_owners_request(data: bytes):
 
 
 def encode_project_list_project_owners_response(csil_value) -> bytes:
-    return cbor_encode([_encode_member_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_member_value(csil_e) for csil_e in csil_value])
 
 
 def decode_project_list_project_owners_response(data: bytes):
@@ -4154,7 +4402,7 @@ def decode_project_list_project_owners_response(data: bytes):
 
 
 def encode_project_list_milestones_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_project_list_milestones_request(data: bytes):
@@ -4163,7 +4411,7 @@ def decode_project_list_milestones_request(data: bytes):
 
 
 def encode_project_list_milestones_response(csil_value) -> bytes:
-    return cbor_encode([_encode_milestone_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_milestone_value(csil_e) for csil_e in csil_value])
 
 
 def decode_project_list_milestones_response(data: bytes):
@@ -4172,7 +4420,7 @@ def decode_project_list_milestones_response(data: bytes):
 
 
 def encode_project_delete_milestone_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_project_delete_milestone_request(data: bytes):
@@ -4181,7 +4429,7 @@ def decode_project_delete_milestone_request(data: bytes):
 
 
 def encode_project_list_project_grants_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_project_list_project_grants_request(data: bytes):
@@ -4190,7 +4438,7 @@ def decode_project_list_project_grants_request(data: bytes):
 
 
 def encode_project_list_project_grants_response(csil_value) -> bytes:
-    return cbor_encode([_encode_grant_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_grant_value(csil_e) for csil_e in csil_value])
 
 
 def decode_project_list_project_grants_response(data: bytes):
@@ -4199,7 +4447,7 @@ def decode_project_list_project_grants_response(data: bytes):
 
 
 def encode_event_get_event_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_event_get_event_request(data: bytes):
@@ -4208,7 +4456,7 @@ def decode_event_get_event_request(data: bytes):
 
 
 def encode_event_delete_event_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_event_delete_event_request(data: bytes):
@@ -4217,7 +4465,7 @@ def decode_event_delete_event_request(data: bytes):
 
 
 def encode_event_delete_event_and_future_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_event_delete_event_and_future_request(data: bytes):
@@ -4226,7 +4474,7 @@ def decode_event_delete_event_and_future_request(data: bytes):
 
 
 def encode_event_list_events_response(csil_value) -> bytes:
-    return cbor_encode([_encode_event_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_event_value(csil_e) for csil_e in csil_value])
 
 
 def decode_event_list_events_response(data: bytes):
@@ -4235,7 +4483,7 @@ def decode_event_list_events_response(data: bytes):
 
 
 def encode_event_get_calendar_view_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_event_get_calendar_view_request(data: bytes):
@@ -4244,7 +4492,7 @@ def decode_event_get_calendar_view_request(data: bytes):
 
 
 def encode_event_recover_edit_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_event_recover_edit_request(data: bytes):
@@ -4253,7 +4501,7 @@ def decode_event_recover_edit_request(data: bytes):
 
 
 def encode_event_list_local_events_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_event_list_local_events_request(data: bytes):
@@ -4262,7 +4510,7 @@ def decode_event_list_local_events_request(data: bytes):
 
 
 def encode_event_list_local_events_response(csil_value) -> bytes:
-    return cbor_encode([_encode_event_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_event_value(csil_e) for csil_e in csil_value])
 
 
 def decode_event_list_local_events_response(data: bytes):
@@ -4271,7 +4519,7 @@ def decode_event_list_local_events_response(data: bytes):
 
 
 def encode_calendar_get_status_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_calendar_get_status_request(data: bytes):
@@ -4280,7 +4528,7 @@ def decode_calendar_get_status_request(data: bytes):
 
 
 def encode_calendar_begin_connect_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_calendar_begin_connect_request(data: bytes):
@@ -4289,7 +4537,7 @@ def decode_calendar_begin_connect_request(data: bytes):
 
 
 def encode_calendar_disconnect_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_calendar_disconnect_request(data: bytes):
@@ -4298,7 +4546,7 @@ def decode_calendar_disconnect_request(data: bytes):
 
 
 def encode_calendar_preview_migration_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_calendar_preview_migration_request(data: bytes):
@@ -4307,7 +4555,7 @@ def decode_calendar_preview_migration_request(data: bytes):
 
 
 def encode_calendar_preview_migration_response(csil_value) -> bytes:
-    return cbor_encode([_encode_calendar_migration_row_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_calendar_migration_row_value(csil_e) for csil_e in csil_value])
 
 
 def decode_calendar_preview_migration_response(data: bytes):
@@ -4316,7 +4564,7 @@ def decode_calendar_preview_migration_response(data: bytes):
 
 
 def encode_calendar_list_trash_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_calendar_list_trash_request(data: bytes):
@@ -4325,7 +4573,7 @@ def decode_calendar_list_trash_request(data: bytes):
 
 
 def encode_calendar_list_trash_response(csil_value) -> bytes:
-    return cbor_encode([_encode_calendar_trash_entry_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_calendar_trash_entry_value(csil_e) for csil_e in csil_value])
 
 
 def decode_calendar_list_trash_response(data: bytes):
@@ -4334,7 +4582,7 @@ def decode_calendar_list_trash_response(data: bytes):
 
 
 def encode_task_get_task_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_task_get_task_request(data: bytes):
@@ -4343,7 +4591,7 @@ def decode_task_get_task_request(data: bytes):
 
 
 def encode_task_delete_task_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_task_delete_task_request(data: bytes):
@@ -4352,7 +4600,7 @@ def decode_task_delete_task_request(data: bytes):
 
 
 def encode_task_list_task_grants_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_task_list_task_grants_request(data: bytes):
@@ -4361,7 +4609,7 @@ def decode_task_list_task_grants_request(data: bytes):
 
 
 def encode_task_list_task_grants_response(csil_value) -> bytes:
-    return cbor_encode([_encode_grant_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_grant_value(csil_e) for csil_e in csil_value])
 
 
 def decode_task_list_task_grants_response(data: bytes):
@@ -4370,7 +4618,7 @@ def decode_task_list_task_grants_response(data: bytes):
 
 
 def encode_comment_get_comment_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_comment_get_comment_request(data: bytes):
@@ -4379,7 +4627,7 @@ def decode_comment_get_comment_request(data: bytes):
 
 
 def encode_comment_delete_comment_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_comment_delete_comment_request(data: bytes):
@@ -4388,7 +4636,7 @@ def decode_comment_delete_comment_request(data: bytes):
 
 
 def encode_comment_list_comments_response(csil_value) -> bytes:
-    return cbor_encode([_encode_comment_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_comment_value(csil_e) for csil_e in csil_value])
 
 
 def decode_comment_list_comments_response(data: bytes):
@@ -4397,7 +4645,7 @@ def decode_comment_list_comments_response(data: bytes):
 
 
 def encode_notification_list_notifications_response(csil_value) -> bytes:
-    return cbor_encode([_encode_notification_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_notification_value(csil_e) for csil_e in csil_value])
 
 
 def decode_notification_list_notifications_response(data: bytes):
@@ -4406,7 +4654,7 @@ def decode_notification_list_notifications_response(data: bytes):
 
 
 def encode_notification_unread_count_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_notification_unread_count_request(data: bytes):
@@ -4415,7 +4663,7 @@ def decode_notification_unread_count_request(data: bytes):
 
 
 def encode_notification_mark_read_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_notification_mark_read_request(data: bytes):
@@ -4424,7 +4672,7 @@ def decode_notification_mark_read_request(data: bytes):
 
 
 def encode_notification_mark_all_read_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_notification_mark_all_read_request(data: bytes):
@@ -4433,7 +4681,7 @@ def decode_notification_mark_all_read_request(data: bytes):
 
 
 def encode_share_delete_share_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_share_delete_share_request(data: bytes):
@@ -4442,7 +4690,7 @@ def decode_share_delete_share_request(data: bytes):
 
 
 def encode_share_list_shares_by_resource_response(csil_value) -> bytes:
-    return cbor_encode([_encode_share_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_share_value(csil_e) for csil_e in csil_value])
 
 
 def decode_share_list_shares_by_resource_response(data: bytes):
@@ -4451,7 +4699,7 @@ def decode_share_list_shares_by_resource_response(data: bytes):
 
 
 def encode_member_audit_list_audits_for_member_response(csil_value) -> bytes:
-    return cbor_encode([_encode_member_audit_value(csil_e) for csil_e in csil_value])
+    return _csil_encode_tree(lambda: [_encode_member_audit_value(csil_e) for csil_e in csil_value])
 
 
 def decode_member_audit_list_audits_for_member_response(data: bytes):
@@ -4460,7 +4708,7 @@ def decode_member_audit_list_audits_for_member_response(data: bytes):
 
 
 def encode_settings_get_settings_request(csil_value) -> bytes:
-    return cbor_encode(csil_value)
+    return _csil_encode_tree(lambda: csil_value)
 
 
 def decode_settings_get_settings_request(data: bytes):
@@ -4666,6 +4914,14 @@ def encode_house_delete_house_reply(handler, *args, **kwargs):
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
 
 
+def encode_house_list_houses_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "HouseItems", cbor_encode([_encode_house_value(csil_e) for csil_e in value])
+
+
 def encode_member_create_member_reply(handler, *args, **kwargs):
     try:
         value = handler(*args, **kwargs)
@@ -4714,6 +4970,14 @@ def encode_member_reactivate_member_reply(handler, *args, **kwargs):
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
 
 
+def encode_member_list_members_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "MemberItems", cbor_encode([_encode_member_value(csil_e) for csil_e in value])
+
+
 def encode_trusted_domain_add_trusted_domain_reply(handler, *args, **kwargs):
     try:
         value = handler(*args, **kwargs)
@@ -4728,6 +4992,14 @@ def encode_trusted_domain_remove_trusted_domain_reply(handler, *args, **kwargs):
     except ServiceErrorRefusal as refusal:
         return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_trusted_domain_list_trusted_domains_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "TrustedDomainItems", cbor_encode([_encode_trusted_domain_value(csil_e) for csil_e in value])
 
 
 def encode_trusted_domain_is_domain_trusted_reply(handler, *args, **kwargs):
@@ -4762,6 +5034,14 @@ def encode_role_delete_role_reply(handler, *args, **kwargs):
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
 
 
+def encode_role_list_roles_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "RoleItems", cbor_encode([_encode_role_value(csil_e) for csil_e in value])
+
+
 def encode_role_grant_role_reply(handler, *args, **kwargs):
     try:
         value = handler(*args, **kwargs)
@@ -4776,6 +5056,14 @@ def encode_role_revoke_role_reply(handler, *args, **kwargs):
     except ServiceErrorRefusal as refusal:
         return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_role_list_member_roles_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "RoleItems", cbor_encode([_encode_role_value(csil_e) for csil_e in value])
 
 
 def encode_skill_create_skill_reply(handler, *args, **kwargs):
@@ -4802,6 +5090,14 @@ def encode_skill_delete_skill_reply(handler, *args, **kwargs):
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
 
 
+def encode_skill_list_skills_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "SkillItems", cbor_encode([_encode_skill_value(csil_e) for csil_e in value])
+
+
 def encode_skill_add_member_skill_reply(handler, *args, **kwargs):
     try:
         value = handler(*args, **kwargs)
@@ -4818,6 +5114,14 @@ def encode_skill_remove_member_skill_reply(handler, *args, **kwargs):
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
 
 
+def encode_skill_list_member_skills_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "SkillItems", cbor_encode([_encode_skill_value(csil_e) for csil_e in value])
+
+
 def encode_skill_add_group_skill_reply(handler, *args, **kwargs):
     try:
         value = handler(*args, **kwargs)
@@ -4832,6 +5136,14 @@ def encode_skill_remove_group_skill_reply(handler, *args, **kwargs):
     except ServiceErrorRefusal as refusal:
         return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_skill_list_group_skills_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "SkillItems", cbor_encode([_encode_skill_value(csil_e) for csil_e in value])
 
 
 def encode_group_create_group_reply(handler, *args, **kwargs):
@@ -4858,6 +5170,14 @@ def encode_group_delete_group_reply(handler, *args, **kwargs):
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
 
 
+def encode_group_list_groups_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "GroupItems", cbor_encode([_encode_group_value(csil_e) for csil_e in value])
+
+
 def encode_group_add_group_member_reply(handler, *args, **kwargs):
     try:
         value = handler(*args, **kwargs)
@@ -4872,6 +5192,14 @@ def encode_group_remove_group_member_reply(handler, *args, **kwargs):
     except ServiceErrorRefusal as refusal:
         return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_group_list_group_members_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "MemberItems", cbor_encode([_encode_member_value(csil_e) for csil_e in value])
 
 
 def encode_project_create_project_reply(handler, *args, **kwargs):
@@ -4946,6 +5274,14 @@ def encode_project_set_project_task_position_reply(handler, *args, **kwargs):
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
 
 
+def encode_project_list_project_members_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "MemberItems", cbor_encode([_encode_member_value(csil_e) for csil_e in value])
+
+
 def encode_project_add_project_member_reply(handler, *args, **kwargs):
     try:
         value = handler(*args, **kwargs)
@@ -4962,6 +5298,14 @@ def encode_project_remove_project_member_reply(handler, *args, **kwargs):
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
 
 
+def encode_project_list_project_owners_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "MemberItems", cbor_encode([_encode_member_value(csil_e) for csil_e in value])
+
+
 def encode_project_add_project_owner_reply(handler, *args, **kwargs):
     try:
         value = handler(*args, **kwargs)
@@ -4976,6 +5320,14 @@ def encode_project_remove_project_owner_reply(handler, *args, **kwargs):
     except ServiceErrorRefusal as refusal:
         return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_project_list_milestones_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "MilestoneItems", cbor_encode([_encode_milestone_value(csil_e) for csil_e in value])
 
 
 def encode_project_create_milestone_reply(handler, *args, **kwargs):
@@ -5008,6 +5360,14 @@ def encode_project_set_project_visibility_reply(handler, *args, **kwargs):
     except ServiceErrorRefusal as refusal:
         return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
     return "Project", cbor_encode(_encode_project_value(value))
+
+
+def encode_project_list_project_grants_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "GrantItems", cbor_encode([_encode_grant_value(csil_e) for csil_e in value])
 
 
 def encode_project_put_project_grant_reply(handler, *args, **kwargs):
@@ -5066,6 +5426,14 @@ def encode_event_delete_event_and_future_reply(handler, *args, **kwargs):
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
 
 
+def encode_event_list_events_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EventItems", cbor_encode([_encode_event_value(csil_e) for csil_e in value])
+
+
 def encode_event_get_calendar_view_reply(handler, *args, **kwargs):
     try:
         value = handler(*args, **kwargs)
@@ -5104,6 +5472,14 @@ def encode_event_decline_event_reply(handler, *args, **kwargs):
     except ServiceErrorRefusal as refusal:
         return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
     return "Event", cbor_encode(_encode_event_value(value))
+
+
+def encode_event_list_local_events_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "EventItems", cbor_encode([_encode_event_value(csil_e) for csil_e in value])
 
 
 def encode_calendar_list_project_deadlines_reply(handler, *args, **kwargs):
@@ -5152,6 +5528,22 @@ def encode_calendar_disconnect_reply(handler, *args, **kwargs):
     except ServiceErrorRefusal as refusal:
         return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
+
+
+def encode_calendar_preview_migration_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CalendarMigrationRowItems", cbor_encode([_encode_calendar_migration_row_value(csil_e) for csil_e in value])
+
+
+def encode_calendar_list_trash_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CalendarTrashEntryItems", cbor_encode([_encode_calendar_trash_entry_value(csil_e) for csil_e in value])
 
 
 def encode_calendar_restore_event_reply(handler, *args, **kwargs):
@@ -5216,6 +5608,14 @@ def encode_task_set_task_visibility_reply(handler, *args, **kwargs):
     except ServiceErrorRefusal as refusal:
         return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
     return "Task", cbor_encode(_encode_task_value(value))
+
+
+def encode_task_list_task_grants_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "GrantItems", cbor_encode([_encode_grant_value(csil_e) for csil_e in value])
 
 
 def encode_task_put_task_grant_reply(handler, *args, **kwargs):
@@ -5290,6 +5690,22 @@ def encode_comment_delete_comment_reply(handler, *args, **kwargs):
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
 
 
+def encode_comment_list_comments_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "CommentItems", cbor_encode([_encode_comment_value(csil_e) for csil_e in value])
+
+
+def encode_notification_list_notifications_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "NotificationItems", cbor_encode([_encode_notification_value(csil_e) for csil_e in value])
+
+
 def encode_notification_unread_count_reply(handler, *args, **kwargs):
     try:
         value = handler(*args, **kwargs)
@@ -5330,12 +5746,28 @@ def encode_share_delete_share_reply(handler, *args, **kwargs):
     return "EmptyResponse", cbor_encode(_encode_empty_response_value(value))
 
 
+def encode_share_list_shares_by_resource_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "ShareItems", cbor_encode([_encode_share_value(csil_e) for csil_e in value])
+
+
 def encode_share_check_access_reply(handler, *args, **kwargs):
     try:
         value = handler(*args, **kwargs)
     except ServiceErrorRefusal as refusal:
         return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
     return "Share", cbor_encode(_encode_share_value(value))
+
+
+def encode_member_audit_list_audits_for_member_reply(handler, *args, **kwargs):
+    try:
+        value = handler(*args, **kwargs)
+    except ServiceErrorRefusal as refusal:
+        return "ServiceError", cbor_encode(_encode_service_error_value(refusal.value))
+    return "MemberAuditItems", cbor_encode([_encode_member_audit_value(csil_e) for csil_e in value])
 
 
 def encode_settings_get_settings_reply(handler, *args, **kwargs):
@@ -5563,6 +5995,13 @@ def resolve_rpc_reply(service, op, variant, payload):
             tree = cbor_decode(payload)
             raise ServiceErrorRefusal(_decode_service_error_value(tree))
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("HouseService", "list-houses"):
+        if variant == "HouseItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("MemberService", "create-member"):
         if variant == "Member":
             return payload
@@ -5605,6 +6044,13 @@ def resolve_rpc_reply(service, op, variant, payload):
             tree = cbor_decode(payload)
             raise ServiceErrorRefusal(_decode_service_error_value(tree))
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("MemberService", "list-members"):
+        if variant == "MemberItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("TrustedDomainService", "add-trusted-domain"):
         if variant == "TrustedDomain":
             return payload
@@ -5614,6 +6060,13 @@ def resolve_rpc_reply(service, op, variant, payload):
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("TrustedDomainService", "remove-trusted-domain"):
         if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TrustedDomainService", "list-trusted-domains"):
+        if variant == "TrustedDomainItems":
             return payload
         if variant == "ServiceError":
             tree = cbor_decode(payload)
@@ -5647,6 +6100,13 @@ def resolve_rpc_reply(service, op, variant, payload):
             tree = cbor_decode(payload)
             raise ServiceErrorRefusal(_decode_service_error_value(tree))
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("RoleService", "list-roles"):
+        if variant == "RoleItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("RoleService", "grant-role"):
         if variant == "EmptyResponse":
             return payload
@@ -5656,6 +6116,13 @@ def resolve_rpc_reply(service, op, variant, payload):
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("RoleService", "revoke-role"):
         if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("RoleService", "list-member-roles"):
+        if variant == "RoleItems":
             return payload
         if variant == "ServiceError":
             tree = cbor_decode(payload)
@@ -5682,6 +6149,13 @@ def resolve_rpc_reply(service, op, variant, payload):
             tree = cbor_decode(payload)
             raise ServiceErrorRefusal(_decode_service_error_value(tree))
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SkillService", "list-skills"):
+        if variant == "SkillItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("SkillService", "add-member-skill"):
         if variant == "EmptyResponse":
             return payload
@@ -5696,6 +6170,13 @@ def resolve_rpc_reply(service, op, variant, payload):
             tree = cbor_decode(payload)
             raise ServiceErrorRefusal(_decode_service_error_value(tree))
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SkillService", "list-member-skills"):
+        if variant == "SkillItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("SkillService", "add-group-skill"):
         if variant == "EmptyResponse":
             return payload
@@ -5705,6 +6186,13 @@ def resolve_rpc_reply(service, op, variant, payload):
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("SkillService", "remove-group-skill"):
         if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("SkillService", "list-group-skills"):
+        if variant == "SkillItems":
             return payload
         if variant == "ServiceError":
             tree = cbor_decode(payload)
@@ -5731,6 +6219,13 @@ def resolve_rpc_reply(service, op, variant, payload):
             tree = cbor_decode(payload)
             raise ServiceErrorRefusal(_decode_service_error_value(tree))
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("GroupService", "list-groups"):
+        if variant == "GroupItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("GroupService", "add-group-member"):
         if variant == "EmptyResponse":
             return payload
@@ -5740,6 +6235,13 @@ def resolve_rpc_reply(service, op, variant, payload):
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("GroupService", "remove-group-member"):
         if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("GroupService", "list-group-members"):
+        if variant == "MemberItems":
             return payload
         if variant == "ServiceError":
             tree = cbor_decode(payload)
@@ -5808,6 +6310,13 @@ def resolve_rpc_reply(service, op, variant, payload):
             tree = cbor_decode(payload)
             raise ServiceErrorRefusal(_decode_service_error_value(tree))
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "list-project-members"):
+        if variant == "MemberItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("ProjectService", "add-project-member"):
         if variant == "EmptyResponse":
             return payload
@@ -5822,6 +6331,13 @@ def resolve_rpc_reply(service, op, variant, payload):
             tree = cbor_decode(payload)
             raise ServiceErrorRefusal(_decode_service_error_value(tree))
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "list-project-owners"):
+        if variant == "MemberItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("ProjectService", "add-project-owner"):
         if variant == "EmptyResponse":
             return payload
@@ -5831,6 +6347,13 @@ def resolve_rpc_reply(service, op, variant, payload):
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("ProjectService", "remove-project-owner"):
         if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "list-milestones"):
+        if variant == "MilestoneItems":
             return payload
         if variant == "ServiceError":
             tree = cbor_decode(payload)
@@ -5859,6 +6382,13 @@ def resolve_rpc_reply(service, op, variant, payload):
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("ProjectService", "set-project-visibility"):
         if variant == "Project":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ProjectService", "list-project-grants"):
+        if variant == "GrantItems":
             return payload
         if variant == "ServiceError":
             tree = cbor_decode(payload)
@@ -5913,6 +6443,13 @@ def resolve_rpc_reply(service, op, variant, payload):
             tree = cbor_decode(payload)
             raise ServiceErrorRefusal(_decode_service_error_value(tree))
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "list-events"):
+        if variant == "EventItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("EventService", "get-calendar-view"):
         if variant == "CalendarView":
             return payload
@@ -5943,6 +6480,13 @@ def resolve_rpc_reply(service, op, variant, payload):
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("EventService", "decline-event"):
         if variant == "Event":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("EventService", "list-local-events"):
+        if variant == "EventItems":
             return payload
         if variant == "ServiceError":
             tree = cbor_decode(payload)
@@ -5985,6 +6529,20 @@ def resolve_rpc_reply(service, op, variant, payload):
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("CalendarService", "disconnect"):
         if variant == "EmptyResponse":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CalendarService", "preview-migration"):
+        if variant == "CalendarMigrationRowItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CalendarService", "list-trash"):
+        if variant == "CalendarTrashEntryItems":
             return payload
         if variant == "ServiceError":
             tree = cbor_decode(payload)
@@ -6041,6 +6599,13 @@ def resolve_rpc_reply(service, op, variant, payload):
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("TaskService", "set-task-visibility"):
         if variant == "Task":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("TaskService", "list-task-grants"):
+        if variant == "GrantItems":
             return payload
         if variant == "ServiceError":
             tree = cbor_decode(payload)
@@ -6109,6 +6674,20 @@ def resolve_rpc_reply(service, op, variant, payload):
             tree = cbor_decode(payload)
             raise ServiceErrorRefusal(_decode_service_error_value(tree))
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("CommentService", "list-comments"):
+        if variant == "CommentItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("NotificationService", "list-notifications"):
+        if variant == "NotificationItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("NotificationService", "unread-count"):
         if variant == "NotificationUnreadCount":
             return payload
@@ -6144,8 +6723,22 @@ def resolve_rpc_reply(service, op, variant, payload):
             tree = cbor_decode(payload)
             raise ServiceErrorRefusal(_decode_service_error_value(tree))
         raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("ShareService", "list-shares-by-resource"):
+        if variant == "ShareItems":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
     if (service, op) == ("ShareService", "check-access"):
         if variant == "Share":
+            return payload
+        if variant == "ServiceError":
+            tree = cbor_decode(payload)
+            raise ServiceErrorRefusal(_decode_service_error_value(tree))
+        raise CsilDecodeError(f'invalid RPC reply variant {variant!r}')
+    if (service, op) == ("MemberAuditService", "list-audits-for-member"):
+        if variant == "MemberAuditItems":
             return payload
         if variant == "ServiceError":
             tree = cbor_decode(payload)

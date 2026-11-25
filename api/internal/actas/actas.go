@@ -154,7 +154,7 @@ func (v *Verifier) SignScopeSet(_ context.Context, req ScopeSetRequest) ([]byte,
 		}
 		grantee.Application = &api.ApplicationRef{SubjectUserId: req.GranteeUserID, SubjectDomain: strings.ToLower(req.GranteeDomain), ApplicationId: req.GranteeApplicationID}
 	}
-	now := v.now().UTC()
+	now := v.now().UTC().Truncate(time.Second)
 	ttl := v.ScopeSetTTL
 	if ttl <= 0 {
 		ttl = 24 * time.Hour
@@ -174,14 +174,14 @@ func (v *Verifier) SignScopeSet(_ context.Context, req ScopeSetRequest) ([]byte,
 		Grantee:   grantee,
 		Entries:   entries,
 		Language:  &lang,
-		IssuedAt:  regularrp.FormatActAsTime(now),
-		ExpiresAt: regularrp.FormatActAsTime(now.Add(ttl)),
+		IssuedAt:  now,
+		ExpiresAt: now.Add(ttl),
 	}
 	signed, err := regularrp.SignScopeSet(set, v.InstanceID, v.Signers)
 	if err != nil {
 		return nil, err
 	}
-	return api.EncodeSignedActAsScopeSet(signed), nil
+	return api.EncodeSignedActAsScopeSet(signed)
 }
 
 // VerifyCredential implements Provider: the SDK's audience checklist plus
@@ -246,10 +246,7 @@ func (v *Verifier) VerifyCredential(ctx context.Context, raw []byte, knownRevoke
 	if err != nil {
 		return Verified{}, err
 	}
-	expires, err := time.Parse(time.RFC3339, verified.ExpiresAt)
-	if err != nil {
-		return Verified{}, fmt.Errorf("grant expires_at: %w", err)
-	}
+
 	return Verified{
 		GrantID:       verified.GrantID,
 		SubjectUserID: grant.UserId,
@@ -257,7 +254,7 @@ func (v *Verifier) VerifyCredential(ctx context.Context, raw []byte, knownRevoke
 		Application:   GranteeName(grant.Grantee),
 		Grantee:       GranteeKey(grant.Grantee),
 		Scopes:        MapScopes(verified.ApprovedScope),
-		ExpiresAt:     expires.UTC(),
+		ExpiresAt:     verified.ExpiresAt.UTC(),
 		Nonce:         hex.EncodeToString(verified.Nonce),
 	}, nil
 }
@@ -358,7 +355,7 @@ func (r *RPKeySource) OwnScopeSetKeys(ctx context.Context, own api.ApplicationRe
 	if err != nil {
 		return nil, err
 	}
-	if res.Freshness == regularrp.FreshnessStale || res.RPCacheStatus == "stale" {
+	if res.Freshness == regularrp.FreshnessStale || res.RPCacheStatus == api.RpCacheStatusStale {
 		return nil, errors.New("application keys are stale")
 	}
 	return res.Keys.AttestedKeyRefs(), nil
@@ -370,7 +367,7 @@ func (r *RPKeySource) GranteeInstanceKeys(ctx context.Context, ref regularrp.Ins
 	if err != nil {
 		return nil, err
 	}
-	if res.Freshness == regularrp.FreshnessStale || res.RPCacheStatus == "stale" {
+	if res.Freshness == regularrp.FreshnessStale || res.RPCacheStatus == api.RpCacheStatusStale {
 		return nil, errors.New("application keys are stale")
 	}
 	return res.Keys.UsableKeyRefs(), nil
@@ -385,7 +382,7 @@ func (r *RPKeySource) DomainKeys(ctx context.Context, domain string) ([]api.Doma
 	if err != nil {
 		return nil, err
 	}
-	if resp.CacheStatus == "stale" {
+	if resp.CacheStatus == api.RpCacheStatusStale {
 		return nil, errors.New("domain keys are stale")
 	}
 	if !equalASCIIDomain(resp.Domain, domain) {

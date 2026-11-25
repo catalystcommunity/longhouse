@@ -284,7 +284,7 @@ func (s *ProjectService) SetProjectTaskPosition(ctx context.Context, req csil.Pr
 
 // ---- members / owners -------------------------------------------------
 
-func (s *ProjectService) ListProjectMembers(ctx context.Context, id csil.ProjectID) ([]csil.Member, error) {
+func (s *ProjectService) ListProjectMembers(ctx context.Context, id csil.ProjectID) (csil.MemberItems, error) {
 	pid, err := s.requireProjectViewer(ctx, id)
 	if err != nil {
 		return nil, err
@@ -296,7 +296,7 @@ func (s *ProjectService) ListProjectMembers(ctx context.Context, id csil.Project
 	return membersToCSIL(rows), nil
 }
 
-func (s *ProjectService) ListProjectOwners(ctx context.Context, id csil.ProjectID) ([]csil.Member, error) {
+func (s *ProjectService) ListProjectOwners(ctx context.Context, id csil.ProjectID) (csil.MemberItems, error) {
 	pid, err := s.requireProjectViewer(ctx, id)
 	if err != nil {
 		return nil, err
@@ -350,7 +350,7 @@ func (s *ProjectService) RemoveProjectOwner(ctx context.Context, ref csil.Projec
 
 // ---- milestones -------------------------------------------------------
 
-func (s *ProjectService) ListMilestones(ctx context.Context, id csil.ProjectID) ([]csil.Milestone, error) {
+func (s *ProjectService) ListMilestones(ctx context.Context, id csil.ProjectID) (csil.MilestoneItems, error) {
 	pid, err := s.requireProjectViewer(ctx, id)
 	if err != nil {
 		return nil, err
@@ -515,7 +515,7 @@ func (s *ProjectService) SetProjectVisibility(ctx context.Context, in csil.SetPr
 }
 
 // ListProjectGrants returns the project's explicit grants (governance — full).
-func (s *ProjectService) ListProjectGrants(ctx context.Context, id csil.ProjectID) ([]csil.Grant, error) {
+func (s *ProjectService) ListProjectGrants(ctx context.Context, id csil.ProjectID) (csil.GrantItems, error) {
 	p, err := s.Store.GetProjectByID(ctx, string(id))
 	if err != nil {
 		return nil, csilrpc.NotFound("project not found")

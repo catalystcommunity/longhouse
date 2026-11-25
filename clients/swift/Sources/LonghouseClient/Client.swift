@@ -3,13 +3,13 @@
 
 /// A structured error from a generated client call: a service-returned error
 /// (code/message), or a transport-level failure.
-public struct CsilClientError: Error, Equatable {
-    public let code: Int64
-    public let message: String
-    public init(code: Int64, message: String) {
-        self.code = code
-        self.message = message
-    }
+public struct CsilClientError: Swift.Error, Equatable {
+  public let code: Int64
+  public let message: String
+  public init(code: Int64, message: String) {
+    self.code = code
+    self.message = message
+  }
 }
 
 /// The caller-supplied byte carrier: it performs the call named by (service, op)
@@ -17,906 +17,2434 @@ public struct CsilClientError: Error, Equatable {
 /// throws. Synchronous and blocking — the host owns the I/O loop. The generated
 /// client owns (de)serialization; the carrier only moves bytes.
 public protocol CsilTransport {
-    func call(service: String, op: String, request: [UInt8]) throws -> [UInt8]
+  func call(service: String, op: String, request: [UInt8]) throws -> [UInt8]
+  /// Performs a call for an operation with more than one reply arm and returns
+  /// the reply variant (nil when absent) with the payload bytes.
+  func callReply(
+    service: String,
+    op: String,
+    request: [UInt8]
+  ) throws -> (variant: String?, payload: [UInt8])
 }
 
 /// AuthClient is a typed client for the AuthService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct AuthClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func beginBrowserLogin(_ request: BeginBrowserLoginRequest) throws -> BeginBrowserLoginResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "begin-browser-login", request: request.toCbor())
-        return try BeginBrowserLoginResponse.fromCbor(csilResp)
-    }
+  public func beginBrowserLogin(
+    _ request: BeginBrowserLoginRequest
+  ) throws -> BeginBrowserLoginResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "begin-browser-login",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "begin-browser-login",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try BeginBrowserLoginResponse.fromCbor(csilResp)
+  }
 
-    public func getActAsScopeSet(_ request: ActAsScopeSetRequest) throws -> ActAsScopeSetResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "get-act-as-scope-set", request: request.toCbor())
-        return try ActAsScopeSetResponse.fromCbor(csilResp)
-    }
+  public func getActAsScopeSet(_ request: ActAsScopeSetRequest) throws -> ActAsScopeSetResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "get-act-as-scope-set",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "get-act-as-scope-set",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try ActAsScopeSetResponse.fromCbor(csilResp)
+  }
 
-    public func exchangeActAsCredential(_ request: ExchangeActAsCredentialRequest) throws -> ActAsTokenResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "exchange-act-as-credential", request: request.toCbor())
-        return try ActAsTokenResponse.fromCbor(csilResp)
-    }
+  public func exchangeActAsCredential(
+    _ request: ExchangeActAsCredentialRequest
+  ) throws -> ActAsTokenResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "exchange-act-as-credential",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "exchange-act-as-credential",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try ActAsTokenResponse.fromCbor(csilResp)
+  }
 
-    public func login(_ request: LoginRequest) throws -> LoginResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "login", request: request.toCbor())
-        return try LoginResponse.fromCbor(csilResp)
-    }
+  public func login(_ request: LoginRequest) throws -> LoginResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "login",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "login",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try LoginResponse.fromCbor(csilResp)
+  }
 
-    public func complete(_ request: CompleteRequest) throws -> LoginResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "complete", request: request.toCbor())
-        return try LoginResponse.fromCbor(csilResp)
-    }
+  public func complete(_ request: CompleteRequest) throws -> LoginResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "complete",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "complete",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try LoginResponse.fromCbor(csilResp)
+  }
 
-    public func refresh(_ request: EmptyRequest) throws -> LoginResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "refresh", request: request.toCbor())
-        return try LoginResponse.fromCbor(csilResp)
-    }
+  public func refresh(_ request: EmptyRequest) throws -> LoginResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "refresh",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "refresh",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try LoginResponse.fromCbor(csilResp)
+  }
 
-    public func logout(_ request: EmptyRequest) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "logout", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func logout(_ request: EmptyRequest) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "logout",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "logout",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func resumeSession(_ request: EmptyRequest) throws -> LoginResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "resume-session", request: request.toCbor())
-        return try LoginResponse.fromCbor(csilResp)
-    }
+  public func resumeSession(_ request: EmptyRequest) throws -> LoginResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "resume-session",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "resume-session",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try LoginResponse.fromCbor(csilResp)
+  }
 
-    public func endSession(_ request: EmptyRequest) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "end-session", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func endSession(_ request: EmptyRequest) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "end-session",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "end-session",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func me(_ request: EmptyRequest) throws -> MeResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "me", request: request.toCbor())
-        return try MeResponse.fromCbor(csilResp)
-    }
+  public func me(_ request: EmptyRequest) throws -> MeResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(service: "AuthService", op: "me", request: csilRequest)
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "me",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try MeResponse.fromCbor(csilResp)
+  }
 
-    public func beginCliLogin(_ request: BeginCliLoginRequest) throws -> BeginCliLoginResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "begin-cli-login", request: request.toCbor())
-        return try BeginCliLoginResponse.fromCbor(csilResp)
-    }
+  public func beginCliLogin(_ request: BeginCliLoginRequest) throws -> BeginCliLoginResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "begin-cli-login",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "begin-cli-login",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try BeginCliLoginResponse.fromCbor(csilResp)
+  }
 
-    public func inspectCliLogin(_ request: ApproveCliLoginRequest) throws -> CliLoginRequestInfo {
-        let csilResp = try transport.call(service: "AuthService", op: "inspect-cli-login", request: request.toCbor())
-        return try CliLoginRequestInfo.fromCbor(csilResp)
-    }
+  public func inspectCliLogin(_ request: ApproveCliLoginRequest) throws -> CliLoginRequestInfo {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "inspect-cli-login",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "inspect-cli-login",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try CliLoginRequestInfo.fromCbor(csilResp)
+  }
 
-    public func approveCliLogin(_ request: ApproveCliLoginRequest) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "approve-cli-login", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func approveCliLogin(_ request: ApproveCliLoginRequest) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "approve-cli-login",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "approve-cli-login",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func denyCliLogin(_ request: DenyCliLoginRequest) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "deny-cli-login", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func denyCliLogin(_ request: DenyCliLoginRequest) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "deny-cli-login",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "deny-cli-login",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func exchangeCliLogin(_ request: ExchangeCliLoginRequest) throws -> ExchangeCliLoginResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "exchange-cli-login", request: request.toCbor())
-        return try ExchangeCliLoginResponse.fromCbor(csilResp)
-    }
+  public func exchangeCliLogin(
+    _ request: ExchangeCliLoginRequest
+  ) throws -> ExchangeCliLoginResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "exchange-cli-login",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "exchange-cli-login",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try ExchangeCliLoginResponse.fromCbor(csilResp)
+  }
 
-    public func refreshSession(_ request: RefreshSessionRequest) throws -> CliTokenResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "refresh-session", request: request.toCbor())
-        return try CliTokenResponse.fromCbor(csilResp)
-    }
+  public func refreshSession(_ request: RefreshSessionRequest) throws -> CliTokenResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "refresh-session",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "refresh-session",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try CliTokenResponse.fromCbor(csilResp)
+  }
 
-    public func listSessions(_ request: EmptyRequest) throws -> CliSessionsResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "list-sessions", request: request.toCbor())
-        return try CliSessionsResponse.fromCbor(csilResp)
-    }
+  public func listSessions(_ request: EmptyRequest) throws -> CliSessionsResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "list-sessions",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "list-sessions",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try CliSessionsResponse.fromCbor(csilResp)
+  }
 
-    public func revokeSession(_ request: RevokeSessionRequest) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "AuthService", op: "revoke-session", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func revokeSession(_ request: RevokeSessionRequest) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuthService",
+      op: "revoke-session",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuthService",
+      op: "revoke-session",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
 }
 
 /// DevAuthClient is a typed client for the DevAuthService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct DevAuthClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func listDevUsers(_ request: EmptyRequest) throws -> DevUsersResponse {
-        let csilResp = try transport.call(service: "DevAuthService", op: "list-dev-users", request: request.toCbor())
-        return try DevUsersResponse.fromCbor(csilResp)
-    }
+  public func listDevUsers(_ request: EmptyRequest) throws -> DevUsersResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "DevAuthService",
+      op: "list-dev-users",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "DevAuthService",
+      op: "list-dev-users",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try DevUsersResponse.fromCbor(csilResp)
+  }
 
-    public func devLogin(_ request: DevLoginRequest) throws -> LoginResponse {
-        let csilResp = try transport.call(service: "DevAuthService", op: "dev-login", request: request.toCbor())
-        return try LoginResponse.fromCbor(csilResp)
-    }
+  public func devLogin(_ request: DevLoginRequest) throws -> LoginResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "DevAuthService",
+      op: "dev-login",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "DevAuthService",
+      op: "dev-login",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try LoginResponse.fromCbor(csilResp)
+  }
 
 }
 
 /// HouseClient is a typed client for the HouseService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct HouseClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func createHouse(_ request: House) throws -> House {
-        let csilResp = try transport.call(service: "HouseService", op: "create-house", request: request.toCbor())
-        return try House.fromCbor(csilResp)
-    }
+  public func createHouse(_ request: House) throws -> House {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "HouseService",
+      op: "create-house",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "HouseService",
+      op: "create-house",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try House.fromCbor(csilResp)
+  }
 
-    public func getHouse(_ request: HouseId) throws -> House {
-        let csilResp = try transport.call(service: "HouseService", op: "get-house", request: encodeHouseGetHouseRequest(request))
-        return try House.fromCbor(csilResp)
-    }
+  public func getHouse(_ request: HouseId) throws -> House {
+    let csilRequest = try encodeHouseGetHouseRequest(request)
+    let csilReply = try transport.callReply(
+      service: "HouseService",
+      op: "get-house",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "HouseService",
+      op: "get-house",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try House.fromCbor(csilResp)
+  }
 
-    public func updateHouse(_ request: House) throws -> House {
-        let csilResp = try transport.call(service: "HouseService", op: "update-house", request: request.toCbor())
-        return try House.fromCbor(csilResp)
-    }
+  public func updateHouse(_ request: House) throws -> House {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "HouseService",
+      op: "update-house",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "HouseService",
+      op: "update-house",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try House.fromCbor(csilResp)
+  }
 
-    public func deleteHouse(_ request: HouseId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "HouseService", op: "delete-house", request: encodeHouseDeleteHouseRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteHouse(_ request: HouseId) throws -> EmptyResponse {
+    let csilRequest = try encodeHouseDeleteHouseRequest(request)
+    let csilReply = try transport.callReply(
+      service: "HouseService",
+      op: "delete-house",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "HouseService",
+      op: "delete-house",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listHouses(_ request: HouseListRequest) throws -> [House] {
-        let csilResp = try transport.call(service: "HouseService", op: "list-houses", request: request.toCbor())
-        return try decodeHouseListHousesResponse(csilResp)
-    }
+  public func listHouses(_ request: HouseListRequest) throws -> HouseItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "HouseService",
+      op: "list-houses",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "HouseService",
+      op: "list-houses",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeHouseListHousesResponse(csilResp)
+  }
 
 }
 
 /// MemberClient is a typed client for the MemberService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct MemberClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func createMember(_ request: Member) throws -> Member {
-        let csilResp = try transport.call(service: "MemberService", op: "create-member", request: request.toCbor())
-        return try Member.fromCbor(csilResp)
-    }
+  public func createMember(_ request: Member) throws -> Member {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "MemberService",
+      op: "create-member",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "MemberService",
+      op: "create-member",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Member.fromCbor(csilResp)
+  }
 
-    public func getMember(_ request: MemberId) throws -> Member {
-        let csilResp = try transport.call(service: "MemberService", op: "get-member", request: encodeMemberGetMemberRequest(request))
-        return try Member.fromCbor(csilResp)
-    }
+  public func getMember(_ request: MemberId) throws -> Member {
+    let csilRequest = try encodeMemberGetMemberRequest(request)
+    let csilReply = try transport.callReply(
+      service: "MemberService",
+      op: "get-member",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "MemberService",
+      op: "get-member",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Member.fromCbor(csilResp)
+  }
 
-    public func getMemberByIdentity(_ request: Member) throws -> Member {
-        let csilResp = try transport.call(service: "MemberService", op: "get-member-by-identity", request: request.toCbor())
-        return try Member.fromCbor(csilResp)
-    }
+  public func getMemberByIdentity(_ request: Member) throws -> Member {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "MemberService",
+      op: "get-member-by-identity",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "MemberService",
+      op: "get-member-by-identity",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Member.fromCbor(csilResp)
+  }
 
-    public func updateMember(_ request: Member) throws -> Member {
-        let csilResp = try transport.call(service: "MemberService", op: "update-member", request: request.toCbor())
-        return try Member.fromCbor(csilResp)
-    }
+  public func updateMember(_ request: Member) throws -> Member {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "MemberService",
+      op: "update-member",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "MemberService",
+      op: "update-member",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Member.fromCbor(csilResp)
+  }
 
-    public func deactivateMember(_ request: MemberId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "MemberService", op: "deactivate-member", request: encodeMemberDeactivateMemberRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deactivateMember(_ request: MemberId) throws -> EmptyResponse {
+    let csilRequest = try encodeMemberDeactivateMemberRequest(request)
+    let csilReply = try transport.callReply(
+      service: "MemberService",
+      op: "deactivate-member",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "MemberService",
+      op: "deactivate-member",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func reactivateMember(_ request: MemberId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "MemberService", op: "reactivate-member", request: encodeMemberReactivateMemberRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func reactivateMember(_ request: MemberId) throws -> EmptyResponse {
+    let csilRequest = try encodeMemberReactivateMemberRequest(request)
+    let csilReply = try transport.callReply(
+      service: "MemberService",
+      op: "reactivate-member",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "MemberService",
+      op: "reactivate-member",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listMembers(_ request: HouseScopedListRequest) throws -> [Member] {
-        let csilResp = try transport.call(service: "MemberService", op: "list-members", request: request.toCbor())
-        return try decodeMemberListMembersResponse(csilResp)
-    }
+  public func listMembers(_ request: HouseScopedListRequest) throws -> MemberItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "MemberService",
+      op: "list-members",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "MemberService",
+      op: "list-members",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeMemberListMembersResponse(csilResp)
+  }
 
 }
 
 /// TrustedDomainClient is a typed client for the TrustedDomainService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct TrustedDomainClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func addTrustedDomain(_ request: TrustedDomain) throws -> TrustedDomain {
-        let csilResp = try transport.call(service: "TrustedDomainService", op: "add-trusted-domain", request: request.toCbor())
-        return try TrustedDomain.fromCbor(csilResp)
-    }
+  public func addTrustedDomain(_ request: TrustedDomain) throws -> TrustedDomain {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TrustedDomainService",
+      op: "add-trusted-domain",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TrustedDomainService",
+      op: "add-trusted-domain",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try TrustedDomain.fromCbor(csilResp)
+  }
 
-    public func removeTrustedDomain(_ request: TrustedDomainId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "TrustedDomainService", op: "remove-trusted-domain", request: encodeTrustedDomainRemoveTrustedDomainRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func removeTrustedDomain(_ request: TrustedDomainId) throws -> EmptyResponse {
+    let csilRequest = try encodeTrustedDomainRemoveTrustedDomainRequest(request)
+    let csilReply = try transport.callReply(
+      service: "TrustedDomainService",
+      op: "remove-trusted-domain",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TrustedDomainService",
+      op: "remove-trusted-domain",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listTrustedDomains(_ request: HouseId) throws -> [TrustedDomain] {
-        let csilResp = try transport.call(service: "TrustedDomainService", op: "list-trusted-domains", request: encodeTrustedDomainListTrustedDomainsRequest(request))
-        return try decodeTrustedDomainListTrustedDomainsResponse(csilResp)
-    }
+  public func listTrustedDomains(_ request: HouseId) throws -> TrustedDomainItems {
+    let csilRequest = try encodeTrustedDomainListTrustedDomainsRequest(request)
+    let csilReply = try transport.callReply(
+      service: "TrustedDomainService",
+      op: "list-trusted-domains",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TrustedDomainService",
+      op: "list-trusted-domains",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeTrustedDomainListTrustedDomainsResponse(csilResp)
+  }
 
-    public func isDomainTrusted(_ request: TrustedDomain) throws -> BoolResponse {
-        let csilResp = try transport.call(service: "TrustedDomainService", op: "is-domain-trusted", request: request.toCbor())
-        return try BoolResponse.fromCbor(csilResp)
-    }
+  public func isDomainTrusted(_ request: TrustedDomain) throws -> BoolResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TrustedDomainService",
+      op: "is-domain-trusted",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TrustedDomainService",
+      op: "is-domain-trusted",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try BoolResponse.fromCbor(csilResp)
+  }
 
 }
 
 /// RoleClient is a typed client for the RoleService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct RoleClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func createRole(_ request: Role) throws -> Role {
-        let csilResp = try transport.call(service: "RoleService", op: "create-role", request: request.toCbor())
-        return try Role.fromCbor(csilResp)
-    }
+  public func createRole(_ request: Role) throws -> Role {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "RoleService",
+      op: "create-role",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "RoleService",
+      op: "create-role",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Role.fromCbor(csilResp)
+  }
 
-    public func updateRole(_ request: Role) throws -> Role {
-        let csilResp = try transport.call(service: "RoleService", op: "update-role", request: request.toCbor())
-        return try Role.fromCbor(csilResp)
-    }
+  public func updateRole(_ request: Role) throws -> Role {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "RoleService",
+      op: "update-role",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "RoleService",
+      op: "update-role",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Role.fromCbor(csilResp)
+  }
 
-    public func deleteRole(_ request: RoleId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "RoleService", op: "delete-role", request: encodeRoleDeleteRoleRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteRole(_ request: RoleId) throws -> EmptyResponse {
+    let csilRequest = try encodeRoleDeleteRoleRequest(request)
+    let csilReply = try transport.callReply(
+      service: "RoleService",
+      op: "delete-role",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "RoleService",
+      op: "delete-role",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listRoles(_ request: HouseScopedListRequest) throws -> [Role] {
-        let csilResp = try transport.call(service: "RoleService", op: "list-roles", request: request.toCbor())
-        return try decodeRoleListRolesResponse(csilResp)
-    }
+  public func listRoles(_ request: HouseScopedListRequest) throws -> RoleItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "RoleService",
+      op: "list-roles",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "RoleService",
+      op: "list-roles",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeRoleListRolesResponse(csilResp)
+  }
 
-    public func grantRole(_ request: MemberRoleRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "RoleService", op: "grant-role", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func grantRole(_ request: MemberRoleRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "RoleService",
+      op: "grant-role",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "RoleService",
+      op: "grant-role",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func revokeRole(_ request: MemberRoleRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "RoleService", op: "revoke-role", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func revokeRole(_ request: MemberRoleRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "RoleService",
+      op: "revoke-role",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "RoleService",
+      op: "revoke-role",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listMemberRoles(_ request: MemberScopedListRequest) throws -> [Role] {
-        let csilResp = try transport.call(service: "RoleService", op: "list-member-roles", request: request.toCbor())
-        return try decodeRoleListMemberRolesResponse(csilResp)
-    }
+  public func listMemberRoles(_ request: MemberScopedListRequest) throws -> RoleItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "RoleService",
+      op: "list-member-roles",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "RoleService",
+      op: "list-member-roles",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeRoleListMemberRolesResponse(csilResp)
+  }
 
 }
 
 /// SkillClient is a typed client for the SkillService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct SkillClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func createSkill(_ request: Skill) throws -> Skill {
-        let csilResp = try transport.call(service: "SkillService", op: "create-skill", request: request.toCbor())
-        return try Skill.fromCbor(csilResp)
-    }
+  public func createSkill(_ request: Skill) throws -> Skill {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "SkillService",
+      op: "create-skill",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SkillService",
+      op: "create-skill",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Skill.fromCbor(csilResp)
+  }
 
-    public func updateSkill(_ request: Skill) throws -> Skill {
-        let csilResp = try transport.call(service: "SkillService", op: "update-skill", request: request.toCbor())
-        return try Skill.fromCbor(csilResp)
-    }
+  public func updateSkill(_ request: Skill) throws -> Skill {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "SkillService",
+      op: "update-skill",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SkillService",
+      op: "update-skill",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Skill.fromCbor(csilResp)
+  }
 
-    public func deleteSkill(_ request: SkillId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "SkillService", op: "delete-skill", request: encodeSkillDeleteSkillRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteSkill(_ request: SkillId) throws -> EmptyResponse {
+    let csilRequest = try encodeSkillDeleteSkillRequest(request)
+    let csilReply = try transport.callReply(
+      service: "SkillService",
+      op: "delete-skill",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SkillService",
+      op: "delete-skill",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listSkills(_ request: HouseScopedListRequest) throws -> [Skill] {
-        let csilResp = try transport.call(service: "SkillService", op: "list-skills", request: request.toCbor())
-        return try decodeSkillListSkillsResponse(csilResp)
-    }
+  public func listSkills(_ request: HouseScopedListRequest) throws -> SkillItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "SkillService",
+      op: "list-skills",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SkillService",
+      op: "list-skills",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeSkillListSkillsResponse(csilResp)
+  }
 
-    public func addMemberSkill(_ request: MemberSkillRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "SkillService", op: "add-member-skill", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func addMemberSkill(_ request: MemberSkillRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "SkillService",
+      op: "add-member-skill",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SkillService",
+      op: "add-member-skill",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func removeMemberSkill(_ request: MemberSkillRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "SkillService", op: "remove-member-skill", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func removeMemberSkill(_ request: MemberSkillRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "SkillService",
+      op: "remove-member-skill",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SkillService",
+      op: "remove-member-skill",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listMemberSkills(_ request: MemberScopedListRequest) throws -> [Skill] {
-        let csilResp = try transport.call(service: "SkillService", op: "list-member-skills", request: request.toCbor())
-        return try decodeSkillListMemberSkillsResponse(csilResp)
-    }
+  public func listMemberSkills(_ request: MemberScopedListRequest) throws -> SkillItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "SkillService",
+      op: "list-member-skills",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SkillService",
+      op: "list-member-skills",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeSkillListMemberSkillsResponse(csilResp)
+  }
 
-    public func addGroupSkill(_ request: GroupSkillRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "SkillService", op: "add-group-skill", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func addGroupSkill(_ request: GroupSkillRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "SkillService",
+      op: "add-group-skill",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SkillService",
+      op: "add-group-skill",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func removeGroupSkill(_ request: GroupSkillRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "SkillService", op: "remove-group-skill", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func removeGroupSkill(_ request: GroupSkillRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "SkillService",
+      op: "remove-group-skill",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SkillService",
+      op: "remove-group-skill",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listGroupSkills(_ request: GroupId) throws -> [Skill] {
-        let csilResp = try transport.call(service: "SkillService", op: "list-group-skills", request: encodeSkillListGroupSkillsRequest(request))
-        return try decodeSkillListGroupSkillsResponse(csilResp)
-    }
+  public func listGroupSkills(_ request: GroupId) throws -> SkillItems {
+    let csilRequest = try encodeSkillListGroupSkillsRequest(request)
+    let csilReply = try transport.callReply(
+      service: "SkillService",
+      op: "list-group-skills",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SkillService",
+      op: "list-group-skills",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeSkillListGroupSkillsResponse(csilResp)
+  }
 
 }
 
 /// GroupClient is a typed client for the GroupService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct GroupClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func createGroup(_ request: Group) throws -> Group {
-        let csilResp = try transport.call(service: "GroupService", op: "create-group", request: request.toCbor())
-        return try Group.fromCbor(csilResp)
-    }
+  public func createGroup(_ request: Group) throws -> Group {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "GroupService",
+      op: "create-group",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "GroupService",
+      op: "create-group",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Group.fromCbor(csilResp)
+  }
 
-    public func updateGroup(_ request: Group) throws -> Group {
-        let csilResp = try transport.call(service: "GroupService", op: "update-group", request: request.toCbor())
-        return try Group.fromCbor(csilResp)
-    }
+  public func updateGroup(_ request: Group) throws -> Group {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "GroupService",
+      op: "update-group",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "GroupService",
+      op: "update-group",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Group.fromCbor(csilResp)
+  }
 
-    public func deleteGroup(_ request: GroupId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "GroupService", op: "delete-group", request: encodeGroupDeleteGroupRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteGroup(_ request: GroupId) throws -> EmptyResponse {
+    let csilRequest = try encodeGroupDeleteGroupRequest(request)
+    let csilReply = try transport.callReply(
+      service: "GroupService",
+      op: "delete-group",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "GroupService",
+      op: "delete-group",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listGroups(_ request: HouseScopedListRequest) throws -> [Group] {
-        let csilResp = try transport.call(service: "GroupService", op: "list-groups", request: request.toCbor())
-        return try decodeGroupListGroupsResponse(csilResp)
-    }
+  public func listGroups(_ request: HouseScopedListRequest) throws -> GroupItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "GroupService",
+      op: "list-groups",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "GroupService",
+      op: "list-groups",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeGroupListGroupsResponse(csilResp)
+  }
 
-    public func addGroupMember(_ request: GroupMemberRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "GroupService", op: "add-group-member", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func addGroupMember(_ request: GroupMemberRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "GroupService",
+      op: "add-group-member",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "GroupService",
+      op: "add-group-member",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func removeGroupMember(_ request: GroupMemberRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "GroupService", op: "remove-group-member", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func removeGroupMember(_ request: GroupMemberRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "GroupService",
+      op: "remove-group-member",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "GroupService",
+      op: "remove-group-member",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listGroupMembers(_ request: MemberScopedListRequest) throws -> [Member] {
-        let csilResp = try transport.call(service: "GroupService", op: "list-group-members", request: request.toCbor())
-        return try decodeGroupListGroupMembersResponse(csilResp)
-    }
+  public func listGroupMembers(_ request: MemberScopedListRequest) throws -> MemberItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "GroupService",
+      op: "list-group-members",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "GroupService",
+      op: "list-group-members",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeGroupListGroupMembersResponse(csilResp)
+  }
 
 }
 
 /// ProjectClient is a typed client for the ProjectService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct ProjectClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func createProject(_ request: Project) throws -> Project {
-        let csilResp = try transport.call(service: "ProjectService", op: "create-project", request: request.toCbor())
-        return try Project.fromCbor(csilResp)
-    }
+  public func createProject(_ request: Project) throws -> Project {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "create-project",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "create-project",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Project.fromCbor(csilResp)
+  }
 
-    public func getProject(_ request: ProjectId) throws -> Project {
-        let csilResp = try transport.call(service: "ProjectService", op: "get-project", request: encodeProjectGetProjectRequest(request))
-        return try Project.fromCbor(csilResp)
-    }
+  public func getProject(_ request: ProjectId) throws -> Project {
+    let csilRequest = try encodeProjectGetProjectRequest(request)
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "get-project",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "get-project",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Project.fromCbor(csilResp)
+  }
 
-    public func updateProject(_ request: Project) throws -> Project {
-        let csilResp = try transport.call(service: "ProjectService", op: "update-project", request: request.toCbor())
-        return try Project.fromCbor(csilResp)
-    }
+  public func updateProject(_ request: Project) throws -> Project {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "update-project",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "update-project",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Project.fromCbor(csilResp)
+  }
 
-    public func deleteProject(_ request: ProjectId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ProjectService", op: "delete-project", request: encodeProjectDeleteProjectRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteProject(_ request: ProjectId) throws -> EmptyResponse {
+    let csilRequest = try encodeProjectDeleteProjectRequest(request)
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "delete-project",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "delete-project",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listProjects(_ request: HouseScopedListRequest) throws -> ProjectList {
-        let csilResp = try transport.call(service: "ProjectService", op: "list-projects", request: request.toCbor())
-        return try ProjectList.fromCbor(csilResp)
-    }
+  public func listProjects(_ request: HouseScopedListRequest) throws -> ProjectList {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "list-projects",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "list-projects",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try ProjectList.fromCbor(csilResp)
+  }
 
-    public func listProjectTasks(_ request: ProjectScopedListRequest) throws -> TaskList {
-        let csilResp = try transport.call(service: "ProjectService", op: "list-project-tasks", request: request.toCbor())
-        return try TaskList.fromCbor(csilResp)
-    }
+  public func listProjectTasks(_ request: ProjectScopedListRequest) throws -> TaskList {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "list-project-tasks",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "list-project-tasks",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try TaskList.fromCbor(csilResp)
+  }
 
-    public func addProjectTask(_ request: ProjectTaskOrderRequest) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ProjectService", op: "add-project-task", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func addProjectTask(_ request: ProjectTaskOrderRequest) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "add-project-task",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "add-project-task",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func removeProjectTask(_ request: ProjectTaskRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ProjectService", op: "remove-project-task", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func removeProjectTask(_ request: ProjectTaskRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "remove-project-task",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "remove-project-task",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func setProjectTaskPosition(_ request: ProjectTaskOrderRequest) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ProjectService", op: "set-project-task-position", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func setProjectTaskPosition(_ request: ProjectTaskOrderRequest) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "set-project-task-position",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "set-project-task-position",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listProjectMembers(_ request: ProjectId) throws -> [Member] {
-        let csilResp = try transport.call(service: "ProjectService", op: "list-project-members", request: encodeProjectListProjectMembersRequest(request))
-        return try decodeProjectListProjectMembersResponse(csilResp)
-    }
+  public func listProjectMembers(_ request: ProjectId) throws -> MemberItems {
+    let csilRequest = try encodeProjectListProjectMembersRequest(request)
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "list-project-members",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "list-project-members",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeProjectListProjectMembersResponse(csilResp)
+  }
 
-    public func addProjectMember(_ request: ProjectMemberRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ProjectService", op: "add-project-member", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func addProjectMember(_ request: ProjectMemberRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "add-project-member",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "add-project-member",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func removeProjectMember(_ request: ProjectMemberRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ProjectService", op: "remove-project-member", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func removeProjectMember(_ request: ProjectMemberRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "remove-project-member",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "remove-project-member",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listProjectOwners(_ request: ProjectId) throws -> [Member] {
-        let csilResp = try transport.call(service: "ProjectService", op: "list-project-owners", request: encodeProjectListProjectOwnersRequest(request))
-        return try decodeProjectListProjectOwnersResponse(csilResp)
-    }
+  public func listProjectOwners(_ request: ProjectId) throws -> MemberItems {
+    let csilRequest = try encodeProjectListProjectOwnersRequest(request)
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "list-project-owners",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "list-project-owners",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeProjectListProjectOwnersResponse(csilResp)
+  }
 
-    public func addProjectOwner(_ request: ProjectOwnerRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ProjectService", op: "add-project-owner", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func addProjectOwner(_ request: ProjectOwnerRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "add-project-owner",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "add-project-owner",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func removeProjectOwner(_ request: ProjectOwnerRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ProjectService", op: "remove-project-owner", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func removeProjectOwner(_ request: ProjectOwnerRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "remove-project-owner",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "remove-project-owner",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listMilestones(_ request: ProjectId) throws -> [Milestone] {
-        let csilResp = try transport.call(service: "ProjectService", op: "list-milestones", request: encodeProjectListMilestonesRequest(request))
-        return try decodeProjectListMilestonesResponse(csilResp)
-    }
+  public func listMilestones(_ request: ProjectId) throws -> MilestoneItems {
+    let csilRequest = try encodeProjectListMilestonesRequest(request)
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "list-milestones",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "list-milestones",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeProjectListMilestonesResponse(csilResp)
+  }
 
-    public func createMilestone(_ request: Milestone) throws -> Milestone {
-        let csilResp = try transport.call(service: "ProjectService", op: "create-milestone", request: request.toCbor())
-        return try Milestone.fromCbor(csilResp)
-    }
+  public func createMilestone(_ request: Milestone) throws -> Milestone {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "create-milestone",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "create-milestone",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Milestone.fromCbor(csilResp)
+  }
 
-    public func updateMilestone(_ request: Milestone) throws -> Milestone {
-        let csilResp = try transport.call(service: "ProjectService", op: "update-milestone", request: request.toCbor())
-        return try Milestone.fromCbor(csilResp)
-    }
+  public func updateMilestone(_ request: Milestone) throws -> Milestone {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "update-milestone",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "update-milestone",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Milestone.fromCbor(csilResp)
+  }
 
-    public func deleteMilestone(_ request: MilestoneId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ProjectService", op: "delete-milestone", request: encodeProjectDeleteMilestoneRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteMilestone(_ request: MilestoneId) throws -> EmptyResponse {
+    let csilRequest = try encodeProjectDeleteMilestoneRequest(request)
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "delete-milestone",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "delete-milestone",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func setProjectVisibility(_ request: SetProjectVisibilityRequest) throws -> Project {
-        let csilResp = try transport.call(service: "ProjectService", op: "set-project-visibility", request: request.toCbor())
-        return try Project.fromCbor(csilResp)
-    }
+  public func setProjectVisibility(_ request: SetProjectVisibilityRequest) throws -> Project {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "set-project-visibility",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "set-project-visibility",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Project.fromCbor(csilResp)
+  }
 
-    public func listProjectGrants(_ request: ProjectId) throws -> [Grant] {
-        let csilResp = try transport.call(service: "ProjectService", op: "list-project-grants", request: encodeProjectListProjectGrantsRequest(request))
-        return try decodeProjectListProjectGrantsResponse(csilResp)
-    }
+  public func listProjectGrants(_ request: ProjectId) throws -> GrantItems {
+    let csilRequest = try encodeProjectListProjectGrantsRequest(request)
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "list-project-grants",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "list-project-grants",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeProjectListProjectGrantsResponse(csilResp)
+  }
 
-    public func putProjectGrant(_ request: PutProjectGrantRequest) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ProjectService", op: "put-project-grant", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func putProjectGrant(_ request: PutProjectGrantRequest) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "put-project-grant",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "put-project-grant",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func deleteProjectGrant(_ request: ProjectGrantRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ProjectService", op: "delete-project-grant", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteProjectGrant(_ request: ProjectGrantRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ProjectService",
+      op: "delete-project-grant",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ProjectService",
+      op: "delete-project-grant",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
 }
 
 /// EventClient is a typed client for the EventService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct EventClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func createEvent(_ request: Event) throws -> Event {
-        let csilResp = try transport.call(service: "EventService", op: "create-event", request: request.toCbor())
-        return try Event.fromCbor(csilResp)
-    }
+  public func createEvent(_ request: Event) throws -> Event {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "create-event",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "create-event",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Event.fromCbor(csilResp)
+  }
 
-    public func getEvent(_ request: EventId) throws -> Event {
-        let csilResp = try transport.call(service: "EventService", op: "get-event", request: encodeEventGetEventRequest(request))
-        return try Event.fromCbor(csilResp)
-    }
+  public func getEvent(_ request: EventId) throws -> Event {
+    let csilRequest = try encodeEventGetEventRequest(request)
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "get-event",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "get-event",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Event.fromCbor(csilResp)
+  }
 
-    public func updateEvent(_ request: Event) throws -> Event {
-        let csilResp = try transport.call(service: "EventService", op: "update-event", request: request.toCbor())
-        return try Event.fromCbor(csilResp)
-    }
+  public func updateEvent(_ request: Event) throws -> Event {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "update-event",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "update-event",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Event.fromCbor(csilResp)
+  }
 
-    public func deleteEvent(_ request: EventId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "EventService", op: "delete-event", request: encodeEventDeleteEventRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteEvent(_ request: EventId) throws -> EmptyResponse {
+    let csilRequest = try encodeEventDeleteEventRequest(request)
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "delete-event",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "delete-event",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func deleteEventAndFuture(_ request: EventId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "EventService", op: "delete-event-and-future", request: encodeEventDeleteEventAndFutureRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteEventAndFuture(_ request: EventId) throws -> EmptyResponse {
+    let csilRequest = try encodeEventDeleteEventAndFutureRequest(request)
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "delete-event-and-future",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "delete-event-and-future",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listEvents(_ request: EventListRequest) throws -> [Event] {
-        let csilResp = try transport.call(service: "EventService", op: "list-events", request: request.toCbor())
-        return try decodeEventListEventsResponse(csilResp)
-    }
+  public func listEvents(_ request: EventListRequest) throws -> EventItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "list-events",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "list-events",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeEventListEventsResponse(csilResp)
+  }
 
-    public func getCalendarView(_ request: HouseId) throws -> CalendarView {
-        let csilResp = try transport.call(service: "EventService", op: "get-calendar-view", request: encodeEventGetCalendarViewRequest(request))
-        return try CalendarView.fromCbor(csilResp)
-    }
+  public func getCalendarView(_ request: HouseId) throws -> CalendarView {
+    let csilRequest = try encodeEventGetCalendarViewRequest(request)
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "get-calendar-view",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "get-calendar-view",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try CalendarView.fromCbor(csilResp)
+  }
 
-    public func setCalendarView(_ request: CalendarView) throws -> CalendarView {
-        let csilResp = try transport.call(service: "EventService", op: "set-calendar-view", request: request.toCbor())
-        return try CalendarView.fromCbor(csilResp)
-    }
+  public func setCalendarView(_ request: CalendarView) throws -> CalendarView {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "set-calendar-view",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "set-calendar-view",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try CalendarView.fromCbor(csilResp)
+  }
 
-    public func acceptEvent(_ request: EventDecision) throws -> Event {
-        let csilResp = try transport.call(service: "EventService", op: "accept-event", request: request.toCbor())
-        return try Event.fromCbor(csilResp)
-    }
+  public func acceptEvent(_ request: EventDecision) throws -> Event {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "accept-event",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "accept-event",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Event.fromCbor(csilResp)
+  }
 
-    public func recoverEdit(_ request: EventId) throws -> Event {
-        let csilResp = try transport.call(service: "EventService", op: "recover-edit", request: encodeEventRecoverEditRequest(request))
-        return try Event.fromCbor(csilResp)
-    }
+  public func recoverEdit(_ request: EventId) throws -> Event {
+    let csilRequest = try encodeEventRecoverEditRequest(request)
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "recover-edit",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "recover-edit",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Event.fromCbor(csilResp)
+  }
 
-    public func declineEvent(_ request: EventDecision) throws -> Event {
-        let csilResp = try transport.call(service: "EventService", op: "decline-event", request: request.toCbor())
-        return try Event.fromCbor(csilResp)
-    }
+  public func declineEvent(_ request: EventDecision) throws -> Event {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "decline-event",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "decline-event",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Event.fromCbor(csilResp)
+  }
 
-    public func listLocalEvents(_ request: HouseId) throws -> [Event] {
-        let csilResp = try transport.call(service: "EventService", op: "list-local-events", request: encodeEventListLocalEventsRequest(request))
-        return try decodeEventListLocalEventsResponse(csilResp)
-    }
+  public func listLocalEvents(_ request: HouseId) throws -> EventItems {
+    let csilRequest = try encodeEventListLocalEventsRequest(request)
+    let csilReply = try transport.callReply(
+      service: "EventService",
+      op: "list-local-events",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "EventService",
+      op: "list-local-events",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeEventListLocalEventsResponse(csilResp)
+  }
 
 }
 
 /// CalendarClient is a typed client for the CalendarService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct CalendarClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func listProjectDeadlines(_ request: ProjectDeadlineRequest) throws -> ProjectDeadlineList {
-        let csilResp = try transport.call(service: "CalendarService", op: "list-project-deadlines", request: request.toCbor())
-        return try ProjectDeadlineList.fromCbor(csilResp)
-    }
+  public func listProjectDeadlines(
+    _ request: ProjectDeadlineRequest
+  ) throws -> ProjectDeadlineList {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "CalendarService",
+      op: "list-project-deadlines",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CalendarService",
+      op: "list-project-deadlines",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try ProjectDeadlineList.fromCbor(csilResp)
+  }
 
-    public func getStatus(_ request: HouseId) throws -> CalendarStatus {
-        let csilResp = try transport.call(service: "CalendarService", op: "get-status", request: encodeCalendarGetStatusRequest(request))
-        return try CalendarStatus.fromCbor(csilResp)
-    }
+  public func getStatus(_ request: HouseId) throws -> CalendarStatus {
+    let csilRequest = try encodeCalendarGetStatusRequest(request)
+    let csilReply = try transport.callReply(
+      service: "CalendarService",
+      op: "get-status",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CalendarService",
+      op: "get-status",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try CalendarStatus.fromCbor(csilResp)
+  }
 
-    public func configureCalendar(_ request: ConfigureCalendarRequest) throws -> CalendarStatus {
-        let csilResp = try transport.call(service: "CalendarService", op: "configure-calendar", request: request.toCbor())
-        return try CalendarStatus.fromCbor(csilResp)
-    }
+  public func configureCalendar(_ request: ConfigureCalendarRequest) throws -> CalendarStatus {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "CalendarService",
+      op: "configure-calendar",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CalendarService",
+      op: "configure-calendar",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try CalendarStatus.fromCbor(csilResp)
+  }
 
-    public func beginConnect(_ request: HouseId) throws -> CalendarConnectResponse {
-        let csilResp = try transport.call(service: "CalendarService", op: "begin-connect", request: encodeCalendarBeginConnectRequest(request))
-        return try CalendarConnectResponse.fromCbor(csilResp)
-    }
+  public func beginConnect(_ request: HouseId) throws -> CalendarConnectResponse {
+    let csilRequest = try encodeCalendarBeginConnectRequest(request)
+    let csilReply = try transport.callReply(
+      service: "CalendarService",
+      op: "begin-connect",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CalendarService",
+      op: "begin-connect",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try CalendarConnectResponse.fromCbor(csilResp)
+  }
 
-    public func completeConnect(_ request: CompleteCalendarConnectRequest) throws -> CalendarStatus {
-        let csilResp = try transport.call(service: "CalendarService", op: "complete-connect", request: request.toCbor())
-        return try CalendarStatus.fromCbor(csilResp)
-    }
+  public func completeConnect(_ request: CompleteCalendarConnectRequest) throws -> CalendarStatus {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "CalendarService",
+      op: "complete-connect",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CalendarService",
+      op: "complete-connect",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try CalendarStatus.fromCbor(csilResp)
+  }
 
-    public func disconnect(_ request: HouseId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "CalendarService", op: "disconnect", request: encodeCalendarDisconnectRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func disconnect(_ request: HouseId) throws -> EmptyResponse {
+    let csilRequest = try encodeCalendarDisconnectRequest(request)
+    let csilReply = try transport.callReply(
+      service: "CalendarService",
+      op: "disconnect",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CalendarService",
+      op: "disconnect",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func previewMigration(_ request: HouseId) throws -> [CalendarMigrationRow] {
-        let csilResp = try transport.call(service: "CalendarService", op: "preview-migration", request: encodeCalendarPreviewMigrationRequest(request))
-        return try decodeCalendarPreviewMigrationResponse(csilResp)
-    }
+  public func previewMigration(_ request: HouseId) throws -> CalendarMigrationRowItems {
+    let csilRequest = try encodeCalendarPreviewMigrationRequest(request)
+    let csilReply = try transport.callReply(
+      service: "CalendarService",
+      op: "preview-migration",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CalendarService",
+      op: "preview-migration",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeCalendarPreviewMigrationResponse(csilResp)
+  }
 
-    public func listTrash(_ request: HouseId) throws -> [CalendarTrashEntry] {
-        let csilResp = try transport.call(service: "CalendarService", op: "list-trash", request: encodeCalendarListTrashRequest(request))
-        return try decodeCalendarListTrashResponse(csilResp)
-    }
+  public func listTrash(_ request: HouseId) throws -> CalendarTrashEntryItems {
+    let csilRequest = try encodeCalendarListTrashRequest(request)
+    let csilReply = try transport.callReply(
+      service: "CalendarService",
+      op: "list-trash",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CalendarService",
+      op: "list-trash",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeCalendarListTrashResponse(csilResp)
+  }
 
-    public func restoreEvent(_ request: RestoreCalendarEventRequest) throws -> Event {
-        let csilResp = try transport.call(service: "CalendarService", op: "restore-event", request: request.toCbor())
-        return try Event.fromCbor(csilResp)
-    }
+  public func restoreEvent(_ request: RestoreCalendarEventRequest) throws -> Event {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "CalendarService",
+      op: "restore-event",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CalendarService",
+      op: "restore-event",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Event.fromCbor(csilResp)
+  }
 
 }
 
 /// TaskClient is a typed client for the TaskService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct TaskClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func createTask(_ request: Task) throws -> Task {
-        let csilResp = try transport.call(service: "TaskService", op: "create-task", request: request.toCbor())
-        return try Task.fromCbor(csilResp)
-    }
+  public func createTask(_ request: Task) throws -> Task {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TaskService",
+      op: "create-task",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TaskService",
+      op: "create-task",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Task.fromCbor(csilResp)
+  }
 
-    public func getTask(_ request: TaskId) throws -> Task {
-        let csilResp = try transport.call(service: "TaskService", op: "get-task", request: encodeTaskGetTaskRequest(request))
-        return try Task.fromCbor(csilResp)
-    }
+  public func getTask(_ request: TaskId) throws -> Task {
+    let csilRequest = try encodeTaskGetTaskRequest(request)
+    let csilReply = try transport.callReply(
+      service: "TaskService",
+      op: "get-task",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TaskService",
+      op: "get-task",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Task.fromCbor(csilResp)
+  }
 
-    public func updateTask(_ request: Task) throws -> Task {
-        let csilResp = try transport.call(service: "TaskService", op: "update-task", request: request.toCbor())
-        return try Task.fromCbor(csilResp)
-    }
+  public func updateTask(_ request: Task) throws -> Task {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TaskService",
+      op: "update-task",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TaskService",
+      op: "update-task",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Task.fromCbor(csilResp)
+  }
 
-    public func deleteTask(_ request: TaskId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "TaskService", op: "delete-task", request: encodeTaskDeleteTaskRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteTask(_ request: TaskId) throws -> EmptyResponse {
+    let csilRequest = try encodeTaskDeleteTaskRequest(request)
+    let csilReply = try transport.callReply(
+      service: "TaskService",
+      op: "delete-task",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TaskService",
+      op: "delete-task",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listTasks(_ request: TaskListRequest) throws -> TaskList {
-        let csilResp = try transport.call(service: "TaskService", op: "list-tasks", request: request.toCbor())
-        return try TaskList.fromCbor(csilResp)
-    }
+  public func listTasks(_ request: TaskListRequest) throws -> TaskList {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TaskService",
+      op: "list-tasks",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TaskService",
+      op: "list-tasks",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try TaskList.fromCbor(csilResp)
+  }
 
-    public func createPersonalTask(_ request: Task) throws -> Task {
-        let csilResp = try transport.call(service: "TaskService", op: "create-personal-task", request: request.toCbor())
-        return try Task.fromCbor(csilResp)
-    }
+  public func createPersonalTask(_ request: Task) throws -> Task {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TaskService",
+      op: "create-personal-task",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TaskService",
+      op: "create-personal-task",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Task.fromCbor(csilResp)
+  }
 
-    public func setTaskVisibility(_ request: SetTaskVisibilityRequest) throws -> Task {
-        let csilResp = try transport.call(service: "TaskService", op: "set-task-visibility", request: request.toCbor())
-        return try Task.fromCbor(csilResp)
-    }
+  public func setTaskVisibility(_ request: SetTaskVisibilityRequest) throws -> Task {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TaskService",
+      op: "set-task-visibility",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TaskService",
+      op: "set-task-visibility",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Task.fromCbor(csilResp)
+  }
 
-    public func listTaskGrants(_ request: TaskId) throws -> [Grant] {
-        let csilResp = try transport.call(service: "TaskService", op: "list-task-grants", request: encodeTaskListTaskGrantsRequest(request))
-        return try decodeTaskListTaskGrantsResponse(csilResp)
-    }
+  public func listTaskGrants(_ request: TaskId) throws -> GrantItems {
+    let csilRequest = try encodeTaskListTaskGrantsRequest(request)
+    let csilReply = try transport.callReply(
+      service: "TaskService",
+      op: "list-task-grants",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TaskService",
+      op: "list-task-grants",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeTaskListTaskGrantsResponse(csilResp)
+  }
 
-    public func putTaskGrant(_ request: PutTaskGrantRequest) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "TaskService", op: "put-task-grant", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func putTaskGrant(_ request: PutTaskGrantRequest) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TaskService",
+      op: "put-task-grant",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TaskService",
+      op: "put-task-grant",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func deleteTaskGrant(_ request: TaskGrantRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "TaskService", op: "delete-task-grant", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteTaskGrant(_ request: TaskGrantRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TaskService",
+      op: "delete-task-grant",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TaskService",
+      op: "delete-task-grant",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
 }
 
 /// DependencyClient is a typed client for the DependencyService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct DependencyClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func addDependency(_ request: DependencyRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "DependencyService", op: "add-dependency", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func addDependency(_ request: DependencyRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "DependencyService",
+      op: "add-dependency",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "DependencyService",
+      op: "add-dependency",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func removeDependency(_ request: DependencyRef) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "DependencyService", op: "remove-dependency", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func removeDependency(_ request: DependencyRef) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "DependencyService",
+      op: "remove-dependency",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "DependencyService",
+      op: "remove-dependency",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func getDependencies(_ request: DependencyTarget) throws -> DependencyGraph {
-        let csilResp = try transport.call(service: "DependencyService", op: "get-dependencies", request: request.toCbor())
-        return try DependencyGraph.fromCbor(csilResp)
-    }
+  public func getDependencies(_ request: DependencyTarget) throws -> DependencyGraph {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "DependencyService",
+      op: "get-dependencies",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "DependencyService",
+      op: "get-dependencies",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try DependencyGraph.fromCbor(csilResp)
+  }
 
 }
 
 /// CommentClient is a typed client for the CommentService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct CommentClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func createComment(_ request: Comment) throws -> Comment {
-        let csilResp = try transport.call(service: "CommentService", op: "create-comment", request: request.toCbor())
-        return try Comment.fromCbor(csilResp)
-    }
+  public func createComment(_ request: Comment) throws -> Comment {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "CommentService",
+      op: "create-comment",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CommentService",
+      op: "create-comment",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Comment.fromCbor(csilResp)
+  }
 
-    public func getComment(_ request: CommentId) throws -> Comment {
-        let csilResp = try transport.call(service: "CommentService", op: "get-comment", request: encodeCommentGetCommentRequest(request))
-        return try Comment.fromCbor(csilResp)
-    }
+  public func getComment(_ request: CommentId) throws -> Comment {
+    let csilRequest = try encodeCommentGetCommentRequest(request)
+    let csilReply = try transport.callReply(
+      service: "CommentService",
+      op: "get-comment",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CommentService",
+      op: "get-comment",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Comment.fromCbor(csilResp)
+  }
 
-    public func updateComment(_ request: Comment) throws -> Comment {
-        let csilResp = try transport.call(service: "CommentService", op: "update-comment", request: request.toCbor())
-        return try Comment.fromCbor(csilResp)
-    }
+  public func updateComment(_ request: Comment) throws -> Comment {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "CommentService",
+      op: "update-comment",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CommentService",
+      op: "update-comment",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Comment.fromCbor(csilResp)
+  }
 
-    public func deleteComment(_ request: CommentId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "CommentService", op: "delete-comment", request: encodeCommentDeleteCommentRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteComment(_ request: CommentId) throws -> EmptyResponse {
+    let csilRequest = try encodeCommentDeleteCommentRequest(request)
+    let csilReply = try transport.callReply(
+      service: "CommentService",
+      op: "delete-comment",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CommentService",
+      op: "delete-comment",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listComments(_ request: CommentListRequest) throws -> [Comment] {
-        let csilResp = try transport.call(service: "CommentService", op: "list-comments", request: request.toCbor())
-        return try decodeCommentListCommentsResponse(csilResp)
-    }
+  public func listComments(_ request: CommentListRequest) throws -> CommentItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "CommentService",
+      op: "list-comments",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "CommentService",
+      op: "list-comments",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeCommentListCommentsResponse(csilResp)
+  }
 
 }
 
 /// NotificationClient is a typed client for the NotificationService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct NotificationClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func listNotifications(_ request: NotificationListRequest) throws -> [Notification] {
-        let csilResp = try transport.call(service: "NotificationService", op: "list-notifications", request: request.toCbor())
-        return try decodeNotificationListNotificationsResponse(csilResp)
-    }
+  public func listNotifications(_ request: NotificationListRequest) throws -> NotificationItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "NotificationService",
+      op: "list-notifications",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "NotificationService",
+      op: "list-notifications",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeNotificationListNotificationsResponse(csilResp)
+  }
 
-    public func unreadCount(_ request: HouseId) throws -> NotificationUnreadCount {
-        let csilResp = try transport.call(service: "NotificationService", op: "unread-count", request: encodeNotificationUnreadCountRequest(request))
-        return try NotificationUnreadCount.fromCbor(csilResp)
-    }
+  public func unreadCount(_ request: HouseId) throws -> NotificationUnreadCount {
+    let csilRequest = try encodeNotificationUnreadCountRequest(request)
+    let csilReply = try transport.callReply(
+      service: "NotificationService",
+      op: "unread-count",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "NotificationService",
+      op: "unread-count",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try NotificationUnreadCount.fromCbor(csilResp)
+  }
 
-    public func markRead(_ request: NotificationId) throws -> Notification {
-        let csilResp = try transport.call(service: "NotificationService", op: "mark-read", request: encodeNotificationMarkReadRequest(request))
-        return try Notification.fromCbor(csilResp)
-    }
+  public func markRead(_ request: NotificationId) throws -> Notification {
+    let csilRequest = try encodeNotificationMarkReadRequest(request)
+    let csilReply = try transport.callReply(
+      service: "NotificationService",
+      op: "mark-read",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "NotificationService",
+      op: "mark-read",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Notification.fromCbor(csilResp)
+  }
 
-    public func markAllRead(_ request: HouseId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "NotificationService", op: "mark-all-read", request: encodeNotificationMarkAllReadRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func markAllRead(_ request: HouseId) throws -> EmptyResponse {
+    let csilRequest = try encodeNotificationMarkAllReadRequest(request)
+    let csilReply = try transport.callReply(
+      service: "NotificationService",
+      op: "mark-all-read",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "NotificationService",
+      op: "mark-all-read",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
 }
 
 /// ShareClient is a typed client for the ShareService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct ShareClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func createShare(_ request: Share) throws -> Share {
-        let csilResp = try transport.call(service: "ShareService", op: "create-share", request: request.toCbor())
-        return try Share.fromCbor(csilResp)
-    }
+  public func createShare(_ request: Share) throws -> Share {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ShareService",
+      op: "create-share",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ShareService",
+      op: "create-share",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Share.fromCbor(csilResp)
+  }
 
-    public func deleteShare(_ request: ShareId) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "ShareService", op: "delete-share", request: encodeShareDeleteShareRequest(request))
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func deleteShare(_ request: ShareId) throws -> EmptyResponse {
+    let csilRequest = try encodeShareDeleteShareRequest(request)
+    let csilReply = try transport.callReply(
+      service: "ShareService",
+      op: "delete-share",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ShareService",
+      op: "delete-share",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func listSharesByResource(_ request: ResourceRef) throws -> [Share] {
-        let csilResp = try transport.call(service: "ShareService", op: "list-shares-by-resource", request: request.toCbor())
-        return try decodeShareListSharesByResourceResponse(csilResp)
-    }
+  public func listSharesByResource(_ request: ResourceRef) throws -> ShareItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ShareService",
+      op: "list-shares-by-resource",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ShareService",
+      op: "list-shares-by-resource",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeShareListSharesByResourceResponse(csilResp)
+  }
 
-    public func checkAccess(_ request: ShareAccessRequest) throws -> Share {
-        let csilResp = try transport.call(service: "ShareService", op: "check-access", request: request.toCbor())
-        return try Share.fromCbor(csilResp)
-    }
+  public func checkAccess(_ request: ShareAccessRequest) throws -> Share {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "ShareService",
+      op: "check-access",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "ShareService",
+      op: "check-access",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Share.fromCbor(csilResp)
+  }
 
 }
 
 /// MemberAuditClient is a typed client for the MemberAuditService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct MemberAuditClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func listAuditsForMember(_ request: MemberScopedListRequest) throws -> [MemberAudit] {
-        let csilResp = try transport.call(service: "MemberAuditService", op: "list-audits-for-member", request: request.toCbor())
-        return try decodeMemberAuditListAuditsForMemberResponse(csilResp)
-    }
+  public func listAuditsForMember(_ request: MemberScopedListRequest) throws -> MemberAuditItems {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "MemberAuditService",
+      op: "list-audits-for-member",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "MemberAuditService",
+      op: "list-audits-for-member",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try decodeMemberAuditListAuditsForMemberResponse(csilResp)
+  }
 
 }
 
 /// SettingsClient is a typed client for the SettingsService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct SettingsClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func getSettings(_ request: HouseId) throws -> EffectiveSettings {
-        let csilResp = try transport.call(service: "SettingsService", op: "get-settings", request: encodeSettingsGetSettingsRequest(request))
-        return try EffectiveSettings.fromCbor(csilResp)
-    }
+  public func getSettings(_ request: HouseId) throws -> EffectiveSettings {
+    let csilRequest = try encodeSettingsGetSettingsRequest(request)
+    let csilReply = try transport.callReply(
+      service: "SettingsService",
+      op: "get-settings",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SettingsService",
+      op: "get-settings",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EffectiveSettings.fromCbor(csilResp)
+  }
 
-    public func updateSettings(_ request: UpdateSettingsRequest) throws -> EffectiveSettings {
-        let csilResp = try transport.call(service: "SettingsService", op: "update-settings", request: request.toCbor())
-        return try EffectiveSettings.fromCbor(csilResp)
-    }
+  public func updateSettings(_ request: UpdateSettingsRequest) throws -> EffectiveSettings {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "SettingsService",
+      op: "update-settings",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "SettingsService",
+      op: "update-settings",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EffectiveSettings.fromCbor(csilResp)
+  }
 
 }
 
 /// BugClient is a typed client for the BugService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct BugClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func reportBug(_ request: BugReportRequest) throws -> Task {
-        let csilResp = try transport.call(service: "BugService", op: "report-bug", request: request.toCbor())
-        return try Task.fromCbor(csilResp)
-    }
+  public func reportBug(_ request: BugReportRequest) throws -> Task {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "BugService",
+      op: "report-bug",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "BugService",
+      op: "report-bug",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try Task.fromCbor(csilResp)
+  }
 
 }
 
 /// AuditClient is a typed client for the AuditService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct AuditClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func queryAudit(_ request: AuditQuery) throws -> AuditPage {
-        let csilResp = try transport.call(service: "AuditService", op: "query-audit", request: request.toCbor())
-        return try AuditPage.fromCbor(csilResp)
-    }
+  public func queryAudit(_ request: AuditQuery) throws -> AuditPage {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "AuditService",
+      op: "query-audit",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "AuditService",
+      op: "query-audit",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try AuditPage.fromCbor(csilResp)
+  }
 
 }
 
 /// TrashClient is a typed client for the TrashService service. The client owns
 /// (de)serialization; the carrier only moves bytes.
 public struct TrashClient {
-    public let transport: CsilTransport
-    public init(transport: CsilTransport) {
-        self.transport = transport
-    }
+  public let transport: CsilTransport
+  public init(transport: CsilTransport) {
+    self.transport = transport
+  }
 
-    public func listTrash(_ request: HouseScopedListRequest) throws -> TrashPage {
-        let csilResp = try transport.call(service: "TrashService", op: "list-trash", request: request.toCbor())
-        return try TrashPage.fromCbor(csilResp)
-    }
+  public func listTrash(_ request: HouseScopedListRequest) throws -> TrashPage {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TrashService",
+      op: "list-trash",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TrashService",
+      op: "list-trash",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try TrashPage.fromCbor(csilResp)
+  }
 
-    public func restore(_ request: RestoreRequest) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "TrashService", op: "restore", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func restore(_ request: RestoreRequest) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TrashService",
+      op: "restore",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TrashService",
+      op: "restore",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
-    public func purge(_ request: PurgeRequest) throws -> EmptyResponse {
-        let csilResp = try transport.call(service: "TrashService", op: "purge", request: request.toCbor())
-        return try EmptyResponse.fromCbor(csilResp)
-    }
+  public func purge(_ request: PurgeRequest) throws -> EmptyResponse {
+    let csilRequest = try request.toCbor()
+    let csilReply = try transport.callReply(
+      service: "TrashService",
+      op: "purge",
+      request: csilRequest
+    )
+    let csilResp = try resolveRpcReply(
+      service: "TrashService",
+      op: "purge",
+      variant: csilReply.variant,
+      payload: csilReply.payload
+    )
+    return try EmptyResponse.fromCbor(csilResp)
+  }
 
 }
-

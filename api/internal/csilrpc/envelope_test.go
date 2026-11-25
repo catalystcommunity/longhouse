@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/catalystcommunity/csilgen/transports/go"
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
-	"github.com/catalystcommunity/longhouse/api/internal/transport"
 	"github.com/fxamacker/cbor/v2"
 )
 
@@ -55,7 +55,10 @@ func TestServeRPC_SuccessRoundTrip(t *testing.T) {
 		csil.EncodeBoolResponse,
 	))
 
-	payload := csil.EncodeTrustedDomainListTrustedDomainsRequest(csil.HouseID("h-1"))
+	payload, err := csil.EncodeTrustedDomainListTrustedDomainsRequest(csil.HouseID("h-1"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	resp := serveRPC(t, d, transport.NewRpcRequest("widget", "get-widget", payload).WithID(7), "")
 
 	if !resp.Status.IsOk() {
@@ -76,6 +79,30 @@ func TestServeRPC_SuccessRoundTrip(t *testing.T) {
 	}
 }
 
+func TestServeRPC_NamedListReply(t *testing.T) {
+	d := New(nil)
+	d.RegisterTypedPublic("group", "ListGroups", Route(
+		func(context.Context, csil.HouseScopedListRequest) (csil.GroupItems, error) {
+			return csil.GroupItems{{Name: "Garden"}}, nil
+		}, csil.DecodeHouseScopedListRequest, csil.EncodeGroupListGroupsResponse))
+	request, err := csil.EncodeHouseScopedListRequest(csil.HouseScopedListRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply := serveRPC(t, d, transport.NewRpcRequest("GroupService", "list-groups", request), "")
+	if !reply.Status.IsOk() || reply.Variant == nil || *reply.Variant != "GroupItems" {
+		t.Fatalf("unexpected list reply: %+v", reply)
+	}
+	var groups []map[string]cbor.RawMessage
+	if err := cbor.Unmarshal(reply.Payload, &groups); err != nil || len(groups) != 1 {
+		t.Fatalf("expected one group in a bare array: %v", err)
+	}
+	got, err := csil.DecodeGroupListGroupsResponse(reply.Payload)
+	if err != nil || len(got) != 1 || got[0].Name != "Garden" {
+		t.Fatalf("invalid list reply: %v, %v", got, err)
+	}
+}
+
 func TestServeRPC_AcceptsGeneratedServiceName(t *testing.T) {
 	d := New(nil)
 	d.RegisterTypedPublic("widget", "GetWidget", Route(
@@ -85,7 +112,11 @@ func TestServeRPC_AcceptsGeneratedServiceName(t *testing.T) {
 		csil.DecodeEmptyRequest,
 		csil.EncodeEmptyResponse,
 	))
-	resp := serveRPC(t, d, transport.NewRpcRequest("WidgetService", "get-widget", csil.EncodeEmptyRequest(csil.EmptyRequest{})), "")
+	payload, err := csil.EncodeEmptyRequest(csil.EmptyRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := serveRPC(t, d, transport.NewRpcRequest("WidgetService", "get-widget", payload), "")
 	if !resp.Status.IsOk() {
 		t.Fatalf("status: got %v want ok", resp.Status.Name())
 	}
@@ -101,7 +132,10 @@ func TestServeRPC_ApplicationErrorIsServiceErrorArm(t *testing.T) {
 		csil.EncodeEmptyResponse,
 	))
 
-	payload := csil.EncodeEmptyRequest(csil.EmptyRequest{})
+	payload, err := csil.EncodeEmptyRequest(csil.EmptyRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	resp := serveRPC(t, d, transport.NewRpcRequest("widget", "get-widget", payload), "")
 
 	// Application errors ride at status 0 with the ServiceError variant — never a
@@ -126,6 +160,26 @@ func TestServeRPC_UnknownServiceOrOp(t *testing.T) {
 	resp := serveRPC(t, d, transport.NewRpcRequest("nope", "do-thing", []byte{}), "")
 	if resp.Status.Code() != transport.StatusUnknownServiceOrOp.Code() {
 		t.Fatalf("status: got %v want unknown-service-or-op", resp.Status.Name())
+	}
+}
+
+func TestServeRPC_ResponseEncodeFailure(t *testing.T) {
+	d := New(nil)
+	d.RegisterTypedPublic("widget", "GetWidget", Route(
+		func(context.Context, csil.EmptyRequest) (csil.Milestone, error) {
+			// State is a required enum. Its zero value cannot go on the wire.
+			return csil.Milestone{}, nil
+		},
+		csil.DecodeEmptyRequest,
+		csil.EncodeMilestone,
+	))
+	payload, err := csil.EncodeEmptyRequest(csil.EmptyRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := serveRPC(t, d, transport.NewRpcRequest("widget", "get-widget", payload), "")
+	if resp.Status != transport.StatusInternal || resp.Variant != nil {
+		t.Fatalf("unexpected reply to an unencodable response: %+v", resp)
 	}
 }
 

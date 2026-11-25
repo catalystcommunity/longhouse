@@ -148,7 +148,7 @@ class HouseServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_houses(self, req: HouseListRequest, ctx: dict) -> Union[List[House], ServiceError]:
+    def list_houses(self, req: HouseListRequest, ctx: dict) -> HouseItems:
         """list-houses"""
         ...
 
@@ -186,7 +186,7 @@ class MemberServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_members(self, req: HouseScopedListRequest, ctx: dict) -> Union[List[Member], ServiceError]:
+    def list_members(self, req: HouseScopedListRequest, ctx: dict) -> MemberItems:
         """list-members"""
         ...
 
@@ -204,7 +204,7 @@ class TrustedDomainServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_trusted_domains(self, req: HouseId, ctx: dict) -> Union[List[TrustedDomain], ServiceError]:
+    def list_trusted_domains(self, req: HouseId, ctx: dict) -> TrustedDomainItems:
         """list-trusted-domains"""
         ...
 
@@ -232,7 +232,7 @@ class RoleServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_roles(self, req: HouseScopedListRequest, ctx: dict) -> Union[List[Role], ServiceError]:
+    def list_roles(self, req: HouseScopedListRequest, ctx: dict) -> RoleItems:
         """list-roles"""
         ...
 
@@ -247,7 +247,7 @@ class RoleServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_member_roles(self, req: MemberScopedListRequest, ctx: dict) -> Union[List[Role], ServiceError]:
+    def list_member_roles(self, req: MemberScopedListRequest, ctx: dict) -> RoleItems:
         """list-member-roles"""
         ...
 
@@ -270,7 +270,7 @@ class SkillServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_skills(self, req: HouseScopedListRequest, ctx: dict) -> Union[List[Skill], ServiceError]:
+    def list_skills(self, req: HouseScopedListRequest, ctx: dict) -> SkillItems:
         """list-skills"""
         ...
 
@@ -285,7 +285,7 @@ class SkillServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_member_skills(self, req: MemberScopedListRequest, ctx: dict) -> Union[List[Skill], ServiceError]:
+    def list_member_skills(self, req: MemberScopedListRequest, ctx: dict) -> SkillItems:
         """list-member-skills"""
         ...
 
@@ -300,7 +300,7 @@ class SkillServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_group_skills(self, req: GroupId, ctx: dict) -> Union[List[Skill], ServiceError]:
+    def list_group_skills(self, req: GroupId, ctx: dict) -> SkillItems:
         """list-group-skills"""
         ...
 
@@ -323,7 +323,7 @@ class GroupServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_groups(self, req: HouseScopedListRequest, ctx: dict) -> Union[List[Group], ServiceError]:
+    def list_groups(self, req: HouseScopedListRequest, ctx: dict) -> GroupItems:
         """list-groups"""
         ...
 
@@ -338,7 +338,7 @@ class GroupServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_group_members(self, req: MemberScopedListRequest, ctx: dict) -> Union[List[Member], ServiceError]:
+    def list_group_members(self, req: MemberScopedListRequest, ctx: dict) -> MemberItems:
         """list-group-members"""
         ...
 
@@ -391,7 +391,7 @@ class ProjectServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_project_members(self, req: ProjectId, ctx: dict) -> Union[List[Member], ServiceError]:
+    def list_project_members(self, req: ProjectId, ctx: dict) -> MemberItems:
         """list-project-members"""
         ...
 
@@ -406,7 +406,7 @@ class ProjectServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_project_owners(self, req: ProjectId, ctx: dict) -> Union[List[Member], ServiceError]:
+    def list_project_owners(self, req: ProjectId, ctx: dict) -> MemberItems:
         """list-project-owners"""
         ...
 
@@ -421,7 +421,7 @@ class ProjectServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_milestones(self, req: ProjectId, ctx: dict) -> Union[List[Milestone], ServiceError]:
+    def list_milestones(self, req: ProjectId, ctx: dict) -> MilestoneItems:
         """list-milestones"""
         ...
 
@@ -446,7 +446,7 @@ class ProjectServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_project_grants(self, req: ProjectId, ctx: dict) -> Union[List[Grant], ServiceError]:
+    def list_project_grants(self, req: ProjectId, ctx: dict) -> GrantItems:
         """list-project-grants"""
         ...
 
@@ -489,7 +489,7 @@ class EventServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_events(self, req: EventListRequest, ctx: dict) -> Union[List[Event], ServiceError]:
+    def list_events(self, req: EventListRequest, ctx: dict) -> EventItems:
         """list-events"""
         ...
 
@@ -519,7 +519,7 @@ class EventServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_local_events(self, req: HouseId, ctx: dict) -> Union[List[Event], ServiceError]:
+    def list_local_events(self, req: HouseId, ctx: dict) -> EventItems:
         """list-local-events"""
         ...
 
@@ -557,12 +557,12 @@ class CalendarServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def preview_migration(self, req: HouseId, ctx: dict) -> Union[List[CalendarMigrationRow], ServiceError]:
+    def preview_migration(self, req: HouseId, ctx: dict) -> CalendarMigrationRowItems:
         """preview-migration"""
         ...
 
     @abstractmethod
-    def list_trash(self, req: HouseId, ctx: dict) -> Union[List[CalendarTrashEntry], ServiceError]:
+    def list_trash(self, req: HouseId, ctx: dict) -> CalendarTrashEntryItems:
         """list-trash"""
         ...
 
@@ -610,7 +610,7 @@ class TaskServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_task_grants(self, req: TaskId, ctx: dict) -> Union[List[Grant], ServiceError]:
+    def list_task_grants(self, req: TaskId, ctx: dict) -> GrantItems:
         """list-task-grants"""
         ...
 
@@ -666,7 +666,7 @@ class CommentServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_comments(self, req: CommentListRequest, ctx: dict) -> Union[List[Comment], ServiceError]:
+    def list_comments(self, req: CommentListRequest, ctx: dict) -> CommentItems:
         """list-comments"""
         ...
 
@@ -674,7 +674,7 @@ class NotificationServiceHandlers(ABC):
     """Server-side handlers for NotificationService service operations."""
 
     @abstractmethod
-    def list_notifications(self, req: NotificationListRequest, ctx: dict) -> Union[List[Notification], ServiceError]:
+    def list_notifications(self, req: NotificationListRequest, ctx: dict) -> NotificationItems:
         """list-notifications"""
         ...
 
@@ -707,7 +707,7 @@ class ShareServiceHandlers(ABC):
         ...
 
     @abstractmethod
-    def list_shares_by_resource(self, req: ResourceRef, ctx: dict) -> Union[List[Share], ServiceError]:
+    def list_shares_by_resource(self, req: ResourceRef, ctx: dict) -> ShareItems:
         """list-shares-by-resource"""
         ...
 
@@ -720,7 +720,7 @@ class MemberAuditServiceHandlers(ABC):
     """Server-side handlers for MemberAuditService service operations."""
 
     @abstractmethod
-    def list_audits_for_member(self, req: MemberScopedListRequest, ctx: dict) -> Union[List[MemberAudit], ServiceError]:
+    def list_audits_for_member(self, req: MemberScopedListRequest, ctx: dict) -> MemberAuditItems:
         """list-audits-for-member"""
         ...
 

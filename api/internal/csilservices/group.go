@@ -88,7 +88,7 @@ func (s *GroupService) DeleteGroup(ctx context.Context, id csil.GroupID) (csil.E
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *GroupService) ListGroups(ctx context.Context, req csil.HouseScopedListRequest) ([]csil.Group, error) {
+func (s *GroupService) ListGroups(ctx context.Context, req csil.HouseScopedListRequest) (csil.GroupItems, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (s *GroupService) RemoveGroupMember(ctx context.Context, ref csil.GroupMemb
 // the group_id-equivalent is meaningful here. We accept either shape via
 // the existing decoder; the house_id field is ignored (the group's own
 // house gates the authz).
-func (s *GroupService) ListGroupMembers(ctx context.Context, req csil.MemberScopedListRequest) ([]csil.Member, error) {
+func (s *GroupService) ListGroupMembers(ctx context.Context, req csil.MemberScopedListRequest) (csil.MemberItems, error) {
 	// In this service the "member id" slot carries the group id (the CSIL
 	// signature is shared with the per-member listings on other services).
 	groupID := string(req.MemberId)

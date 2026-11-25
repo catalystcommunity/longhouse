@@ -37,7 +37,7 @@ interface HouseService {
     fun getHouse(request: HouseID): House
     fun updateHouse(request: House): House
     fun deleteHouse(request: HouseID): EmptyResponse
-    fun listHouses(request: HouseListRequest): List<House>
+    fun listHouses(request: HouseListRequest): HouseItems
 }
 
 /** MemberService service interface (host implements). */
@@ -48,14 +48,14 @@ interface MemberService {
     fun updateMember(request: Member): Member
     fun deactivateMember(request: MemberID): EmptyResponse
     fun reactivateMember(request: MemberID): EmptyResponse
-    fun listMembers(request: HouseScopedListRequest): List<Member>
+    fun listMembers(request: HouseScopedListRequest): MemberItems
 }
 
 /** TrustedDomainService service interface (host implements). */
 interface TrustedDomainService {
     fun addTrustedDomain(request: TrustedDomain): TrustedDomain
     fun removeTrustedDomain(request: TrustedDomainID): EmptyResponse
-    fun listTrustedDomains(request: HouseID): List<TrustedDomain>
+    fun listTrustedDomains(request: HouseID): TrustedDomainItems
     fun isDomainTrusted(request: TrustedDomain): BoolResponse
 }
 
@@ -64,10 +64,10 @@ interface RoleService {
     fun createRole(request: Role): Role
     fun updateRole(request: Role): Role
     fun deleteRole(request: RoleID): EmptyResponse
-    fun listRoles(request: HouseScopedListRequest): List<Role>
+    fun listRoles(request: HouseScopedListRequest): RoleItems
     fun grantRole(request: MemberRoleRef): EmptyResponse
     fun revokeRole(request: MemberRoleRef): EmptyResponse
-    fun listMemberRoles(request: MemberScopedListRequest): List<Role>
+    fun listMemberRoles(request: MemberScopedListRequest): RoleItems
 }
 
 /** SkillService service interface (host implements). */
@@ -75,13 +75,13 @@ interface SkillService {
     fun createSkill(request: Skill): Skill
     fun updateSkill(request: Skill): Skill
     fun deleteSkill(request: SkillID): EmptyResponse
-    fun listSkills(request: HouseScopedListRequest): List<Skill>
+    fun listSkills(request: HouseScopedListRequest): SkillItems
     fun addMemberSkill(request: MemberSkillRef): EmptyResponse
     fun removeMemberSkill(request: MemberSkillRef): EmptyResponse
-    fun listMemberSkills(request: MemberScopedListRequest): List<Skill>
+    fun listMemberSkills(request: MemberScopedListRequest): SkillItems
     fun addGroupSkill(request: GroupSkillRef): EmptyResponse
     fun removeGroupSkill(request: GroupSkillRef): EmptyResponse
-    fun listGroupSkills(request: GroupID): List<Skill>
+    fun listGroupSkills(request: GroupID): SkillItems
 }
 
 /** GroupService service interface (host implements). */
@@ -89,10 +89,10 @@ interface GroupService {
     fun createGroup(request: Group): Group
     fun updateGroup(request: Group): Group
     fun deleteGroup(request: GroupID): EmptyResponse
-    fun listGroups(request: HouseScopedListRequest): List<Group>
+    fun listGroups(request: HouseScopedListRequest): GroupItems
     fun addGroupMember(request: GroupMemberRef): EmptyResponse
     fun removeGroupMember(request: GroupMemberRef): EmptyResponse
-    fun listGroupMembers(request: MemberScopedListRequest): List<Member>
+    fun listGroupMembers(request: MemberScopedListRequest): MemberItems
 }
 
 /** ProjectService service interface (host implements). */
@@ -106,18 +106,18 @@ interface ProjectService {
     fun addProjectTask(request: ProjectTaskOrderRequest): EmptyResponse
     fun removeProjectTask(request: ProjectTaskRef): EmptyResponse
     fun setProjectTaskPosition(request: ProjectTaskOrderRequest): EmptyResponse
-    fun listProjectMembers(request: ProjectID): List<Member>
+    fun listProjectMembers(request: ProjectID): MemberItems
     fun addProjectMember(request: ProjectMemberRef): EmptyResponse
     fun removeProjectMember(request: ProjectMemberRef): EmptyResponse
-    fun listProjectOwners(request: ProjectID): List<Member>
+    fun listProjectOwners(request: ProjectID): MemberItems
     fun addProjectOwner(request: ProjectOwnerRef): EmptyResponse
     fun removeProjectOwner(request: ProjectOwnerRef): EmptyResponse
-    fun listMilestones(request: ProjectID): List<Milestone>
+    fun listMilestones(request: ProjectID): MilestoneItems
     fun createMilestone(request: Milestone): Milestone
     fun updateMilestone(request: Milestone): Milestone
     fun deleteMilestone(request: MilestoneID): EmptyResponse
     fun setProjectVisibility(request: SetProjectVisibilityRequest): Project
-    fun listProjectGrants(request: ProjectID): List<Grant>
+    fun listProjectGrants(request: ProjectID): GrantItems
     fun putProjectGrant(request: PutProjectGrantRequest): EmptyResponse
     fun deleteProjectGrant(request: ProjectGrantRef): EmptyResponse
 }
@@ -129,13 +129,13 @@ interface EventService {
     fun updateEvent(request: Event): Event
     fun deleteEvent(request: EventID): EmptyResponse
     fun deleteEventAndFuture(request: EventID): EmptyResponse
-    fun listEvents(request: EventListRequest): List<Event>
+    fun listEvents(request: EventListRequest): EventItems
     fun getCalendarView(request: HouseID): CalendarView
     fun setCalendarView(request: CalendarView): CalendarView
     fun acceptEvent(request: EventDecision): Event
     fun recoverEdit(request: EventID): Event
     fun declineEvent(request: EventDecision): Event
-    fun listLocalEvents(request: HouseID): List<Event>
+    fun listLocalEvents(request: HouseID): EventItems
 }
 
 /** CalendarService service interface (host implements). */
@@ -146,8 +146,8 @@ interface CalendarService {
     fun beginConnect(request: HouseID): CalendarConnectResponse
     fun completeConnect(request: CompleteCalendarConnectRequest): CalendarStatus
     fun disconnect(request: HouseID): EmptyResponse
-    fun previewMigration(request: HouseID): List<CalendarMigrationRow>
-    fun listTrash(request: HouseID): List<CalendarTrashEntry>
+    fun previewMigration(request: HouseID): CalendarMigrationRowItems
+    fun listTrash(request: HouseID): CalendarTrashEntryItems
     fun restoreEvent(request: RestoreCalendarEventRequest): Event
 }
 
@@ -160,7 +160,7 @@ interface TaskService {
     fun listTasks(request: TaskListRequest): TaskList
     fun createPersonalTask(request: Task): Task
     fun setTaskVisibility(request: SetTaskVisibilityRequest): Task
-    fun listTaskGrants(request: TaskID): List<Grant>
+    fun listTaskGrants(request: TaskID): GrantItems
     fun putTaskGrant(request: PutTaskGrantRequest): EmptyResponse
     fun deleteTaskGrant(request: TaskGrantRef): EmptyResponse
 }
@@ -178,12 +178,12 @@ interface CommentService {
     fun getComment(request: CommentID): Comment
     fun updateComment(request: Comment): Comment
     fun deleteComment(request: CommentID): EmptyResponse
-    fun listComments(request: CommentListRequest): List<Comment>
+    fun listComments(request: CommentListRequest): CommentItems
 }
 
 /** NotificationService service interface (host implements). */
 interface NotificationService {
-    fun listNotifications(request: NotificationListRequest): List<Notification>
+    fun listNotifications(request: NotificationListRequest): NotificationItems
     fun unreadCount(request: HouseID): NotificationUnreadCount
     fun markRead(request: NotificationID): Notification
     fun markAllRead(request: HouseID): EmptyResponse
@@ -193,13 +193,13 @@ interface NotificationService {
 interface ShareService {
     fun createShare(request: Share): Share
     fun deleteShare(request: ShareID): EmptyResponse
-    fun listSharesByResource(request: ResourceRef): List<Share>
+    fun listSharesByResource(request: ResourceRef): ShareItems
     fun checkAccess(request: ShareAccessRequest): Share
 }
 
 /** MemberAuditService service interface (host implements). */
 interface MemberAuditService {
-    fun listAuditsForMember(request: MemberScopedListRequest): List<MemberAudit>
+    fun listAuditsForMember(request: MemberScopedListRequest): MemberAuditItems
 }
 
 /** SettingsService service interface (host implements). */

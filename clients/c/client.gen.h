@@ -484,18 +484,19 @@ static inline int csil_house_delete_house(const CsilgenTransport *t, const House
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_house_list_houses(const CsilgenTransport *t, const HouseListRequest *req,
-                        CsilHouseList *resp, CsilCodecArena **resp_owner) {
+                        HouseServiceListHousesReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_HouseListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "HouseService", "list-houses", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "HouseService", "list-houses", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilHouseList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_HouseServiceListHousesReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke MemberService/create-member with a typed request and decode the typed
@@ -616,18 +617,19 @@ static inline int csil_member_reactivate_member(const CsilgenTransport *t, const
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_member_list_members(const CsilgenTransport *t, const HouseScopedListRequest *req,
-                        CsilMemberList *resp, CsilCodecArena **resp_owner) {
+                        MemberServiceListMembersReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_HouseScopedListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "MemberService", "list-members", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "MemberService", "list-members", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilMemberList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_MemberServiceListMembersReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke TrustedDomainService/add-trusted-domain with a typed request and decode the typed
@@ -672,18 +674,19 @@ static inline int csil_trusted_domain_remove_trusted_domain(const CsilgenTranspo
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_trusted_domain_list_trusted_domains(const CsilgenTransport *t, const HouseID *req,
-                        CsilTrustedDomainList *resp, CsilCodecArena **resp_owner) {
+                        TrustedDomainServiceListTrustedDomainsReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_HouseID(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "TrustedDomainService", "list-trusted-domains", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "TrustedDomainService", "list-trusted-domains", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilTrustedDomainList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_TrustedDomainServiceListTrustedDomainsReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke TrustedDomainService/is-domain-trusted with a typed request and decode the typed
@@ -766,18 +769,19 @@ static inline int csil_role_delete_role(const CsilgenTransport *t, const RoleID 
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_role_list_roles(const CsilgenTransport *t, const HouseScopedListRequest *req,
-                        CsilRoleList *resp, CsilCodecArena **resp_owner) {
+                        RoleServiceListRolesReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_HouseScopedListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "RoleService", "list-roles", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "RoleService", "list-roles", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilRoleList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_RoleServiceListRolesReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke RoleService/grant-role with a typed request and decode the typed
@@ -822,18 +826,19 @@ static inline int csil_role_revoke_role(const CsilgenTransport *t, const MemberR
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_role_list_member_roles(const CsilgenTransport *t, const MemberScopedListRequest *req,
-                        CsilRoleList *resp, CsilCodecArena **resp_owner) {
+                        RoleServiceListMemberRolesReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_MemberScopedListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "RoleService", "list-member-roles", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "RoleService", "list-member-roles", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilRoleList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_RoleServiceListMemberRolesReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke SkillService/create-skill with a typed request and decode the typed
@@ -897,18 +902,19 @@ static inline int csil_skill_delete_skill(const CsilgenTransport *t, const Skill
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_skill_list_skills(const CsilgenTransport *t, const HouseScopedListRequest *req,
-                        CsilSkillList *resp, CsilCodecArena **resp_owner) {
+                        SkillServiceListSkillsReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_HouseScopedListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "SkillService", "list-skills", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "SkillService", "list-skills", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilSkillList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_SkillServiceListSkillsReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke SkillService/add-member-skill with a typed request and decode the typed
@@ -953,18 +959,19 @@ static inline int csil_skill_remove_member_skill(const CsilgenTransport *t, cons
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_skill_list_member_skills(const CsilgenTransport *t, const MemberScopedListRequest *req,
-                        CsilSkillList *resp, CsilCodecArena **resp_owner) {
+                        SkillServiceListMemberSkillsReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_MemberScopedListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "SkillService", "list-member-skills", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "SkillService", "list-member-skills", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilSkillList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_SkillServiceListMemberSkillsReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke SkillService/add-group-skill with a typed request and decode the typed
@@ -1009,18 +1016,19 @@ static inline int csil_skill_remove_group_skill(const CsilgenTransport *t, const
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_skill_list_group_skills(const CsilgenTransport *t, const GroupID *req,
-                        CsilSkillList *resp, CsilCodecArena **resp_owner) {
+                        SkillServiceListGroupSkillsReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_GroupID(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "SkillService", "list-group-skills", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "SkillService", "list-group-skills", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilSkillList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_SkillServiceListGroupSkillsReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke GroupService/create-group with a typed request and decode the typed
@@ -1084,18 +1092,19 @@ static inline int csil_group_delete_group(const CsilgenTransport *t, const Group
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_group_list_groups(const CsilgenTransport *t, const HouseScopedListRequest *req,
-                        CsilGroupList *resp, CsilCodecArena **resp_owner) {
+                        GroupServiceListGroupsReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_HouseScopedListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "GroupService", "list-groups", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "GroupService", "list-groups", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilGroupList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_GroupServiceListGroupsReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke GroupService/add-group-member with a typed request and decode the typed
@@ -1140,18 +1149,19 @@ static inline int csil_group_remove_group_member(const CsilgenTransport *t, cons
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_group_list_group_members(const CsilgenTransport *t, const MemberScopedListRequest *req,
-                        CsilMemberList *resp, CsilCodecArena **resp_owner) {
+                        GroupServiceListGroupMembersReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_MemberScopedListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "GroupService", "list-group-members", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "GroupService", "list-group-members", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilMemberList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_GroupServiceListGroupMembersReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke ProjectService/create-project with a typed request and decode the typed
@@ -1329,18 +1339,19 @@ static inline int csil_project_set_project_task_position(const CsilgenTransport 
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_project_list_project_members(const CsilgenTransport *t, const ProjectID *req,
-                        CsilMemberList *resp, CsilCodecArena **resp_owner) {
+                        ProjectServiceListProjectMembersReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_ProjectID(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "ProjectService", "list-project-members", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "ProjectService", "list-project-members", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilMemberList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_ProjectServiceListProjectMembersReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke ProjectService/add-project-member with a typed request and decode the typed
@@ -1385,18 +1396,19 @@ static inline int csil_project_remove_project_member(const CsilgenTransport *t, 
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_project_list_project_owners(const CsilgenTransport *t, const ProjectID *req,
-                        CsilMemberList *resp, CsilCodecArena **resp_owner) {
+                        ProjectServiceListProjectOwnersReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_ProjectID(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "ProjectService", "list-project-owners", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "ProjectService", "list-project-owners", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilMemberList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_ProjectServiceListProjectOwnersReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke ProjectService/add-project-owner with a typed request and decode the typed
@@ -1441,18 +1453,19 @@ static inline int csil_project_remove_project_owner(const CsilgenTransport *t, c
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_project_list_milestones(const CsilgenTransport *t, const ProjectID *req,
-                        CsilMilestoneList *resp, CsilCodecArena **resp_owner) {
+                        ProjectServiceListMilestonesReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_ProjectID(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "ProjectService", "list-milestones", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "ProjectService", "list-milestones", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilMilestoneList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_ProjectServiceListMilestonesReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke ProjectService/create-milestone with a typed request and decode the typed
@@ -1535,18 +1548,19 @@ static inline int csil_project_set_project_visibility(const CsilgenTransport *t,
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_project_list_project_grants(const CsilgenTransport *t, const ProjectID *req,
-                        CsilGrantList *resp, CsilCodecArena **resp_owner) {
+                        ProjectServiceListProjectGrantsReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_ProjectID(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "ProjectService", "list-project-grants", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "ProjectService", "list-project-grants", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilGrantList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_ProjectServiceListProjectGrantsReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke ProjectService/put-project-grant with a typed request and decode the typed
@@ -1686,18 +1700,19 @@ static inline int csil_event_delete_event_and_future(const CsilgenTransport *t, 
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_event_list_events(const CsilgenTransport *t, const EventListRequest *req,
-                        CsilEventList *resp, CsilCodecArena **resp_owner) {
+                        EventServiceListEventsReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_EventListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "EventService", "list-events", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "EventService", "list-events", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilEventList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_EventServiceListEventsReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke EventService/get-calendar-view with a typed request and decode the typed
@@ -1799,18 +1814,19 @@ static inline int csil_event_decline_event(const CsilgenTransport *t, const Even
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_event_list_local_events(const CsilgenTransport *t, const HouseID *req,
-                        CsilEventList *resp, CsilCodecArena **resp_owner) {
+                        EventServiceListLocalEventsReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_HouseID(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "EventService", "list-local-events", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "EventService", "list-local-events", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilEventList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_EventServiceListLocalEventsReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke CalendarService/list-project-deadlines with a typed request and decode the typed
@@ -1931,36 +1947,38 @@ static inline int csil_calendar_disconnect(const CsilgenTransport *t, const Hous
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_calendar_preview_migration(const CsilgenTransport *t, const HouseID *req,
-                        CsilCalendarMigrationRowList *resp, CsilCodecArena **resp_owner) {
+                        CalendarServicePreviewMigrationReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_HouseID(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "CalendarService", "preview-migration", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "CalendarService", "preview-migration", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilCalendarMigrationRowList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_CalendarServicePreviewMigrationReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke CalendarService/list-trash with a typed request and decode the typed
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_calendar_list_trash(const CsilgenTransport *t, const HouseID *req,
-                        CsilCalendarTrashEntryList *resp, CsilCodecArena **resp_owner) {
+                        CalendarServiceListTrashReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_HouseID(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "CalendarService", "list-trash", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "CalendarService", "list-trash", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilCalendarTrashEntryList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_CalendarServiceListTrashReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke CalendarService/restore-event with a typed request and decode the typed
@@ -2119,18 +2137,19 @@ static inline int csil_task_set_task_visibility(const CsilgenTransport *t, const
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_task_list_task_grants(const CsilgenTransport *t, const TaskID *req,
-                        CsilGrantList *resp, CsilCodecArena **resp_owner) {
+                        TaskServiceListTaskGrantsReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_TaskID(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "TaskService", "list-task-grants", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "TaskService", "list-task-grants", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilGrantList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_TaskServiceListTaskGrantsReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke TaskService/put-task-grant with a typed request and decode the typed
@@ -2308,36 +2327,38 @@ static inline int csil_comment_delete_comment(const CsilgenTransport *t, const C
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_comment_list_comments(const CsilgenTransport *t, const CommentListRequest *req,
-                        CsilCommentList *resp, CsilCodecArena **resp_owner) {
+                        CommentServiceListCommentsReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_CommentListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "CommentService", "list-comments", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "CommentService", "list-comments", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilCommentList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_CommentServiceListCommentsReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke NotificationService/list-notifications with a typed request and decode the typed
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_notification_list_notifications(const CsilgenTransport *t, const NotificationListRequest *req,
-                        CsilNotificationList *resp, CsilCodecArena **resp_owner) {
+                        NotificationServiceListNotificationsReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_NotificationListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "NotificationService", "list-notifications", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "NotificationService", "list-notifications", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilNotificationList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_NotificationServiceListNotificationsReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke NotificationService/unread-count with a typed request and decode the typed
@@ -2439,18 +2460,19 @@ static inline int csil_share_delete_share(const CsilgenTransport *t, const Share
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_share_list_shares_by_resource(const CsilgenTransport *t, const ResourceRef *req,
-                        CsilShareList *resp, CsilCodecArena **resp_owner) {
+                        ShareServiceListSharesByResourceReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_ResourceRef(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "ShareService", "list-shares-by-resource", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "ShareService", "list-shares-by-resource", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilShareList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_ShareServiceListSharesByResourceReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke ShareService/check-access with a typed request and decode the typed
@@ -2476,18 +2498,19 @@ static inline int csil_share_check_access(const CsilgenTransport *t, const Share
  * response. *resp_owner holds the response's backing storage; free it once
  * with csil_codec_arena_free when done with *resp. Returns non-zero on failure. */
 static inline int csil_member_audit_list_audits_for_member(const CsilgenTransport *t, const MemberScopedListRequest *req,
-                        CsilMemberAuditList *resp, CsilCodecArena **resp_owner) {
+                        MemberAuditServiceListAuditsForMemberReply *resp, CsilCodecArena **resp_owner) {
     uint8_t *csil_reqb = NULL;
     size_t csil_reqn = 0;
     if (csil_encode_MemberScopedListRequest(req, &csil_reqb, &csil_reqn)) return -1;
     uint8_t *csil_respb = NULL;
     size_t csil_respn = 0;
-    int csil_rc = t->call(t->self, "MemberAuditService", "list-audits-for-member", csil_reqb, csil_reqn, &csil_respb, &csil_respn);
+    char *variant = NULL;
+    int rc = t->call_reply ? t->call_reply(t->self, "MemberAuditService", "list-audits-for-member", csil_reqb, csil_reqn, &csil_respb, &csil_respn, &variant) : -1;
     free(csil_reqb);
-    if (csil_rc != 0) { free(csil_respb); return csil_rc; }
-    int csil_drc = csil_decode_CsilMemberAuditList(csil_respb, csil_respn, resp, resp_owner);
+    if (!rc) rc = csil_decode_MemberAuditServiceListAuditsForMemberReply(variant, csil_respb, csil_respn, resp, resp_owner);
+    free(variant);
     free(csil_respb);
-    return csil_drc;
+    return rc;
 }
 
 /* Invoke SettingsService/get-settings with a typed request and decode the typed

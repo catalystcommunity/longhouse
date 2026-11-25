@@ -6,9 +6,15 @@ const types = @import("types.gen.zig");
 
 // ===== self-contained canonical CBOR codec (RFC 8949 subset) =====
 
-const CodecError = error{ Malformed, UnexpectedEof, TrailingBytes, WrongType, MissingField } || std.mem.Allocator.Error;
+/// `DuplicateKey`: csil cbor: a map holds one key twice. `NonCanonicalMapOrder`:
+/// csil cbor: map keys are not in canonical order (RFC 8949 section 4.2.1).
+/// `NonShortestMapKey`: csil cbor: map key is not in shortest form.
+const CodecError = error{ Malformed, UnexpectedEof, TrailingBytes, WrongType, MissingField, DuplicateKey, NonCanonicalMapOrder, NonShortestMapKey } || std.mem.Allocator.Error;
 
-pub const Pair = struct { key: Value, val: Value };
+/// `raw_key` holds the key's encoded bytes as decoded, so a dynamic map can check
+/// the canonical key order without encoding its keys again. It stays empty for a
+/// pair built in memory; the encoder never reads it.
+pub const Pair = struct { key: Value, val: Value, raw_key: []const u8 = &.{} };
 pub const Tag = struct { num: u64, content: *Value };
 
 pub const Value = union(enum) {
@@ -196,7 +202,7 @@ fn half_to_f64(h: u16) f64 {
 // frame reserve a large multiple of its size at every nesting level.
 const prealloc_limit: usize = 1024;
 
-fn decode_value(alloc: std.mem.Allocator, b: []const u8, depth: usize) CodecError!Decoded {
+fn csil_decode_value(alloc: std.mem.Allocator, b: []const u8, depth: usize) CodecError!Decoded {
     if (depth > 64) return error.Malformed;
     if (b.len == 0) return error.UnexpectedEof;
     const ib = b[0];
@@ -226,7 +232,7 @@ fn decode_value(alloc: std.mem.Allocator, b: []const u8, depth: usize) CodecErro
             var off = n;
             var i: usize = 0;
             while (i < count) : (i += 1) {
-                const d = try decode_value(alloc, b[off..], depth + 1);
+                const d = try csil_decode_value(alloc, b[off..], depth + 1);
                 try items.append(alloc, d.value);
                 off += d.consumed;
             }
@@ -238,17 +244,33 @@ fn decode_value(alloc: std.mem.Allocator, b: []const u8, depth: usize) CodecErro
             var pairs = try std.ArrayListUnmanaged(Pair).initCapacity(alloc, @min(count, prealloc_limit));
             var off = n;
             var i: usize = 0;
+            // Keys in canonical order cannot repeat, so only a map out of that order
+            // pays for the hash set that finds a repeated key.
+            var ascending = true;
             while (i < count) : (i += 1) {
-                const k = try decode_value(alloc, b[off..], depth + 1);
+                const k = try csil_decode_value(alloc, b[off..], depth + 1);
+                if (!csil_shortest_head(b[off..])) return error.NonShortestMapKey;
+                const raw_key = try alloc.dupe(u8, b[off .. off + k.consumed]);
                 off += k.consumed;
-                const v = try decode_value(alloc, b[off..], depth + 1);
+                const v = try csil_decode_value(alloc, b[off..], depth + 1);
                 off += v.consumed;
-                try pairs.append(alloc, .{ .key = k.value, .val = v.value });
+                if (pairs.items.len > 0 and std.mem.order(u8, pairs.items[pairs.items.len - 1].raw_key, raw_key) != .lt) {
+                    ascending = false;
+                }
+                try pairs.append(alloc, .{ .key = k.value, .val = v.value, .raw_key = raw_key });
+            }
+            if (!ascending) {
+                var seen: std.StringHashMapUnmanaged(void) = .{};
+                defer seen.deinit(alloc);
+                try seen.ensureTotalCapacity(alloc, @intCast(pairs.items.len));
+                for (pairs.items) |p| {
+                    if ((try seen.getOrPut(alloc, p.raw_key)).found_existing) return error.DuplicateKey;
+                }
             }
             return .{ .value = .{ .map = try pairs.toOwnedSlice(alloc) }, .consumed = off };
         },
         6 => {
-            const inner = try decode_value(alloc, b[n..], depth + 1);
+            const inner = try csil_decode_value(alloc, b[n..], depth + 1);
             const content = try alloc.create(Value);
             content.* = inner.value;
             return .{ .value = .{ .tag = .{ .num = arg, .content = content } }, .consumed = n + inner.consumed };
@@ -267,9 +289,52 @@ fn decode_value(alloc: std.mem.Allocator, b: []const u8, depth: usize) CodecErro
 }
 
 fn decode(alloc: std.mem.Allocator, b: []const u8) CodecError!Value {
-    const d = try decode_value(alloc, b, 0);
+    const d = try csil_decode_value(alloc, b, 0);
     if (d.consumed != b.len) return error.TrailingBytes;
     return d.value;
+}
+
+/// Whether the head at the start of `b` (already read once, so it is complete)
+/// uses the shortest argument for its value. A key with a longer head has a
+/// second byte form, so the key order check alone could accept it. A float head
+/// (major 7) has no shorter form to compare with.
+fn csil_shortest_head(b: []const u8) bool {
+    const major = b[0] >> 5;
+    if (major == 7) return true;
+    const arg = read_arg(b, b[0] & 0x1f) catch return false;
+    return switch (b[0] & 0x1f) {
+        24 => arg.arg >= 24,
+        25 => arg.arg > 0xff,
+        26 => arg.arg > 0xffff,
+        27 => arg.arg > 0xffff_ffff,
+        else => true,
+    };
+}
+
+/// A dynamic map must arrive with its encoded keys strictly ascending in bytewise
+/// order. Each key is compared with the one before it, so the check is O(n).
+fn csil_check_canonical(pairs: []const Pair) CodecError!void {
+    var i: usize = 1;
+    while (i < pairs.len) : (i += 1) {
+        if (std.mem.order(u8, pairs[i - 1].raw_key, pairs[i].raw_key) != .lt) return error.NonCanonicalMapOrder;
+    }
+}
+
+/// One encoded entry of a dynamic map inside a scratch buffer: the key is
+/// `buf[start..key_end]`, the value runs on to `end`.
+const CsilSpan = struct { start: usize, key_end: usize, end: usize };
+
+fn csil_span_less(buf: []const u8, a: CsilSpan, b: CsilSpan) bool {
+    return std.mem.order(u8, buf[a.start..a.key_end], buf[b.start..b.key_end]) == .lt;
+}
+
+/// Writes the entries of a dynamic map in canonical order: sorted by the bytes of
+/// each encoded key (RFC 8949 section 4.2.1). A hash map iterates in no fixed
+/// order, so the entries are encoded first and sorted by their key bytes.
+fn csil_w_sorted_map(out: *std.ArrayList(u8), buf: []const u8, spans: []CsilSpan) std.mem.Allocator.Error!void {
+    std.mem.sort(CsilSpan, spans, buf, csil_span_less);
+    try w_map_head(out, spans.len);
+    for (spans) |span| try out.appendSlice(buf[span.start..span.end]);
 }
 
 fn mget(m: Value, key: []const u8) ?Value {
@@ -280,7 +345,7 @@ fn mget(m: Value, key: []const u8) ?Value {
     return null;
 }
 
-fn requiredField(m: Value, key: []const u8) CodecError!Value {
+fn csil_required_field(m: Value, key: []const u8) CodecError!Value {
     return mget(m, key) orelse error.MissingField;
 }
 
@@ -347,6 +412,200 @@ fn calendar_date(s: []const u8) CodecError![]const u8 {
 fn as_tagged_text(v: Value, num: u64) CodecError![]const u8 {
     if (v != .tag or v.tag.num != num or v.tag.content.* != .text) return error.WrongType;
     return v.tag.content.text;
+}
+
+/// The longest canonical timestamp: `YYYY-MM-DDThh:mm:ss.fffffffffZ`.
+const csil_timestamp_max_len = 30;
+
+const CsilTimestampParts = struct { rfc3339: []const u8, epoch_seconds: i64 };
+
+fn csil_timestamp_digits(s: []const u8, at: usize, width: usize) CodecError!i64 {
+    if (at + width > s.len) return error.WrongType;
+    var v: i64 = 0;
+    for (s[at .. at + width]) |c| {
+        if (c < '0' or c > '9') return error.WrongType;
+        v = v * 10 + (c - '0');
+    }
+    return v;
+}
+
+fn csil_days_from_civil(year: i64, month: i64, day: i64) i64 {
+    const y = if (month <= 2) year - 1 else year;
+    const era = @divFloor(y, 400);
+    const yoe = y - era * 400;
+    const doy = @divFloor(153 * @mod(month + 9, 12) + 2, 5) + day - 1;
+    const doe = yoe * 365 + @divFloor(yoe, 4) - @divFloor(yoe, 100) + doy;
+    return era * 146097 + doe - 719468;
+}
+
+fn csil_timestamp_put(buf: []u8, at: usize, value: i64, width: usize) void {
+    var v: u64 = @intCast(value);
+    var k = width;
+    while (k > 0) {
+        k -= 1;
+        buf[at + k] = '0' + @as(u8, @intCast(v % 10));
+        v /= 10;
+    }
+}
+
+/// `0001-01-01T00:00:00Z` and `9999-12-31T23:59:59Z` as epoch seconds.
+const csil_epoch_first: i64 = -62135596800;
+const csil_epoch_last: i64 = 253402300799;
+
+const CsilInstant = struct { seconds: i64, nanos: i64 };
+
+/// Reads the strict RFC 3339 form of the wire contract into UTC epoch seconds and
+/// nanoseconds. The year must be 0001 to 9999 after conversion to UTC.
+fn csil_timestamp_parse(s: []const u8) CodecError!CsilInstant {
+    if (s.len < 20 or s[4] != '-' or s[7] != '-' or (s[10] != 'T' and s[10] != 't') or
+        s[13] != ':' or s[16] != ':') return error.WrongType;
+    const year = try csil_timestamp_digits(s, 0, 4);
+    const month = try csil_timestamp_digits(s, 5, 2);
+    const day = try csil_timestamp_digits(s, 8, 2);
+    const hour = try csil_timestamp_digits(s, 11, 2);
+    const minute = try csil_timestamp_digits(s, 14, 2);
+    const second = try csil_timestamp_digits(s, 17, 2);
+    const leap = @mod(year, 4) == 0 and (@mod(year, 100) != 0 or @mod(year, 400) == 0);
+    const days = [_]i64{ 31, if (leap) 29 else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+    if (year < 1 or month < 1 or month > 12 or day < 1 or day > days[@intCast(month - 1)]) return error.WrongType;
+    if (hour > 23 or minute > 59 or second > 59) return error.WrongType;
+    var i: usize = 19;
+    var nanos: i64 = 0;
+    if (s[i] == '.') {
+        i += 1;
+        const start = i;
+        while (i < s.len and s[i] >= '0' and s[i] <= '9') : (i += 1) {}
+        var width = i - start;
+        if (width < 1 or width > 9) return error.WrongType;
+        nanos = try csil_timestamp_digits(s, start, width);
+        while (width < 9) : (width += 1) nanos *= 10;
+    }
+    if (i >= s.len) return error.WrongType;
+    var offset: i64 = 0;
+    if ((s[i] == '+' or s[i] == '-') and i + 6 == s.len and s[i + 3] == ':') {
+        const oh = try csil_timestamp_digits(s, i + 1, 2);
+        const om = try csil_timestamp_digits(s, i + 4, 2);
+        if (oh > 23 or om > 59) return error.WrongType;
+        offset = oh * 3600 + om * 60;
+        if (s[i] == '-') offset = -offset;
+    } else if ((s[i] != 'Z' and s[i] != 'z') or i + 1 != s.len) {
+        return error.WrongType;
+    }
+    const utc = csil_days_from_civil(year, month, day) * 86400 + hour * 3600 + minute * 60 + second - offset;
+    if (utc < csil_epoch_first or utc > csil_epoch_last) return error.WrongType;
+    return .{ .seconds = utc, .nanos = nanos };
+}
+
+/// Writes the canonical UTC text for an instant already known to lie in years
+/// 0001 to 9999, so that both wire forms produce the same text.
+fn csil_timestamp_write(utc: i64, nanos: i64, buf: *[csil_timestamp_max_len]u8) []const u8 {
+    const z = @divFloor(utc, 86400) + 719468;
+    const sod = @mod(utc, 86400);
+    const era = @divFloor(z, 146097);
+    const doe = z - era * 146097;
+    const yoe = @divFloor(doe - @divFloor(doe, 1460) + @divFloor(doe, 36524) - @divFloor(doe, 146096), 365);
+    const doy = doe - (365 * yoe + @divFloor(yoe, 4) - @divFloor(yoe, 100));
+    const mp = @divFloor(5 * doy + 2, 153);
+    const d = doy - @divFloor(153 * mp + 2, 5) + 1;
+    const m = if (mp < 10) mp + 3 else mp - 9;
+    const y = yoe + era * 400 + @as(i64, if (m <= 2) 1 else 0);
+    csil_timestamp_put(buf, 0, y, 4);
+    buf[4] = '-';
+    csil_timestamp_put(buf, 5, m, 2);
+    buf[7] = '-';
+    csil_timestamp_put(buf, 8, d, 2);
+    buf[10] = 'T';
+    csil_timestamp_put(buf, 11, @divFloor(sod, 3600), 2);
+    buf[13] = ':';
+    csil_timestamp_put(buf, 14, @mod(@divFloor(sod, 60), 60), 2);
+    buf[16] = ':';
+    csil_timestamp_put(buf, 17, @mod(sod, 60), 2);
+    var len: usize = 19;
+    if (nanos != 0) {
+        // The fewest of 3, 6, or 9 digits that hold the value exactly, so every
+        // peer writes the same bytes for the same instant.
+        const width: usize = if (@mod(nanos, 1_000_000) == 0) 3 else if (@mod(nanos, 1000) == 0) 6 else 9;
+        const scaled = if (width == 3) @divFloor(nanos, 1_000_000) else if (width == 6) @divFloor(nanos, 1000) else nanos;
+        buf[len] = '.';
+        csil_timestamp_put(buf, len + 1, scaled, width);
+        len += 1 + width;
+    }
+    buf[len] = 'Z';
+    return buf[0 .. len + 1];
+}
+
+/// Validates the strict RFC 3339 form of the wire contract and writes the canonical
+/// UTC spelling into `buf`, so equal instants compare equal as text.
+fn csil_timestamp_text(s: []const u8, buf: *[csil_timestamp_max_len]u8, epoch: *i64) CodecError![]const u8 {
+    const instant = try csil_timestamp_parse(s);
+    epoch.* = instant.seconds;
+    return csil_timestamp_write(instant.seconds, instant.nanos, buf);
+}
+
+/// Decoded text that is already canonical is borrowed as is; only a value that
+/// needs normalizing costs an allocation.
+fn csil_as_timestamp(alloc: std.mem.Allocator, v: Value) CodecError!CsilTimestampParts {
+    const raw = try as_tagged_text(v, 0);
+    var buf: [csil_timestamp_max_len]u8 = undefined;
+    var epoch: i64 = 0;
+    const canonical = try csil_timestamp_text(raw, &buf, &epoch);
+    const text = if (std.mem.eql(u8, canonical, raw)) raw else try alloc.dupe(u8, canonical);
+    return .{ .rfc3339 = text, .epoch_seconds = epoch };
+}
+
+/// A caller-built value is normalized too, so the wire never carries an offset,
+/// lowercase separators, or a non-minimal fraction.
+fn csil_w_timestamp(out: *std.ArrayList(u8), text: []const u8) CodecError!void {
+    var buf: [csil_timestamp_max_len]u8 = undefined;
+    var epoch: i64 = 0;
+    const canonical = try csil_timestamp_text(text, &buf, &epoch);
+    try w_tag(out, 0);
+    try w_text(out, canonical);
+}
+
+/// `cddl_time`: tag 1 around epoch seconds, kept as the same canonical text as a
+/// `timestamp` so both wire forms compare equal for one instant.
+fn csil_as_epoch(alloc: std.mem.Allocator, v: Value) CodecError!CsilTimestampParts {
+    if (v != .tag or v.tag.num != 1) return error.WrongType;
+    var seconds: i64 = 0;
+    var units: i64 = 0;
+    switch (v.tag.content.*) {
+        .uint => |n| {
+            if (n > @as(u64, @intCast(csil_epoch_last))) return error.WrongType;
+            seconds = @intCast(n);
+        },
+        .int => |n| seconds = n,
+        .float => |value| {
+            // The range test also refuses NaN and infinity, and it comes before
+            // the conversion to an integer, which panics out of range.
+            const low: f64 = @floatFromInt(csil_epoch_first - 1);
+            const high: f64 = @floatFromInt(csil_epoch_last + 1);
+            if (!(value >= low and value <= high)) return error.WrongType;
+            const whole = @floor(value);
+            seconds = @intFromFloat(whole);
+            // Two operations, not a fused multiply-add, which can round differently.
+            const scaled = (value - whole) * 1e9;
+            units = @intFromFloat(@floor(scaled + 0.5));
+            if (units == 1_000_000_000) {
+                seconds += 1;
+                units = 0;
+            }
+        },
+        else => return error.WrongType,
+    }
+    if (seconds < csil_epoch_first or seconds > csil_epoch_last) return error.WrongType;
+    var buf: [csil_timestamp_max_len]u8 = undefined;
+    const text = try alloc.dupe(u8, csil_timestamp_write(seconds, units, &buf));
+    return .{ .rfc3339 = text, .epoch_seconds = seconds };
+}
+
+fn csil_w_epoch(out: *std.ArrayList(u8), text: []const u8) CodecError!void {
+    const instant = try csil_timestamp_parse(text);
+    try w_tag(out, 1);
+    if (instant.nanos == 0) return w_int(out, instant.seconds);
+    const seconds: f64 = @floatFromInt(instant.seconds);
+    const fraction = @as(f64, @floatFromInt(instant.nanos)) / 1e9;
+    try w_f64(out, seconds + fraction);
 }
 
 const Decimal = struct { exp: i64, mant: i64 };
@@ -638,11 +897,9 @@ fn enc_House(out: *std.ArrayList(u8), v: *const types.House) CodecError!void {
     try w_text(out, "house_id");
     try w_text(out, v.house_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "updated_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.updated_at).rfc3339);
+    try csil_w_timestamp(out, (v.updated_at).rfc3339);
     if (v.description) |csil_x| {
         try w_text(out, "description");
         try w_text(out, csil_x);
@@ -650,23 +907,28 @@ fn enc_House(out: *std.ArrayList(u8), v: *const types.House) CodecError!void {
 }
 
 fn dec_House(alloc: std.mem.Allocator, m: Value, out: *types.House) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "name");
+        const csil_fv = try csil_required_field(m, "name");
         out.name = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "updated_at");
-        out.updated_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "updated_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.updated_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "description")) |csil_fv| {
@@ -704,24 +966,20 @@ fn enc_Member(out: *std.ArrayList(u8), v: *const types.Member) CodecError!void {
         try w_text(out, csil_x);
     }
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "updated_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.updated_at).rfc3339);
+    try csil_w_timestamp(out, (v.updated_at).rfc3339);
     if (v.display_name) |csil_x| {
         try w_text(out, "display_name");
         try w_text(out, csil_x);
     }
     if (v.last_seen_at) |csil_x| {
         try w_text(out, "last_seen_at");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     if (v.deactivated_at) |csil_x| {
         try w_text(out, "deactivated_at");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     try w_text(out, "linkkeys_domain");
     try w_text(out, v.linkkeys_domain);
@@ -734,7 +992,6 @@ fn enc_Member(out: *std.ArrayList(u8), v: *const types.Member) CodecError!void {
 }
 
 fn dec_Member(alloc: std.mem.Allocator, m: Value, out: *types.Member) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
         if (mget(m, "email")) |csil_fv| {
@@ -751,11 +1008,11 @@ fn dec_Member(alloc: std.mem.Allocator, m: Value, out: *types.Member) CodecError
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
     {
@@ -766,12 +1023,18 @@ fn dec_Member(alloc: std.mem.Allocator, m: Value, out: *types.Member) CodecError
         }
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "updated_at");
-        out.updated_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "updated_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.updated_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "display_name")) |csil_fv| {
@@ -782,24 +1045,30 @@ fn dec_Member(alloc: std.mem.Allocator, m: Value, out: *types.Member) CodecError
     }
     {
         if (mget(m, "last_seen_at")) |csil_fv| {
-            out.last_seen_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.last_seen_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.last_seen_at = null;
         }
     }
     {
         if (mget(m, "deactivated_at")) |csil_fv| {
-            out.deactivated_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.deactivated_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.deactivated_at = null;
         }
     }
     {
-        const csil_fv = try requiredField(m, "linkkeys_domain");
+        const csil_fv = try csil_required_field(m, "linkkeys_domain");
         out.linkkeys_domain = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "linkkeys_user_id");
+        const csil_fv = try csil_required_field(m, "linkkeys_user_id");
         out.linkkeys_user_id = try as_text(csil_fv);
     }
     {
@@ -818,29 +1087,30 @@ fn enc_TrustedDomain(out: *std.ArrayList(u8), v: *const types.TrustedDomain) Cod
     try w_text(out, "house_id");
     try w_text(out, v.house_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "trusted_domain_id");
     try w_text(out, v.trusted_domain_id);
 }
 
 fn dec_TrustedDomain(alloc: std.mem.Allocator, m: Value, out: *types.TrustedDomain) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "domain");
+        const csil_fv = try csil_required_field(m, "domain");
         out.domain = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "trusted_domain_id");
+        const csil_fv = try csil_required_field(m, "trusted_domain_id");
         out.trusted_domain_id = try as_text(csil_fv);
     }
 }
@@ -856,11 +1126,9 @@ fn enc_Role(out: *std.ArrayList(u8), v: *const types.Role) CodecError!void {
     try w_text(out, "house_id");
     try w_text(out, v.house_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "updated_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.updated_at).rfc3339);
+    try csil_w_timestamp(out, (v.updated_at).rfc3339);
     if (v.description) |csil_x| {
         try w_text(out, "description");
         try w_text(out, csil_x);
@@ -868,27 +1136,32 @@ fn enc_Role(out: *std.ArrayList(u8), v: *const types.Role) CodecError!void {
 }
 
 fn dec_Role(alloc: std.mem.Allocator, m: Value, out: *types.Role) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "name");
+        const csil_fv = try csil_required_field(m, "name");
         out.name = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "role_id");
+        const csil_fv = try csil_required_field(m, "role_id");
         out.role_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "updated_at");
-        out.updated_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "updated_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.updated_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "description")) |csil_fv| {
@@ -906,24 +1179,25 @@ fn enc_MemberRole(out: *std.ArrayList(u8), v: *const types.MemberRole) CodecErro
     try w_text(out, "member_id");
     try w_text(out, v.member_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
 }
 
 fn dec_MemberRole(alloc: std.mem.Allocator, m: Value, out: *types.MemberRole) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "role_id");
+        const csil_fv = try csil_required_field(m, "role_id");
         out.role_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
 }
 
@@ -949,8 +1223,7 @@ fn enc_MemberAudit(out: *std.ArrayList(u8), v: *const types.MemberAudit) CodecEr
         try w_text(out, csil_x);
     }
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     if (v.target_type) |csil_x| {
         try w_text(out, "target_type");
         try w_text(out, csil_x);
@@ -964,10 +1237,9 @@ fn enc_MemberAudit(out: *std.ArrayList(u8), v: *const types.MemberAudit) CodecEr
 }
 
 fn dec_MemberAudit(alloc: std.mem.Allocator, m: Value, out: *types.MemberAudit) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "action");
+        const csil_fv = try csil_required_field(m, "action");
         out.action = try as_text(csil_fv);
     }
     {
@@ -978,11 +1250,11 @@ fn dec_MemberAudit(alloc: std.mem.Allocator, m: Value, out: *types.MemberAudit) 
         }
     }
     {
-        const csil_fv = try requiredField(m, "audit_id");
+        const csil_fv = try csil_required_field(m, "audit_id");
         out.audit_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
@@ -993,8 +1265,11 @@ fn dec_MemberAudit(alloc: std.mem.Allocator, m: Value, out: *types.MemberAudit) 
         }
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "target_type")) |csil_fv| {
@@ -1011,7 +1286,7 @@ fn dec_MemberAudit(alloc: std.mem.Allocator, m: Value, out: *types.MemberAudit) 
         }
     }
     {
-        const csil_fv = try requiredField(m, "subject_member_id");
+        const csil_fv = try csil_required_field(m, "subject_member_id");
         out.subject_member_id = try as_text(csil_fv);
     }
 }
@@ -1027,11 +1302,9 @@ fn enc_Skill(out: *std.ArrayList(u8), v: *const types.Skill) CodecError!void {
     try w_text(out, "skill_id");
     try w_text(out, v.skill_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "updated_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.updated_at).rfc3339);
+    try csil_w_timestamp(out, (v.updated_at).rfc3339);
     if (v.description) |csil_x| {
         try w_text(out, "description");
         try w_text(out, csil_x);
@@ -1039,27 +1312,32 @@ fn enc_Skill(out: *std.ArrayList(u8), v: *const types.Skill) CodecError!void {
 }
 
 fn dec_Skill(alloc: std.mem.Allocator, m: Value, out: *types.Skill) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "name");
+        const csil_fv = try csil_required_field(m, "name");
         out.name = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "skill_id");
+        const csil_fv = try csil_required_field(m, "skill_id");
         out.skill_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "updated_at");
-        out.updated_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "updated_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.updated_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "description")) |csil_fv| {
@@ -1077,24 +1355,25 @@ fn enc_MemberSkill(out: *std.ArrayList(u8), v: *const types.MemberSkill) CodecEr
     try w_text(out, "member_id");
     try w_text(out, v.member_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
 }
 
 fn dec_MemberSkill(alloc: std.mem.Allocator, m: Value, out: *types.MemberSkill) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "skill_id");
+        const csil_fv = try csil_required_field(m, "skill_id");
         out.skill_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
 }
 
@@ -1105,24 +1384,25 @@ fn enc_GroupSkill(out: *std.ArrayList(u8), v: *const types.GroupSkill) CodecErro
     try w_text(out, "skill_id");
     try w_text(out, v.skill_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
 }
 
 fn dec_GroupSkill(alloc: std.mem.Allocator, m: Value, out: *types.GroupSkill) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "group_id");
+        const csil_fv = try csil_required_field(m, "group_id");
         out.group_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "skill_id");
+        const csil_fv = try csil_required_field(m, "skill_id");
         out.skill_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
 }
 
@@ -1137,11 +1417,9 @@ fn enc_Group(out: *std.ArrayList(u8), v: *const types.Group) CodecError!void {
     try w_text(out, "house_id");
     try w_text(out, v.house_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "updated_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.updated_at).rfc3339);
+    try csil_w_timestamp(out, (v.updated_at).rfc3339);
     if (v.description) |csil_x| {
         try w_text(out, "description");
         try w_text(out, csil_x);
@@ -1149,27 +1427,32 @@ fn enc_Group(out: *std.ArrayList(u8), v: *const types.Group) CodecError!void {
 }
 
 fn dec_Group(alloc: std.mem.Allocator, m: Value, out: *types.Group) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "name");
+        const csil_fv = try csil_required_field(m, "name");
         out.name = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "group_id");
+        const csil_fv = try csil_required_field(m, "group_id");
         out.group_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "updated_at");
-        out.updated_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "updated_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.updated_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "description")) |csil_fv| {
@@ -1187,24 +1470,25 @@ fn enc_GroupMember(out: *std.ArrayList(u8), v: *const types.GroupMember) CodecEr
     try w_text(out, "member_id");
     try w_text(out, v.member_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
 }
 
 fn dec_GroupMember(alloc: std.mem.Allocator, m: Value, out: *types.GroupMember) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "group_id");
+        const csil_fv = try csil_required_field(m, "group_id");
         out.group_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
 }
 
@@ -1234,13 +1518,11 @@ fn enc_Project(out: *std.ArrayList(u8), v: *const types.Project) CodecError!void
         try w_bool(out, csil_x);
     }
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "project_id");
     try w_text(out, v.project_id);
     try w_text(out, "updated_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.updated_at).rfc3339);
+    try csil_w_timestamp(out, (v.updated_at).rfc3339);
     if (v.visibility) |csil_x| {
         try w_text(out, "visibility");
         try enc_AccessLevel(out, &(csil_x));
@@ -1258,13 +1540,13 @@ fn enc_Project(out: *std.ArrayList(u8), v: *const types.Project) CodecError!void
 fn dec_Project(alloc: std.mem.Allocator, m: Value, out: *types.Project) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "name");
+        const csil_fv = try csil_required_field(m, "name");
         out.name = try as_text(csil_fv);
     }
     {
         if (mget(m, "status")) |csil_fv| {
             var csil_tmp: types.ProjectStatus = undefined;
-            try dec_ProjectStatus(alloc, csil_fv, &csil_tmp);
+            try dec_ProjectStatus(alloc, csil_fv, &(csil_tmp));
             out.status = csil_tmp;
         } else {
             out.status = null;
@@ -1278,7 +1560,7 @@ fn dec_Project(alloc: std.mem.Allocator, m: Value, out: *types.Project) CodecErr
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
@@ -1289,21 +1571,27 @@ fn dec_Project(alloc: std.mem.Allocator, m: Value, out: *types.Project) CodecErr
         }
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "updated_at");
-        out.updated_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "updated_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.updated_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "visibility")) |csil_fv| {
             var csil_tmp: types.AccessLevel = undefined;
-            try dec_AccessLevel(alloc, csil_fv, &csil_tmp);
+            try dec_AccessLevel(alloc, csil_fv, &(csil_tmp));
             out.visibility = csil_tmp;
         } else {
             out.visibility = null;
@@ -1332,29 +1620,30 @@ fn enc_ProjectTask(out: *std.ArrayList(u8), v: *const types.ProjectTask) CodecEr
     try w_text(out, "position");
     try w_int(out, v.position);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "project_id");
     try w_text(out, v.project_id);
 }
 
 fn dec_ProjectTask(alloc: std.mem.Allocator, m: Value, out: *types.ProjectTask) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "task_id");
+        const csil_fv = try csil_required_field(m, "task_id");
         out.task_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "position");
+        const csil_fv = try csil_required_field(m, "position");
         out.position = try as_i64(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
 }
@@ -1364,25 +1653,26 @@ fn enc_ProjectMember(out: *std.ArrayList(u8), v: *const types.ProjectMember) Cod
     try w_text(out, "member_id");
     try w_text(out, v.member_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "project_id");
     try w_text(out, v.project_id);
 }
 
 fn dec_ProjectMember(alloc: std.mem.Allocator, m: Value, out: *types.ProjectMember) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
 }
@@ -1392,25 +1682,26 @@ fn enc_ProjectOwner(out: *std.ArrayList(u8), v: *const types.ProjectOwner) Codec
     try w_text(out, "member_id");
     try w_text(out, v.member_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "project_id");
     try w_text(out, v.project_id);
 }
 
 fn dec_ProjectOwner(alloc: std.mem.Allocator, m: Value, out: *types.ProjectOwner) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
 }
@@ -1424,13 +1715,11 @@ fn enc_Milestone(out: *std.ArrayList(u8), v: *const types.Milestone) CodecError!
     try w_text(out, "position");
     try w_int(out, v.position);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "project_id");
     try w_text(out, v.project_id);
     try w_text(out, "updated_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.updated_at).rfc3339);
+    try csil_w_timestamp(out, (v.updated_at).rfc3339);
     try w_text(out, "when_label");
     try w_text(out, v.when_label);
     try w_text(out, "milestone_id");
@@ -1440,35 +1729,41 @@ fn enc_Milestone(out: *std.ArrayList(u8), v: *const types.Milestone) CodecError!
 fn dec_Milestone(alloc: std.mem.Allocator, m: Value, out: *types.Milestone) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "label");
+        const csil_fv = try csil_required_field(m, "label");
         out.label = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "state");
+        const csil_fv = try csil_required_field(m, "state");
         try dec_MilestoneState(alloc, csil_fv, &(out.state));
     }
     {
-        const csil_fv = try requiredField(m, "position");
+        const csil_fv = try csil_required_field(m, "position");
         out.position = try as_i64(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "updated_at");
-        out.updated_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "updated_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.updated_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "when_label");
+        const csil_fv = try csil_required_field(m, "when_label");
         out.when_label = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "milestone_id");
+        const csil_fv = try csil_required_field(m, "milestone_id");
         out.milestone_id = try as_text(csil_fv);
     }
 }
@@ -1505,8 +1800,7 @@ fn enc_Event(out: *std.ArrayList(u8), v: *const types.Event) CodecError!void {
     }
     if (v.ends_at) |csil_x| {
         try w_text(out, "ends_at");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     try w_text(out, "event_id");
     try w_text(out, v.event_id);
@@ -1526,19 +1820,16 @@ fn enc_Event(out: *std.ArrayList(u8), v: *const types.Event) CodecError!void {
     }
     if (v.starts_at) |csil_x| {
         try w_text(out, "starts_at");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     if (v.edit_scope) |csil_x| {
         try w_text(out, "edit_scope");
         try w_text(out, csil_x);
     }
     try w_text(out, "updated_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.updated_at).rfc3339);
+    try csil_w_timestamp(out, (v.updated_at).rfc3339);
     if (v.description) |csil_x| {
         try w_text(out, "description");
         try w_text(out, csil_x);
@@ -1571,8 +1862,7 @@ fn enc_Event(out: *std.ArrayList(u8), v: *const types.Event) CodecError!void {
     }
     if (v.next_recurrence_at) |csil_x| {
         try w_text(out, "next_recurrence_at");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     if (v.recurrence_interval) |csil_x| {
         try w_text(out, "recurrence_interval");
@@ -1606,7 +1896,7 @@ fn enc_Event(out: *std.ArrayList(u8), v: *const types.Event) CodecError!void {
 fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "title");
+        const csil_fv = try csil_required_field(m, "title");
         out.title = try as_text(csil_fv);
     }
     {
@@ -1618,17 +1908,20 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
     }
     {
         if (mget(m, "ends_at")) |csil_fv| {
-            out.ends_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.ends_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.ends_at = null;
         }
     }
     {
-        const csil_fv = try requiredField(m, "event_id");
+        const csil_fv = try csil_required_field(m, "event_id");
         out.event_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
@@ -1654,14 +1947,20 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
     }
     {
         if (mget(m, "starts_at")) |csil_fv| {
-            out.starts_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.starts_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.starts_at = null;
         }
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "edit_scope")) |csil_fv| {
@@ -1671,8 +1970,11 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
         }
     }
     {
-        const csil_fv = try requiredField(m, "updated_at");
-        out.updated_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "updated_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.updated_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "description")) |csil_fv| {
@@ -1689,13 +1991,13 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
         }
     }
     {
-        const csil_fv = try requiredField(m, "owner_member_id");
+        const csil_fv = try csil_required_field(m, "owner_member_id");
         out.owner_member_id = try as_text(csil_fv);
     }
     {
         if (mget(m, "recurrence_freq")) |csil_fv| {
             var csil_tmp: types.RecurrenceFreq = undefined;
-            try dec_RecurrenceFreq(alloc, csil_fv, &csil_tmp);
+            try dec_RecurrenceFreq(alloc, csil_fv, &(csil_tmp));
             out.recurrence_freq = csil_tmp;
         } else {
             out.recurrence_freq = null;
@@ -1731,7 +2033,10 @@ fn dec_Event(alloc: std.mem.Allocator, m: Value, out: *types.Event) CodecError!v
     }
     {
         if (mget(m, "next_recurrence_at")) |csil_fv| {
-            out.next_recurrence_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.next_recurrence_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.next_recurrence_at = null;
         }
@@ -1813,8 +2118,7 @@ fn enc_Task(out: *std.ArrayList(u8), v: *const types.Task) CodecError!void {
     try w_text(out, v.title);
     if (v.due_at) |csil_x| {
         try w_text(out, "due_at");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     if (v.status) |csil_x| {
         try w_text(out, "status");
@@ -1832,16 +2136,13 @@ fn enc_Task(out: *std.ArrayList(u8), v: *const types.Task) CodecError!void {
         }
     }
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     if (v.deleted_at) |csil_x| {
         try w_text(out, "deleted_at");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     try w_text(out, "updated_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.updated_at).rfc3339);
+    try csil_w_timestamp(out, (v.updated_at).rfc3339);
     if (v.visibility) |csil_x| {
         try w_text(out, "visibility");
         try enc_AccessLevel(out, &(csil_x));
@@ -1870,8 +2171,7 @@ fn enc_Task(out: *std.ArrayList(u8), v: *const types.Task) CodecError!void {
     }
     if (v.next_recurrence_at) |csil_x| {
         try w_text(out, "next_recurrence_at");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     if (v.recurrence_interval) |csil_x| {
         try w_text(out, "recurrence_interval");
@@ -1908,12 +2208,15 @@ fn dec_Task(alloc: std.mem.Allocator, m: Value, out: *types.Task) CodecError!voi
         }
     }
     {
-        const csil_fv = try requiredField(m, "title");
+        const csil_fv = try csil_required_field(m, "title");
         out.title = try as_text(csil_fv);
     }
     {
         if (mget(m, "due_at")) |csil_fv| {
-            out.due_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.due_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.due_at = null;
         }
@@ -1921,18 +2224,18 @@ fn dec_Task(alloc: std.mem.Allocator, m: Value, out: *types.Task) CodecError!voi
     {
         if (mget(m, "status")) |csil_fv| {
             var csil_tmp: types.TaskStatus = undefined;
-            try dec_TaskStatus(alloc, csil_fv, &csil_tmp);
+            try dec_TaskStatus(alloc, csil_fv, &(csil_tmp));
             out.status = csil_tmp;
         } else {
             out.status = null;
         }
     }
     {
-        const csil_fv = try requiredField(m, "task_id");
+        const csil_fv = try csil_required_field(m, "task_id");
         out.task_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
@@ -1948,24 +2251,33 @@ fn dec_Task(alloc: std.mem.Allocator, m: Value, out: *types.Task) CodecError!voi
         }
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "deleted_at")) |csil_fv| {
-            out.deleted_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.deleted_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.deleted_at = null;
         }
     }
     {
-        const csil_fv = try requiredField(m, "updated_at");
-        out.updated_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "updated_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.updated_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "visibility")) |csil_fv| {
             var csil_tmp: types.AccessLevel = undefined;
-            try dec_AccessLevel(alloc, csil_fv, &csil_tmp);
+            try dec_AccessLevel(alloc, csil_fv, &(csil_tmp));
             out.visibility = csil_tmp;
         } else {
             out.visibility = null;
@@ -1986,13 +2298,13 @@ fn dec_Task(alloc: std.mem.Allocator, m: Value, out: *types.Task) CodecError!voi
         }
     }
     {
-        const csil_fv = try requiredField(m, "owner_member_id");
+        const csil_fv = try csil_required_field(m, "owner_member_id");
         out.owner_member_id = try as_text(csil_fv);
     }
     {
         if (mget(m, "recurrence_freq")) |csil_fv| {
             var csil_tmp: types.RecurrenceFreq = undefined;
-            try dec_RecurrenceFreq(alloc, csil_fv, &csil_tmp);
+            try dec_RecurrenceFreq(alloc, csil_fv, &(csil_tmp));
             out.recurrence_freq = csil_tmp;
         } else {
             out.recurrence_freq = null;
@@ -2014,7 +2326,10 @@ fn dec_Task(alloc: std.mem.Allocator, m: Value, out: *types.Task) CodecError!voi
     }
     {
         if (mget(m, "next_recurrence_at")) |csil_fv| {
-            out.next_recurrence_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.next_recurrence_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.next_recurrence_at = null;
         }
@@ -2074,11 +2389,9 @@ fn enc_Comment(out: *std.ArrayList(u8), v: *const types.Comment) CodecError!void
     try w_text(out, "comment_id");
     try w_text(out, v.comment_id);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "updated_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.updated_at).rfc3339);
+    try csil_w_timestamp(out, (v.updated_at).rfc3339);
     try w_text(out, "target_type");
     try enc_TargetType(out, &(v.target_type));
 }
@@ -2086,35 +2399,41 @@ fn enc_Comment(out: *std.ArrayList(u8), v: *const types.Comment) CodecError!void
 fn dec_Comment(alloc: std.mem.Allocator, m: Value, out: *types.Comment) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "body");
+        const csil_fv = try csil_required_field(m, "body");
         out.body = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "target_id");
+        const csil_fv = try csil_required_field(m, "target_id");
         out.target_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "comment_id");
+        const csil_fv = try csil_required_field(m, "comment_id");
         out.comment_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "updated_at");
-        out.updated_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "updated_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.updated_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "target_type");
+        const csil_fv = try csil_required_field(m, "target_type");
         try dec_TargetType(alloc, csil_fv, &(out.target_type));
     }
 }
@@ -2131,12 +2450,10 @@ fn enc_Share(out: *std.ArrayList(u8), v: *const types.Share) CodecError!void {
     try w_text(out, "shared_by");
     try w_text(out, v.shared_by);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     if (v.expires_at) |csil_x| {
         try w_text(out, "expires_at");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     try w_text(out, "resource_id");
     try w_text(out, v.resource_id);
@@ -2155,51 +2472,57 @@ fn enc_Share(out: *std.ArrayList(u8), v: *const types.Share) CodecError!void {
 fn dec_Share(alloc: std.mem.Allocator, m: Value, out: *types.Share) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "share_id");
+        const csil_fv = try csil_required_field(m, "share_id");
         out.share_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "shared_by");
+        const csil_fv = try csil_required_field(m, "shared_by");
         out.shared_by = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "expires_at")) |csil_fv| {
-            out.expires_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.expires_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.expires_at = null;
         }
     }
     {
-        const csil_fv = try requiredField(m, "resource_id");
+        const csil_fv = try csil_required_field(m, "resource_id");
         out.resource_id = try as_text(csil_fv);
     }
     {
         if (mget(m, "access_level")) |csil_fv| {
             var csil_tmp: types.AccessLevel = undefined;
-            try dec_AccessLevel(alloc, csil_fv, &csil_tmp);
+            try dec_AccessLevel(alloc, csil_fv, &(csil_tmp));
             out.access_level = csil_tmp;
         } else {
             out.access_level = null;
         }
     }
     {
-        const csil_fv = try requiredField(m, "resource_type");
+        const csil_fv = try csil_required_field(m, "resource_type");
         try dec_ResourceType(alloc, csil_fv, &(out.resource_type));
     }
     {
-        const csil_fv = try requiredField(m, "linkkeys_domain");
+        const csil_fv = try csil_required_field(m, "linkkeys_domain");
         out.linkkeys_domain = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "linkkeys_user_id");
+        const csil_fv = try csil_required_field(m, "linkkeys_user_id");
         out.linkkeys_user_id = try as_text(csil_fv);
     }
 }
@@ -2222,11 +2545,11 @@ fn enc_HouseSummary(out: *std.ArrayList(u8), v: *const types.HouseSummary) Codec
 fn dec_HouseSummary(alloc: std.mem.Allocator, m: Value, out: *types.HouseSummary) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "name");
+        const csil_fv = try csil_required_field(m, "name");
         out.name = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "roles");
+        const csil_fv = try csil_required_field(m, "roles");
         if (csil_fv != .array) return error.WrongType;
         out.roles = try alloc.alloc([]const u8, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -2234,11 +2557,11 @@ fn dec_HouseSummary(alloc: std.mem.Allocator, m: Value, out: *types.HouseSummary
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
 }
@@ -2259,11 +2582,11 @@ fn enc_HouseRoles(out: *std.ArrayList(u8), v: *const types.HouseRoles) CodecErro
 fn dec_HouseRoles(alloc: std.mem.Allocator, m: Value, out: *types.HouseRoles) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "house");
+        const csil_fv = try csil_required_field(m, "house");
         out.house = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "roles");
+        const csil_fv = try csil_required_field(m, "roles");
         if (csil_fv != .array) return error.WrongType;
         out.roles = try alloc.alloc([]const u8, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -2271,7 +2594,7 @@ fn dec_HouseRoles(alloc: std.mem.Allocator, m: Value, out: *types.HouseRoles) Co
         }
     }
     {
-        const csil_fv = try requiredField(m, "member");
+        const csil_fv = try csil_required_field(m, "member");
         out.member = try as_text(csil_fv);
     }
 }
@@ -2294,7 +2617,7 @@ fn enc_ActAsDelegation(out: *std.ArrayList(u8), v: *const types.ActAsDelegation)
 fn dec_ActAsDelegation(alloc: std.mem.Allocator, m: Value, out: *types.ActAsDelegation) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "scopes");
+        const csil_fv = try csil_required_field(m, "scopes");
         if (csil_fv != .array) return error.WrongType;
         out.scopes = try alloc.alloc([]const u8, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -2302,15 +2625,15 @@ fn dec_ActAsDelegation(alloc: std.mem.Allocator, m: Value, out: *types.ActAsDele
         }
     }
     {
-        const csil_fv = try requiredField(m, "grantee");
+        const csil_fv = try csil_required_field(m, "grantee");
         out.grantee = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "grant_id");
+        const csil_fv = try csil_required_field(m, "grant_id");
         out.grant_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "grant_expires_at");
+        const csil_fv = try csil_required_field(m, "grant_expires_at");
         out.grant_expires_at = try as_i64(csil_fv);
     }
 }
@@ -2346,19 +2669,19 @@ fn enc_Identity(out: *std.ArrayList(u8), v: *const types.Identity) CodecError!vo
 fn dec_Identity(alloc: std.mem.Allocator, m: Value, out: *types.Identity) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "exp");
+        const csil_fv = try csil_required_field(m, "exp");
         out.exp = try as_i64(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "iat");
+        const csil_fv = try csil_required_field(m, "iat");
         out.iat = try as_i64(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "domain");
+        const csil_fv = try csil_required_field(m, "domain");
         out.domain = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "houses");
+        const csil_fv = try csil_required_field(m, "houses");
         if (csil_fv != .array) return error.WrongType;
         out.houses = try alloc.alloc(types.HouseRoles, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -2366,13 +2689,13 @@ fn dec_Identity(alloc: std.mem.Allocator, m: Value, out: *types.Identity) CodecE
         }
     }
     {
-        const csil_fv = try requiredField(m, "user_id");
+        const csil_fv = try csil_required_field(m, "user_id");
         out.user_id = try as_text(csil_fv);
     }
     {
         if (mget(m, "delegation")) |csil_fv| {
             var csil_tmp: types.ActAsDelegation = undefined;
-            try dec_ActAsDelegation(alloc, csil_fv, &csil_tmp);
+            try dec_ActAsDelegation(alloc, csil_fv, &(csil_tmp));
             out.delegation = csil_tmp;
         } else {
             out.delegation = null;
@@ -2397,7 +2720,7 @@ fn dec_LoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.LoginRequest
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "signed_assertion");
+        const csil_fv = try csil_required_field(m, "signed_assertion");
         out.signed_assertion = try as_text(csil_fv);
     }
 }
@@ -2434,7 +2757,7 @@ fn dec_BeginBrowserLoginResponse(alloc: std.mem.Allocator, m: Value, out: *types
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "redirect_url");
+        const csil_fv = try csil_required_field(m, "redirect_url");
         out.redirect_url = try as_text(csil_fv);
     }
 }
@@ -2449,7 +2772,7 @@ fn dec_CompleteRequest(alloc: std.mem.Allocator, m: Value, out: *types.CompleteR
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "encrypted_token");
+        const csil_fv = try csil_required_field(m, "encrypted_token");
         out.encrypted_token = try as_text(csil_fv);
     }
 }
@@ -2465,8 +2788,7 @@ fn enc_LoginResponse(out: *std.ArrayList(u8), v: *const types.LoginResponse) Cod
     try w_text(out, "user_id");
     try w_text(out, v.user_id);
     try w_text(out, "expires_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.expires_at).rfc3339);
+    try csil_w_timestamp(out, (v.expires_at).rfc3339);
     if (v.display_name) |csil_x| {
         try w_text(out, "display_name");
         try w_text(out, csil_x);
@@ -2474,23 +2796,25 @@ fn enc_LoginResponse(out: *std.ArrayList(u8), v: *const types.LoginResponse) Cod
 }
 
 fn dec_LoginResponse(alloc: std.mem.Allocator, m: Value, out: *types.LoginResponse) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "token");
+        const csil_fv = try csil_required_field(m, "token");
         out.token = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "domain");
+        const csil_fv = try csil_required_field(m, "domain");
         out.domain = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "user_id");
+        const csil_fv = try csil_required_field(m, "user_id");
         out.user_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "expires_at");
-        out.expires_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "expires_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.expires_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "display_name")) |csil_fv| {
@@ -2512,8 +2836,7 @@ fn enc_CliTokenResponse(out: *std.ArrayList(u8), v: *const types.CliTokenRespons
     try w_text(out, "user_id");
     try w_text(out, v.user_id);
     try w_text(out, "expires_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.expires_at).rfc3339);
+    try csil_w_timestamp(out, (v.expires_at).rfc3339);
     try w_text(out, "session_id");
     try w_text(out, v.session_id);
     if (v.display_name) |csil_x| {
@@ -2523,31 +2846,32 @@ fn enc_CliTokenResponse(out: *std.ArrayList(u8), v: *const types.CliTokenRespons
     try w_text(out, "refresh_token");
     try w_text(out, v.refresh_token);
     try w_text(out, "refresh_expires_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.refresh_expires_at).rfc3339);
+    try csil_w_timestamp(out, (v.refresh_expires_at).rfc3339);
 }
 
 fn dec_CliTokenResponse(alloc: std.mem.Allocator, m: Value, out: *types.CliTokenResponse) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "token");
+        const csil_fv = try csil_required_field(m, "token");
         out.token = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "domain");
+        const csil_fv = try csil_required_field(m, "domain");
         out.domain = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "user_id");
+        const csil_fv = try csil_required_field(m, "user_id");
         out.user_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "expires_at");
-        out.expires_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "expires_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.expires_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "session_id");
+        const csil_fv = try csil_required_field(m, "session_id");
         out.session_id = try as_text(csil_fv);
     }
     {
@@ -2558,12 +2882,15 @@ fn dec_CliTokenResponse(alloc: std.mem.Allocator, m: Value, out: *types.CliToken
         }
     }
     {
-        const csil_fv = try requiredField(m, "refresh_token");
+        const csil_fv = try csil_required_field(m, "refresh_token");
         out.refresh_token = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "refresh_expires_at");
-        out.refresh_expires_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "refresh_expires_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.refresh_expires_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
 }
 
@@ -2577,7 +2904,7 @@ fn dec_BeginCliLoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.Begi
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "client_name");
+        const csil_fv = try csil_required_field(m, "client_name");
         out.client_name = try as_text(csil_fv);
     }
 }
@@ -2587,8 +2914,7 @@ fn enc_BeginCliLoginResponse(out: *std.ArrayList(u8), v: *const types.BeginCliLo
     try w_text(out, "user_code");
     try w_text(out, v.user_code);
     try w_text(out, "expires_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.expires_at).rfc3339);
+    try csil_w_timestamp(out, (v.expires_at).rfc3339);
     try w_text(out, "device_code");
     try w_text(out, v.device_code);
     try w_text(out, "interval_seconds");
@@ -2598,26 +2924,28 @@ fn enc_BeginCliLoginResponse(out: *std.ArrayList(u8), v: *const types.BeginCliLo
 }
 
 fn dec_BeginCliLoginResponse(alloc: std.mem.Allocator, m: Value, out: *types.BeginCliLoginResponse) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "user_code");
+        const csil_fv = try csil_required_field(m, "user_code");
         out.user_code = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "expires_at");
-        out.expires_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "expires_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.expires_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "device_code");
+        const csil_fv = try csil_required_field(m, "device_code");
         out.device_code = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "interval_seconds");
+        const csil_fv = try csil_required_field(m, "interval_seconds");
         out.interval_seconds = try as_u64(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "verification_url");
+        const csil_fv = try csil_required_field(m, "verification_url");
         out.verification_url = try as_text(csil_fv);
     }
 }
@@ -2632,7 +2960,7 @@ fn dec_ApproveCliLoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.Ap
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "user_code");
+        const csil_fv = try csil_required_field(m, "user_code");
         out.user_code = try as_text(csil_fv);
     }
 }
@@ -2642,25 +2970,26 @@ fn enc_CliLoginRequestInfo(out: *std.ArrayList(u8), v: *const types.CliLoginRequ
     try w_text(out, "user_code");
     try w_text(out, v.user_code);
     try w_text(out, "expires_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.expires_at).rfc3339);
+    try csil_w_timestamp(out, (v.expires_at).rfc3339);
     try w_text(out, "client_name");
     try w_text(out, v.client_name);
 }
 
 fn dec_CliLoginRequestInfo(alloc: std.mem.Allocator, m: Value, out: *types.CliLoginRequestInfo) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "user_code");
+        const csil_fv = try csil_required_field(m, "user_code");
         out.user_code = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "expires_at");
-        out.expires_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "expires_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.expires_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "client_name");
+        const csil_fv = try csil_required_field(m, "client_name");
         out.client_name = try as_text(csil_fv);
     }
 }
@@ -2675,7 +3004,7 @@ fn dec_DenyCliLoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.DenyC
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "user_code");
+        const csil_fv = try csil_required_field(m, "user_code");
         out.user_code = try as_text(csil_fv);
     }
 }
@@ -2690,7 +3019,7 @@ fn dec_ExchangeCliLoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.E
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "device_code");
+        const csil_fv = try csil_required_field(m, "device_code");
         out.device_code = try as_text(csil_fv);
     }
 }
@@ -2710,13 +3039,13 @@ fn enc_ExchangeCliLoginResponse(out: *std.ArrayList(u8), v: *const types.Exchang
 fn dec_ExchangeCliLoginResponse(alloc: std.mem.Allocator, m: Value, out: *types.ExchangeCliLoginResponse) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "status");
+        const csil_fv = try csil_required_field(m, "status");
         try dec_CliLoginStatus(alloc, csil_fv, &(out.status));
     }
     {
         if (mget(m, "session")) |csil_fv| {
             var csil_tmp: types.CliTokenResponse = undefined;
-            try dec_CliTokenResponse(alloc, csil_fv, &csil_tmp);
+            try dec_CliTokenResponse(alloc, csil_fv, &(csil_tmp));
             out.session = csil_tmp;
         } else {
             out.session = null;
@@ -2734,7 +3063,7 @@ fn dec_RefreshSessionRequest(alloc: std.mem.Allocator, m: Value, out: *types.Ref
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "refresh_token");
+        const csil_fv = try csil_required_field(m, "refresh_token");
         out.refresh_token = try as_text(csil_fv);
     }
 }
@@ -2754,23 +3083,19 @@ fn enc_CliSessionSummary(out: *std.ArrayList(u8), v: *const types.CliSessionSumm
         try w_bool(out, csil_x);
     }
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     try w_text(out, "expires_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.expires_at).rfc3339);
+    try csil_w_timestamp(out, (v.expires_at).rfc3339);
     if (v.revoked_at) |csil_x| {
         try w_text(out, "revoked_at");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     try w_text(out, "session_id");
     try w_text(out, v.session_id);
     try w_text(out, "client_name");
     try w_text(out, v.client_name);
     try w_text(out, "last_used_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.last_used_at).rfc3339);
+    try csil_w_timestamp(out, (v.last_used_at).rfc3339);
 }
 
 fn dec_CliSessionSummary(alloc: std.mem.Allocator, m: Value, out: *types.CliSessionSummary) CodecError!void {
@@ -2778,7 +3103,7 @@ fn dec_CliSessionSummary(alloc: std.mem.Allocator, m: Value, out: *types.CliSess
     {
         if (mget(m, "kind")) |csil_fv| {
             var csil_tmp: types.SessionKind = undefined;
-            try dec_SessionKind(alloc, csil_fv, &csil_tmp);
+            try dec_SessionKind(alloc, csil_fv, &(csil_tmp));
             out.kind = csil_tmp;
         } else {
             out.kind = null;
@@ -2792,31 +3117,43 @@ fn dec_CliSessionSummary(alloc: std.mem.Allocator, m: Value, out: *types.CliSess
         }
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "expires_at");
-        out.expires_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "expires_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.expires_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "revoked_at")) |csil_fv| {
-            out.revoked_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.revoked_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.revoked_at = null;
         }
     }
     {
-        const csil_fv = try requiredField(m, "session_id");
+        const csil_fv = try csil_required_field(m, "session_id");
         out.session_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "client_name");
+        const csil_fv = try csil_required_field(m, "client_name");
         out.client_name = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "last_used_at");
-        out.last_used_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "last_used_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.last_used_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
 }
 
@@ -2832,7 +3169,7 @@ fn enc_CliSessionsResponse(out: *std.ArrayList(u8), v: *const types.CliSessionsR
 fn dec_CliSessionsResponse(alloc: std.mem.Allocator, m: Value, out: *types.CliSessionsResponse) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "sessions");
+        const csil_fv = try csil_required_field(m, "sessions");
         if (csil_fv != .array) return error.WrongType;
         out.sessions = try alloc.alloc(types.CliSessionSummary, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -2851,7 +3188,7 @@ fn dec_RevokeSessionRequest(alloc: std.mem.Allocator, m: Value, out: *types.Revo
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "session_id");
+        const csil_fv = try csil_required_field(m, "session_id");
         out.session_id = try as_text(csil_fv);
     }
 }
@@ -2890,7 +3227,7 @@ fn enc_DevUserEntry(out: *std.ArrayList(u8), v: *const types.DevUserEntry) Codec
 fn dec_DevUserEntry(alloc: std.mem.Allocator, m: Value, out: *types.DevUserEntry) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "roles");
+        const csil_fv = try csil_required_field(m, "roles");
         if (csil_fv != .array) return error.WrongType;
         out.roles = try alloc.alloc([]const u8, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -2898,15 +3235,15 @@ fn dec_DevUserEntry(alloc: std.mem.Allocator, m: Value, out: *types.DevUserEntry
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_name");
+        const csil_fv = try csil_required_field(m, "house_name");
         out.house_name = try as_text(csil_fv);
     }
     {
@@ -2944,7 +3281,7 @@ fn enc_DevUsersResponse(out: *std.ArrayList(u8), v: *const types.DevUsersRespons
 fn dec_DevUsersResponse(alloc: std.mem.Allocator, m: Value, out: *types.DevUsersResponse) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "users");
+        const csil_fv = try csil_required_field(m, "users");
         if (csil_fv != .array) return error.WrongType;
         out.users = try alloc.alloc(types.DevUserEntry, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -2963,7 +3300,7 @@ fn dec_DevLoginRequest(alloc: std.mem.Allocator, m: Value, out: *types.DevLoginR
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
 }
@@ -2982,8 +3319,7 @@ fn enc_MeResponse(out: *std.ArrayList(u8), v: *const types.MeResponse) CodecErro
     try w_text(out, "user_id");
     try w_text(out, v.user_id);
     try w_text(out, "expires_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.expires_at).rfc3339);
+    try csil_w_timestamp(out, (v.expires_at).rfc3339);
     if (v.display_name) |csil_x| {
         try w_text(out, "display_name");
         try w_text(out, csil_x);
@@ -2993,11 +3329,11 @@ fn enc_MeResponse(out: *std.ArrayList(u8), v: *const types.MeResponse) CodecErro
 fn dec_MeResponse(alloc: std.mem.Allocator, m: Value, out: *types.MeResponse) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "domain");
+        const csil_fv = try csil_required_field(m, "domain");
         out.domain = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "houses");
+        const csil_fv = try csil_required_field(m, "houses");
         if (csil_fv != .array) return error.WrongType;
         out.houses = try alloc.alloc(types.HouseSummary, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -3005,12 +3341,15 @@ fn dec_MeResponse(alloc: std.mem.Allocator, m: Value, out: *types.MeResponse) Co
         }
     }
     {
-        const csil_fv = try requiredField(m, "user_id");
+        const csil_fv = try csil_required_field(m, "user_id");
         out.user_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "expires_at");
-        out.expires_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "expires_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.expires_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "display_name")) |csil_fv| {
@@ -3053,7 +3392,7 @@ fn dec_BoolResponse(alloc: std.mem.Allocator, m: Value, out: *types.BoolResponse
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "value");
+        const csil_fv = try csil_required_field(m, "value");
         out.value = try as_bool(csil_fv);
     }
 }
@@ -3127,7 +3466,7 @@ fn dec_HouseScopedListRequest(alloc: std.mem.Allocator, m: Value, out: *types.Ho
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
 }
@@ -3151,18 +3490,15 @@ fn enc_EventListRequest(out: *std.ArrayList(u8), v: *const types.EventListReques
     try w_text(out, v.house_id);
     if (v.range_end) |csil_x| {
         try w_text(out, "range_end");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     if (v.range_start) |csil_x| {
         try w_text(out, "range_start");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
 }
 
 fn dec_EventListRequest(alloc: std.mem.Allocator, m: Value, out: *types.EventListRequest) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
         if (mget(m, "limit")) |csil_fv| {
@@ -3179,19 +3515,25 @@ fn dec_EventListRequest(alloc: std.mem.Allocator, m: Value, out: *types.EventLis
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
         if (mget(m, "range_end")) |csil_fv| {
-            out.range_end = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.range_end = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.range_end = null;
         }
     }
     {
         if (mget(m, "range_start")) |csil_fv| {
-            out.range_start = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.range_start = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.range_start = null;
         }
@@ -3227,8 +3569,7 @@ fn enc_TaskListRequest(out: *std.ArrayList(u8), v: *const types.TaskListRequest)
     }
     if (v.due_to) |csil_x| {
         try w_text(out, "due_to");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     if (v.offset) |csil_x| {
         try w_text(out, "offset");
@@ -3236,8 +3577,7 @@ fn enc_TaskListRequest(out: *std.ArrayList(u8), v: *const types.TaskListRequest)
     }
     if (v.due_from) |csil_x| {
         try w_text(out, "due_from");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     try w_text(out, "house_id");
     try w_text(out, v.house_id);
@@ -3245,8 +3585,7 @@ fn enc_TaskListRequest(out: *std.ArrayList(u8), v: *const types.TaskListRequest)
         try w_text(out, "due_before");
         try w_array_head(out, csil_arr.len);
         for (csil_arr) |csil_it| {
-            try w_tag(out, 0);
-            try w_text(out, (csil_it).rfc3339);
+            try csil_w_timestamp(out, (csil_it).rfc3339);
         }
     }
 }
@@ -3277,7 +3616,7 @@ fn dec_TaskListRequest(alloc: std.mem.Allocator, m: Value, out: *types.TaskListR
     {
         if (mget(m, "state")) |csil_fv| {
             var csil_tmp: types.TaskState = undefined;
-            try dec_TaskState(alloc, csil_fv, &csil_tmp);
+            try dec_TaskState(alloc, csil_fv, &(csil_tmp));
             out.state = csil_tmp;
         } else {
             out.state = null;
@@ -3285,7 +3624,10 @@ fn dec_TaskListRequest(alloc: std.mem.Allocator, m: Value, out: *types.TaskListR
     }
     {
         if (mget(m, "due_to")) |csil_fv| {
-            out.due_to = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.due_to = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.due_to = null;
         }
@@ -3299,13 +3641,16 @@ fn dec_TaskListRequest(alloc: std.mem.Allocator, m: Value, out: *types.TaskListR
     }
     {
         if (mget(m, "due_from")) |csil_fv| {
-            out.due_from = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.due_from = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.due_from = null;
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
@@ -3313,7 +3658,10 @@ fn dec_TaskListRequest(alloc: std.mem.Allocator, m: Value, out: *types.TaskListR
             if (csil_fv != .array) return error.WrongType;
             const csil_tmp = try alloc.alloc(types.CsilTimestamp, csil_fv.array.len);
             for (csil_fv.array, 0..) |csil_it, csil_i| {
-                csil_tmp[csil_i] = .{ .rfc3339 = try as_tagged_text(csil_it, 0), .epoch_seconds = 0 };
+                {
+                    const csil_ts = try csil_as_timestamp(alloc, csil_it);
+                    csil_tmp[csil_i] = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+                }
             }
             out.due_before = csil_tmp;
         } else {
@@ -3350,7 +3698,7 @@ fn enc_TaskList(out: *std.ArrayList(u8), v: *const types.TaskList) CodecError!vo
 fn dec_TaskList(alloc: std.mem.Allocator, m: Value, out: *types.TaskList) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "tasks");
+        const csil_fv = try csil_required_field(m, "tasks");
         if (csil_fv != .array) return error.WrongType;
         out.tasks = try alloc.alloc(types.Task, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -3377,7 +3725,7 @@ fn dec_TaskList(alloc: std.mem.Allocator, m: Value, out: *types.TaskList) CodecE
         }
     }
     {
-        const csil_fv = try requiredField(m, "hidden_count");
+        const csil_fv = try csil_required_field(m, "hidden_count");
         out.hidden_count = try as_u64(csil_fv);
     }
 }
@@ -3396,7 +3744,7 @@ fn enc_ProjectList(out: *std.ArrayList(u8), v: *const types.ProjectList) CodecEr
 fn dec_ProjectList(alloc: std.mem.Allocator, m: Value, out: *types.ProjectList) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "projects");
+        const csil_fv = try csil_required_field(m, "projects");
         if (csil_fv != .array) return error.WrongType;
         out.projects = try alloc.alloc(types.Project, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -3404,7 +3752,7 @@ fn dec_ProjectList(alloc: std.mem.Allocator, m: Value, out: *types.ProjectList) 
         }
     }
     {
-        const csil_fv = try requiredField(m, "hidden_count");
+        const csil_fv = try csil_required_field(m, "hidden_count");
         out.hidden_count = try as_u64(csil_fv);
     }
 }
@@ -3446,11 +3794,11 @@ fn dec_MemberScopedListRequest(alloc: std.mem.Allocator, m: Value, out: *types.M
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
 }
@@ -3491,7 +3839,7 @@ fn dec_ProjectScopedListRequest(alloc: std.mem.Allocator, m: Value, out: *types.
     {
         if (mget(m, "state")) |csil_fv| {
             var csil_tmp: types.TaskState = undefined;
-            try dec_TaskState(alloc, csil_fv, &csil_tmp);
+            try dec_TaskState(alloc, csil_fv, &(csil_tmp));
             out.state = csil_tmp;
         } else {
             out.state = null;
@@ -3505,11 +3853,11 @@ fn dec_ProjectScopedListRequest(alloc: std.mem.Allocator, m: Value, out: *types.
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
 }
@@ -3550,11 +3898,11 @@ fn dec_CommentListRequest(alloc: std.mem.Allocator, m: Value, out: *types.Commen
         }
     }
     {
-        const csil_fv = try requiredField(m, "target_id");
+        const csil_fv = try csil_required_field(m, "target_id");
         out.target_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "target_type");
+        const csil_fv = try csil_required_field(m, "target_type");
         try dec_TargetType(alloc, csil_fv, &(out.target_type));
     }
 }
@@ -3574,8 +3922,7 @@ fn enc_Notification(out: *std.ArrayList(u8), v: *const types.Notification) Codec
     try w_bool(out, v.read);
     if (v.read_at) |csil_x| {
         try w_text(out, "read_at");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     try w_text(out, "house_id");
     try w_text(out, v.house_id);
@@ -3588,8 +3935,7 @@ fn enc_Notification(out: *std.ArrayList(u8), v: *const types.Notification) Codec
     try w_text(out, "actor_name");
     try w_text(out, v.actor_name);
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     if (v.target_type) |csil_x| {
         try w_text(out, "target_type");
         try w_text(out, csil_x);
@@ -3605,33 +3951,35 @@ fn enc_Notification(out: *std.ArrayList(u8), v: *const types.Notification) Codec
 }
 
 fn dec_Notification(alloc: std.mem.Allocator, m: Value, out: *types.Notification) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "body");
+        const csil_fv = try csil_required_field(m, "body");
         out.body = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "kind");
+        const csil_fv = try csil_required_field(m, "kind");
         out.kind = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "read");
+        const csil_fv = try csil_required_field(m, "read");
         out.read = try as_bool(csil_fv);
     }
     {
         if (mget(m, "read_at")) |csil_fv| {
-            out.read_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.read_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.read_at = null;
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
     {
@@ -3642,12 +3990,15 @@ fn dec_Notification(alloc: std.mem.Allocator, m: Value, out: *types.Notification
         }
     }
     {
-        const csil_fv = try requiredField(m, "actor_name");
+        const csil_fv = try csil_required_field(m, "actor_name");
         out.actor_name = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "target_type")) |csil_fv| {
@@ -3657,7 +4008,7 @@ fn dec_Notification(alloc: std.mem.Allocator, m: Value, out: *types.Notification
         }
     }
     {
-        const csil_fv = try requiredField(m, "target_title");
+        const csil_fv = try csil_required_field(m, "target_title");
         out.target_title = try as_text(csil_fv);
     }
     {
@@ -3668,7 +4019,7 @@ fn dec_Notification(alloc: std.mem.Allocator, m: Value, out: *types.Notification
         }
     }
     {
-        const csil_fv = try requiredField(m, "notification_id");
+        const csil_fv = try csil_required_field(m, "notification_id");
         out.notification_id = try as_text(csil_fv);
     }
 }
@@ -3713,7 +4064,7 @@ fn dec_NotificationListRequest(alloc: std.mem.Allocator, m: Value, out: *types.N
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
@@ -3735,7 +4086,7 @@ fn dec_NotificationUnreadCount(alloc: std.mem.Allocator, m: Value, out: *types.N
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "count");
+        const csil_fv = try csil_required_field(m, "count");
         out.count = try as_u64(csil_fv);
     }
 }
@@ -3755,19 +4106,19 @@ fn enc_ShareAccessRequest(out: *std.ArrayList(u8), v: *const types.ShareAccessRe
 fn dec_ShareAccessRequest(alloc: std.mem.Allocator, m: Value, out: *types.ShareAccessRequest) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "resource_id");
+        const csil_fv = try csil_required_field(m, "resource_id");
         out.resource_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "resource_type");
+        const csil_fv = try csil_required_field(m, "resource_type");
         try dec_ResourceType(alloc, csil_fv, &(out.resource_type));
     }
     {
-        const csil_fv = try requiredField(m, "linkkeys_domain");
+        const csil_fv = try csil_required_field(m, "linkkeys_domain");
         out.linkkeys_domain = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "linkkeys_user_id");
+        const csil_fv = try csil_required_field(m, "linkkeys_user_id");
         out.linkkeys_user_id = try as_text(csil_fv);
     }
 }
@@ -3783,11 +4134,11 @@ fn enc_ResourceRef(out: *std.ArrayList(u8), v: *const types.ResourceRef) CodecEr
 fn dec_ResourceRef(alloc: std.mem.Allocator, m: Value, out: *types.ResourceRef) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "resource_id");
+        const csil_fv = try csil_required_field(m, "resource_id");
         out.resource_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "resource_type");
+        const csil_fv = try csil_required_field(m, "resource_type");
         try dec_ResourceType(alloc, csil_fv, &(out.resource_type));
     }
 }
@@ -3804,11 +4155,11 @@ fn dec_MemberRoleRef(alloc: std.mem.Allocator, m: Value, out: *types.MemberRoleR
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "role_id");
+        const csil_fv = try csil_required_field(m, "role_id");
         out.role_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
 }
@@ -3825,11 +4176,11 @@ fn dec_MemberSkillRef(alloc: std.mem.Allocator, m: Value, out: *types.MemberSkil
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "skill_id");
+        const csil_fv = try csil_required_field(m, "skill_id");
         out.skill_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
 }
@@ -3846,11 +4197,11 @@ fn dec_GroupSkillRef(alloc: std.mem.Allocator, m: Value, out: *types.GroupSkillR
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "group_id");
+        const csil_fv = try csil_required_field(m, "group_id");
         out.group_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "skill_id");
+        const csil_fv = try csil_required_field(m, "skill_id");
         out.skill_id = try as_text(csil_fv);
     }
 }
@@ -3867,11 +4218,11 @@ fn dec_GroupMemberRef(alloc: std.mem.Allocator, m: Value, out: *types.GroupMembe
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "group_id");
+        const csil_fv = try csil_required_field(m, "group_id");
         out.group_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
 }
@@ -3888,11 +4239,11 @@ fn dec_ProjectTaskRef(alloc: std.mem.Allocator, m: Value, out: *types.ProjectTas
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "task_id");
+        const csil_fv = try csil_required_field(m, "task_id");
         out.task_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
 }
@@ -3911,15 +4262,15 @@ fn dec_ProjectTaskOrderRequest(alloc: std.mem.Allocator, m: Value, out: *types.P
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "task_id");
+        const csil_fv = try csil_required_field(m, "task_id");
         out.task_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "position");
+        const csil_fv = try csil_required_field(m, "position");
         out.position = try as_i64(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
 }
@@ -3936,11 +4287,11 @@ fn dec_ProjectMemberRef(alloc: std.mem.Allocator, m: Value, out: *types.ProjectM
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
 }
@@ -3957,11 +4308,11 @@ fn dec_ProjectOwnerRef(alloc: std.mem.Allocator, m: Value, out: *types.ProjectOw
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "member_id");
+        const csil_fv = try csil_required_field(m, "member_id");
         out.member_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
 }
@@ -3981,19 +4332,19 @@ fn enc_DependencyRef(out: *std.ArrayList(u8), v: *const types.DependencyRef) Cod
 fn dec_DependencyRef(alloc: std.mem.Allocator, m: Value, out: *types.DependencyRef) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "dependent_id");
+        const csil_fv = try csil_required_field(m, "dependent_id");
         out.dependent_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "dependency_id");
+        const csil_fv = try csil_required_field(m, "dependency_id");
         out.dependency_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "dependent_type");
+        const csil_fv = try csil_required_field(m, "dependent_type");
         try dec_DependencyNodeType(alloc, csil_fv, &(out.dependent_type));
     }
     {
-        const csil_fv = try requiredField(m, "dependency_type");
+        const csil_fv = try csil_required_field(m, "dependency_type");
         try dec_DependencyNodeType(alloc, csil_fv, &(out.dependency_type));
     }
 }
@@ -4009,11 +4360,11 @@ fn enc_DependencyTarget(out: *std.ArrayList(u8), v: *const types.DependencyTarge
 fn dec_DependencyTarget(alloc: std.mem.Allocator, m: Value, out: *types.DependencyTarget) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "id");
+        const csil_fv = try csil_required_field(m, "id");
         out.id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "type");
+        const csil_fv = try csil_required_field(m, "type");
         try dec_DependencyNodeType(alloc, csil_fv, &(out.type));
     }
 }
@@ -4037,15 +4388,15 @@ fn enc_DependencyNode(out: *std.ArrayList(u8), v: *const types.DependencyNode) C
 fn dec_DependencyNode(alloc: std.mem.Allocator, m: Value, out: *types.DependencyNode) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "id");
+        const csil_fv = try csil_required_field(m, "id");
         out.id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "type");
+        const csil_fv = try csil_required_field(m, "type");
         try dec_DependencyNodeType(alloc, csil_fv, &(out.type));
     }
     {
-        const csil_fv = try requiredField(m, "title");
+        const csil_fv = try csil_required_field(m, "title");
         out.title = try as_text(csil_fv);
     }
     {
@@ -4074,7 +4425,7 @@ fn enc_DependencyGraph(out: *std.ArrayList(u8), v: *const types.DependencyGraph)
 fn dec_DependencyGraph(alloc: std.mem.Allocator, m: Value, out: *types.DependencyGraph) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "dependents");
+        const csil_fv = try csil_required_field(m, "dependents");
         if (csil_fv != .array) return error.WrongType;
         out.dependents = try alloc.alloc(types.DependencyNode, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -4082,7 +4433,7 @@ fn dec_DependencyGraph(alloc: std.mem.Allocator, m: Value, out: *types.Dependenc
         }
     }
     {
-        const csil_fv = try requiredField(m, "dependencies");
+        const csil_fv = try csil_required_field(m, "dependencies");
         if (csil_fv != .array) return error.WrongType;
         out.dependencies = try alloc.alloc(types.DependencyNode, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -4104,15 +4455,15 @@ fn enc_Grant(out: *std.ArrayList(u8), v: *const types.Grant) CodecError!void {
 fn dec_Grant(alloc: std.mem.Allocator, m: Value, out: *types.Grant) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "grantee_id");
+        const csil_fv = try csil_required_field(m, "grantee_id");
         out.grantee_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "access_level");
+        const csil_fv = try csil_required_field(m, "access_level");
         try dec_AccessLevel(alloc, csil_fv, &(out.access_level));
     }
     {
-        const csil_fv = try requiredField(m, "grantee_type");
+        const csil_fv = try csil_required_field(m, "grantee_type");
         try dec_GranteeType(alloc, csil_fv, &(out.grantee_type));
     }
 }
@@ -4130,15 +4481,15 @@ fn enc_TaskGrantRef(out: *std.ArrayList(u8), v: *const types.TaskGrantRef) Codec
 fn dec_TaskGrantRef(alloc: std.mem.Allocator, m: Value, out: *types.TaskGrantRef) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "task_id");
+        const csil_fv = try csil_required_field(m, "task_id");
         out.task_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "grantee_id");
+        const csil_fv = try csil_required_field(m, "grantee_id");
         out.grantee_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "grantee_type");
+        const csil_fv = try csil_required_field(m, "grantee_type");
         try dec_GranteeType(alloc, csil_fv, &(out.grantee_type));
     }
 }
@@ -4158,19 +4509,19 @@ fn enc_PutTaskGrantRequest(out: *std.ArrayList(u8), v: *const types.PutTaskGrant
 fn dec_PutTaskGrantRequest(alloc: std.mem.Allocator, m: Value, out: *types.PutTaskGrantRequest) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "task_id");
+        const csil_fv = try csil_required_field(m, "task_id");
         out.task_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "grantee_id");
+        const csil_fv = try csil_required_field(m, "grantee_id");
         out.grantee_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "access_level");
+        const csil_fv = try csil_required_field(m, "access_level");
         try dec_AccessLevel(alloc, csil_fv, &(out.access_level));
     }
     {
-        const csil_fv = try requiredField(m, "grantee_type");
+        const csil_fv = try csil_required_field(m, "grantee_type");
         try dec_GranteeType(alloc, csil_fv, &(out.grantee_type));
     }
 }
@@ -4186,11 +4537,11 @@ fn enc_SetTaskVisibilityRequest(out: *std.ArrayList(u8), v: *const types.SetTask
 fn dec_SetTaskVisibilityRequest(alloc: std.mem.Allocator, m: Value, out: *types.SetTaskVisibilityRequest) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "task_id");
+        const csil_fv = try csil_required_field(m, "task_id");
         out.task_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "visibility");
+        const csil_fv = try csil_required_field(m, "visibility");
         try dec_AccessLevel(alloc, csil_fv, &(out.visibility));
     }
 }
@@ -4208,15 +4559,15 @@ fn enc_ProjectGrantRef(out: *std.ArrayList(u8), v: *const types.ProjectGrantRef)
 fn dec_ProjectGrantRef(alloc: std.mem.Allocator, m: Value, out: *types.ProjectGrantRef) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "grantee_id");
+        const csil_fv = try csil_required_field(m, "grantee_id");
         out.grantee_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "grantee_type");
+        const csil_fv = try csil_required_field(m, "grantee_type");
         try dec_GranteeType(alloc, csil_fv, &(out.grantee_type));
     }
 }
@@ -4236,19 +4587,19 @@ fn enc_PutProjectGrantRequest(out: *std.ArrayList(u8), v: *const types.PutProjec
 fn dec_PutProjectGrantRequest(alloc: std.mem.Allocator, m: Value, out: *types.PutProjectGrantRequest) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "grantee_id");
+        const csil_fv = try csil_required_field(m, "grantee_id");
         out.grantee_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "access_level");
+        const csil_fv = try csil_required_field(m, "access_level");
         try dec_AccessLevel(alloc, csil_fv, &(out.access_level));
     }
     {
-        const csil_fv = try requiredField(m, "grantee_type");
+        const csil_fv = try csil_required_field(m, "grantee_type");
         try dec_GranteeType(alloc, csil_fv, &(out.grantee_type));
     }
 }
@@ -4264,11 +4615,11 @@ fn enc_SetProjectVisibilityRequest(out: *std.ArrayList(u8), v: *const types.SetP
 fn dec_SetProjectVisibilityRequest(alloc: std.mem.Allocator, m: Value, out: *types.SetProjectVisibilityRequest) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "visibility");
+        const csil_fv = try csil_required_field(m, "visibility");
         try dec_AccessLevel(alloc, csil_fv, &(out.visibility));
     }
 }
@@ -4324,7 +4675,7 @@ fn dec_EffectiveSettings(alloc: std.mem.Allocator, m: Value, out: *types.Effecti
     {
         if (mget(m, "default_project_visibility")) |csil_fv| {
             var csil_tmp: types.AccessLevel = undefined;
-            try dec_AccessLevel(alloc, csil_fv, &csil_tmp);
+            try dec_AccessLevel(alloc, csil_fv, &(csil_tmp));
             out.default_project_visibility = csil_tmp;
         } else {
             out.default_project_visibility = null;
@@ -4343,11 +4694,11 @@ fn enc_UpdateSettingsRequest(out: *std.ArrayList(u8), v: *const types.UpdateSett
 fn dec_UpdateSettingsRequest(alloc: std.mem.Allocator, m: Value, out: *types.UpdateSettingsRequest) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "settings");
+        const csil_fv = try csil_required_field(m, "settings");
         try dec_EffectiveSettings(alloc, csil_fv, &(out.settings));
     }
 }
@@ -4370,11 +4721,11 @@ fn dec_BugReportRequest(alloc: std.mem.Allocator, m: Value, out: *types.BugRepor
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "title");
+        const csil_fv = try csil_required_field(m, "title");
         out.title = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
@@ -4398,11 +4749,11 @@ fn dec_ServiceError(alloc: std.mem.Allocator, m: Value, out: *types.ServiceError
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "code");
+        const csil_fv = try csil_required_field(m, "code");
         out.code = try as_u64(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "message");
+        const csil_fv = try csil_required_field(m, "message");
         out.message = try as_text(csil_fv);
     }
 }
@@ -4440,7 +4791,7 @@ fn enc_ActAsScopeSetRequest(out: *std.ArrayList(u8), v: *const types.ActAsScopeS
 fn dec_ActAsScopeSetRequest(alloc: std.mem.Allocator, m: Value, out: *types.ActAsScopeSetRequest) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "scopes");
+        const csil_fv = try csil_required_field(m, "scopes");
         if (csil_fv != .array) return error.WrongType;
         out.scopes = try alloc.alloc([]const u8, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -4487,7 +4838,7 @@ fn dec_ActAsScopeSetResponse(alloc: std.mem.Allocator, m: Value, out: *types.Act
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "signed_scope_set");
+        const csil_fv = try csil_required_field(m, "signed_scope_set");
         out.signed_scope_set = try as_bytes(csil_fv);
     }
 }
@@ -4502,7 +4853,7 @@ fn dec_ExchangeActAsCredentialRequest(alloc: std.mem.Allocator, m: Value, out: *
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "credential");
+        const csil_fv = try csil_required_field(m, "credential");
         out.credential = try as_bytes(csil_fv);
     }
 }
@@ -4525,22 +4876,21 @@ fn enc_ActAsTokenResponse(out: *std.ArrayList(u8), v: *const types.ActAsTokenRes
     try w_text(out, "grant_id");
     try w_text(out, v.grant_id);
     try w_text(out, "expires_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.expires_at).rfc3339);
+    try csil_w_timestamp(out, (v.expires_at).rfc3339);
 }
 
 fn dec_ActAsTokenResponse(alloc: std.mem.Allocator, m: Value, out: *types.ActAsTokenResponse) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "token");
+        const csil_fv = try csil_required_field(m, "token");
         out.token = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "domain");
+        const csil_fv = try csil_required_field(m, "domain");
         out.domain = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "scopes");
+        const csil_fv = try csil_required_field(m, "scopes");
         if (csil_fv != .array) return error.WrongType;
         out.scopes = try alloc.alloc([]const u8, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -4548,20 +4898,23 @@ fn dec_ActAsTokenResponse(alloc: std.mem.Allocator, m: Value, out: *types.ActAsT
         }
     }
     {
-        const csil_fv = try requiredField(m, "grantee");
+        const csil_fv = try csil_required_field(m, "grantee");
         out.grantee = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "user_id");
+        const csil_fv = try csil_required_field(m, "user_id");
         out.user_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "grant_id");
+        const csil_fv = try csil_required_field(m, "grant_id");
         out.grant_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "expires_at");
-        out.expires_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "expires_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.expires_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
 }
 
@@ -4577,11 +4930,11 @@ fn dec_CalendarSubscription(alloc: std.mem.Allocator, m: Value, out: *types.Cale
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "enabled");
+        const csil_fv = try csil_required_field(m, "enabled");
         out.enabled = try as_bool(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "subject_member_id");
+        const csil_fv = try csil_required_field(m, "subject_member_id");
         out.subject_member_id = try as_text(csil_fv);
     }
 }
@@ -4606,7 +4959,7 @@ fn enc_CalendarView(out: *std.ArrayList(u8), v: *const types.CalendarView) Codec
 fn dec_CalendarView(alloc: std.mem.Allocator, m: Value, out: *types.CalendarView) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
@@ -4622,7 +4975,7 @@ fn dec_CalendarView(alloc: std.mem.Allocator, m: Value, out: *types.CalendarView
         }
     }
     {
-        const csil_fv = try requiredField(m, "viewer_member_id");
+        const csil_fv = try csil_required_field(m, "viewer_member_id");
         out.viewer_member_id = try as_text(csil_fv);
     }
 }
@@ -4639,11 +4992,11 @@ fn dec_EventDecision(alloc: std.mem.Allocator, m: Value, out: *types.EventDecisi
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "event_id");
+        const csil_fv = try csil_required_field(m, "event_id");
         out.event_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "revision");
+        const csil_fv = try csil_required_field(m, "revision");
         out.revision = try as_u64(csil_fv);
     }
 }
@@ -4669,32 +5022,30 @@ fn enc_CalendarStatus(out: *std.ArrayList(u8), v: *const types.CalendarStatus) C
     }
     if (v.sync_pending_since) |csil_x| {
         try w_text(out, "sync_pending_since");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
 }
 
 fn dec_CalendarStatus(alloc: std.mem.Allocator, m: Value, out: *types.CalendarStatus) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "ready");
+        const csil_fv = try csil_required_field(m, "ready");
         out.ready = try as_bool(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "enabled");
+        const csil_fv = try csil_required_field(m, "enabled");
         out.enabled = try as_bool(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "available");
+        const csil_fv = try csil_required_field(m, "available");
         out.available = try as_bool(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "connected");
+        const csil_fv = try csil_required_field(m, "connected");
         out.connected = try as_bool(csil_fv);
     }
     {
@@ -4706,7 +5057,10 @@ fn dec_CalendarStatus(alloc: std.mem.Allocator, m: Value, out: *types.CalendarSt
     }
     {
         if (mget(m, "sync_pending_since")) |csil_fv| {
-            out.sync_pending_since = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.sync_pending_since = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.sync_pending_since = null;
         }
@@ -4725,11 +5079,11 @@ fn dec_ConfigureCalendarRequest(alloc: std.mem.Allocator, m: Value, out: *types.
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "enabled");
+        const csil_fv = try csil_required_field(m, "enabled");
         out.enabled = try as_bool(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
 }
@@ -4744,7 +5098,7 @@ fn dec_CalendarConnectResponse(alloc: std.mem.Allocator, m: Value, out: *types.C
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "url");
+        const csil_fv = try csil_required_field(m, "url");
         out.url = try as_text(csil_fv);
     }
 }
@@ -4763,15 +5117,15 @@ fn dec_CompleteCalendarConnectRequest(alloc: std.mem.Allocator, m: Value, out: *
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "nonce");
+        const csil_fv = try csil_required_field(m, "nonce");
         out.nonce = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "grant_id");
+        const csil_fv = try csil_required_field(m, "grant_id");
         out.grant_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
 }
@@ -4783,30 +5137,34 @@ fn enc_CalendarTrashEntry(out: *std.ArrayList(u8), v: *const types.CalendarTrash
     try w_text(out, "trash_id");
     try w_text(out, v.trash_id);
     try w_text(out, "deleted_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.deleted_at).rfc3339);
+    try csil_w_timestamp(out, (v.deleted_at).rfc3339);
     try w_text(out, "expires_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.expires_at).rfc3339);
+    try csil_w_timestamp(out, (v.expires_at).rfc3339);
 }
 
 fn dec_CalendarTrashEntry(alloc: std.mem.Allocator, m: Value, out: *types.CalendarTrashEntry) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "event");
+        const csil_fv = try csil_required_field(m, "event");
         try dec_Event(alloc, csil_fv, &(out.event));
     }
     {
-        const csil_fv = try requiredField(m, "trash_id");
+        const csil_fv = try csil_required_field(m, "trash_id");
         out.trash_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "deleted_at");
-        out.deleted_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "deleted_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.deleted_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "expires_at");
-        out.expires_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "expires_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.expires_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
 }
 
@@ -4822,11 +5180,11 @@ fn dec_RestoreCalendarEventRequest(alloc: std.mem.Allocator, m: Value, out: *typ
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "trash_id");
+        const csil_fv = try csil_required_field(m, "trash_id");
         out.trash_id = try as_text(csil_fv);
     }
 }
@@ -4847,19 +5205,19 @@ fn dec_CalendarMigrationRow(alloc: std.mem.Allocator, m: Value, out: *types.Cale
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "title");
+        const csil_fv = try csil_required_field(m, "title");
         out.title = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "reason");
+        const csil_fv = try csil_required_field(m, "reason");
         out.reason = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "event_id");
+        const csil_fv = try csil_required_field(m, "event_id");
         out.event_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "disposition");
+        const csil_fv = try csil_required_field(m, "disposition");
         out.disposition = try as_text(csil_fv);
     }
 }
@@ -4867,29 +5225,32 @@ fn dec_CalendarMigrationRow(alloc: std.mem.Allocator, m: Value, out: *types.Cale
 fn enc_ProjectDeadlineRequest(out: *std.ArrayList(u8), v: *const types.ProjectDeadlineRequest) CodecError!void {
     try w_map_head(out, 3);
     try w_text(out, "range_end");
-    try w_tag(out, 0);
-    try w_text(out, (v.range_end).rfc3339);
+    try csil_w_timestamp(out, (v.range_end).rfc3339);
     try w_text(out, "project_id");
     try w_text(out, v.project_id);
     try w_text(out, "range_start");
-    try w_tag(out, 0);
-    try w_text(out, (v.range_start).rfc3339);
+    try csil_w_timestamp(out, (v.range_start).rfc3339);
 }
 
 fn dec_ProjectDeadlineRequest(alloc: std.mem.Allocator, m: Value, out: *types.ProjectDeadlineRequest) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "range_end");
-        out.range_end = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "range_end");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.range_end = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "project_id");
+        const csil_fv = try csil_required_field(m, "project_id");
         out.project_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "range_start");
-        out.range_start = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "range_start");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.range_start = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
 }
 
@@ -4898,25 +5259,26 @@ fn enc_ProjectDeadline(out: *std.ArrayList(u8), v: *const types.ProjectDeadline)
     try w_text(out, "title");
     try w_text(out, v.title);
     try w_text(out, "due_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.due_at).rfc3339);
+    try csil_w_timestamp(out, (v.due_at).rfc3339);
     try w_text(out, "task_id");
     try w_text(out, v.task_id);
 }
 
 fn dec_ProjectDeadline(alloc: std.mem.Allocator, m: Value, out: *types.ProjectDeadline) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "title");
+        const csil_fv = try csil_required_field(m, "title");
         out.title = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "due_at");
-        out.due_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "due_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.due_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "task_id");
+        const csil_fv = try csil_required_field(m, "task_id");
         out.task_id = try as_text(csil_fv);
     }
 }
@@ -4945,19 +5307,19 @@ fn enc_ProjectDeadlineList(out: *std.ArrayList(u8), v: *const types.ProjectDeadl
 fn dec_ProjectDeadlineList(alloc: std.mem.Allocator, m: Value, out: *types.ProjectDeadlineList) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "enabled");
+        const csil_fv = try csil_required_field(m, "enabled");
         out.enabled = try as_bool(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "pending");
+        const csil_fv = try csil_required_field(m, "pending");
         out.pending = try as_bool(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "category");
+        const csil_fv = try csil_required_field(m, "category");
         out.category = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "deadlines");
+        const csil_fv = try csil_required_field(m, "deadlines");
         if (csil_fv != .array) return error.WrongType;
         out.deadlines = try alloc.alloc(types.ProjectDeadline, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -5008,8 +5370,7 @@ fn enc_AuditEntry(out: *std.ArrayList(u8), v: *const types.AuditEntry) CodecErro
         try w_text(out, csil_x);
     }
     try w_text(out, "created_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.created_at).rfc3339);
+    try csil_w_timestamp(out, (v.created_at).rfc3339);
     if (v.resource_id) |csil_x| {
         try w_text(out, "resource_id");
         try w_text(out, csil_x);
@@ -5031,7 +5392,6 @@ fn enc_AuditEntry(out: *std.ArrayList(u8), v: *const types.AuditEntry) CodecErro
 }
 
 fn dec_AuditEntry(alloc: std.mem.Allocator, m: Value, out: *types.AuditEntry) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
         if (mget(m, "after")) |csil_fv| {
@@ -5041,7 +5401,7 @@ fn dec_AuditEntry(alloc: std.mem.Allocator, m: Value, out: *types.AuditEntry) Co
         }
     }
     {
-        const csil_fv = try requiredField(m, "action");
+        const csil_fv = try csil_required_field(m, "action");
         out.action = try as_text(csil_fv);
     }
     {
@@ -5059,15 +5419,15 @@ fn dec_AuditEntry(alloc: std.mem.Allocator, m: Value, out: *types.AuditEntry) Co
         }
     }
     {
-        const csil_fv = try requiredField(m, "method");
+        const csil_fv = try csil_required_field(m, "method");
         out.method = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "outcome");
+        const csil_fv = try csil_required_field(m, "outcome");
         out.outcome = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "audit_id");
+        const csil_fv = try csil_required_field(m, "audit_id");
         out.audit_id = try as_text(csil_fv);
     }
     {
@@ -5078,8 +5438,11 @@ fn dec_AuditEntry(alloc: std.mem.Allocator, m: Value, out: *types.AuditEntry) Co
         }
     }
     {
-        const csil_fv = try requiredField(m, "created_at");
-        out.created_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "created_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.created_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
         if (mget(m, "resource_id")) |csil_fv| {
@@ -5089,15 +5452,15 @@ fn dec_AuditEntry(alloc: std.mem.Allocator, m: Value, out: *types.AuditEntry) Co
         }
     }
     {
-        const csil_fv = try requiredField(m, "actor_domain");
+        const csil_fv = try csil_required_field(m, "actor_domain");
         out.actor_domain = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "service_name");
+        const csil_fv = try csil_required_field(m, "service_name");
         out.service_name = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "actor_user_id");
+        const csil_fv = try csil_required_field(m, "actor_user_id");
         out.actor_user_id = try as_text(csil_fv);
     }
     {
@@ -5132,13 +5495,11 @@ fn enc_AuditQuery(out: *std.ArrayList(u8), v: *const types.AuditQuery) CodecErro
     }
     if (v.since) |csil_x| {
         try w_text(out, "since");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     if (v.until) |csil_x| {
         try w_text(out, "until");
-        try w_tag(out, 0);
-        try w_text(out, (csil_x).rfc3339);
+        try csil_w_timestamp(out, (csil_x).rfc3339);
     }
     if (v.action) |csil_x| {
         try w_text(out, "action");
@@ -5161,7 +5522,6 @@ fn enc_AuditQuery(out: *std.ArrayList(u8), v: *const types.AuditQuery) CodecErro
 }
 
 fn dec_AuditQuery(alloc: std.mem.Allocator, m: Value, out: *types.AuditQuery) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
         if (mget(m, "limit")) |csil_fv| {
@@ -5172,14 +5532,20 @@ fn dec_AuditQuery(alloc: std.mem.Allocator, m: Value, out: *types.AuditQuery) Co
     }
     {
         if (mget(m, "since")) |csil_fv| {
-            out.since = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.since = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.since = null;
         }
     }
     {
         if (mget(m, "until")) |csil_fv| {
-            out.until = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+            {
+                const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+                out.until = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+            }
         } else {
             out.until = null;
         }
@@ -5199,7 +5565,7 @@ fn dec_AuditQuery(alloc: std.mem.Allocator, m: Value, out: *types.AuditQuery) Co
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
@@ -5236,7 +5602,7 @@ fn enc_AuditPage(out: *std.ArrayList(u8), v: *const types.AuditPage) CodecError!
 fn dec_AuditPage(alloc: std.mem.Allocator, m: Value, out: *types.AuditPage) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "entries");
+        const csil_fv = try csil_required_field(m, "entries");
         if (csil_fv != .array) return error.WrongType;
         out.entries = try alloc.alloc(types.AuditEntry, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -5264,8 +5630,7 @@ fn enc_TrashItem(out: *std.ArrayList(u8), v: *const types.TrashItem) CodecError!
     try w_text(out, "house_id");
     try w_text(out, v.house_id);
     try w_text(out, "deleted_at");
-    try w_tag(out, 0);
-    try w_text(out, (v.deleted_at).rfc3339);
+    try csil_w_timestamp(out, (v.deleted_at).rfc3339);
     try w_text(out, "resource_id");
     try w_text(out, v.resource_id);
     try w_text(out, "deleted_op_id");
@@ -5279,7 +5644,6 @@ fn enc_TrashItem(out: *std.ArrayList(u8), v: *const types.TrashItem) CodecError!
 }
 
 fn dec_TrashItem(alloc: std.mem.Allocator, m: Value, out: *types.TrashItem) CodecError!void {
-    _ = alloc;
     if (m != .map) return error.WrongType;
     {
         if (mget(m, "title")) |csil_fv| {
@@ -5289,23 +5653,26 @@ fn dec_TrashItem(alloc: std.mem.Allocator, m: Value, out: *types.TrashItem) Code
         }
     }
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "deleted_at");
-        out.deleted_at = .{ .rfc3339 = try as_tagged_text(csil_fv, 0), .epoch_seconds = 0 };
+        const csil_fv = try csil_required_field(m, "deleted_at");
+        {
+            const csil_ts = try csil_as_timestamp(alloc, csil_fv);
+            out.deleted_at = .{ .rfc3339 = csil_ts.rfc3339, .epoch_seconds = csil_ts.epoch_seconds };
+        }
     }
     {
-        const csil_fv = try requiredField(m, "resource_id");
+        const csil_fv = try csil_required_field(m, "resource_id");
         out.resource_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "deleted_op_id");
+        const csil_fv = try csil_required_field(m, "deleted_op_id");
         out.deleted_op_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "resource_type");
+        const csil_fv = try csil_required_field(m, "resource_type");
         out.resource_type = try as_text(csil_fv);
     }
     {
@@ -5335,7 +5702,7 @@ fn enc_TrashPage(out: *std.ArrayList(u8), v: *const types.TrashPage) CodecError!
 fn dec_TrashPage(alloc: std.mem.Allocator, m: Value, out: *types.TrashPage) CodecError!void {
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "items");
+        const csil_fv = try csil_required_field(m, "items");
         if (csil_fv != .array) return error.WrongType;
         out.items = try alloc.alloc(types.TrashItem, csil_fv.array.len);
         for (csil_fv.array, 0..) |csil_it, csil_i| {
@@ -5377,7 +5744,7 @@ fn dec_RestoreRequest(alloc: std.mem.Allocator, m: Value, out: *types.RestoreReq
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
@@ -5417,15 +5784,15 @@ fn dec_PurgeRequest(alloc: std.mem.Allocator, m: Value, out: *types.PurgeRequest
     _ = alloc;
     if (m != .map) return error.WrongType;
     {
-        const csil_fv = try requiredField(m, "house_id");
+        const csil_fv = try csil_required_field(m, "house_id");
         out.house_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "resource_id");
+        const csil_fv = try csil_required_field(m, "resource_id");
         out.resource_id = try as_text(csil_fv);
     }
     {
-        const csil_fv = try requiredField(m, "resource_type");
+        const csil_fv = try csil_required_field(m, "resource_type");
         out.resource_type = try as_text(csil_fv);
     }
 }
@@ -7368,6 +7735,318 @@ pub fn decode_PurgeRequest(alloc: std.mem.Allocator, bytes: []const u8, out: *ty
 
 pub const RpcReply = struct { variant: []const u8, payload: []u8 };
 
+pub fn encode_HouseServiceGetHouseReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_HouseServiceDeleteHouseReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_MemberServiceGetMemberReplyRequest(alloc: std.mem.Allocator, req: *const types.MemberID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_MemberServiceDeactivateMemberReplyRequest(alloc: std.mem.Allocator, req: *const types.MemberID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_MemberServiceReactivateMemberReplyRequest(alloc: std.mem.Allocator, req: *const types.MemberID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_TrustedDomainServiceRemoveTrustedDomainReplyRequest(alloc: std.mem.Allocator, req: *const types.TrustedDomainID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_TrustedDomainServiceListTrustedDomainsReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_RoleServiceDeleteRoleReplyRequest(alloc: std.mem.Allocator, req: *const types.RoleID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_SkillServiceDeleteSkillReplyRequest(alloc: std.mem.Allocator, req: *const types.SkillID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_SkillServiceListGroupSkillsReplyRequest(alloc: std.mem.Allocator, req: *const types.GroupID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_GroupServiceDeleteGroupReplyRequest(alloc: std.mem.Allocator, req: *const types.GroupID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_ProjectServiceGetProjectReplyRequest(alloc: std.mem.Allocator, req: *const types.ProjectID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_ProjectServiceDeleteProjectReplyRequest(alloc: std.mem.Allocator, req: *const types.ProjectID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_ProjectServiceListProjectMembersReplyRequest(alloc: std.mem.Allocator, req: *const types.ProjectID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_ProjectServiceListProjectOwnersReplyRequest(alloc: std.mem.Allocator, req: *const types.ProjectID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_ProjectServiceListMilestonesReplyRequest(alloc: std.mem.Allocator, req: *const types.ProjectID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_ProjectServiceDeleteMilestoneReplyRequest(alloc: std.mem.Allocator, req: *const types.MilestoneID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_ProjectServiceListProjectGrantsReplyRequest(alloc: std.mem.Allocator, req: *const types.ProjectID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_EventServiceGetEventReplyRequest(alloc: std.mem.Allocator, req: *const types.EventID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_EventServiceDeleteEventReplyRequest(alloc: std.mem.Allocator, req: *const types.EventID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_EventServiceDeleteEventAndFutureReplyRequest(alloc: std.mem.Allocator, req: *const types.EventID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_EventServiceGetCalendarViewReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_EventServiceRecoverEditReplyRequest(alloc: std.mem.Allocator, req: *const types.EventID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_EventServiceListLocalEventsReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_CalendarServiceGetStatusReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_CalendarServiceBeginConnectReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_CalendarServiceDisconnectReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_CalendarServicePreviewMigrationReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_CalendarServiceListTrashReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_TaskServiceGetTaskReplyRequest(alloc: std.mem.Allocator, req: *const types.TaskID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_TaskServiceDeleteTaskReplyRequest(alloc: std.mem.Allocator, req: *const types.TaskID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_TaskServiceListTaskGrantsReplyRequest(alloc: std.mem.Allocator, req: *const types.TaskID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_CommentServiceGetCommentReplyRequest(alloc: std.mem.Allocator, req: *const types.CommentID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_CommentServiceDeleteCommentReplyRequest(alloc: std.mem.Allocator, req: *const types.CommentID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_NotificationServiceUnreadCountReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_NotificationServiceMarkReadReplyRequest(alloc: std.mem.Allocator, req: *const types.NotificationID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_NotificationServiceMarkAllReadReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_ShareServiceDeleteShareReplyRequest(alloc: std.mem.Allocator, req: *const types.ShareID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
+pub fn encode_SettingsServiceGetSettingsReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    try w_text(out, req.*);
+    return buf.toOwnedSlice();
+}
+
 pub fn encode_AuthServiceBeginBrowserLoginReply(alloc: std.mem.Allocator, value: types.AuthServiceBeginBrowserLoginReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -8082,14 +8761,6 @@ pub fn decode_HouseServiceCreateHouseReply(alloc: std.mem.Allocator, variant: ?[
     return error.WrongType;
 }
 
-pub fn encode_HouseServiceGetHouseReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_HouseServiceGetHouseReply(alloc: std.mem.Allocator, value: types.HouseServiceGetHouseReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -8158,14 +8829,6 @@ pub fn decode_HouseServiceUpdateHouseReply(alloc: std.mem.Allocator, variant: ?[
     return error.WrongType;
 }
 
-pub fn encode_HouseServiceDeleteHouseReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_HouseServiceDeleteHouseReply(alloc: std.mem.Allocator, value: types.HouseServiceDeleteHouseReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -8189,6 +8852,47 @@ pub fn decode_HouseServiceDeleteHouseReply(alloc: std.mem.Allocator, variant: ?[
         var v: types.EmptyResponse = undefined;
         try dec_EmptyResponse(alloc, src, &(v));
         out.* = .{ .empty_response = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_HouseServiceListHousesReply(alloc: std.mem.Allocator, value: types.HouseServiceListHousesReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .house_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_House(out, &(csil_it12));
+            }
+            return .{ .variant = "HouseItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_HouseServiceListHousesReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.HouseServiceListHousesReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "HouseItems")) {
+        var v: types.HouseItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.House, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_House(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .house_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -8232,14 +8936,6 @@ pub fn decode_MemberServiceCreateMemberReply(alloc: std.mem.Allocator, variant: 
         return;
     }
     return error.WrongType;
-}
-
-pub fn encode_MemberServiceGetMemberReplyRequest(alloc: std.mem.Allocator, req: *const types.MemberID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
 }
 
 pub fn encode_MemberServiceGetMemberReply(alloc: std.mem.Allocator, value: types.MemberServiceGetMemberReply) CodecError!RpcReply {
@@ -8344,14 +9040,6 @@ pub fn decode_MemberServiceUpdateMemberReply(alloc: std.mem.Allocator, variant: 
     return error.WrongType;
 }
 
-pub fn encode_MemberServiceDeactivateMemberReplyRequest(alloc: std.mem.Allocator, req: *const types.MemberID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_MemberServiceDeactivateMemberReply(alloc: std.mem.Allocator, value: types.MemberServiceDeactivateMemberReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -8386,14 +9074,6 @@ pub fn decode_MemberServiceDeactivateMemberReply(alloc: std.mem.Allocator, varia
     return error.WrongType;
 }
 
-pub fn encode_MemberServiceReactivateMemberReplyRequest(alloc: std.mem.Allocator, req: *const types.MemberID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_MemberServiceReactivateMemberReply(alloc: std.mem.Allocator, value: types.MemberServiceReactivateMemberReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -8417,6 +9097,47 @@ pub fn decode_MemberServiceReactivateMemberReply(alloc: std.mem.Allocator, varia
         var v: types.EmptyResponse = undefined;
         try dec_EmptyResponse(alloc, src, &(v));
         out.* = .{ .empty_response = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_MemberServiceListMembersReply(alloc: std.mem.Allocator, value: types.MemberServiceListMembersReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .member_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Member(out, &(csil_it12));
+            }
+            return .{ .variant = "MemberItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_MemberServiceListMembersReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.MemberServiceListMembersReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "MemberItems")) {
+        var v: types.MemberItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Member, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Member(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .member_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -8462,14 +9183,6 @@ pub fn decode_TrustedDomainServiceAddTrustedDomainReply(alloc: std.mem.Allocator
     return error.WrongType;
 }
 
-pub fn encode_TrustedDomainServiceRemoveTrustedDomainReplyRequest(alloc: std.mem.Allocator, req: *const types.TrustedDomainID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_TrustedDomainServiceRemoveTrustedDomainReply(alloc: std.mem.Allocator, value: types.TrustedDomainServiceRemoveTrustedDomainReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -8493,6 +9206,47 @@ pub fn decode_TrustedDomainServiceRemoveTrustedDomainReply(alloc: std.mem.Alloca
         var v: types.EmptyResponse = undefined;
         try dec_EmptyResponse(alloc, src, &(v));
         out.* = .{ .empty_response = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_TrustedDomainServiceListTrustedDomainsReply(alloc: std.mem.Allocator, value: types.TrustedDomainServiceListTrustedDomainsReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .trusted_domain_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_TrustedDomain(out, &(csil_it12));
+            }
+            return .{ .variant = "TrustedDomainItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_TrustedDomainServiceListTrustedDomainsReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.TrustedDomainServiceListTrustedDomainsReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "TrustedDomainItems")) {
+        var v: types.TrustedDomainItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.TrustedDomain, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_TrustedDomain(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .trusted_domain_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -8606,14 +9360,6 @@ pub fn decode_RoleServiceUpdateRoleReply(alloc: std.mem.Allocator, variant: ?[]c
     return error.WrongType;
 }
 
-pub fn encode_RoleServiceDeleteRoleReplyRequest(alloc: std.mem.Allocator, req: *const types.RoleID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_RoleServiceDeleteRoleReply(alloc: std.mem.Allocator, value: types.RoleServiceDeleteRoleReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -8637,6 +9383,47 @@ pub fn decode_RoleServiceDeleteRoleReply(alloc: std.mem.Allocator, variant: ?[]c
         var v: types.EmptyResponse = undefined;
         try dec_EmptyResponse(alloc, src, &(v));
         out.* = .{ .empty_response = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_RoleServiceListRolesReply(alloc: std.mem.Allocator, value: types.RoleServiceListRolesReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .role_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Role(out, &(csil_it12));
+            }
+            return .{ .variant = "RoleItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_RoleServiceListRolesReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.RoleServiceListRolesReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "RoleItems")) {
+        var v: types.RoleItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Role, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Role(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .role_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -8716,6 +9503,47 @@ pub fn decode_RoleServiceRevokeRoleReply(alloc: std.mem.Allocator, variant: ?[]c
     return error.WrongType;
 }
 
+pub fn encode_RoleServiceListMemberRolesReply(alloc: std.mem.Allocator, value: types.RoleServiceListMemberRolesReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .role_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Role(out, &(csil_it12));
+            }
+            return .{ .variant = "RoleItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_RoleServiceListMemberRolesReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.RoleServiceListMemberRolesReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "RoleItems")) {
+        var v: types.RoleItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Role, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Role(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .role_items = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
 pub fn encode_SkillServiceCreateSkillReply(alloc: std.mem.Allocator, value: types.SkillServiceCreateSkillReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -8784,14 +9612,6 @@ pub fn decode_SkillServiceUpdateSkillReply(alloc: std.mem.Allocator, variant: ?[
     return error.WrongType;
 }
 
-pub fn encode_SkillServiceDeleteSkillReplyRequest(alloc: std.mem.Allocator, req: *const types.SkillID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_SkillServiceDeleteSkillReply(alloc: std.mem.Allocator, value: types.SkillServiceDeleteSkillReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -8815,6 +9635,47 @@ pub fn decode_SkillServiceDeleteSkillReply(alloc: std.mem.Allocator, variant: ?[
         var v: types.EmptyResponse = undefined;
         try dec_EmptyResponse(alloc, src, &(v));
         out.* = .{ .empty_response = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_SkillServiceListSkillsReply(alloc: std.mem.Allocator, value: types.SkillServiceListSkillsReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .skill_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Skill(out, &(csil_it12));
+            }
+            return .{ .variant = "SkillItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_SkillServiceListSkillsReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.SkillServiceListSkillsReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "SkillItems")) {
+        var v: types.SkillItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Skill, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Skill(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .skill_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -8894,6 +9755,47 @@ pub fn decode_SkillServiceRemoveMemberSkillReply(alloc: std.mem.Allocator, varia
     return error.WrongType;
 }
 
+pub fn encode_SkillServiceListMemberSkillsReply(alloc: std.mem.Allocator, value: types.SkillServiceListMemberSkillsReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .skill_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Skill(out, &(csil_it12));
+            }
+            return .{ .variant = "SkillItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_SkillServiceListMemberSkillsReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.SkillServiceListMemberSkillsReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "SkillItems")) {
+        var v: types.SkillItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Skill, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Skill(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .skill_items = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
 pub fn encode_SkillServiceAddGroupSkillReply(alloc: std.mem.Allocator, value: types.SkillServiceAddGroupSkillReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -8951,6 +9853,47 @@ pub fn decode_SkillServiceRemoveGroupSkillReply(alloc: std.mem.Allocator, varian
         var v: types.EmptyResponse = undefined;
         try dec_EmptyResponse(alloc, src, &(v));
         out.* = .{ .empty_response = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_SkillServiceListGroupSkillsReply(alloc: std.mem.Allocator, value: types.SkillServiceListGroupSkillsReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .skill_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Skill(out, &(csil_it12));
+            }
+            return .{ .variant = "SkillItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_SkillServiceListGroupSkillsReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.SkillServiceListGroupSkillsReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "SkillItems")) {
+        var v: types.SkillItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Skill, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Skill(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .skill_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -9030,14 +9973,6 @@ pub fn decode_GroupServiceUpdateGroupReply(alloc: std.mem.Allocator, variant: ?[
     return error.WrongType;
 }
 
-pub fn encode_GroupServiceDeleteGroupReplyRequest(alloc: std.mem.Allocator, req: *const types.GroupID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_GroupServiceDeleteGroupReply(alloc: std.mem.Allocator, value: types.GroupServiceDeleteGroupReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -9061,6 +9996,47 @@ pub fn decode_GroupServiceDeleteGroupReply(alloc: std.mem.Allocator, variant: ?[
         var v: types.EmptyResponse = undefined;
         try dec_EmptyResponse(alloc, src, &(v));
         out.* = .{ .empty_response = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_GroupServiceListGroupsReply(alloc: std.mem.Allocator, value: types.GroupServiceListGroupsReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .group_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Group(out, &(csil_it12));
+            }
+            return .{ .variant = "GroupItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_GroupServiceListGroupsReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.GroupServiceListGroupsReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "GroupItems")) {
+        var v: types.GroupItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Group, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Group(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .group_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -9140,6 +10116,47 @@ pub fn decode_GroupServiceRemoveGroupMemberReply(alloc: std.mem.Allocator, varia
     return error.WrongType;
 }
 
+pub fn encode_GroupServiceListGroupMembersReply(alloc: std.mem.Allocator, value: types.GroupServiceListGroupMembersReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .member_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Member(out, &(csil_it12));
+            }
+            return .{ .variant = "MemberItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_GroupServiceListGroupMembersReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.GroupServiceListGroupMembersReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "MemberItems")) {
+        var v: types.MemberItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Member, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Member(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .member_items = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
 pub fn encode_ProjectServiceCreateProjectReply(alloc: std.mem.Allocator, value: types.ProjectServiceCreateProjectReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -9172,14 +10189,6 @@ pub fn decode_ProjectServiceCreateProjectReply(alloc: std.mem.Allocator, variant
         return;
     }
     return error.WrongType;
-}
-
-pub fn encode_ProjectServiceGetProjectReplyRequest(alloc: std.mem.Allocator, req: *const types.ProjectID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
 }
 
 pub fn encode_ProjectServiceGetProjectReply(alloc: std.mem.Allocator, value: types.ProjectServiceGetProjectReply) CodecError!RpcReply {
@@ -9248,14 +10257,6 @@ pub fn decode_ProjectServiceUpdateProjectReply(alloc: std.mem.Allocator, variant
         return;
     }
     return error.WrongType;
-}
-
-pub fn encode_ProjectServiceDeleteProjectReplyRequest(alloc: std.mem.Allocator, req: *const types.ProjectID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
 }
 
 pub fn encode_ProjectServiceDeleteProjectReply(alloc: std.mem.Allocator, value: types.ProjectServiceDeleteProjectReply) CodecError!RpcReply {
@@ -9462,6 +10463,47 @@ pub fn decode_ProjectServiceSetProjectTaskPositionReply(alloc: std.mem.Allocator
     return error.WrongType;
 }
 
+pub fn encode_ProjectServiceListProjectMembersReply(alloc: std.mem.Allocator, value: types.ProjectServiceListProjectMembersReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .member_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Member(out, &(csil_it12));
+            }
+            return .{ .variant = "MemberItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_ProjectServiceListProjectMembersReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.ProjectServiceListProjectMembersReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "MemberItems")) {
+        var v: types.MemberItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Member, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Member(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .member_items = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
 pub fn encode_ProjectServiceAddProjectMemberReply(alloc: std.mem.Allocator, value: types.ProjectServiceAddProjectMemberReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -9519,6 +10561,47 @@ pub fn decode_ProjectServiceRemoveProjectMemberReply(alloc: std.mem.Allocator, v
         var v: types.EmptyResponse = undefined;
         try dec_EmptyResponse(alloc, src, &(v));
         out.* = .{ .empty_response = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_ProjectServiceListProjectOwnersReply(alloc: std.mem.Allocator, value: types.ProjectServiceListProjectOwnersReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .member_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Member(out, &(csil_it12));
+            }
+            return .{ .variant = "MemberItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_ProjectServiceListProjectOwnersReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.ProjectServiceListProjectOwnersReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "MemberItems")) {
+        var v: types.MemberItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Member, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Member(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .member_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -9598,6 +10681,47 @@ pub fn decode_ProjectServiceRemoveProjectOwnerReply(alloc: std.mem.Allocator, va
     return error.WrongType;
 }
 
+pub fn encode_ProjectServiceListMilestonesReply(alloc: std.mem.Allocator, value: types.ProjectServiceListMilestonesReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .milestone_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Milestone(out, &(csil_it12));
+            }
+            return .{ .variant = "MilestoneItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_ProjectServiceListMilestonesReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.ProjectServiceListMilestonesReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "MilestoneItems")) {
+        var v: types.MilestoneItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Milestone, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Milestone(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .milestone_items = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
 pub fn encode_ProjectServiceCreateMilestoneReply(alloc: std.mem.Allocator, value: types.ProjectServiceCreateMilestoneReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -9666,14 +10790,6 @@ pub fn decode_ProjectServiceUpdateMilestoneReply(alloc: std.mem.Allocator, varia
     return error.WrongType;
 }
 
-pub fn encode_ProjectServiceDeleteMilestoneReplyRequest(alloc: std.mem.Allocator, req: *const types.MilestoneID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_ProjectServiceDeleteMilestoneReply(alloc: std.mem.Allocator, value: types.ProjectServiceDeleteMilestoneReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -9731,6 +10847,47 @@ pub fn decode_ProjectServiceSetProjectVisibilityReply(alloc: std.mem.Allocator, 
         var v: types.Project = undefined;
         try dec_Project(alloc, src, &(v));
         out.* = .{ .project = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_ProjectServiceListProjectGrantsReply(alloc: std.mem.Allocator, value: types.ProjectServiceListProjectGrantsReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .grant_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Grant(out, &(csil_it12));
+            }
+            return .{ .variant = "GrantItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_ProjectServiceListProjectGrantsReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.ProjectServiceListProjectGrantsReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "GrantItems")) {
+        var v: types.GrantItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Grant, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Grant(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .grant_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -9844,14 +11001,6 @@ pub fn decode_EventServiceCreateEventReply(alloc: std.mem.Allocator, variant: ?[
     return error.WrongType;
 }
 
-pub fn encode_EventServiceGetEventReplyRequest(alloc: std.mem.Allocator, req: *const types.EventID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_EventServiceGetEventReply(alloc: std.mem.Allocator, value: types.EventServiceGetEventReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -9920,14 +11069,6 @@ pub fn decode_EventServiceUpdateEventReply(alloc: std.mem.Allocator, variant: ?[
     return error.WrongType;
 }
 
-pub fn encode_EventServiceDeleteEventReplyRequest(alloc: std.mem.Allocator, req: *const types.EventID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_EventServiceDeleteEventReply(alloc: std.mem.Allocator, value: types.EventServiceDeleteEventReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -9960,14 +11101,6 @@ pub fn decode_EventServiceDeleteEventReply(alloc: std.mem.Allocator, variant: ?[
         return;
     }
     return error.WrongType;
-}
-
-pub fn encode_EventServiceDeleteEventAndFutureReplyRequest(alloc: std.mem.Allocator, req: *const types.EventID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
 }
 
 pub fn encode_EventServiceDeleteEventAndFutureReply(alloc: std.mem.Allocator, value: types.EventServiceDeleteEventAndFutureReply) CodecError!RpcReply {
@@ -10004,12 +11137,45 @@ pub fn decode_EventServiceDeleteEventAndFutureReply(alloc: std.mem.Allocator, va
     return error.WrongType;
 }
 
-pub fn encode_EventServiceGetCalendarViewReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+pub fn encode_EventServiceListEventsReply(alloc: std.mem.Allocator, value: types.EventServiceListEventsReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
     const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
+    switch (value) {
+        .event_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Event(out, &(csil_it12));
+            }
+            return .{ .variant = "EventItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_EventServiceListEventsReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.EventServiceListEventsReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "EventItems")) {
+        var v: types.EventItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Event, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Event(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .event_items = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
 }
 
 pub fn encode_EventServiceGetCalendarViewReply(alloc: std.mem.Allocator, value: types.EventServiceGetCalendarViewReply) CodecError!RpcReply {
@@ -10114,14 +11280,6 @@ pub fn decode_EventServiceAcceptEventReply(alloc: std.mem.Allocator, variant: ?[
     return error.WrongType;
 }
 
-pub fn encode_EventServiceRecoverEditReplyRequest(alloc: std.mem.Allocator, req: *const types.EventID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_EventServiceRecoverEditReply(alloc: std.mem.Allocator, value: types.EventServiceRecoverEditReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -10190,6 +11348,47 @@ pub fn decode_EventServiceDeclineEventReply(alloc: std.mem.Allocator, variant: ?
     return error.WrongType;
 }
 
+pub fn encode_EventServiceListLocalEventsReply(alloc: std.mem.Allocator, value: types.EventServiceListLocalEventsReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .event_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Event(out, &(csil_it12));
+            }
+            return .{ .variant = "EventItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_EventServiceListLocalEventsReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.EventServiceListLocalEventsReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "EventItems")) {
+        var v: types.EventItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Event, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Event(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .event_items = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
 pub fn encode_CalendarServiceListProjectDeadlinesReply(alloc: std.mem.Allocator, value: types.CalendarServiceListProjectDeadlinesReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -10222,14 +11421,6 @@ pub fn decode_CalendarServiceListProjectDeadlinesReply(alloc: std.mem.Allocator,
         return;
     }
     return error.WrongType;
-}
-
-pub fn encode_CalendarServiceGetStatusReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
 }
 
 pub fn encode_CalendarServiceGetStatusReply(alloc: std.mem.Allocator, value: types.CalendarServiceGetStatusReply) CodecError!RpcReply {
@@ -10300,14 +11491,6 @@ pub fn decode_CalendarServiceConfigureCalendarReply(alloc: std.mem.Allocator, va
     return error.WrongType;
 }
 
-pub fn encode_CalendarServiceBeginConnectReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_CalendarServiceBeginConnectReply(alloc: std.mem.Allocator, value: types.CalendarServiceBeginConnectReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -10376,14 +11559,6 @@ pub fn decode_CalendarServiceCompleteConnectReply(alloc: std.mem.Allocator, vari
     return error.WrongType;
 }
 
-pub fn encode_CalendarServiceDisconnectReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_CalendarServiceDisconnectReply(alloc: std.mem.Allocator, value: types.CalendarServiceDisconnectReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -10407,6 +11582,88 @@ pub fn decode_CalendarServiceDisconnectReply(alloc: std.mem.Allocator, variant: 
         var v: types.EmptyResponse = undefined;
         try dec_EmptyResponse(alloc, src, &(v));
         out.* = .{ .empty_response = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_CalendarServicePreviewMigrationReply(alloc: std.mem.Allocator, value: types.CalendarServicePreviewMigrationReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .calendar_migration_row_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_CalendarMigrationRow(out, &(csil_it12));
+            }
+            return .{ .variant = "CalendarMigrationRowItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_CalendarServicePreviewMigrationReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.CalendarServicePreviewMigrationReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "CalendarMigrationRowItems")) {
+        var v: types.CalendarMigrationRowItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.CalendarMigrationRow, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_CalendarMigrationRow(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .calendar_migration_row_items = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_CalendarServiceListTrashReply(alloc: std.mem.Allocator, value: types.CalendarServiceListTrashReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .calendar_trash_entry_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_CalendarTrashEntry(out, &(csil_it12));
+            }
+            return .{ .variant = "CalendarTrashEntryItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_CalendarServiceListTrashReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.CalendarServiceListTrashReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "CalendarTrashEntryItems")) {
+        var v: types.CalendarTrashEntryItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.CalendarTrashEntry, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_CalendarTrashEntry(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .calendar_trash_entry_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -10486,14 +11743,6 @@ pub fn decode_TaskServiceCreateTaskReply(alloc: std.mem.Allocator, variant: ?[]c
     return error.WrongType;
 }
 
-pub fn encode_TaskServiceGetTaskReplyRequest(alloc: std.mem.Allocator, req: *const types.TaskID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_TaskServiceGetTaskReply(alloc: std.mem.Allocator, value: types.TaskServiceGetTaskReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -10560,14 +11809,6 @@ pub fn decode_TaskServiceUpdateTaskReply(alloc: std.mem.Allocator, variant: ?[]c
         return;
     }
     return error.WrongType;
-}
-
-pub fn encode_TaskServiceDeleteTaskReplyRequest(alloc: std.mem.Allocator, req: *const types.TaskID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
 }
 
 pub fn encode_TaskServiceDeleteTaskReply(alloc: std.mem.Allocator, value: types.TaskServiceDeleteTaskReply) CodecError!RpcReply {
@@ -10695,6 +11936,47 @@ pub fn decode_TaskServiceSetTaskVisibilityReply(alloc: std.mem.Allocator, varian
         var v: types.Task = undefined;
         try dec_Task(alloc, src, &(v));
         out.* = .{ .task = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_TaskServiceListTaskGrantsReply(alloc: std.mem.Allocator, value: types.TaskServiceListTaskGrantsReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .grant_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Grant(out, &(csil_it12));
+            }
+            return .{ .variant = "GrantItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_TaskServiceListTaskGrantsReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.TaskServiceListTaskGrantsReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "GrantItems")) {
+        var v: types.GrantItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Grant, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Grant(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .grant_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -10910,14 +12192,6 @@ pub fn decode_CommentServiceCreateCommentReply(alloc: std.mem.Allocator, variant
     return error.WrongType;
 }
 
-pub fn encode_CommentServiceGetCommentReplyRequest(alloc: std.mem.Allocator, req: *const types.CommentID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_CommentServiceGetCommentReply(alloc: std.mem.Allocator, value: types.CommentServiceGetCommentReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -10986,14 +12260,6 @@ pub fn decode_CommentServiceUpdateCommentReply(alloc: std.mem.Allocator, variant
     return error.WrongType;
 }
 
-pub fn encode_CommentServiceDeleteCommentReplyRequest(alloc: std.mem.Allocator, req: *const types.CommentID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_CommentServiceDeleteCommentReply(alloc: std.mem.Allocator, value: types.CommentServiceDeleteCommentReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -11028,12 +12294,86 @@ pub fn decode_CommentServiceDeleteCommentReply(alloc: std.mem.Allocator, variant
     return error.WrongType;
 }
 
-pub fn encode_NotificationServiceUnreadCountReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+pub fn encode_CommentServiceListCommentsReply(alloc: std.mem.Allocator, value: types.CommentServiceListCommentsReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
     const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
+    switch (value) {
+        .comment_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Comment(out, &(csil_it12));
+            }
+            return .{ .variant = "CommentItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_CommentServiceListCommentsReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.CommentServiceListCommentsReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "CommentItems")) {
+        var v: types.CommentItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Comment, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Comment(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .comment_items = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_NotificationServiceListNotificationsReply(alloc: std.mem.Allocator, value: types.NotificationServiceListNotificationsReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .notification_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Notification(out, &(csil_it12));
+            }
+            return .{ .variant = "NotificationItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_NotificationServiceListNotificationsReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.NotificationServiceListNotificationsReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "NotificationItems")) {
+        var v: types.NotificationItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Notification, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Notification(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .notification_items = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
 }
 
 pub fn encode_NotificationServiceUnreadCountReply(alloc: std.mem.Allocator, value: types.NotificationServiceUnreadCountReply) CodecError!RpcReply {
@@ -11070,14 +12410,6 @@ pub fn decode_NotificationServiceUnreadCountReply(alloc: std.mem.Allocator, vari
     return error.WrongType;
 }
 
-pub fn encode_NotificationServiceMarkReadReplyRequest(alloc: std.mem.Allocator, req: *const types.NotificationID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_NotificationServiceMarkReadReply(alloc: std.mem.Allocator, value: types.NotificationServiceMarkReadReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -11110,14 +12442,6 @@ pub fn decode_NotificationServiceMarkReadReply(alloc: std.mem.Allocator, variant
         return;
     }
     return error.WrongType;
-}
-
-pub fn encode_NotificationServiceMarkAllReadReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
 }
 
 pub fn encode_NotificationServiceMarkAllReadReply(alloc: std.mem.Allocator, value: types.NotificationServiceMarkAllReadReply) CodecError!RpcReply {
@@ -11188,14 +12512,6 @@ pub fn decode_ShareServiceCreateShareReply(alloc: std.mem.Allocator, variant: ?[
     return error.WrongType;
 }
 
-pub fn encode_ShareServiceDeleteShareReplyRequest(alloc: std.mem.Allocator, req: *const types.ShareID) CodecError![]u8 {
-    var buf = std.ArrayList(u8).init(alloc);
-    errdefer buf.deinit();
-    const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
-}
-
 pub fn encode_ShareServiceDeleteShareReply(alloc: std.mem.Allocator, value: types.ShareServiceDeleteShareReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
@@ -11219,6 +12535,47 @@ pub fn decode_ShareServiceDeleteShareReply(alloc: std.mem.Allocator, variant: ?[
         var v: types.EmptyResponse = undefined;
         try dec_EmptyResponse(alloc, src, &(v));
         out.* = .{ .empty_response = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
+}
+
+pub fn encode_ShareServiceListSharesByResourceReply(alloc: std.mem.Allocator, value: types.ShareServiceListSharesByResourceReply) CodecError!RpcReply {
+    var buf = std.ArrayList(u8).init(alloc);
+    errdefer buf.deinit();
+    const out = &buf;
+    switch (value) {
+        .share_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_Share(out, &(csil_it12));
+            }
+            return .{ .variant = "ShareItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_ShareServiceListSharesByResourceReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.ShareServiceListSharesByResourceReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "ShareItems")) {
+        var v: types.ShareItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.Share, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_Share(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .share_items = v };
         return;
     }
     if (std.mem.eql(u8, name, "ServiceError")) {
@@ -11264,12 +12621,45 @@ pub fn decode_ShareServiceCheckAccessReply(alloc: std.mem.Allocator, variant: ?[
     return error.WrongType;
 }
 
-pub fn encode_SettingsServiceGetSettingsReplyRequest(alloc: std.mem.Allocator, req: *const types.HouseID) CodecError![]u8 {
+pub fn encode_MemberAuditServiceListAuditsForMemberReply(alloc: std.mem.Allocator, value: types.MemberAuditServiceListAuditsForMemberReply) CodecError!RpcReply {
     var buf = std.ArrayList(u8).init(alloc);
     errdefer buf.deinit();
     const out = &buf;
-    try w_text(out, req.*);
-    return buf.toOwnedSlice();
+    switch (value) {
+        .member_audit_items => |v| {
+            try w_array_head(out, (v).len);
+            for (v) |csil_it12| {
+                try enc_MemberAudit(out, &(csil_it12));
+            }
+            return .{ .variant = "MemberAuditItems", .payload = try buf.toOwnedSlice() };
+        },
+        .service_error => |v| {
+            try enc_ServiceError(out, &(v));
+            return .{ .variant = "ServiceError", .payload = try buf.toOwnedSlice() };
+        },
+    }
+}
+
+pub fn decode_MemberAuditServiceListAuditsForMemberReply(alloc: std.mem.Allocator, variant: ?[]const u8, payload: []const u8, out: *types.MemberAuditServiceListAuditsForMemberReply) CodecError!void {
+    const name = variant orelse return error.WrongType;
+    const src = try decode(alloc, payload);
+    if (std.mem.eql(u8, name, "MemberAuditItems")) {
+        var v: types.MemberAuditItems = undefined;
+        if (src != .array) return error.WrongType;
+        v = try alloc.alloc(types.MemberAudit, src.array.len);
+        for (src.array, 0..) |csil_it8, csil_i8| {
+            try dec_MemberAudit(alloc, csil_it8, &(v[csil_i8]));
+        }
+        out.* = .{ .member_audit_items = v };
+        return;
+    }
+    if (std.mem.eql(u8, name, "ServiceError")) {
+        var v: types.ServiceError = undefined;
+        try dec_ServiceError(alloc, src, &(v));
+        out.* = .{ .service_error = v };
+        return;
+    }
+    return error.WrongType;
 }
 
 pub fn encode_SettingsServiceGetSettingsReply(alloc: std.mem.Allocator, value: types.SettingsServiceGetSettingsReply) CodecError!RpcReply {

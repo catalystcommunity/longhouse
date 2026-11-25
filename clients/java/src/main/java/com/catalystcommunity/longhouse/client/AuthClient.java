@@ -14,74 +14,92 @@ public final class AuthClient {
     }
 
     public BeginBrowserLoginResponse beginBrowserLogin(BeginBrowserLoginRequest req) throws ClientException {
-        return CsilCbor.decodeBeginBrowserLoginResponse(transport.call("AuthService", "begin-browser-login", CsilCbor.encodeBeginBrowserLoginRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "begin-browser-login", CsilCbor.encodeBeginBrowserLoginRequest(req));
+        return CsilCbor.decodeBeginBrowserLoginResponse(CsilCbor.resolveRpcReply("AuthService", "begin-browser-login", reply.variant(), reply.payload()));
     }
 
     public ActAsScopeSetResponse getActAsScopeSet(ActAsScopeSetRequest req) throws ClientException {
-        return CsilCbor.decodeActAsScopeSetResponse(transport.call("AuthService", "get-act-as-scope-set", CsilCbor.encodeActAsScopeSetRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "get-act-as-scope-set", CsilCbor.encodeActAsScopeSetRequest(req));
+        return CsilCbor.decodeActAsScopeSetResponse(CsilCbor.resolveRpcReply("AuthService", "get-act-as-scope-set", reply.variant(), reply.payload()));
     }
 
     public ActAsTokenResponse exchangeActAsCredential(ExchangeActAsCredentialRequest req) throws ClientException {
-        return CsilCbor.decodeActAsTokenResponse(transport.call("AuthService", "exchange-act-as-credential", CsilCbor.encodeExchangeActAsCredentialRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "exchange-act-as-credential", CsilCbor.encodeExchangeActAsCredentialRequest(req));
+        return CsilCbor.decodeActAsTokenResponse(CsilCbor.resolveRpcReply("AuthService", "exchange-act-as-credential", reply.variant(), reply.payload()));
     }
 
     public LoginResponse login(LoginRequest req) throws ClientException {
-        return CsilCbor.decodeLoginResponse(transport.call("AuthService", "login", CsilCbor.encodeLoginRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "login", CsilCbor.encodeLoginRequest(req));
+        return CsilCbor.decodeLoginResponse(CsilCbor.resolveRpcReply("AuthService", "login", reply.variant(), reply.payload()));
     }
 
     public LoginResponse complete(CompleteRequest req) throws ClientException {
-        return CsilCbor.decodeLoginResponse(transport.call("AuthService", "complete", CsilCbor.encodeCompleteRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "complete", CsilCbor.encodeCompleteRequest(req));
+        return CsilCbor.decodeLoginResponse(CsilCbor.resolveRpcReply("AuthService", "complete", reply.variant(), reply.payload()));
     }
 
     public LoginResponse refresh(EmptyRequest req) throws ClientException {
-        return CsilCbor.decodeLoginResponse(transport.call("AuthService", "refresh", CsilCbor.encodeEmptyRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "refresh", CsilCbor.encodeEmptyRequest(req));
+        return CsilCbor.decodeLoginResponse(CsilCbor.resolveRpcReply("AuthService", "refresh", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse logout(EmptyRequest req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("AuthService", "logout", CsilCbor.encodeEmptyRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "logout", CsilCbor.encodeEmptyRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("AuthService", "logout", reply.variant(), reply.payload()));
     }
 
     public LoginResponse resumeSession(EmptyRequest req) throws ClientException {
-        return CsilCbor.decodeLoginResponse(transport.call("AuthService", "resume-session", CsilCbor.encodeEmptyRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "resume-session", CsilCbor.encodeEmptyRequest(req));
+        return CsilCbor.decodeLoginResponse(CsilCbor.resolveRpcReply("AuthService", "resume-session", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse endSession(EmptyRequest req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("AuthService", "end-session", CsilCbor.encodeEmptyRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "end-session", CsilCbor.encodeEmptyRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("AuthService", "end-session", reply.variant(), reply.payload()));
     }
 
     public MeResponse me(EmptyRequest req) throws ClientException {
-        return CsilCbor.decodeMeResponse(transport.call("AuthService", "me", CsilCbor.encodeEmptyRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "me", CsilCbor.encodeEmptyRequest(req));
+        return CsilCbor.decodeMeResponse(CsilCbor.resolveRpcReply("AuthService", "me", reply.variant(), reply.payload()));
     }
 
     public BeginCliLoginResponse beginCliLogin(BeginCliLoginRequest req) throws ClientException {
-        return CsilCbor.decodeBeginCliLoginResponse(transport.call("AuthService", "begin-cli-login", CsilCbor.encodeBeginCliLoginRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "begin-cli-login", CsilCbor.encodeBeginCliLoginRequest(req));
+        return CsilCbor.decodeBeginCliLoginResponse(CsilCbor.resolveRpcReply("AuthService", "begin-cli-login", reply.variant(), reply.payload()));
     }
 
     public CliLoginRequestInfo inspectCliLogin(ApproveCliLoginRequest req) throws ClientException {
-        return CsilCbor.decodeCliLoginRequestInfo(transport.call("AuthService", "inspect-cli-login", CsilCbor.encodeApproveCliLoginRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "inspect-cli-login", CsilCbor.encodeApproveCliLoginRequest(req));
+        return CsilCbor.decodeCliLoginRequestInfo(CsilCbor.resolveRpcReply("AuthService", "inspect-cli-login", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse approveCliLogin(ApproveCliLoginRequest req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("AuthService", "approve-cli-login", CsilCbor.encodeApproveCliLoginRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "approve-cli-login", CsilCbor.encodeApproveCliLoginRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("AuthService", "approve-cli-login", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse denyCliLogin(DenyCliLoginRequest req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("AuthService", "deny-cli-login", CsilCbor.encodeDenyCliLoginRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "deny-cli-login", CsilCbor.encodeDenyCliLoginRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("AuthService", "deny-cli-login", reply.variant(), reply.payload()));
     }
 
     public ExchangeCliLoginResponse exchangeCliLogin(ExchangeCliLoginRequest req) throws ClientException {
-        return CsilCbor.decodeExchangeCliLoginResponse(transport.call("AuthService", "exchange-cli-login", CsilCbor.encodeExchangeCliLoginRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "exchange-cli-login", CsilCbor.encodeExchangeCliLoginRequest(req));
+        return CsilCbor.decodeExchangeCliLoginResponse(CsilCbor.resolveRpcReply("AuthService", "exchange-cli-login", reply.variant(), reply.payload()));
     }
 
     public CliTokenResponse refreshSession(RefreshSessionRequest req) throws ClientException {
-        return CsilCbor.decodeCliTokenResponse(transport.call("AuthService", "refresh-session", CsilCbor.encodeRefreshSessionRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "refresh-session", CsilCbor.encodeRefreshSessionRequest(req));
+        return CsilCbor.decodeCliTokenResponse(CsilCbor.resolveRpcReply("AuthService", "refresh-session", reply.variant(), reply.payload()));
     }
 
     public CliSessionsResponse listSessions(EmptyRequest req) throws ClientException {
-        return CsilCbor.decodeCliSessionsResponse(transport.call("AuthService", "list-sessions", CsilCbor.encodeEmptyRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "list-sessions", CsilCbor.encodeEmptyRequest(req));
+        return CsilCbor.decodeCliSessionsResponse(CsilCbor.resolveRpcReply("AuthService", "list-sessions", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse revokeSession(RevokeSessionRequest req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("AuthService", "revoke-session", CsilCbor.encodeRevokeSessionRequest(req)));
+        WireReply reply = transport.callReply("AuthService", "revoke-session", CsilCbor.encodeRevokeSessionRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("AuthService", "revoke-session", reply.variant(), reply.payload()));
     }
 }

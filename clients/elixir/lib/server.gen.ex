@@ -89,7 +89,8 @@ defmodule Csilgen.Generated.HouseServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_houses(req :: Csilgen.Generated.HouseListRequest.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.House.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.HouseItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
 end
 
 defmodule Csilgen.Generated.MemberServer do
@@ -110,7 +111,8 @@ defmodule Csilgen.Generated.MemberServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_members(req :: Csilgen.Generated.HouseScopedListRequest.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Member.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.MemberItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
 end
 
 defmodule Csilgen.Generated.TrustedDomainServer do
@@ -123,7 +125,7 @@ defmodule Csilgen.Generated.TrustedDomainServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_trusted_domains(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.TrustedDomain.t()]}
+              {:ok, Csilgen.Generated.TrustedDomainItems.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback is_domain_trusted(req :: Csilgen.Generated.TrustedDomain.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.BoolResponse.t()}
@@ -141,7 +143,8 @@ defmodule Csilgen.Generated.RoleServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_roles(req :: Csilgen.Generated.HouseScopedListRequest.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Role.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.RoleItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback grant_role(req :: Csilgen.Generated.MemberRoleRef.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
@@ -149,7 +152,8 @@ defmodule Csilgen.Generated.RoleServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_member_roles(req :: Csilgen.Generated.MemberScopedListRequest.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Role.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.RoleItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
 end
 
 defmodule Csilgen.Generated.SkillServer do
@@ -163,7 +167,8 @@ defmodule Csilgen.Generated.SkillServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_skills(req :: Csilgen.Generated.HouseScopedListRequest.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Skill.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.SkillItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback add_member_skill(req :: Csilgen.Generated.MemberSkillRef.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
@@ -171,7 +176,8 @@ defmodule Csilgen.Generated.SkillServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_member_skills(req :: Csilgen.Generated.MemberScopedListRequest.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Skill.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.SkillItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback add_group_skill(req :: Csilgen.Generated.GroupSkillRef.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
@@ -179,7 +185,8 @@ defmodule Csilgen.Generated.SkillServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_group_skills(req :: Csilgen.Generated.GroupID.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Skill.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.SkillItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
 end
 
 defmodule Csilgen.Generated.GroupServer do
@@ -193,7 +200,8 @@ defmodule Csilgen.Generated.GroupServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_groups(req :: Csilgen.Generated.HouseScopedListRequest.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Group.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.GroupItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback add_group_member(req :: Csilgen.Generated.GroupMemberRef.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
@@ -201,7 +209,8 @@ defmodule Csilgen.Generated.GroupServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_group_members(req :: Csilgen.Generated.MemberScopedListRequest.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Member.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.MemberItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
 end
 
 defmodule Csilgen.Generated.ProjectServer do
@@ -237,7 +246,8 @@ defmodule Csilgen.Generated.ProjectServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_project_members(req :: Csilgen.Generated.ProjectID.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Member.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.MemberItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback add_project_member(req :: Csilgen.Generated.ProjectMemberRef.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
@@ -245,7 +255,8 @@ defmodule Csilgen.Generated.ProjectServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_project_owners(req :: Csilgen.Generated.ProjectID.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Member.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.MemberItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback add_project_owner(req :: Csilgen.Generated.ProjectOwnerRef.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
@@ -253,7 +264,7 @@ defmodule Csilgen.Generated.ProjectServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_milestones(req :: Csilgen.Generated.ProjectID.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Milestone.t()]}
+              {:ok, Csilgen.Generated.MilestoneItems.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback create_milestone(req :: Csilgen.Generated.Milestone.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.Milestone.t()}
@@ -270,7 +281,8 @@ defmodule Csilgen.Generated.ProjectServer do
             ) ::
               {:ok, Csilgen.Generated.Project.t()} | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_project_grants(req :: Csilgen.Generated.ProjectID.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Grant.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.GrantItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback put_project_grant(req :: Csilgen.Generated.PutProjectGrantRequest.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
@@ -295,7 +307,8 @@ defmodule Csilgen.Generated.EventServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_events(req :: Csilgen.Generated.EventListRequest.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Event.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.EventItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback get_calendar_view(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.CalendarView.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
@@ -309,7 +322,8 @@ defmodule Csilgen.Generated.EventServer do
   @callback decline_event(req :: Csilgen.Generated.EventDecision.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.Event.t()} | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_local_events(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Event.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.EventItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
 end
 
 defmodule Csilgen.Generated.CalendarServer do
@@ -343,10 +357,10 @@ defmodule Csilgen.Generated.CalendarServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback preview_migration(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.CalendarMigrationRow.t()]}
+              {:ok, Csilgen.Generated.CalendarMigrationRowItems.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_trash(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.CalendarTrashEntry.t()]}
+              {:ok, Csilgen.Generated.CalendarTrashEntryItems.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback restore_event(req :: Csilgen.Generated.RestoreCalendarEventRequest.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.Event.t()} | {:error, Csilgen.Generated.ServiceError.t()}
@@ -374,7 +388,8 @@ defmodule Csilgen.Generated.TaskServer do
             ) ::
               {:ok, Csilgen.Generated.Task.t()} | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_task_grants(req :: Csilgen.Generated.TaskID.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Grant.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.GrantItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback put_task_grant(req :: Csilgen.Generated.PutTaskGrantRequest.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
@@ -410,7 +425,7 @@ defmodule Csilgen.Generated.CommentServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_comments(req :: Csilgen.Generated.CommentListRequest.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Comment.t()]}
+              {:ok, Csilgen.Generated.CommentItems.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
 end
 
@@ -418,7 +433,7 @@ defmodule Csilgen.Generated.NotificationServer do
   @moduledoc "Server handler behaviour + routers for the NotificationService service."
 
   @callback list_notifications(req :: Csilgen.Generated.NotificationListRequest.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Notification.t()]}
+              {:ok, Csilgen.Generated.NotificationItems.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback unread_count(req :: Csilgen.Generated.HouseID.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.NotificationUnreadCount.t()}
@@ -440,7 +455,8 @@ defmodule Csilgen.Generated.ShareServer do
               {:ok, Csilgen.Generated.EmptyResponse.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
   @callback list_shares_by_resource(req :: Csilgen.Generated.ResourceRef.t(), ctx :: map()) ::
-              {:ok, [Csilgen.Generated.Share.t()]} | {:error, Csilgen.Generated.ServiceError.t()}
+              {:ok, Csilgen.Generated.ShareItems.t()}
+              | {:error, Csilgen.Generated.ServiceError.t()}
   @callback check_access(req :: Csilgen.Generated.ShareAccessRequest.t(), ctx :: map()) ::
               {:ok, Csilgen.Generated.Share.t()} | {:error, Csilgen.Generated.ServiceError.t()}
 end
@@ -452,7 +468,7 @@ defmodule Csilgen.Generated.MemberAuditServer do
               req :: Csilgen.Generated.MemberScopedListRequest.t(),
               ctx :: map()
             ) ::
-              {:ok, [Csilgen.Generated.MemberAudit.t()]}
+              {:ok, Csilgen.Generated.MemberAuditItems.t()}
               | {:error, Csilgen.Generated.ServiceError.t()}
 end
 

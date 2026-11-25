@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The HouseService server handler interface; the host implements it.
  */
@@ -12,5 +10,5 @@ public interface HouseService {
     House getHouse(HouseId req);
     House updateHouse(House req);
     EmptyResponse deleteHouse(HouseId req);
-    List<House> listHouses(HouseListRequest req);
+    HouseItems listHouses(HouseListRequest req);
 }

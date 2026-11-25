@@ -75,7 +75,7 @@ func (s *CalendarService) CreateEvent(ctx context.Context, in csil.Event) (csil.
 	return s.acceptEventWithWriter(ctx, csil.EventDecision{EventId: e.EventId, Revision: *e.Revision}, writer)
 }
 
-func (s *CalendarService) ListLocalEvents(ctx context.Context, id csil.HouseID) ([]csil.Event, error) {
+func (s *CalendarService) ListLocalEvents(ctx context.Context, id csil.HouseID) (csil.EventItems, error) {
 	if _, err := s.member(ctx, string(id), false); err != nil {
 		return nil, err
 	}

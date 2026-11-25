@@ -247,8 +247,8 @@ defmodule Csilgen.Generated.House do
        [
          {{:text, "name"}, {:text, v.name}},
          {{:text, "house_id"}, {:text, v.house_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
-         {{:text, "updated_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.updated_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
+         {{:text, "updated_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.updated_at)},
          if(is_nil(v.description),
            do: nil,
            else: {{:text, "description"}, {:text, v.description}}
@@ -260,6 +260,8 @@ defmodule Csilgen.Generated.House do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -267,13 +269,9 @@ defmodule Csilgen.Generated.House do
       name: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "name"})),
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       updated_at:
-        case Map.fetch!(csil_fields, {:text, "updated_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "updated_at"})),
       description:
         case Map.get(csil_fields, {:text, "description"}) do
           nil -> nil
@@ -364,22 +362,20 @@ defmodule Csilgen.Generated.Member do
          {{:text, "house_id"}, {:text, v.house_id}},
          {{:text, "member_id"}, {:text, v.member_id}},
          if(is_nil(v.avatar_url), do: nil, else: {{:text, "avatar_url"}, {:text, v.avatar_url}}),
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
-         {{:text, "updated_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.updated_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
+         {{:text, "updated_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.updated_at)},
          if(is_nil(v.display_name),
            do: nil,
            else: {{:text, "display_name"}, {:text, v.display_name}}
          ),
          if(is_nil(v.last_seen_at),
            do: nil,
-           else:
-             {{:text, "last_seen_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.last_seen_at)}}}
+           else: {{:text, "last_seen_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.last_seen_at)}
          ),
          if(is_nil(v.deactivated_at),
            do: nil,
            else:
-             {{:text, "deactivated_at"},
-              {:tag, 0, {:text, DateTime.to_iso8601(v.deactivated_at)}}}
+             {{:text, "deactivated_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.deactivated_at)}
          ),
          {{:text, "linkkeys_domain"}, {:text, v.linkkeys_domain}},
          {{:text, "linkkeys_user_id"}, {:text, v.linkkeys_user_id}},
@@ -394,6 +390,8 @@ defmodule Csilgen.Generated.Member do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -416,13 +414,9 @@ defmodule Csilgen.Generated.Member do
           csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
         end,
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       updated_at:
-        case Map.fetch!(csil_fields, {:text, "updated_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "updated_at"})),
       display_name:
         case Map.get(csil_fields, {:text, "display_name"}) do
           nil -> nil
@@ -430,23 +424,13 @@ defmodule Csilgen.Generated.Member do
         end,
       last_seen_at:
         case Map.get(csil_fields, {:text, "last_seen_at"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       deactivated_at:
         case Map.get(csil_fields, {:text, "deactivated_at"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       linkkeys_domain:
         Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "linkkeys_domain"})),
@@ -500,7 +484,7 @@ defmodule Csilgen.Generated.TrustedDomain do
        [
          {{:text, "domain"}, {:text, v.domain}},
          {{:text, "house_id"}, {:text, v.house_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          {{:text, "trusted_domain_id"}, {:text, v.trusted_domain_id}}
        ],
        &is_nil/1
@@ -509,6 +493,8 @@ defmodule Csilgen.Generated.TrustedDomain do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -516,9 +502,7 @@ defmodule Csilgen.Generated.TrustedDomain do
       domain: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "domain"})),
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       trusted_domain_id:
         Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "trusted_domain_id"}))
     }
@@ -569,8 +553,8 @@ defmodule Csilgen.Generated.Role do
          {{:text, "name"}, {:text, v.name}},
          {{:text, "role_id"}, {:text, v.role_id}},
          {{:text, "house_id"}, {:text, v.house_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
-         {{:text, "updated_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.updated_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
+         {{:text, "updated_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.updated_at)},
          if(is_nil(v.description),
            do: nil,
            else: {{:text, "description"}, {:text, v.description}}
@@ -582,6 +566,8 @@ defmodule Csilgen.Generated.Role do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -590,13 +576,9 @@ defmodule Csilgen.Generated.Role do
       role_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "role_id"})),
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       updated_at:
-        case Map.fetch!(csil_fields, {:text, "updated_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "updated_at"})),
       description:
         case Map.get(csil_fields, {:text, "description"}) do
           nil -> nil
@@ -639,7 +621,7 @@ defmodule Csilgen.Generated.MemberRole do
        [
          {{:text, "role_id"}, {:text, v.role_id}},
          {{:text, "member_id"}, {:text, v.member_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}}
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)}
        ],
        &is_nil/1
      )}
@@ -647,6 +629,8 @@ defmodule Csilgen.Generated.MemberRole do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -654,9 +638,7 @@ defmodule Csilgen.Generated.MemberRole do
       role_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "role_id"})),
       member_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "member_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"}))
     }
   end
 
@@ -723,7 +705,7 @@ defmodule Csilgen.Generated.MemberAudit do
          {{:text, "audit_id"}, {:text, v.audit_id}},
          {{:text, "house_id"}, {:text, v.house_id}},
          if(is_nil(v.target_id), do: nil, else: {{:text, "target_id"}, {:text, v.target_id}}),
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          if(is_nil(v.target_type),
            do: nil,
            else: {{:text, "target_type"}, {:text, v.target_type}}
@@ -740,6 +722,8 @@ defmodule Csilgen.Generated.MemberAudit do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -758,9 +742,7 @@ defmodule Csilgen.Generated.MemberAudit do
           csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
         end,
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       target_type:
         case Map.get(csil_fields, {:text, "target_type"}) do
           nil -> nil
@@ -821,8 +803,8 @@ defmodule Csilgen.Generated.Skill do
          {{:text, "name"}, {:text, v.name}},
          {{:text, "house_id"}, {:text, v.house_id}},
          {{:text, "skill_id"}, {:text, v.skill_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
-         {{:text, "updated_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.updated_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
+         {{:text, "updated_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.updated_at)},
          if(is_nil(v.description),
            do: nil,
            else: {{:text, "description"}, {:text, v.description}}
@@ -834,6 +816,8 @@ defmodule Csilgen.Generated.Skill do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -842,13 +826,9 @@ defmodule Csilgen.Generated.Skill do
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
       skill_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "skill_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       updated_at:
-        case Map.fetch!(csil_fields, {:text, "updated_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "updated_at"})),
       description:
         case Map.get(csil_fields, {:text, "description"}) do
           nil -> nil
@@ -891,7 +871,7 @@ defmodule Csilgen.Generated.MemberSkill do
        [
          {{:text, "skill_id"}, {:text, v.skill_id}},
          {{:text, "member_id"}, {:text, v.member_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}}
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)}
        ],
        &is_nil/1
      )}
@@ -899,6 +879,8 @@ defmodule Csilgen.Generated.MemberSkill do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -906,9 +888,7 @@ defmodule Csilgen.Generated.MemberSkill do
       skill_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "skill_id"})),
       member_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "member_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"}))
     }
   end
 
@@ -946,7 +926,7 @@ defmodule Csilgen.Generated.GroupSkill do
        [
          {{:text, "group_id"}, {:text, v.group_id}},
          {{:text, "skill_id"}, {:text, v.skill_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}}
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)}
        ],
        &is_nil/1
      )}
@@ -954,6 +934,8 @@ defmodule Csilgen.Generated.GroupSkill do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -961,9 +943,7 @@ defmodule Csilgen.Generated.GroupSkill do
       group_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "group_id"})),
       skill_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "skill_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"}))
     }
   end
 
@@ -1012,8 +992,8 @@ defmodule Csilgen.Generated.Group do
          {{:text, "name"}, {:text, v.name}},
          {{:text, "group_id"}, {:text, v.group_id}},
          {{:text, "house_id"}, {:text, v.house_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
-         {{:text, "updated_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.updated_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
+         {{:text, "updated_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.updated_at)},
          if(is_nil(v.description),
            do: nil,
            else: {{:text, "description"}, {:text, v.description}}
@@ -1025,6 +1005,8 @@ defmodule Csilgen.Generated.Group do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -1033,13 +1015,9 @@ defmodule Csilgen.Generated.Group do
       group_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "group_id"})),
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       updated_at:
-        case Map.fetch!(csil_fields, {:text, "updated_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "updated_at"})),
       description:
         case Map.get(csil_fields, {:text, "description"}) do
           nil -> nil
@@ -1082,7 +1060,7 @@ defmodule Csilgen.Generated.GroupMember do
        [
          {{:text, "group_id"}, {:text, v.group_id}},
          {{:text, "member_id"}, {:text, v.member_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}}
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)}
        ],
        &is_nil/1
      )}
@@ -1090,6 +1068,8 @@ defmodule Csilgen.Generated.GroupMember do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -1097,9 +1077,7 @@ defmodule Csilgen.Generated.GroupMember do
       group_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "group_id"})),
       member_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "member_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"}))
     }
   end
 
@@ -1175,9 +1153,9 @@ defmodule Csilgen.Generated.Project do
          if(is_nil(v.category), do: nil, else: {{:text, "category"}, {:text, v.category}}),
          {{:text, "house_id"}, {:text, v.house_id}},
          if(is_nil(v.personal), do: nil, else: {{:text, "personal"}, {:bool, v.personal}}),
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          {{:text, "project_id"}, {:text, v.project_id}},
-         {{:text, "updated_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.updated_at)}}},
+         {{:text, "updated_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.updated_at)},
          if(is_nil(v.visibility),
            do: nil,
            else:
@@ -1198,6 +1176,8 @@ defmodule Csilgen.Generated.Project do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -1223,14 +1203,10 @@ defmodule Csilgen.Generated.Project do
           csil_v -> Csilgen.Generated.Cbor.to_bool(csil_v)
         end,
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       project_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "project_id"})),
       updated_at:
-        case Map.fetch!(csil_fields, {:text, "updated_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "updated_at"})),
       visibility:
         case Map.get(csil_fields, {:text, "visibility"}) do
           nil ->
@@ -1292,7 +1268,7 @@ defmodule Csilgen.Generated.ProjectTask do
        [
          {{:text, "task_id"}, {:text, v.task_id}},
          {{:text, "position"}, {:int, v.position}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          {{:text, "project_id"}, {:text, v.project_id}}
        ],
        &is_nil/1
@@ -1301,6 +1277,8 @@ defmodule Csilgen.Generated.ProjectTask do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -1308,9 +1286,7 @@ defmodule Csilgen.Generated.ProjectTask do
       task_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "task_id"})),
       position: Csilgen.Generated.Cbor.to_int(Map.fetch!(csil_fields, {:text, "position"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       project_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "project_id"}))
     }
   end
@@ -1348,7 +1324,7 @@ defmodule Csilgen.Generated.ProjectMember do
      Enum.reject(
        [
          {{:text, "member_id"}, {:text, v.member_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          {{:text, "project_id"}, {:text, v.project_id}}
        ],
        &is_nil/1
@@ -1357,15 +1333,15 @@ defmodule Csilgen.Generated.ProjectMember do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
     %__MODULE__{
       member_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "member_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       project_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "project_id"}))
     }
   end
@@ -1403,7 +1379,7 @@ defmodule Csilgen.Generated.ProjectOwner do
      Enum.reject(
        [
          {{:text, "member_id"}, {:text, v.member_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          {{:text, "project_id"}, {:text, v.project_id}}
        ],
        &is_nil/1
@@ -1412,15 +1388,15 @@ defmodule Csilgen.Generated.ProjectOwner do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
     %__MODULE__{
       member_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "member_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       project_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "project_id"}))
     }
   end
@@ -1492,9 +1468,9 @@ defmodule Csilgen.Generated.Milestone do
          {{:text, "label"}, {:text, v.label}},
          {{:text, "state"}, {:text, Csilgen.Generated.MilestoneState.to_wire(v.state)}},
          {{:text, "position"}, {:int, v.position}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          {{:text, "project_id"}, {:text, v.project_id}},
-         {{:text, "updated_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.updated_at)}}},
+         {{:text, "updated_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.updated_at)},
          {{:text, "when_label"}, {:text, v.when_label}},
          {{:text, "milestone_id"}, {:text, v.milestone_id}}
        ],
@@ -1504,6 +1480,8 @@ defmodule Csilgen.Generated.Milestone do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -1515,14 +1493,10 @@ defmodule Csilgen.Generated.Milestone do
         ),
       position: Csilgen.Generated.Cbor.to_int(Map.fetch!(csil_fields, {:text, "position"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       project_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "project_id"})),
       updated_at:
-        case Map.fetch!(csil_fields, {:text, "updated_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "updated_at"})),
       when_label: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "when_label"})),
       milestone_id:
         Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "milestone_id"}))
@@ -1645,7 +1619,7 @@ defmodule Csilgen.Generated.Event do
          if(is_nil(v.all_day), do: nil, else: {{:text, "all_day"}, {:bool, v.all_day}}),
          if(is_nil(v.ends_at),
            do: nil,
-           else: {{:text, "ends_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.ends_at)}}}
+           else: {{:text, "ends_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.ends_at)}
          ),
          {{:text, "event_id"}, {:text, v.event_id}},
          {{:text, "house_id"}, {:text, v.house_id}},
@@ -1654,11 +1628,11 @@ defmodule Csilgen.Generated.Event do
          if(is_nil(v.timezone), do: nil, else: {{:text, "timezone"}, {:text, v.timezone}}),
          if(is_nil(v.starts_at),
            do: nil,
-           else: {{:text, "starts_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.starts_at)}}}
+           else: {{:text, "starts_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.starts_at)}
          ),
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          if(is_nil(v.edit_scope), do: nil, else: {{:text, "edit_scope"}, {:text, v.edit_scope}}),
-         {{:text, "updated_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.updated_at)}}},
+         {{:text, "updated_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.updated_at)},
          if(is_nil(v.description),
            do: nil,
            else: {{:text, "description"}, {:text, v.description}}
@@ -1694,7 +1668,7 @@ defmodule Csilgen.Generated.Event do
            do: nil,
            else:
              {{:text, "next_recurrence_at"},
-              {:tag, 0, {:text, DateTime.to_iso8601(v.next_recurrence_at)}}}
+              Csilgen.Generated.Cbor.enc_timestamp(v.next_recurrence_at)}
          ),
          if(is_nil(v.recurrence_interval),
            do: nil,
@@ -1729,6 +1703,8 @@ defmodule Csilgen.Generated.Event do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -1741,13 +1717,8 @@ defmodule Csilgen.Generated.Event do
         end,
       ends_at:
         case Map.get(csil_fields, {:text, "ends_at"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       event_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "event_id"})),
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
@@ -1768,27 +1739,18 @@ defmodule Csilgen.Generated.Event do
         end,
       starts_at:
         case Map.get(csil_fields, {:text, "starts_at"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       edit_scope:
         case Map.get(csil_fields, {:text, "edit_scope"}) do
           nil -> nil
           csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
         end,
       updated_at:
-        case Map.fetch!(csil_fields, {:text, "updated_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "updated_at"})),
       description:
         case Map.get(csil_fields, {:text, "description"}) do
           nil -> nil
@@ -1831,13 +1793,8 @@ defmodule Csilgen.Generated.Event do
         end,
       next_recurrence_at:
         case Map.get(csil_fields, {:text, "next_recurrence_at"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       recurrence_interval:
         case Map.get(csil_fields, {:text, "recurrence_interval"}) do
@@ -1982,7 +1939,7 @@ defmodule Csilgen.Generated.Task do
          {{:text, "title"}, {:text, v.title}},
          if(is_nil(v.due_at),
            do: nil,
-           else: {{:text, "due_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.due_at)}}}
+           else: {{:text, "due_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.due_at)}
          ),
          if(is_nil(v.status),
            do: nil,
@@ -1996,12 +1953,12 @@ defmodule Csilgen.Generated.Task do
              {{:text, "assignees"},
               {:array, Enum.map(v.assignees, fn csil_e -> {:text, csil_e} end)}}
          ),
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          if(is_nil(v.deleted_at),
            do: nil,
-           else: {{:text, "deleted_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.deleted_at)}}}
+           else: {{:text, "deleted_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.deleted_at)}
          ),
-         {{:text, "updated_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.updated_at)}}},
+         {{:text, "updated_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.updated_at)},
          if(is_nil(v.visibility),
            do: nil,
            else:
@@ -2034,7 +1991,7 @@ defmodule Csilgen.Generated.Task do
            do: nil,
            else:
              {{:text, "next_recurrence_at"},
-              {:tag, 0, {:text, DateTime.to_iso8601(v.next_recurrence_at)}}}
+              Csilgen.Generated.Cbor.enc_timestamp(v.next_recurrence_at)}
          ),
          if(is_nil(v.recurrence_interval),
            do: nil,
@@ -2065,6 +2022,8 @@ defmodule Csilgen.Generated.Task do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2077,13 +2036,8 @@ defmodule Csilgen.Generated.Task do
       title: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "title"})),
       due_at:
         case Map.get(csil_fields, {:text, "due_at"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       status:
         case Map.get(csil_fields, {:text, "status"}) do
@@ -2104,23 +2058,14 @@ defmodule Csilgen.Generated.Task do
             end
         end,
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       deleted_at:
         case Map.get(csil_fields, {:text, "deleted_at"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       updated_at:
-        case Map.fetch!(csil_fields, {:text, "updated_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "updated_at"})),
       visibility:
         case Map.get(csil_fields, {:text, "visibility"}) do
           nil ->
@@ -2161,13 +2106,8 @@ defmodule Csilgen.Generated.Task do
         end,
       next_recurrence_at:
         case Map.get(csil_fields, {:text, "next_recurrence_at"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       recurrence_interval:
         case Map.get(csil_fields, {:text, "recurrence_interval"}) do
@@ -2272,8 +2212,8 @@ defmodule Csilgen.Generated.Comment do
          {{:text, "member_id"}, {:text, v.member_id}},
          {{:text, "target_id"}, {:text, v.target_id}},
          {{:text, "comment_id"}, {:text, v.comment_id}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
-         {{:text, "updated_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.updated_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
+         {{:text, "updated_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.updated_at)},
          {{:text, "target_type"}, {:text, Csilgen.Generated.TargetType.to_wire(v.target_type)}}
        ],
        &is_nil/1
@@ -2282,6 +2222,8 @@ defmodule Csilgen.Generated.Comment do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2292,13 +2234,9 @@ defmodule Csilgen.Generated.Comment do
       target_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "target_id"})),
       comment_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "comment_id"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       updated_at:
-        case Map.fetch!(csil_fields, {:text, "updated_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "updated_at"})),
       target_type:
         Csilgen.Generated.TargetType.from_wire(
           Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "target_type"}))
@@ -2379,10 +2317,10 @@ defmodule Csilgen.Generated.Share do
          {{:text, "house_id"}, {:text, v.house_id}},
          {{:text, "share_id"}, {:text, v.share_id}},
          {{:text, "shared_by"}, {:text, v.shared_by}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          if(is_nil(v.expires_at),
            do: nil,
-           else: {{:text, "expires_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.expires_at)}}}
+           else: {{:text, "expires_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.expires_at)}
          ),
          {{:text, "resource_id"}, {:text, v.resource_id}},
          if(is_nil(v.access_level),
@@ -2402,6 +2340,8 @@ defmodule Csilgen.Generated.Share do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2410,18 +2350,11 @@ defmodule Csilgen.Generated.Share do
       share_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "share_id"})),
       shared_by: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "shared_by"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       expires_at:
         case Map.get(csil_fields, {:text, "expires_at"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       resource_id:
         Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "resource_id"})),
@@ -2488,6 +2421,8 @@ defmodule Csilgen.Generated.HouseSummary do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2545,6 +2480,8 @@ defmodule Csilgen.Generated.HouseRoles do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2608,6 +2545,8 @@ defmodule Csilgen.Generated.ActAsDelegation do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2692,6 +2631,8 @@ defmodule Csilgen.Generated.Identity do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2758,6 +2699,8 @@ defmodule Csilgen.Generated.LoginRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2804,6 +2747,8 @@ defmodule Csilgen.Generated.BeginBrowserLoginRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2854,6 +2799,8 @@ defmodule Csilgen.Generated.BeginBrowserLoginResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2901,6 +2848,8 @@ defmodule Csilgen.Generated.CompleteRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2953,7 +2902,7 @@ defmodule Csilgen.Generated.LoginResponse do
          {{:text, "token"}, {:text, v.token}},
          {{:text, "domain"}, {:text, v.domain}},
          {{:text, "user_id"}, {:text, v.user_id}},
-         {{:text, "expires_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.expires_at)}}},
+         {{:text, "expires_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.expires_at)},
          if(is_nil(v.display_name),
            do: nil,
            else: {{:text, "display_name"}, {:text, v.display_name}}
@@ -2965,6 +2914,8 @@ defmodule Csilgen.Generated.LoginResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -2973,9 +2924,7 @@ defmodule Csilgen.Generated.LoginResponse do
       domain: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "domain"})),
       user_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "user_id"})),
       expires_at:
-        case Map.fetch!(csil_fields, {:text, "expires_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "expires_at"})),
       display_name:
         case Map.get(csil_fields, {:text, "display_name"}) do
           nil -> nil
@@ -3050,7 +2999,7 @@ defmodule Csilgen.Generated.CliTokenResponse do
          {{:text, "token"}, {:text, v.token}},
          {{:text, "domain"}, {:text, v.domain}},
          {{:text, "user_id"}, {:text, v.user_id}},
-         {{:text, "expires_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.expires_at)}}},
+         {{:text, "expires_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.expires_at)},
          {{:text, "session_id"}, {:text, v.session_id}},
          if(is_nil(v.display_name),
            do: nil,
@@ -3058,7 +3007,7 @@ defmodule Csilgen.Generated.CliTokenResponse do
          ),
          {{:text, "refresh_token"}, {:text, v.refresh_token}},
          {{:text, "refresh_expires_at"},
-          {:tag, 0, {:text, DateTime.to_iso8601(v.refresh_expires_at)}}}
+          Csilgen.Generated.Cbor.enc_timestamp(v.refresh_expires_at)}
        ],
        &is_nil/1
      )}
@@ -3066,6 +3015,8 @@ defmodule Csilgen.Generated.CliTokenResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3074,9 +3025,7 @@ defmodule Csilgen.Generated.CliTokenResponse do
       domain: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "domain"})),
       user_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "user_id"})),
       expires_at:
-        case Map.fetch!(csil_fields, {:text, "expires_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "expires_at"})),
       session_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "session_id"})),
       display_name:
         case Map.get(csil_fields, {:text, "display_name"}) do
@@ -3086,9 +3035,9 @@ defmodule Csilgen.Generated.CliTokenResponse do
       refresh_token:
         Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "refresh_token"})),
       refresh_expires_at:
-        case Map.fetch!(csil_fields, {:text, "refresh_expires_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end
+        Csilgen.Generated.Cbor.as_timestamp(
+          Map.fetch!(csil_fields, {:text, "refresh_expires_at"})
+        )
     }
   end
 
@@ -3130,6 +3079,8 @@ defmodule Csilgen.Generated.BeginCliLoginRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3179,7 +3130,7 @@ defmodule Csilgen.Generated.BeginCliLoginResponse do
      Enum.reject(
        [
          {{:text, "user_code"}, {:text, v.user_code}},
-         {{:text, "expires_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.expires_at)}}},
+         {{:text, "expires_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.expires_at)},
          {{:text, "device_code"}, {:text, v.device_code}},
          {{:text, "interval_seconds"}, {:int, v.interval_seconds}},
          {{:text, "verification_url"}, {:text, v.verification_url}}
@@ -3190,15 +3141,15 @@ defmodule Csilgen.Generated.BeginCliLoginResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
     %__MODULE__{
       user_code: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "user_code"})),
       expires_at:
-        case Map.fetch!(csil_fields, {:text, "expires_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "expires_at"})),
       device_code:
         Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "device_code"})),
       interval_seconds:
@@ -3246,6 +3197,8 @@ defmodule Csilgen.Generated.ApproveCliLoginRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3287,7 +3240,7 @@ defmodule Csilgen.Generated.CliLoginRequestInfo do
      Enum.reject(
        [
          {{:text, "user_code"}, {:text, v.user_code}},
-         {{:text, "expires_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.expires_at)}}},
+         {{:text, "expires_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.expires_at)},
          {{:text, "client_name"}, {:text, v.client_name}}
        ],
        &is_nil/1
@@ -3296,15 +3249,15 @@ defmodule Csilgen.Generated.CliLoginRequestInfo do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
     %__MODULE__{
       user_code: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "user_code"})),
       expires_at:
-        case Map.fetch!(csil_fields, {:text, "expires_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "expires_at"})),
       client_name: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "client_name"}))
     }
   end
@@ -3347,6 +3300,8 @@ defmodule Csilgen.Generated.DenyCliLoginRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3393,6 +3348,8 @@ defmodule Csilgen.Generated.ExchangeCliLoginRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3444,6 +3401,8 @@ defmodule Csilgen.Generated.ExchangeCliLoginResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3498,6 +3457,8 @@ defmodule Csilgen.Generated.RefreshSessionRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3567,15 +3528,15 @@ defmodule Csilgen.Generated.CliSessionSummary do
            else: {{:text, "kind"}, {:text, Csilgen.Generated.SessionKind.to_wire(v.kind)}}
          ),
          if(is_nil(v.current), do: nil, else: {{:text, "current"}, {:bool, v.current}}),
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
-         {{:text, "expires_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.expires_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
+         {{:text, "expires_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.expires_at)},
          if(is_nil(v.revoked_at),
            do: nil,
-           else: {{:text, "revoked_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.revoked_at)}}}
+           else: {{:text, "revoked_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.revoked_at)}
          ),
          {{:text, "session_id"}, {:text, v.session_id}},
          {{:text, "client_name"}, {:text, v.client_name}},
-         {{:text, "last_used_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.last_used_at)}}}
+         {{:text, "last_used_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.last_used_at)}
        ],
        &is_nil/1
      )}
@@ -3583,6 +3544,8 @@ defmodule Csilgen.Generated.CliSessionSummary do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3601,30 +3564,19 @@ defmodule Csilgen.Generated.CliSessionSummary do
           csil_v -> Csilgen.Generated.Cbor.to_bool(csil_v)
         end,
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       expires_at:
-        case Map.fetch!(csil_fields, {:text, "expires_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "expires_at"})),
       revoked_at:
         case Map.get(csil_fields, {:text, "revoked_at"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       session_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "session_id"})),
       client_name:
         Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "client_name"})),
       last_used_at:
-        case Map.fetch!(csil_fields, {:text, "last_used_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "last_used_at"}))
     }
   end
 
@@ -3670,6 +3622,8 @@ defmodule Csilgen.Generated.CliSessionsResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3722,6 +3676,8 @@ defmodule Csilgen.Generated.RevokeSessionRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3805,6 +3761,8 @@ defmodule Csilgen.Generated.DevUserEntry do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3877,6 +3835,8 @@ defmodule Csilgen.Generated.DevUsersResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3929,6 +3889,8 @@ defmodule Csilgen.Generated.DevLoginRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -3984,7 +3946,7 @@ defmodule Csilgen.Generated.MeResponse do
              Csilgen.Generated.HouseSummary.to_cbor_value(csil_e)
            end)}},
          {{:text, "user_id"}, {:text, v.user_id}},
-         {{:text, "expires_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.expires_at)}}},
+         {{:text, "expires_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.expires_at)},
          if(is_nil(v.display_name),
            do: nil,
            else: {{:text, "display_name"}, {:text, v.display_name}}
@@ -3996,6 +3958,8 @@ defmodule Csilgen.Generated.MeResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4010,9 +3974,7 @@ defmodule Csilgen.Generated.MeResponse do
         end,
       user_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "user_id"})),
       expires_at:
-        case Map.fetch!(csil_fields, {:text, "expires_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "expires_at"})),
       display_name:
         case Map.get(csil_fields, {:text, "display_name"}) do
           nil -> nil
@@ -4054,6 +4016,8 @@ defmodule Csilgen.Generated.EmptyRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, _csil_kvs}) do
     %__MODULE__{}
   end
@@ -4091,6 +4055,8 @@ defmodule Csilgen.Generated.EmptyResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, _csil_kvs}) do
     %__MODULE__{}
   end
@@ -4133,6 +4099,8 @@ defmodule Csilgen.Generated.BoolResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4180,6 +4148,8 @@ defmodule Csilgen.Generated.HouseListRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4239,6 +4209,8 @@ defmodule Csilgen.Generated.HouseScopedListRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4302,11 +4274,11 @@ defmodule Csilgen.Generated.EventListRequest do
          {{:text, "house_id"}, {:text, v.house_id}},
          if(is_nil(v.range_end),
            do: nil,
-           else: {{:text, "range_end"}, {:tag, 0, {:text, DateTime.to_iso8601(v.range_end)}}}
+           else: {{:text, "range_end"}, Csilgen.Generated.Cbor.enc_timestamp(v.range_end)}
          ),
          if(is_nil(v.range_start),
            do: nil,
-           else: {{:text, "range_start"}, {:tag, 0, {:text, DateTime.to_iso8601(v.range_start)}}}
+           else: {{:text, "range_start"}, Csilgen.Generated.Cbor.enc_timestamp(v.range_start)}
          )
        ],
        &is_nil/1
@@ -4315,6 +4287,8 @@ defmodule Csilgen.Generated.EventListRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4332,23 +4306,13 @@ defmodule Csilgen.Generated.EventListRequest do
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
       range_end:
         case Map.get(csil_fields, {:text, "range_end"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       range_start:
         case Map.get(csil_fields, {:text, "range_start"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end
     }
   end
@@ -4420,12 +4384,12 @@ defmodule Csilgen.Generated.TaskListRequest do
          ),
          if(is_nil(v.due_to),
            do: nil,
-           else: {{:text, "due_to"}, {:tag, 0, {:text, DateTime.to_iso8601(v.due_to)}}}
+           else: {{:text, "due_to"}, Csilgen.Generated.Cbor.enc_timestamp(v.due_to)}
          ),
          if(is_nil(v.offset), do: nil, else: {{:text, "offset"}, {:int, v.offset}}),
          if(is_nil(v.due_from),
            do: nil,
-           else: {{:text, "due_from"}, {:tag, 0, {:text, DateTime.to_iso8601(v.due_from)}}}
+           else: {{:text, "due_from"}, Csilgen.Generated.Cbor.enc_timestamp(v.due_from)}
          ),
          {{:text, "house_id"}, {:text, v.house_id}},
          if(is_nil(v.due_before),
@@ -4434,7 +4398,7 @@ defmodule Csilgen.Generated.TaskListRequest do
              {{:text, "due_before"},
               {:array,
                Enum.map(v.due_before, fn csil_e ->
-                 {:tag, 0, {:text, DateTime.to_iso8601(csil_e)}}
+                 Csilgen.Generated.Cbor.enc_timestamp(csil_e)
                end)}}
          )
        ],
@@ -4444,6 +4408,8 @@ defmodule Csilgen.Generated.TaskListRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4470,13 +4436,8 @@ defmodule Csilgen.Generated.TaskListRequest do
         end,
       due_to:
         case Map.get(csil_fields, {:text, "due_to"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       offset:
         case Map.get(csil_fields, {:text, "offset"}) do
@@ -4485,13 +4446,8 @@ defmodule Csilgen.Generated.TaskListRequest do
         end,
       due_from:
         case Map.get(csil_fields, {:text, "due_from"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
       due_before:
@@ -4502,11 +4458,7 @@ defmodule Csilgen.Generated.TaskListRequest do
           csil_v ->
             case csil_v do
               {:array, csil_xs} ->
-                Enum.map(csil_xs, fn csil_e ->
-                  case csil_e do
-                    {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-                  end
-                end)
+                Enum.map(csil_xs, fn csil_e -> Csilgen.Generated.Cbor.as_timestamp(csil_e) end)
             end
         end
     }
@@ -4568,6 +4520,8 @@ defmodule Csilgen.Generated.TaskList do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4640,6 +4594,8 @@ defmodule Csilgen.Generated.ProjectList do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4698,6 +4654,8 @@ defmodule Csilgen.Generated.MemberScopedListRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4772,6 +4730,8 @@ defmodule Csilgen.Generated.ProjectScopedListRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4845,6 +4805,8 @@ defmodule Csilgen.Generated.CommentListRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4952,13 +4914,13 @@ defmodule Csilgen.Generated.Notification do
          {{:text, "read"}, {:bool, v.read}},
          if(is_nil(v.read_at),
            do: nil,
-           else: {{:text, "read_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.read_at)}}}
+           else: {{:text, "read_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.read_at)}
          ),
          {{:text, "house_id"}, {:text, v.house_id}},
          {{:text, "member_id"}, {:text, v.member_id}},
          if(is_nil(v.target_id), do: nil, else: {{:text, "target_id"}, {:text, v.target_id}}),
          {{:text, "actor_name"}, {:text, v.actor_name}},
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          if(is_nil(v.target_type),
            do: nil,
            else: {{:text, "target_type"}, {:text, v.target_type}}
@@ -4976,6 +4938,8 @@ defmodule Csilgen.Generated.Notification do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -4985,13 +4949,8 @@ defmodule Csilgen.Generated.Notification do
       read: Csilgen.Generated.Cbor.to_bool(Map.fetch!(csil_fields, {:text, "read"})),
       read_at:
         case Map.get(csil_fields, {:text, "read_at"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
       member_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "member_id"})),
@@ -5002,9 +4961,7 @@ defmodule Csilgen.Generated.Notification do
         end,
       actor_name: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "actor_name"})),
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       target_type:
         case Map.get(csil_fields, {:text, "target_type"}) do
           nil -> nil
@@ -5069,6 +5026,8 @@ defmodule Csilgen.Generated.NotificationListRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5130,6 +5089,8 @@ defmodule Csilgen.Generated.NotificationUnreadCount do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5188,6 +5149,8 @@ defmodule Csilgen.Generated.ShareAccessRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5246,6 +5209,8 @@ defmodule Csilgen.Generated.ResourceRef do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5299,6 +5264,8 @@ defmodule Csilgen.Generated.MemberRoleRef do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5348,6 +5315,8 @@ defmodule Csilgen.Generated.MemberSkillRef do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5397,6 +5366,8 @@ defmodule Csilgen.Generated.GroupSkillRef do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5446,6 +5417,8 @@ defmodule Csilgen.Generated.GroupMemberRef do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5495,6 +5468,8 @@ defmodule Csilgen.Generated.ProjectTaskRef do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5546,6 +5521,8 @@ defmodule Csilgen.Generated.ProjectTaskOrderRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5596,6 +5573,8 @@ defmodule Csilgen.Generated.ProjectMemberRef do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5645,6 +5624,8 @@ defmodule Csilgen.Generated.ProjectOwnerRef do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5705,6 +5686,8 @@ defmodule Csilgen.Generated.DependencyRef do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5764,6 +5747,8 @@ defmodule Csilgen.Generated.DependencyTarget do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5820,6 +5805,8 @@ defmodule Csilgen.Generated.DependencyNode do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5886,6 +5873,8 @@ defmodule Csilgen.Generated.DependencyGraph do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -5954,6 +5943,8 @@ defmodule Csilgen.Generated.Grant do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6012,6 +6003,8 @@ defmodule Csilgen.Generated.TaskGrantRef do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6075,6 +6068,8 @@ defmodule Csilgen.Generated.PutTaskGrantRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6132,6 +6127,8 @@ defmodule Csilgen.Generated.SetTaskVisibilityRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6186,6 +6183,8 @@ defmodule Csilgen.Generated.ProjectGrantRef do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6249,6 +6248,8 @@ defmodule Csilgen.Generated.PutProjectGrantRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6306,6 +6307,8 @@ defmodule Csilgen.Generated.SetProjectVisibilityRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6385,6 +6388,8 @@ defmodule Csilgen.Generated.EffectiveSettings do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6455,6 +6460,8 @@ defmodule Csilgen.Generated.UpdateSettingsRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6512,6 +6519,8 @@ defmodule Csilgen.Generated.BugReportRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6566,6 +6575,8 @@ defmodule Csilgen.Generated.ServiceError do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6645,6 +6656,8 @@ defmodule Csilgen.Generated.ActAsScopeSetRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6715,6 +6728,8 @@ defmodule Csilgen.Generated.ActAsScopeSetResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6762,6 +6777,8 @@ defmodule Csilgen.Generated.ExchangeActAsCredentialRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6820,7 +6837,7 @@ defmodule Csilgen.Generated.ActAsTokenResponse do
          {{:text, "grantee"}, {:text, v.grantee}},
          {{:text, "user_id"}, {:text, v.user_id}},
          {{:text, "grant_id"}, {:text, v.grant_id}},
-         {{:text, "expires_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.expires_at)}}}
+         {{:text, "expires_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.expires_at)}
        ],
        &is_nil/1
      )}
@@ -6828,6 +6845,8 @@ defmodule Csilgen.Generated.ActAsTokenResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6843,9 +6862,7 @@ defmodule Csilgen.Generated.ActAsTokenResponse do
       user_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "user_id"})),
       grant_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "grant_id"})),
       expires_at:
-        case Map.fetch!(csil_fields, {:text, "expires_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "expires_at"}))
     }
   end
 
@@ -6856,6 +6873,81 @@ defmodule Csilgen.Generated.ActAsTokenResponse do
   @doc "Decodes canonical CBOR bytes into this struct."
   @spec from_cbor(binary()) :: t()
   def from_cbor(bytes), do: from_cbor_value(Csilgen.Generated.Cbor.decode(bytes))
+end
+
+defmodule Csilgen.Generated.CalendarMigrationRowItems do
+  @moduledoc "Type alias for CalendarMigrationRowItems."
+  @type t :: [Csilgen.Generated.CalendarMigrationRow.t()]
+end
+
+defmodule Csilgen.Generated.CalendarTrashEntryItems do
+  @moduledoc "Type alias for CalendarTrashEntryItems."
+  @type t :: [Csilgen.Generated.CalendarTrashEntry.t()]
+end
+
+defmodule Csilgen.Generated.CommentItems do
+  @moduledoc "Type alias for CommentItems."
+  @type t :: [Csilgen.Generated.Comment.t()]
+end
+
+defmodule Csilgen.Generated.EventItems do
+  @moduledoc "Type alias for EventItems."
+  @type t :: [Csilgen.Generated.Event.t()]
+end
+
+defmodule Csilgen.Generated.GrantItems do
+  @moduledoc "Type alias for GrantItems."
+  @type t :: [Csilgen.Generated.Grant.t()]
+end
+
+defmodule Csilgen.Generated.GroupItems do
+  @moduledoc "Type alias for GroupItems."
+  @type t :: [Csilgen.Generated.Group.t()]
+end
+
+defmodule Csilgen.Generated.HouseItems do
+  @moduledoc "Type alias for HouseItems."
+  @type t :: [Csilgen.Generated.House.t()]
+end
+
+defmodule Csilgen.Generated.MemberItems do
+  @moduledoc "Type alias for MemberItems."
+  @type t :: [Csilgen.Generated.Member.t()]
+end
+
+defmodule Csilgen.Generated.MemberAuditItems do
+  @moduledoc "Type alias for MemberAuditItems."
+  @type t :: [Csilgen.Generated.MemberAudit.t()]
+end
+
+defmodule Csilgen.Generated.MilestoneItems do
+  @moduledoc "Type alias for MilestoneItems."
+  @type t :: [Csilgen.Generated.Milestone.t()]
+end
+
+defmodule Csilgen.Generated.NotificationItems do
+  @moduledoc "Type alias for NotificationItems."
+  @type t :: [Csilgen.Generated.Notification.t()]
+end
+
+defmodule Csilgen.Generated.RoleItems do
+  @moduledoc "Type alias for RoleItems."
+  @type t :: [Csilgen.Generated.Role.t()]
+end
+
+defmodule Csilgen.Generated.ShareItems do
+  @moduledoc "Type alias for ShareItems."
+  @type t :: [Csilgen.Generated.Share.t()]
+end
+
+defmodule Csilgen.Generated.SkillItems do
+  @moduledoc "Type alias for SkillItems."
+  @type t :: [Csilgen.Generated.Skill.t()]
+end
+
+defmodule Csilgen.Generated.TrustedDomainItems do
+  @moduledoc "Type alias for TrustedDomainItems."
+  @type t :: [Csilgen.Generated.TrustedDomain.t()]
 end
 
 defmodule Csilgen.Generated.CalendarSubscription do
@@ -6889,6 +6981,8 @@ defmodule Csilgen.Generated.CalendarSubscription do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -6953,6 +7047,8 @@ defmodule Csilgen.Generated.CalendarView do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7016,6 +7112,8 @@ defmodule Csilgen.Generated.EventDecision do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7087,7 +7185,7 @@ defmodule Csilgen.Generated.CalendarStatus do
            do: nil,
            else:
              {{:text, "sync_pending_since"},
-              {:tag, 0, {:text, DateTime.to_iso8601(v.sync_pending_since)}}}
+              Csilgen.Generated.Cbor.enc_timestamp(v.sync_pending_since)}
          )
        ],
        &is_nil/1
@@ -7096,6 +7194,8 @@ defmodule Csilgen.Generated.CalendarStatus do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7112,13 +7212,8 @@ defmodule Csilgen.Generated.CalendarStatus do
         end,
       sync_pending_since:
         case Map.get(csil_fields, {:text, "sync_pending_since"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end
     }
   end
@@ -7163,6 +7258,8 @@ defmodule Csilgen.Generated.ConfigureCalendarRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7210,6 +7307,8 @@ defmodule Csilgen.Generated.CalendarConnectResponse do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7260,6 +7359,8 @@ defmodule Csilgen.Generated.CompleteCalendarConnectRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7310,8 +7411,8 @@ defmodule Csilgen.Generated.CalendarTrashEntry do
        [
          {{:text, "event"}, Csilgen.Generated.Event.to_cbor_value(v.event)},
          {{:text, "trash_id"}, {:text, v.trash_id}},
-         {{:text, "deleted_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.deleted_at)}}},
-         {{:text, "expires_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.expires_at)}}}
+         {{:text, "deleted_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.deleted_at)},
+         {{:text, "expires_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.expires_at)}
        ],
        &is_nil/1
      )}
@@ -7319,6 +7420,8 @@ defmodule Csilgen.Generated.CalendarTrashEntry do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7326,13 +7429,9 @@ defmodule Csilgen.Generated.CalendarTrashEntry do
       event: Csilgen.Generated.Event.from_cbor_value(Map.fetch!(csil_fields, {:text, "event"})),
       trash_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "trash_id"})),
       deleted_at:
-        case Map.fetch!(csil_fields, {:text, "deleted_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "deleted_at"})),
       expires_at:
-        case Map.fetch!(csil_fields, {:text, "expires_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "expires_at"}))
     }
   end
 
@@ -7376,6 +7475,8 @@ defmodule Csilgen.Generated.RestoreCalendarEventRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7429,6 +7530,8 @@ defmodule Csilgen.Generated.CalendarMigrationRow do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7472,9 +7575,9 @@ defmodule Csilgen.Generated.ProjectDeadlineRequest do
     {:map,
      Enum.reject(
        [
-         {{:text, "range_end"}, {:tag, 0, {:text, DateTime.to_iso8601(v.range_end)}}},
+         {{:text, "range_end"}, Csilgen.Generated.Cbor.enc_timestamp(v.range_end)},
          {{:text, "project_id"}, {:text, v.project_id}},
-         {{:text, "range_start"}, {:tag, 0, {:text, DateTime.to_iso8601(v.range_start)}}}
+         {{:text, "range_start"}, Csilgen.Generated.Cbor.enc_timestamp(v.range_start)}
        ],
        &is_nil/1
      )}
@@ -7482,19 +7585,17 @@ defmodule Csilgen.Generated.ProjectDeadlineRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
     %__MODULE__{
       range_end:
-        case Map.fetch!(csil_fields, {:text, "range_end"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "range_end"})),
       project_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "project_id"})),
       range_start:
-        case Map.fetch!(csil_fields, {:text, "range_start"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "range_start"}))
     }
   end
 
@@ -7531,7 +7632,7 @@ defmodule Csilgen.Generated.ProjectDeadline do
      Enum.reject(
        [
          {{:text, "title"}, {:text, v.title}},
-         {{:text, "due_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.due_at)}}},
+         {{:text, "due_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.due_at)},
          {{:text, "task_id"}, {:text, v.task_id}}
        ],
        &is_nil/1
@@ -7540,15 +7641,14 @@ defmodule Csilgen.Generated.ProjectDeadline do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
     %__MODULE__{
       title: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "title"})),
-      due_at:
-        case Map.fetch!(csil_fields, {:text, "due_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+      due_at: Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "due_at"})),
       task_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "task_id"}))
     }
   end
@@ -7609,6 +7709,8 @@ defmodule Csilgen.Generated.ProjectDeadlineList do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7729,7 +7831,7 @@ defmodule Csilgen.Generated.AuditEntry do
          {{:text, "outcome"}, {:text, v.outcome}},
          {{:text, "audit_id"}, {:text, v.audit_id}},
          if(is_nil(v.house_id), do: nil, else: {{:text, "house_id"}, {:text, v.house_id}}),
-         {{:text, "created_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.created_at)}}},
+         {{:text, "created_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.created_at)},
          if(is_nil(v.resource_id),
            do: nil,
            else: {{:text, "resource_id"}, {:text, v.resource_id}}
@@ -7752,6 +7854,8 @@ defmodule Csilgen.Generated.AuditEntry do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7781,9 +7885,7 @@ defmodule Csilgen.Generated.AuditEntry do
           csil_v -> Csilgen.Generated.Cbor.to_text(csil_v)
         end,
       created_at:
-        case Map.fetch!(csil_fields, {:text, "created_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "created_at"})),
       resource_id:
         case Map.get(csil_fields, {:text, "resource_id"}) do
           nil -> nil
@@ -7866,11 +7968,11 @@ defmodule Csilgen.Generated.AuditQuery do
          if(is_nil(v.limit), do: nil, else: {{:text, "limit"}, {:int, v.limit}}),
          if(is_nil(v.since),
            do: nil,
-           else: {{:text, "since"}, {:tag, 0, {:text, DateTime.to_iso8601(v.since)}}}
+           else: {{:text, "since"}, Csilgen.Generated.Cbor.enc_timestamp(v.since)}
          ),
          if(is_nil(v.until),
            do: nil,
-           else: {{:text, "until"}, {:tag, 0, {:text, DateTime.to_iso8601(v.until)}}}
+           else: {{:text, "until"}, Csilgen.Generated.Cbor.enc_timestamp(v.until)}
          ),
          if(is_nil(v.action), do: nil, else: {{:text, "action"}, {:text, v.action}}),
          if(is_nil(v.cursor), do: nil, else: {{:text, "cursor"}, {:text, v.cursor}}),
@@ -7890,6 +7992,8 @@ defmodule Csilgen.Generated.AuditQuery do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -7901,23 +8005,13 @@ defmodule Csilgen.Generated.AuditQuery do
         end,
       since:
         case Map.get(csil_fields, {:text, "since"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       until:
         case Map.get(csil_fields, {:text, "until"}) do
-          nil ->
-            nil
-
-          csil_v ->
-            case csil_v do
-              {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-            end
+          nil -> nil
+          csil_v -> Csilgen.Generated.Cbor.as_timestamp(csil_v)
         end,
       action:
         case Map.get(csil_fields, {:text, "action"}) do
@@ -7990,6 +8084,8 @@ defmodule Csilgen.Generated.AuditPage do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -8063,7 +8159,7 @@ defmodule Csilgen.Generated.TrashItem do
        [
          if(is_nil(v.title), do: nil, else: {{:text, "title"}, {:text, v.title}}),
          {{:text, "house_id"}, {:text, v.house_id}},
-         {{:text, "deleted_at"}, {:tag, 0, {:text, DateTime.to_iso8601(v.deleted_at)}}},
+         {{:text, "deleted_at"}, Csilgen.Generated.Cbor.enc_timestamp(v.deleted_at)},
          {{:text, "resource_id"}, {:text, v.resource_id}},
          {{:text, "deleted_op_id"}, {:text, v.deleted_op_id}},
          {{:text, "resource_type"}, {:text, v.resource_type}},
@@ -8078,6 +8174,8 @@ defmodule Csilgen.Generated.TrashItem do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -8089,9 +8187,7 @@ defmodule Csilgen.Generated.TrashItem do
         end,
       house_id: Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "house_id"})),
       deleted_at:
-        case Map.fetch!(csil_fields, {:text, "deleted_at"}) do
-          {:tag, 0, {:text, csil_s}} -> elem(DateTime.from_iso8601(csil_s), 1)
-        end,
+        Csilgen.Generated.Cbor.as_timestamp(Map.fetch!(csil_fields, {:text, "deleted_at"})),
       resource_id:
         Csilgen.Generated.Cbor.to_text(Map.fetch!(csil_fields, {:text, "resource_id"})),
       deleted_op_id:
@@ -8151,6 +8247,8 @@ defmodule Csilgen.Generated.TrashPage do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -8228,6 +8326,8 @@ defmodule Csilgen.Generated.RestoreRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 
@@ -8293,6 +8393,8 @@ defmodule Csilgen.Generated.PurgeRequest do
 
   @doc "Reconstructs this struct from a decoded CBOR value tree."
   @spec from_cbor_value(term()) :: t()
+  def from_cbor_value({:unordered_map, csil_kvs}), do: from_cbor_value({:map, csil_kvs})
+
   def from_cbor_value({:map, csil_kvs}) do
     csil_fields = Map.new(csil_kvs)
 

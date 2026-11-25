@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the TrustedDomainService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -16,18 +14,22 @@ public final class TrustedDomainClient {
     }
 
     public TrustedDomain addTrustedDomain(TrustedDomain req) throws ClientException {
-        return CsilCbor.decodeTrustedDomain(transport.call("TrustedDomainService", "add-trusted-domain", CsilCbor.encodeTrustedDomain(req)));
+        WireReply reply = transport.callReply("TrustedDomainService", "add-trusted-domain", CsilCbor.encodeTrustedDomain(req));
+        return CsilCbor.decodeTrustedDomain(CsilCbor.resolveRpcReply("TrustedDomainService", "add-trusted-domain", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse removeTrustedDomain(TrustedDomainId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("TrustedDomainService", "remove-trusted-domain", CsilCbor.encodeTrustedDomainRemoveTrustedDomainRequest(req)));
+        WireReply reply = transport.callReply("TrustedDomainService", "remove-trusted-domain", CsilCbor.encodeTrustedDomainRemoveTrustedDomainRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("TrustedDomainService", "remove-trusted-domain", reply.variant(), reply.payload()));
     }
 
-    public List<TrustedDomain> listTrustedDomains(HouseId req) throws ClientException {
-        return CsilCbor.decodeTrustedDomainListTrustedDomainsResponse(transport.call("TrustedDomainService", "list-trusted-domains", CsilCbor.encodeTrustedDomainListTrustedDomainsRequest(req)));
+    public TrustedDomainItems listTrustedDomains(HouseId req) throws ClientException {
+        WireReply reply = transport.callReply("TrustedDomainService", "list-trusted-domains", CsilCbor.encodeTrustedDomainListTrustedDomainsRequest(req));
+        return CsilCbor.decodeTrustedDomainListTrustedDomainsResponse(CsilCbor.resolveRpcReply("TrustedDomainService", "list-trusted-domains", reply.variant(), reply.payload()));
     }
 
     public BoolResponse isDomainTrusted(TrustedDomain req) throws ClientException {
-        return CsilCbor.decodeBoolResponse(transport.call("TrustedDomainService", "is-domain-trusted", CsilCbor.encodeTrustedDomain(req)));
+        WireReply reply = transport.callReply("TrustedDomainService", "is-domain-trusted", CsilCbor.encodeTrustedDomain(req));
+        return CsilCbor.decodeBoolResponse(CsilCbor.resolveRpcReply("TrustedDomainService", "is-domain-trusted", reply.variant(), reply.payload()));
     }
 }

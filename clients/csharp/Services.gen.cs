@@ -42,7 +42,7 @@ public interface IHouseService
     House GetHouse(HouseID houseID);
     House UpdateHouse(House house);
     EmptyResponse DeleteHouse(HouseID houseID);
-    System.Collections.Generic.List<House> ListHouses(HouseListRequest houseListRequest);
+    HouseItems ListHouses(HouseListRequest houseListRequest);
 }
 
 /// <summary>Server handler interface for the MemberService service.</summary>
@@ -54,7 +54,7 @@ public interface IMemberService
     Member UpdateMember(Member member);
     EmptyResponse DeactivateMember(MemberID memberID);
     EmptyResponse ReactivateMember(MemberID memberID);
-    System.Collections.Generic.List<Member> ListMembers(HouseScopedListRequest houseScopedListRequest);
+    MemberItems ListMembers(HouseScopedListRequest houseScopedListRequest);
 }
 
 /// <summary>Server handler interface for the TrustedDomainService service.</summary>
@@ -62,7 +62,7 @@ public interface ITrustedDomainService
 {
     TrustedDomain AddTrustedDomain(TrustedDomain trustedDomain);
     EmptyResponse RemoveTrustedDomain(TrustedDomainID trustedDomainID);
-    System.Collections.Generic.List<TrustedDomain> ListTrustedDomains(HouseID houseID);
+    TrustedDomainItems ListTrustedDomains(HouseID houseID);
     BoolResponse IsDomainTrusted(TrustedDomain trustedDomain);
 }
 
@@ -72,10 +72,10 @@ public interface IRoleService
     Role CreateRole(Role role);
     Role UpdateRole(Role role);
     EmptyResponse DeleteRole(RoleID roleID);
-    System.Collections.Generic.List<Role> ListRoles(HouseScopedListRequest houseScopedListRequest);
+    RoleItems ListRoles(HouseScopedListRequest houseScopedListRequest);
     EmptyResponse GrantRole(MemberRoleRef memberRoleRef);
     EmptyResponse RevokeRole(MemberRoleRef memberRoleRef);
-    System.Collections.Generic.List<Role> ListMemberRoles(MemberScopedListRequest memberScopedListRequest);
+    RoleItems ListMemberRoles(MemberScopedListRequest memberScopedListRequest);
 }
 
 /// <summary>Server handler interface for the SkillService service.</summary>
@@ -84,13 +84,13 @@ public interface ISkillService
     Skill CreateSkill(Skill skill);
     Skill UpdateSkill(Skill skill);
     EmptyResponse DeleteSkill(SkillID skillID);
-    System.Collections.Generic.List<Skill> ListSkills(HouseScopedListRequest houseScopedListRequest);
+    SkillItems ListSkills(HouseScopedListRequest houseScopedListRequest);
     EmptyResponse AddMemberSkill(MemberSkillRef memberSkillRef);
     EmptyResponse RemoveMemberSkill(MemberSkillRef memberSkillRef);
-    System.Collections.Generic.List<Skill> ListMemberSkills(MemberScopedListRequest memberScopedListRequest);
+    SkillItems ListMemberSkills(MemberScopedListRequest memberScopedListRequest);
     EmptyResponse AddGroupSkill(GroupSkillRef groupSkillRef);
     EmptyResponse RemoveGroupSkill(GroupSkillRef groupSkillRef);
-    System.Collections.Generic.List<Skill> ListGroupSkills(GroupID groupID);
+    SkillItems ListGroupSkills(GroupID groupID);
 }
 
 /// <summary>Server handler interface for the GroupService service.</summary>
@@ -99,10 +99,10 @@ public interface IGroupService
     Group CreateGroup(Group group);
     Group UpdateGroup(Group group);
     EmptyResponse DeleteGroup(GroupID groupID);
-    System.Collections.Generic.List<Group> ListGroups(HouseScopedListRequest houseScopedListRequest);
+    GroupItems ListGroups(HouseScopedListRequest houseScopedListRequest);
     EmptyResponse AddGroupMember(GroupMemberRef groupMemberRef);
     EmptyResponse RemoveGroupMember(GroupMemberRef groupMemberRef);
-    System.Collections.Generic.List<Member> ListGroupMembers(MemberScopedListRequest memberScopedListRequest);
+    MemberItems ListGroupMembers(MemberScopedListRequest memberScopedListRequest);
 }
 
 /// <summary>Server handler interface for the ProjectService service.</summary>
@@ -117,18 +117,18 @@ public interface IProjectService
     EmptyResponse AddProjectTask(ProjectTaskOrderRequest projectTaskOrderRequest);
     EmptyResponse RemoveProjectTask(ProjectTaskRef projectTaskRef);
     EmptyResponse SetProjectTaskPosition(ProjectTaskOrderRequest projectTaskOrderRequest);
-    System.Collections.Generic.List<Member> ListProjectMembers(ProjectID projectID);
+    MemberItems ListProjectMembers(ProjectID projectID);
     EmptyResponse AddProjectMember(ProjectMemberRef projectMemberRef);
     EmptyResponse RemoveProjectMember(ProjectMemberRef projectMemberRef);
-    System.Collections.Generic.List<Member> ListProjectOwners(ProjectID projectID);
+    MemberItems ListProjectOwners(ProjectID projectID);
     EmptyResponse AddProjectOwner(ProjectOwnerRef projectOwnerRef);
     EmptyResponse RemoveProjectOwner(ProjectOwnerRef projectOwnerRef);
-    System.Collections.Generic.List<Milestone> ListMilestones(ProjectID projectID);
+    MilestoneItems ListMilestones(ProjectID projectID);
     Milestone CreateMilestone(Milestone milestone);
     Milestone UpdateMilestone(Milestone milestone);
     EmptyResponse DeleteMilestone(MilestoneID milestoneID);
     Project SetProjectVisibility(SetProjectVisibilityRequest setProjectVisibilityRequest);
-    System.Collections.Generic.List<Grant> ListProjectGrants(ProjectID projectID);
+    GrantItems ListProjectGrants(ProjectID projectID);
     EmptyResponse PutProjectGrant(PutProjectGrantRequest putProjectGrantRequest);
     EmptyResponse DeleteProjectGrant(ProjectGrantRef projectGrantRef);
 }
@@ -141,13 +141,13 @@ public interface IEventService
     Event UpdateEvent(Event @event);
     EmptyResponse DeleteEvent(EventID eventID);
     EmptyResponse DeleteEventAndFuture(EventID eventID);
-    System.Collections.Generic.List<Event> ListEvents(EventListRequest eventListRequest);
+    EventItems ListEvents(EventListRequest eventListRequest);
     CalendarView GetCalendarView(HouseID houseID);
     CalendarView SetCalendarView(CalendarView calendarView);
     Event AcceptEvent(EventDecision eventDecision);
     Event RecoverEdit(EventID eventID);
     Event DeclineEvent(EventDecision eventDecision);
-    System.Collections.Generic.List<Event> ListLocalEvents(HouseID houseID);
+    EventItems ListLocalEvents(HouseID houseID);
 }
 
 /// <summary>Server handler interface for the CalendarService service.</summary>
@@ -159,8 +159,8 @@ public interface ICalendarService
     CalendarConnectResponse BeginConnect(HouseID houseID);
     CalendarStatus CompleteConnect(CompleteCalendarConnectRequest completeCalendarConnectRequest);
     EmptyResponse Disconnect(HouseID houseID);
-    System.Collections.Generic.List<CalendarMigrationRow> PreviewMigration(HouseID houseID);
-    System.Collections.Generic.List<CalendarTrashEntry> ListTrash(HouseID houseID);
+    CalendarMigrationRowItems PreviewMigration(HouseID houseID);
+    CalendarTrashEntryItems ListTrash(HouseID houseID);
     Event RestoreEvent(RestoreCalendarEventRequest restoreCalendarEventRequest);
 }
 
@@ -174,7 +174,7 @@ public interface ITaskService
     TaskList ListTasks(TaskListRequest taskListRequest);
     Task CreatePersonalTask(Task task);
     Task SetTaskVisibility(SetTaskVisibilityRequest setTaskVisibilityRequest);
-    System.Collections.Generic.List<Grant> ListTaskGrants(TaskID taskID);
+    GrantItems ListTaskGrants(TaskID taskID);
     EmptyResponse PutTaskGrant(PutTaskGrantRequest putTaskGrantRequest);
     EmptyResponse DeleteTaskGrant(TaskGrantRef taskGrantRef);
 }
@@ -194,13 +194,13 @@ public interface ICommentService
     Comment GetComment(CommentID commentID);
     Comment UpdateComment(Comment comment);
     EmptyResponse DeleteComment(CommentID commentID);
-    System.Collections.Generic.List<Comment> ListComments(CommentListRequest commentListRequest);
+    CommentItems ListComments(CommentListRequest commentListRequest);
 }
 
 /// <summary>Server handler interface for the NotificationService service.</summary>
 public interface INotificationService
 {
-    System.Collections.Generic.List<Notification> ListNotifications(NotificationListRequest notificationListRequest);
+    NotificationItems ListNotifications(NotificationListRequest notificationListRequest);
     NotificationUnreadCount UnreadCount(HouseID houseID);
     Notification MarkRead(NotificationID notificationID);
     EmptyResponse MarkAllRead(HouseID houseID);
@@ -211,14 +211,14 @@ public interface IShareService
 {
     Share CreateShare(Share share);
     EmptyResponse DeleteShare(ShareID shareID);
-    System.Collections.Generic.List<Share> ListSharesByResource(ResourceRef resourceRef);
+    ShareItems ListSharesByResource(ResourceRef resourceRef);
     Share CheckAccess(ShareAccessRequest shareAccessRequest);
 }
 
 /// <summary>Server handler interface for the MemberAuditService service.</summary>
 public interface IMemberAuditService
 {
-    System.Collections.Generic.List<MemberAudit> ListAuditsForMember(MemberScopedListRequest memberScopedListRequest);
+    MemberAuditItems ListAuditsForMember(MemberScopedListRequest memberScopedListRequest);
 }
 
 /// <summary>Server handler interface for the SettingsService service.</summary>

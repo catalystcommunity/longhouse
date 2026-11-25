@@ -1,15 +1,44 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/catalystcommunity/longhouse/api/internal/transport"
+	"github.com/catalystcommunity/csilgen/transports/go"
+	"github.com/catalystcommunity/longhouse/api/internal/csil"
+	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
+	longhouseclient "github.com/catalystcommunity/longhouse/clients/go"
 )
+
+func TestCLIAuthClientReadsLoginReply(t *testing.T) {
+	dispatcher := csilrpc.New(nil)
+	dispatcher.RegisterTypedPublic("auth", "BeginCliLogin", csilrpc.Route(
+		func(_ context.Context, req csil.BeginCliLoginRequest) (csil.BeginCliLoginResponse, error) {
+			if req.ClientName == "" {
+				return csil.BeginCliLoginResponse{}, csilrpc.BadRequest("client name required")
+			}
+			return csil.BeginCliLoginResponse{UserCode: "ABCDEF"}, nil
+		}, csil.DecodeBeginCliLoginRequest, csil.EncodeBeginCliLoginResponse,
+	))
+	server := httptest.NewServer(http.HandlerFunc(dispatcher.ServeRPC))
+	t.Cleanup(server.Close)
+	client := cliAuthClient(server.URL, "")
+	reply, err := client.BeginCliLogin(t.Context(), longhouseclient.BeginCliLoginRequest{ClientName: "test"})
+	if err != nil || reply.UserCode != "ABCDEF" {
+		t.Fatalf("login reply: %+v, %v", reply, err)
+	}
+	_, err = client.BeginCliLogin(t.Context(), longhouseclient.BeginCliLoginRequest{})
+	var serviceErr *longhouseServiceError
+	if !errors.As(err, &serviceErr) || serviceErr.Code != http.StatusBadRequest || serviceErr.Message != "client name required" {
+		t.Fatalf("login refusal: %v", err)
+	}
+}
 
 func TestCredentialsRoundTripUsesPrivateFile(t *testing.T) {
 	configDir := t.TempDir()

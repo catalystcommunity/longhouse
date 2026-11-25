@@ -1,37 +1,5 @@
-/**
- * CSIL-RPC carrier for the generated async client (@longhouse/client).
- *
- * The generated client owns (de)serialization via its codec; this carrier is the
- * "dumb byte transport" seam it calls — `call(service, op, reqBytes) ->
- * Promise<respBytes>`. Each call wraps the already-encoded request payload in a
- * CSIL-RPC envelope and POSTs it to the single carrier endpoint:
- *
- *   POST /api/csil/v1/rpc
- *   Content-Type: application/cbor
- *   body  = CsilRpcRequest { v, service, op, payload: 24(reqBytes) }
- *   reply = CsilRpcResponse { v, status, payload: 24(respBytes), ? variant, ? error }
- *
- * Routing lives in the envelope (`service`/`op`); the HTTP path is not semantic.
- * The op the generated client passes is the PascalCase CSIL method name
- * ("ListTasks"); the server's envelope handler keys on the canonical kebab-case op
- * ("list-tasks"), so we convert here. The envelope `status` is the transport
- * outcome (HTTP is always 200 when an envelope is present). Two failure channels,
- * never conflated:
- *
- *   - a non-zero transport `status` (malformed/unknown-op/unauthenticated/…)
- *   - an application error: status 0 with `variant === "ServiceError"`, carrying
- *     the typed { code, message } arm.
- *
- * Both surface to callers as a thrown {@link ServiceError}, preserving the
- * { message, code } shape the app's catch sites expect.
- *
- * Unlike the previous transport, there is no camel↔snake bridging and no cbor-x:
- * the generated codec emits the request bytes with the correct snake_case wire
- * keys directly, and decodes the response bytes the generated client hands back.
- * This carrier only moves the envelope.
- */
-
-import { fromServiceErrorCbor } from "@longhouse/client";
+/** CSIL-RPC over HTTP for the generated Longhouse clients. */
+import { type AsyncServiceTransport, fromServiceErrorCbor } from "@longhouse/client";
 import { currentToken } from "~/stores/auth";
 import { RpcRequest, RpcResponse, Status, statusName } from "~/transport/csil";
 
@@ -39,15 +7,6 @@ export class ServiceError extends Error {
   constructor(message: string, public readonly code: number) {
     super(message);
   }
-}
-
-/**
- * The byte-transport seam the generated async client constructs over. Mirrors
- * `AsyncServiceTransport` from @longhouse/client (kept local so the carrier does
- * not depend on the generated type for its own shape).
- */
-export interface ServiceTransport {
-  call(service: string, op: string, req: Uint8Array): Promise<Uint8Array>;
 }
 
 const CONTENT_TYPE = "application/cbor";
@@ -69,15 +28,12 @@ export function setUnauthenticatedHandler(fn: () => Promise<boolean>): void {
 // sign-out that clears the cookie.
 const NO_RETRY_OPS = new Set(["resume-session", "end-session", "begin-browser-login", "complete"]);
 
-/**
- * cborTransport is the singleton carrier every generated client shares. Each call
- * wraps the request bytes in a CSIL-RPC envelope, POSTs it, and routes the
- * response (an unauthenticated reply gets one resume-and-retry): the success arm's inner payload bytes are returned for the client to
- * decode; a declared `ServiceError` arm or a non-zero transport status becomes a
- * thrown {@link ServiceError}.
- */
-export const cborTransport: ServiceTransport = {
-  async call(service: string, op: string, req: Uint8Array): Promise<Uint8Array> {
+// Preserve the variant for generated operations with multiple reply arms.
+export const cborTransport: AsyncServiceTransport = {
+  async call(service, op, req) {
+    return (await this.callReply(service, op, req)).payload;
+  },
+  async callReply(service, op, req) {
     try {
       return await send(service, op, req);
     } catch (e) {
@@ -89,7 +45,7 @@ export const cborTransport: ServiceTransport = {
   },
 };
 
-async function send(service: string, op: string, req: Uint8Array): Promise<Uint8Array> {
+async function send(service: string, op: string, req: Uint8Array): Promise<RpcResponse> {
   const headers: Record<string, string> = { "Content-Type": CONTENT_TYPE, Accept: CONTENT_TYPE };
   const tok = currentToken();
   if (tok) headers["Authorization"] = `Bearer ${tok}`;
@@ -129,7 +85,7 @@ async function send(service: string, op: string, req: Uint8Array): Promise<Uint8
 
   // Success arm: hand the inner payload bytes back to the generated client,
   // which decodes them into the typed response.
-  return resp.payload;
+  return resp;
 }
 
 // methodToOp converts the generated PascalCase method ("ListTasks") to the

@@ -14,14 +14,17 @@ public final class TrashClient {
     }
 
     public TrashPage listTrash(HouseScopedListRequest req) throws ClientException {
-        return CsilCbor.decodeTrashPage(transport.call("TrashService", "list-trash", CsilCbor.encodeHouseScopedListRequest(req)));
+        WireReply reply = transport.callReply("TrashService", "list-trash", CsilCbor.encodeHouseScopedListRequest(req));
+        return CsilCbor.decodeTrashPage(CsilCbor.resolveRpcReply("TrashService", "list-trash", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse restore(RestoreRequest req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("TrashService", "restore", CsilCbor.encodeRestoreRequest(req)));
+        WireReply reply = transport.callReply("TrashService", "restore", CsilCbor.encodeRestoreRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("TrashService", "restore", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse purge(PurgeRequest req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("TrashService", "purge", CsilCbor.encodePurgeRequest(req)));
+        WireReply reply = transport.callReply("TrashService", "purge", CsilCbor.encodePurgeRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("TrashService", "purge", reply.variant(), reply.payload()));
     }
 }

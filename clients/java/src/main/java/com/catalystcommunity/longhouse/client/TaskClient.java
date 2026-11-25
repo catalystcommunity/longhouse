@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the TaskService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -16,42 +14,52 @@ public final class TaskClient {
     }
 
     public Task createTask(Task req) throws ClientException {
-        return CsilCbor.decodeTask(transport.call("TaskService", "create-task", CsilCbor.encodeTask(req)));
+        WireReply reply = transport.callReply("TaskService", "create-task", CsilCbor.encodeTask(req));
+        return CsilCbor.decodeTask(CsilCbor.resolveRpcReply("TaskService", "create-task", reply.variant(), reply.payload()));
     }
 
     public Task getTask(TaskId req) throws ClientException {
-        return CsilCbor.decodeTask(transport.call("TaskService", "get-task", CsilCbor.encodeTaskGetTaskRequest(req)));
+        WireReply reply = transport.callReply("TaskService", "get-task", CsilCbor.encodeTaskGetTaskRequest(req));
+        return CsilCbor.decodeTask(CsilCbor.resolveRpcReply("TaskService", "get-task", reply.variant(), reply.payload()));
     }
 
     public Task updateTask(Task req) throws ClientException {
-        return CsilCbor.decodeTask(transport.call("TaskService", "update-task", CsilCbor.encodeTask(req)));
+        WireReply reply = transport.callReply("TaskService", "update-task", CsilCbor.encodeTask(req));
+        return CsilCbor.decodeTask(CsilCbor.resolveRpcReply("TaskService", "update-task", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deleteTask(TaskId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("TaskService", "delete-task", CsilCbor.encodeTaskDeleteTaskRequest(req)));
+        WireReply reply = transport.callReply("TaskService", "delete-task", CsilCbor.encodeTaskDeleteTaskRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("TaskService", "delete-task", reply.variant(), reply.payload()));
     }
 
     public TaskList listTasks(TaskListRequest req) throws ClientException {
-        return CsilCbor.decodeTaskList(transport.call("TaskService", "list-tasks", CsilCbor.encodeTaskListRequest(req)));
+        WireReply reply = transport.callReply("TaskService", "list-tasks", CsilCbor.encodeTaskListRequest(req));
+        return CsilCbor.decodeTaskList(CsilCbor.resolveRpcReply("TaskService", "list-tasks", reply.variant(), reply.payload()));
     }
 
     public Task createPersonalTask(Task req) throws ClientException {
-        return CsilCbor.decodeTask(transport.call("TaskService", "create-personal-task", CsilCbor.encodeTask(req)));
+        WireReply reply = transport.callReply("TaskService", "create-personal-task", CsilCbor.encodeTask(req));
+        return CsilCbor.decodeTask(CsilCbor.resolveRpcReply("TaskService", "create-personal-task", reply.variant(), reply.payload()));
     }
 
     public Task setTaskVisibility(SetTaskVisibilityRequest req) throws ClientException {
-        return CsilCbor.decodeTask(transport.call("TaskService", "set-task-visibility", CsilCbor.encodeSetTaskVisibilityRequest(req)));
+        WireReply reply = transport.callReply("TaskService", "set-task-visibility", CsilCbor.encodeSetTaskVisibilityRequest(req));
+        return CsilCbor.decodeTask(CsilCbor.resolveRpcReply("TaskService", "set-task-visibility", reply.variant(), reply.payload()));
     }
 
-    public List<Grant> listTaskGrants(TaskId req) throws ClientException {
-        return CsilCbor.decodeTaskListTaskGrantsResponse(transport.call("TaskService", "list-task-grants", CsilCbor.encodeTaskListTaskGrantsRequest(req)));
+    public GrantItems listTaskGrants(TaskId req) throws ClientException {
+        WireReply reply = transport.callReply("TaskService", "list-task-grants", CsilCbor.encodeTaskListTaskGrantsRequest(req));
+        return CsilCbor.decodeTaskListTaskGrantsResponse(CsilCbor.resolveRpcReply("TaskService", "list-task-grants", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse putTaskGrant(PutTaskGrantRequest req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("TaskService", "put-task-grant", CsilCbor.encodePutTaskGrantRequest(req)));
+        WireReply reply = transport.callReply("TaskService", "put-task-grant", CsilCbor.encodePutTaskGrantRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("TaskService", "put-task-grant", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deleteTaskGrant(TaskGrantRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("TaskService", "delete-task-grant", CsilCbor.encodeTaskGrantRef(req)));
+        WireReply reply = transport.callReply("TaskService", "delete-task-grant", CsilCbor.encodeTaskGrantRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("TaskService", "delete-task-grant", reply.variant(), reply.payload()));
     }
 }

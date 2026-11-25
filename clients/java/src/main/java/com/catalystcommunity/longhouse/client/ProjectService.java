@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The ProjectService server handler interface; the host implements it.
  */
@@ -17,18 +15,18 @@ public interface ProjectService {
     EmptyResponse addProjectTask(ProjectTaskOrderRequest req);
     EmptyResponse removeProjectTask(ProjectTaskRef req);
     EmptyResponse setProjectTaskPosition(ProjectTaskOrderRequest req);
-    List<Member> listProjectMembers(ProjectId req);
+    MemberItems listProjectMembers(ProjectId req);
     EmptyResponse addProjectMember(ProjectMemberRef req);
     EmptyResponse removeProjectMember(ProjectMemberRef req);
-    List<Member> listProjectOwners(ProjectId req);
+    MemberItems listProjectOwners(ProjectId req);
     EmptyResponse addProjectOwner(ProjectOwnerRef req);
     EmptyResponse removeProjectOwner(ProjectOwnerRef req);
-    List<Milestone> listMilestones(ProjectId req);
+    MilestoneItems listMilestones(ProjectId req);
     Milestone createMilestone(Milestone req);
     Milestone updateMilestone(Milestone req);
     EmptyResponse deleteMilestone(MilestoneId req);
     Project setProjectVisibility(SetProjectVisibilityRequest req);
-    List<Grant> listProjectGrants(ProjectId req);
+    GrantItems listProjectGrants(ProjectId req);
     EmptyResponse putProjectGrant(PutProjectGrantRequest req);
     EmptyResponse deleteProjectGrant(ProjectGrantRef req);
 }

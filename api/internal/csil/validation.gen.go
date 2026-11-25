@@ -9,6 +9,9 @@ import (
 
 // ValidateHouse validates the House struct
 func (v *House) Validate() error {
+	if v == nil {
+		return fmt.Errorf("House is nil")
+	}
 	if len(v.Name) < 1 {
 		return fmt.Errorf("field 'Name' must have at least 1 elements")
 	}
@@ -20,6 +23,9 @@ func (v *House) Validate() error {
 
 // ValidateRole validates the Role struct
 func (v *Role) Validate() error {
+	if v == nil {
+		return fmt.Errorf("Role is nil")
+	}
 	if len(v.Name) < 1 {
 		return fmt.Errorf("field 'Name' must have at least 1 elements")
 	}
@@ -31,6 +37,9 @@ func (v *Role) Validate() error {
 
 // ValidateSkill validates the Skill struct
 func (v *Skill) Validate() error {
+	if v == nil {
+		return fmt.Errorf("Skill is nil")
+	}
 	if len(v.Name) < 1 {
 		return fmt.Errorf("field 'Name' must have at least 1 elements")
 	}
@@ -42,6 +51,9 @@ func (v *Skill) Validate() error {
 
 // ValidateGroup validates the Group struct
 func (v *Group) Validate() error {
+	if v == nil {
+		return fmt.Errorf("Group is nil")
+	}
 	if len(v.Name) < 1 {
 		return fmt.Errorf("field 'Name' must have at least 1 elements")
 	}
@@ -53,6 +65,9 @@ func (v *Group) Validate() error {
 
 // ValidateProject validates the Project struct
 func (v *Project) Validate() error {
+	if v == nil {
+		return fmt.Errorf("Project is nil")
+	}
 	if len(v.Name) < 1 {
 		return fmt.Errorf("field 'Name' must have at least 1 elements")
 	}
@@ -64,6 +79,9 @@ func (v *Project) Validate() error {
 
 // ValidateMilestone validates the Milestone struct
 func (v *Milestone) Validate() error {
+	if v == nil {
+		return fmt.Errorf("Milestone is nil")
+	}
 	if len(v.Label) < 1 {
 		return fmt.Errorf("field 'Label' must have at least 1 elements")
 	}
@@ -75,6 +93,9 @@ func (v *Milestone) Validate() error {
 
 // ValidateEvent validates the Event struct
 func (v *Event) Validate() error {
+	if v == nil {
+		return fmt.Errorf("Event is nil")
+	}
 	if len(v.Title) < 1 {
 		return fmt.Errorf("field 'Title' must have at least 1 elements")
 	}
@@ -86,6 +107,9 @@ func (v *Event) Validate() error {
 
 // ValidateTask validates the Task struct
 func (v *Task) Validate() error {
+	if v == nil {
+		return fmt.Errorf("Task is nil")
+	}
 	if len(v.Title) < 1 {
 		return fmt.Errorf("field 'Title' must have at least 1 elements")
 	}
@@ -97,6 +121,9 @@ func (v *Task) Validate() error {
 
 // ValidateComment validates the Comment struct
 func (v *Comment) Validate() error {
+	if v == nil {
+		return fmt.Errorf("Comment is nil")
+	}
 	if len(v.Body) < 1 {
 		return fmt.Errorf("field 'Body' must have at least 1 elements")
 	}
@@ -108,6 +135,9 @@ func (v *Comment) Validate() error {
 
 // ValidateBeginCliLoginRequest validates the BeginCliLoginRequest struct
 func (v *BeginCliLoginRequest) Validate() error {
+	if v == nil {
+		return fmt.Errorf("BeginCliLoginRequest is nil")
+	}
 	if len(v.ClientName) < 1 {
 		return fmt.Errorf("field 'ClientName' must have at least 1 elements")
 	}
@@ -119,6 +149,9 @@ func (v *BeginCliLoginRequest) Validate() error {
 
 // ValidateBugReportRequest validates the BugReportRequest struct
 func (v *BugReportRequest) Validate() error {
+	if v == nil {
+		return fmt.Errorf("BugReportRequest is nil")
+	}
 	if len(v.Title) < 1 {
 		return fmt.Errorf("field 'Title' must have at least 1 elements")
 	}

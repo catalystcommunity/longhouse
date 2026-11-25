@@ -80,7 +80,7 @@ func (s *TrustedDomainService) RemoveTrustedDomain(ctx context.Context, id csil.
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *TrustedDomainService) ListTrustedDomains(ctx context.Context, houseID csil.HouseID) ([]csil.TrustedDomain, error) {
+func (s *TrustedDomainService) ListTrustedDomains(ctx context.Context, houseID csil.HouseID) (csil.TrustedDomainItems, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(houseID)); err != nil {
 		return nil, err
 	}

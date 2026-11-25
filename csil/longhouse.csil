@@ -1072,6 +1072,23 @@ ActAsTokenResponse = {
     scopes: [* text]
 }
 
+;; Named list arms keep the success payload as a CBOR array.
+CalendarMigrationRowItems = [* CalendarMigrationRow]
+CalendarTrashEntryItems = [* CalendarTrashEntry]
+CommentItems = [* Comment]
+EventItems = [* Event]
+GrantItems = [* Grant]
+GroupItems = [* Group]
+HouseItems = [* House]
+MemberItems = [* Member]
+MemberAuditItems = [* MemberAudit]
+MilestoneItems = [* Milestone]
+NotificationItems = [* Notification]
+RoleItems = [* Role]
+ShareItems = [* Share]
+SkillItems = [* Skill]
+TrustedDomainItems = [* TrustedDomain]
+
 service AuthService {
     begin-browser-login: BeginBrowserLoginRequest -> BeginBrowserLoginResponse / ServiceError,
     get-act-as-scope-set: ActAsScopeSetRequest -> ActAsScopeSetResponse / ServiceError,
@@ -1109,7 +1126,7 @@ service HouseService {
     get-house: HouseID -> House / ServiceError,
     update-house: House -> House / ServiceError,
     delete-house: HouseID -> EmptyResponse / ServiceError,
-    list-houses: HouseListRequest -> [* House] / ServiceError
+    list-houses: HouseListRequest -> HouseItems / ServiceError
 }
 
 service MemberService {
@@ -1121,13 +1138,13 @@ service MemberService {
     ;; the record and their owned content; reactivating restores access.
     deactivate-member: MemberID -> EmptyResponse / ServiceError,
     reactivate-member: MemberID -> EmptyResponse / ServiceError,
-    list-members: HouseScopedListRequest -> [* Member] / ServiceError
+    list-members: HouseScopedListRequest -> MemberItems / ServiceError
 }
 
 service TrustedDomainService {
     add-trusted-domain: TrustedDomain -> TrustedDomain / ServiceError,
     remove-trusted-domain: TrustedDomainID -> EmptyResponse / ServiceError,
-    list-trusted-domains: HouseID -> [* TrustedDomain] / ServiceError,
+    list-trusted-domains: HouseID -> TrustedDomainItems / ServiceError,
     is-domain-trusted: TrustedDomain -> BoolResponse / ServiceError
 }
 
@@ -1135,33 +1152,33 @@ service RoleService {
     create-role: Role -> Role / ServiceError,
     update-role: Role -> Role / ServiceError,
     delete-role: RoleID -> EmptyResponse / ServiceError,
-    list-roles: HouseScopedListRequest -> [* Role] / ServiceError,
+    list-roles: HouseScopedListRequest -> RoleItems / ServiceError,
     grant-role: MemberRoleRef -> EmptyResponse / ServiceError,
     revoke-role: MemberRoleRef -> EmptyResponse / ServiceError,
-    list-member-roles: MemberScopedListRequest -> [* Role] / ServiceError
+    list-member-roles: MemberScopedListRequest -> RoleItems / ServiceError
 }
 
 service SkillService {
     create-skill: Skill -> Skill / ServiceError,
     update-skill: Skill -> Skill / ServiceError,
     delete-skill: SkillID -> EmptyResponse / ServiceError,
-    list-skills: HouseScopedListRequest -> [* Skill] / ServiceError,
+    list-skills: HouseScopedListRequest -> SkillItems / ServiceError,
     add-member-skill: MemberSkillRef -> EmptyResponse / ServiceError,
     remove-member-skill: MemberSkillRef -> EmptyResponse / ServiceError,
-    list-member-skills: MemberScopedListRequest -> [* Skill] / ServiceError,
+    list-member-skills: MemberScopedListRequest -> SkillItems / ServiceError,
     add-group-skill: GroupSkillRef -> EmptyResponse / ServiceError,
     remove-group-skill: GroupSkillRef -> EmptyResponse / ServiceError,
-    list-group-skills: GroupID -> [* Skill] / ServiceError
+    list-group-skills: GroupID -> SkillItems / ServiceError
 }
 
 service GroupService {
     create-group: Group -> Group / ServiceError,
     update-group: Group -> Group / ServiceError,
     delete-group: GroupID -> EmptyResponse / ServiceError,
-    list-groups: HouseScopedListRequest -> [* Group] / ServiceError,
+    list-groups: HouseScopedListRequest -> GroupItems / ServiceError,
     add-group-member: GroupMemberRef -> EmptyResponse / ServiceError,
     remove-group-member: GroupMemberRef -> EmptyResponse / ServiceError,
-    list-group-members: MemberScopedListRequest -> [* Member] / ServiceError
+    list-group-members: MemberScopedListRequest -> MemberItems / ServiceError
 }
 
 service ProjectService {
@@ -1175,21 +1192,21 @@ service ProjectService {
     remove-project-task: ProjectTaskRef -> EmptyResponse / ServiceError,
     set-project-task-position: ProjectTaskOrderRequest -> EmptyResponse / ServiceError,
 
-    list-project-members: ProjectID -> [* Member] / ServiceError,
+    list-project-members: ProjectID -> MemberItems / ServiceError,
     add-project-member: ProjectMemberRef -> EmptyResponse / ServiceError,
     remove-project-member: ProjectMemberRef -> EmptyResponse / ServiceError,
 
-    list-project-owners: ProjectID -> [* Member] / ServiceError,
+    list-project-owners: ProjectID -> MemberItems / ServiceError,
     add-project-owner: ProjectOwnerRef -> EmptyResponse / ServiceError,
     remove-project-owner: ProjectOwnerRef -> EmptyResponse / ServiceError,
 
-    list-milestones: ProjectID -> [* Milestone] / ServiceError,
+    list-milestones: ProjectID -> MilestoneItems / ServiceError,
     create-milestone: Milestone -> Milestone / ServiceError,
     update-milestone: Milestone -> Milestone / ServiceError,
     delete-milestone: MilestoneID -> EmptyResponse / ServiceError,
 
     set-project-visibility: SetProjectVisibilityRequest -> Project / ServiceError,
-    list-project-grants: ProjectID -> [* Grant] / ServiceError,
+    list-project-grants: ProjectID -> GrantItems / ServiceError,
     put-project-grant: PutProjectGrantRequest -> EmptyResponse / ServiceError,
     delete-project-grant: ProjectGrantRef -> EmptyResponse / ServiceError
 }
@@ -1229,7 +1246,7 @@ service EventService {
     ;;     root's recurrence_freq + next_recurrence_at so the spawner
     ;;     stops respawning into the now-empty future.
     delete-event-and-future: EventID -> EmptyResponse / ServiceError,
-    list-events: EventListRequest -> [* Event] / ServiceError,
+    list-events: EventListRequest -> EventItems / ServiceError,
 
     ;; Per-member calendar view (whose calendars I've added + enabled).
     ;; get returns the caller's saved view for the house (empty if never set);
@@ -1239,7 +1256,7 @@ service EventService {
     accept-event: EventDecision -> Event / ServiceError,
     recover-edit: EventID -> Event / ServiceError,
     decline-event: EventDecision -> Event / ServiceError,
-    list-local-events: HouseID -> [* Event] / ServiceError
+    list-local-events: HouseID -> EventItems / ServiceError
 }
 
 EventDecision = { event_id: EventID, revision: uint }
@@ -1276,8 +1293,8 @@ service CalendarService {
     begin-connect: HouseID -> CalendarConnectResponse / ServiceError,
     complete-connect: CompleteCalendarConnectRequest -> CalendarStatus / ServiceError,
     disconnect: HouseID -> EmptyResponse / ServiceError,
-    preview-migration: HouseID -> [* CalendarMigrationRow] / ServiceError,
-    list-trash: HouseID -> [* CalendarTrashEntry] / ServiceError,
+    preview-migration: HouseID -> CalendarMigrationRowItems / ServiceError,
+    list-trash: HouseID -> CalendarTrashEntryItems / ServiceError,
     restore-event: RestoreCalendarEventRequest -> Event / ServiceError
 }
 
@@ -1296,7 +1313,7 @@ service TaskService {
     ;; RBAC: set the task's house-at-large visibility (full required;
     ;; bounded by the umbrella guardrail) and manage its explicit grants.
     set-task-visibility: SetTaskVisibilityRequest -> Task / ServiceError,
-    list-task-grants: TaskID -> [* Grant] / ServiceError,
+    list-task-grants: TaskID -> GrantItems / ServiceError,
     put-task-grant: PutTaskGrantRequest -> EmptyResponse / ServiceError,
     delete-task-grant: TaskGrantRef -> EmptyResponse / ServiceError
 }
@@ -1323,11 +1340,11 @@ service CommentService {
     get-comment: CommentID -> Comment / ServiceError,
     update-comment: Comment -> Comment / ServiceError,
     delete-comment: CommentID -> EmptyResponse / ServiceError,
-    list-comments: CommentListRequest -> [* Comment] / ServiceError
+    list-comments: CommentListRequest -> CommentItems / ServiceError
 }
 
 service NotificationService {
-    list-notifications: NotificationListRequest -> [* Notification] / ServiceError,
+    list-notifications: NotificationListRequest -> NotificationItems / ServiceError,
     unread-count: HouseID -> NotificationUnreadCount / ServiceError,
     mark-read: NotificationID -> Notification / ServiceError,
     mark-all-read: HouseID -> EmptyResponse / ServiceError
@@ -1336,12 +1353,12 @@ service NotificationService {
 service ShareService {
     create-share: Share -> Share / ServiceError,
     delete-share: ShareID -> EmptyResponse / ServiceError,
-    list-shares-by-resource: ResourceRef -> [* Share] / ServiceError,
+    list-shares-by-resource: ResourceRef -> ShareItems / ServiceError,
     check-access: ShareAccessRequest -> Share / ServiceError
 }
 
 service MemberAuditService {
-    list-audits-for-member: MemberScopedListRequest -> [* MemberAudit] / ServiceError
+    list-audits-for-member: MemberScopedListRequest -> MemberAuditItems / ServiceError
 }
 
 ;; SettingsService: get-settings returns the merged effective settings

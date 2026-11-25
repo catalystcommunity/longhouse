@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/catalystcommunity/csilgen/transports/go"
 	lk "github.com/catalystcommunity/linkkeys/sdks/regular-rp/go/generated"
-	"github.com/catalystcommunity/longhouse/api/internal/transport"
 )
 
 func TestPinnedSDKTransportUsesExistingTLSIdentity(t *testing.T) {
@@ -18,7 +18,11 @@ func TestPinnedSDKTransportUsesExistingTLSIdentity(t *testing.T) {
 		if req.Service != "Account" || req.Op != "get-my-info" || req.Auth == nil || *req.Auth != "test-api-key" {
 			t.Error("wrong service or credential")
 		}
-		return transport.Reply("GetMyInfoResponse", lk.EncodeGetMyInfoResponse(lk.GetMyInfoResponse{User: lk.AdminUser{Id: "app-account", DisplayName: "Longhouse App", IsActive: true}}))
+		body, err := lk.EncodeGetMyInfoResponse(lk.GetMyInfoResponse{User: lk.AdminUser{Id: "app-account", DisplayName: "Longhouse App", IsActive: true, Kind: lk.AccountKindApplication}})
+		if err != nil {
+			return transport.Transport(transport.StatusInternal, err.Error())
+		}
+		return transport.Reply("GetMyInfoResponse", body)
 	})
 	for _, badPin := range []bool{false, true} {
 		selected := pin

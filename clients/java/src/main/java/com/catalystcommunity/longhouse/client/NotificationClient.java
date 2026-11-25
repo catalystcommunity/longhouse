@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the NotificationService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -15,19 +13,23 @@ public final class NotificationClient {
         this.transport = transport;
     }
 
-    public List<Notification> listNotifications(NotificationListRequest req) throws ClientException {
-        return CsilCbor.decodeNotificationListNotificationsResponse(transport.call("NotificationService", "list-notifications", CsilCbor.encodeNotificationListRequest(req)));
+    public NotificationItems listNotifications(NotificationListRequest req) throws ClientException {
+        WireReply reply = transport.callReply("NotificationService", "list-notifications", CsilCbor.encodeNotificationListRequest(req));
+        return CsilCbor.decodeNotificationListNotificationsResponse(CsilCbor.resolveRpcReply("NotificationService", "list-notifications", reply.variant(), reply.payload()));
     }
 
     public NotificationUnreadCount unreadCount(HouseId req) throws ClientException {
-        return CsilCbor.decodeNotificationUnreadCount(transport.call("NotificationService", "unread-count", CsilCbor.encodeNotificationUnreadCountRequest(req)));
+        WireReply reply = transport.callReply("NotificationService", "unread-count", CsilCbor.encodeNotificationUnreadCountRequest(req));
+        return CsilCbor.decodeNotificationUnreadCount(CsilCbor.resolveRpcReply("NotificationService", "unread-count", reply.variant(), reply.payload()));
     }
 
     public Notification markRead(NotificationId req) throws ClientException {
-        return CsilCbor.decodeNotification(transport.call("NotificationService", "mark-read", CsilCbor.encodeNotificationMarkReadRequest(req)));
+        WireReply reply = transport.callReply("NotificationService", "mark-read", CsilCbor.encodeNotificationMarkReadRequest(req));
+        return CsilCbor.decodeNotification(CsilCbor.resolveRpcReply("NotificationService", "mark-read", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse markAllRead(HouseId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("NotificationService", "mark-all-read", CsilCbor.encodeNotificationMarkAllReadRequest(req)));
+        WireReply reply = transport.callReply("NotificationService", "mark-all-read", CsilCbor.encodeNotificationMarkAllReadRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("NotificationService", "mark-all-read", reply.variant(), reply.payload()));
     }
 }

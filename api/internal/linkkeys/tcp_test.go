@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/catalystcommunity/longhouse/api/internal/transport"
+	"github.com/catalystcommunity/csilgen/transports/go"
 	"github.com/fxamacker/cbor/v2"
 )
 
@@ -118,14 +118,15 @@ func TestTCPClient_SignRequest_RoundTrip(t *testing.T) {
 	}
 }
 
-// TestTCPClient_SignRequest_ApplicationAndClaims decodes the sign-request
-// payload with the linkkeys generated codec. That proves the wire shape of
-// application_id and requested_claims.
 func TestTCPClient_SignRequest_ApplicationAndClaims(t *testing.T) {
 	t.Parallel()
 	got := make(chan lkgen.RpSignRequest, 1)
 	_, tlsCert, _ := newTestCert(t)
 	addr := startTestRPCServer(t, tlsCert, func(req *transport.RpcRequest) transport.HandlerOutcome {
+		var fields map[string]cbor.RawMessage
+		if err := cbor.Unmarshal(req.Payload, &fields); err != nil || fields["application_id"] != nil {
+			t.Error("sign-request must use the authenticated application account")
+		}
 		in, err := lkgen.DecodeRpSignRequest(req.Payload)
 		if err != nil {
 			return transport.Transport(transport.StatusInternal, err.Error())
@@ -142,9 +143,6 @@ func TestTCPClient_SignRequest_ApplicationAndClaims(t *testing.T) {
 		t.Fatalf("SignRequest: %v", err)
 	}
 	in := <-got
-	if in.ApplicationId == nil || *in.ApplicationId != "longhouse" {
-		t.Fatalf("application_id = %v, want longhouse", in.ApplicationId)
-	}
 	if in.RequestedClaims == nil || len(in.RequestedClaims.Required) != 1 || in.RequestedClaims.Required[0].ClaimType != "handle" || len(in.RequestedClaims.Optional) != 3 {
 		t.Fatalf("requested_claims = %+v", in.RequestedClaims)
 	}
@@ -158,8 +156,8 @@ func TestTCPClient_SignRequest_ApplicationAndClaims(t *testing.T) {
 		t.Fatalf("SignRequest: %v", err)
 	}
 	in = <-got
-	if in.ApplicationId != nil || in.RequestedClaims != nil {
-		t.Fatalf("bare request sent application_id=%v requested_claims=%v", in.ApplicationId, in.RequestedClaims)
+	if in.RequestedClaims != nil {
+		t.Fatalf("bare request sent requested_claims=%v", in.RequestedClaims)
 	}
 }
 
@@ -172,19 +170,12 @@ func TestTCPClient_VerifyAssertion_RoundTrip(t *testing.T) {
 			ExpectedDomain  string `cbor:"expected_domain"`
 		}
 		_ = cbor.Unmarshal(req.Payload, &in)
-		b, _ := cbor.Marshal(map[string]any{
-			"verified": true,
-			"assertion": map[string]any{
-				"user_id":           "u1",
-				"domain":            in.ExpectedDomain,
-				"audience":          "rp.example",
-				"nonce":             "n1",
-				"issued_at":         "2026-01-01T00:00:00Z",
-				"expires_at":        "2026-01-01T00:10:00Z",
-				"authorized_claims": []string{"email"}, // unknown to Assertion; must be ignored
-				"display_name":      "Ada",
-			},
-		})
+		name := "Ada"
+		issued := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+		b, err := lkgen.EncodeRpVerifyResponse(lkgen.RpVerifyResponse{Verified: true, Assertion: lkgen.IdentityAssertion{UserId: "u1", Domain: in.ExpectedDomain, Audience: "rp.example", Nonce: "n1", IssuedAt: issued, ExpiresAt: issued.Add(10 * time.Minute), AuthorizedClaims: []string{"email"}, DisplayName: &name, Application: lkgen.ApplicationRef{ApplicationId: "longhouse"}}})
+		if err != nil {
+			return transport.Transport(transport.StatusInternal, err.Error())
+		}
 		return transport.Reply("RpVerifyResponse", b)
 	}
 	addr := startTestRPCServer(t, tlsCert, handler)
@@ -199,13 +190,21 @@ func TestTCPClient_VerifyAssertion_RoundTrip(t *testing.T) {
 	if a.UserID != "u1" || a.Domain != "idp.example" || a.DisplayName != "Ada" {
 		t.Fatalf("assertion decoded wrong: %+v", a)
 	}
+	c.appID = "other"
+	if _, err := c.VerifyAssertion("signed-blob", "idp.example"); err == nil {
+		t.Fatal("accepted an assertion for another application")
+	}
+
 }
 
 func TestTCPClient_VerifyAssertion_RejectedWhenUnverified(t *testing.T) {
 	t.Parallel()
 	_, tlsCert, _ := newTestCert(t)
 	handler := func(req *transport.RpcRequest) transport.HandlerOutcome {
-		b, _ := cbor.Marshal(map[string]any{"verified": false, "assertion": map[string]any{}})
+		b, err := lkgen.EncodeRpVerifyResponse(lkgen.RpVerifyResponse{Verified: false})
+		if err != nil {
+			return transport.Transport(transport.StatusInternal, err.Error())
+		}
 		return transport.Reply("RpVerifyResponse", b)
 	}
 	addr := startTestRPCServer(t, tlsCert, handler)
@@ -231,14 +230,10 @@ func TestTCPClient_FetchUserInfo_RoundTrip(t *testing.T) {
 		if in.APIBase != "https://idp.example" || in.Domain != "idp.example" {
 			return transport.Transport(transport.StatusInternal, "unexpected request fields")
 		}
-		b, _ := cbor.Marshal(map[string]any{
-			"user_id":      "u1",
-			"domain":       "idp.example",
-			"display_name": "Ada Lovelace",
-			"claims": []map[string]any{
-				{"claim_id": "c1", "claim_type": "email", "claim_value": []byte("ada@example.com")},
-			},
-		})
+		b, err := lkgen.EncodeUserInfo(lkgen.UserInfo{UserId: "u1", Domain: "idp.example", DisplayName: "Ada Lovelace", Claims: []lkgen.Claim{{ClaimId: "c1", ClaimType: "email", ClaimValue: []byte("ada@example.com")}}})
+		if err != nil {
+			return transport.Transport(transport.StatusInternal, err.Error())
+		}
 		return transport.Reply("UserInfo", b)
 	}
 	addr := startTestRPCServer(t, tlsCert, handler)

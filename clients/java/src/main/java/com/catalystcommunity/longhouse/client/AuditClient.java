@@ -14,6 +14,7 @@ public final class AuditClient {
     }
 
     public AuditPage queryAudit(AuditQuery req) throws ClientException {
-        return CsilCbor.decodeAuditPage(transport.call("AuditService", "query-audit", CsilCbor.encodeAuditQuery(req)));
+        WireReply reply = transport.callReply("AuditService", "query-audit", CsilCbor.encodeAuditQuery(req));
+        return CsilCbor.decodeAuditPage(CsilCbor.resolveRpcReply("AuditService", "query-audit", reply.variant(), reply.payload()));
     }
 }

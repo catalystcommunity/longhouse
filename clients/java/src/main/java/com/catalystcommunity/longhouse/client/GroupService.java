@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The GroupService server handler interface; the host implements it.
  */
@@ -11,8 +9,8 @@ public interface GroupService {
     Group createGroup(Group req);
     Group updateGroup(Group req);
     EmptyResponse deleteGroup(GroupId req);
-    List<Group> listGroups(HouseScopedListRequest req);
+    GroupItems listGroups(HouseScopedListRequest req);
     EmptyResponse addGroupMember(GroupMemberRef req);
     EmptyResponse removeGroupMember(GroupMemberRef req);
-    List<Member> listGroupMembers(MemberScopedListRequest req);
+    MemberItems listGroupMembers(MemberScopedListRequest req);
 }

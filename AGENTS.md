@@ -160,9 +160,9 @@ dev-auth and recurrence-worker knobs.
 
 - **CSIL-first.** The spec drives the Go server stubs and every clients/
   language. Don't hand-modify generated files; edit `csil/longhouse.csil` and
-  rerun `./csil/regenerate.sh`. Use csilgen 0.2.15 and the WASM generators
+  rerun `./csil/regenerate.sh`. Use csilgen 0.3.3 and the WASM generators
   from the same release. In the csilgen repository, run
-  `./tools.sh install-all csilgen/v0.2.15` to install them.
+  `./tools.sh install-all csilgen/v0.3.3` to install them.
   Report generator problems in `csilgen/docs/csilgen-requests/`.
   The script generates all 14 client packages. Use the Swift 6.0 container
   to build the Swift package on Linux.
@@ -171,8 +171,9 @@ dev-auth and recurrence-worker knobs.
   snake_case keys directly and maps them back to the camelCase generated types,
   so there is no camel↔snake bridging in the carrier anymore. The carrier moves
   only the envelope (`service`/kebab-`op`/tag-24 payload) + `fetch` + auth.
-  Errors are CBOR-encoded `ServiceError { code, message }` with the matching
-  HTTP status.
+  The API sends RPC envelopes at HTTP 200. Application errors use the
+  `ServiceError` variant at envelope status 0. A response encoding failure
+  uses transport status 6.
 - **Authorization is resource-based**, not URL-based. Each CSIL method
   looks up the resource → reads its `house_id` → checks the bearer's
   identity has the required role in that house. There is no `/houses/{id}/...`

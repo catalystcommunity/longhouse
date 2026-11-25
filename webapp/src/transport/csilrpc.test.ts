@@ -9,7 +9,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RpcRequest, RpcResponse } from "./csil/rpc";
 import { Status } from "./csil/conventions";
-import { toServiceErrorCbor } from "@longhouse/client";
+import { AuthAsyncClient, toEmptyResponseCbor, toServiceErrorCbor } from "@longhouse/client";
 
 vi.mock("~/stores/auth", () => ({ currentToken: () => "test-token" }));
 
@@ -55,6 +55,15 @@ describe("cborTransport", () => {
     mockFetch(RpcResponse.ok("DevUsersResponse", new Uint8Array()));
     await cborTransport.call("devauth", "ListDevUsers", new Uint8Array());
     expect(lastRequest?.op).toBe("list-dev-users");
+  });
+
+  it("passes the reply variant to the generated client", async () => {
+    const client = new AuthAsyncClient(cborTransport);
+    const payload = toEmptyResponseCbor({});
+    mockFetch(RpcResponse.ok("EmptyResponse", payload));
+    await expect(client.endSession({})).resolves.toEqual({});
+    mockFetch(RpcResponse.ok("LoginResponse", payload));
+    await expect(client.endSession({})).rejects.toThrow("invalid RPC reply variant");
   });
 
   it("throws ServiceError for the declared application-error arm at status 0", async () => {

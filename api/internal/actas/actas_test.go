@@ -37,14 +37,14 @@ func (s staticKeys) RevokedGrants(context.Context, string, []string) ([]string, 
 }
 
 type keyVec struct {
-	KeyID        string  `json:"key_id"`
-	KeyUsage     string  `json:"key_usage"`
-	Algorithm    string  `json:"algorithm"`
-	PublicKeyHex string  `json:"public_key_hex"`
-	Fingerprint  string  `json:"fingerprint"`
-	CreatedAt    string  `json:"created_at"`
-	ExpiresAt    string  `json:"expires_at"`
-	RevokedAt    *string `json:"revoked_at"`
+	KeyID        string           `json:"key_id"`
+	KeyUsage     api.KeyUsage     `json:"key_usage"`
+	Algorithm    api.KeyAlgorithm `json:"algorithm"`
+	PublicKeyHex string           `json:"public_key_hex"`
+	Fingerprint  string           `json:"fingerprint"`
+	CreatedAt    time.Time        `json:"created_at"`
+	ExpiresAt    time.Time        `json:"expires_at"`
+	RevokedAt    *time.Time       `json:"revoked_at"`
 }
 
 func mustHex(t *testing.T, s string) []byte {
@@ -210,7 +210,7 @@ func TestSignScopeSetVerifies(t *testing.T) {
 	v := &Verifier{
 		Own:        own,
 		InstanceID: "longhouse-1",
-		Signers:    []regularrp.ApplicationSigner{{KeyID: "k1", Algorithm: "ed25519", PrivateKeyBytes: seed}},
+		Signers:    []regularrp.ApplicationSigner{{KeyID: "k1", Algorithm: api.KeyAlgorithmEd25519, PrivateKeyBytes: seed}},
 		Now:        func() time.Time { return now },
 	}
 	raw, err := v.SignScopeSet(context.Background(), ScopeSetRequest{
@@ -227,8 +227,8 @@ func TestSignScopeSetVerifies(t *testing.T) {
 		t.Fatalf("signer instance %q", signed.SignerInstanceId)
 	}
 	keys := []regularrp.ApplicationKeyRef{{
-		KeyID: "k1", KeyUsage: "sign", Algorithm: "ed25519", PublicKey: pub,
-		Fingerprint: regularrp.Fingerprint(pub), CreatedAt: "2026-01-01T00:00:00Z", ExpiresAt: "2027-01-01T00:00:00Z",
+		KeyID: "k1", KeyUsage: api.KeyUsageSign, Algorithm: api.KeyAlgorithmEd25519, PublicKey: pub,
+		Fingerprint: regularrp.Fingerprint(pub), CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), ExpiresAt: time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC),
 	}}
 	set, err := regularrp.VerifyScopeSet(signed, own, keys, regularrp.AcceptBeforeRevocation)
 	if err != nil {
@@ -256,7 +256,7 @@ func TestRequestDigest(t *testing.T) {
 }
 
 func TestLonghouseCredentialRoundTrip(t *testing.T) {
-	now := time.Now().UTC().Truncate(time.Second)
+	now := time.Now().UTC().Truncate(time.Second).Truncate(time.Second)
 	key := func(id string, fill byte) (regularrp.ApplicationSigner, regularrp.ApplicationKeyRef, ed25519.PrivateKey) {
 		seed := make([]byte, 32)
 		for i := range seed {
@@ -264,14 +264,14 @@ func TestLonghouseCredentialRoundTrip(t *testing.T) {
 		}
 		private := ed25519.NewKeyFromSeed(seed)
 		pub := private.Public().(ed25519.PublicKey)
-		return regularrp.ApplicationSigner{KeyID: id, Algorithm: "ed25519", PrivateKeyBytes: seed}, regularrp.ApplicationKeyRef{KeyID: id, KeyUsage: "sign", Algorithm: "ed25519", PublicKey: pub, Fingerprint: regularrp.Fingerprint(pub), CreatedAt: regularrp.FormatActAsTime(now.Add(-time.Hour)), ExpiresAt: regularrp.FormatActAsTime(now.Add(time.Hour))}, private
+		return regularrp.ApplicationSigner{KeyID: id, Algorithm: api.KeyAlgorithmEd25519, PrivateKeyBytes: seed}, regularrp.ApplicationKeyRef{KeyID: id, KeyUsage: api.KeyUsageSign, Algorithm: api.KeyAlgorithmEd25519, PublicKey: pub, Fingerprint: regularrp.Fingerprint(pub), CreatedAt: now.Add(-time.Hour), ExpiresAt: now.Add(time.Hour)}, private
 	}
 	ownSigner, ownKey, _ := key("audience", 1)
 	granteeSigner, granteeKey, _ := key("helper", 2)
 	_, homeKey, homePrivate := key("home", 3)
 	own := api.ApplicationRef{SubjectDomain: "audience.test", SubjectUserId: "owner", ApplicationId: "longhouse"}
 	grantee := api.ApplicationRef{SubjectDomain: "app.test", SubjectUserId: "helper-owner", ApplicationId: "helper"}
-	source := staticKeys{own: []regularrp.ApplicationKeyRef{ownKey}, grantee: []regularrp.ApplicationKeyRef{granteeKey}, domain: []api.DomainPublicKey{{KeyId: homeKey.KeyID, KeyUsage: "sign", Algorithm: "ed25519", PublicKey: homeKey.PublicKey, Fingerprint: homeKey.Fingerprint, CreatedAt: homeKey.CreatedAt, ExpiresAt: homeKey.ExpiresAt}}}
+	source := staticKeys{own: []regularrp.ApplicationKeyRef{ownKey}, grantee: []regularrp.ApplicationKeyRef{granteeKey}, domain: []api.DomainPublicKey{{KeyId: homeKey.KeyID, KeyUsage: api.KeyUsageSign, Algorithm: api.KeyAlgorithmEd25519, PublicKey: homeKey.PublicKey, Fingerprint: homeKey.Fingerprint, CreatedAt: homeKey.CreatedAt, ExpiresAt: homeKey.ExpiresAt}}}
 	v := &Verifier{Own: own, InstanceID: "audience-1", Signers: []regularrp.ApplicationSigner{ownSigner}, Keys: source, Now: func() time.Time { return now }}
 	raw, err := v.SignScopeSet(context.Background(), ScopeSetRequest{GranteeDomain: grantee.SubjectDomain, GranteeUserID: grantee.SubjectUserId, GranteeApplicationID: grantee.ApplicationId, Scopes: []string{"longhouse.full", "tasks.read"}})
 	if err != nil {
@@ -281,8 +281,11 @@ func TestLonghouseCredentialRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := api.ActAsGrant{GrantId: "grant-1", UserId: "user", SubjectDomain: "home.test", Grantee: api.GranteeRef{Application: &grantee}, Audience: own, ScopeSet: scopeSet, ApprovedScope: []string{"tasks.read"}, IssuedAt: regularrp.FormatActAsTime(now), ExpiresAt: regularrp.FormatActAsTime(now.Add(time.Hour)), SeriesIssuedAt: regularrp.FormatActAsTime(now), RenewableUntil: regularrp.FormatActAsTime(now.Add(time.Hour))}
-	grantBytes := api.EncodeActAsGrant(grant)
+	grant := api.ActAsGrant{GrantId: "grant-1", UserId: "user", SubjectDomain: "home.test", Grantee: api.GranteeRef{Application: &grantee}, Audience: own, ScopeSet: scopeSet, ApprovedScope: []string{"tasks.read"}, IssuedAt: now, ExpiresAt: now.Add(time.Hour), SeriesIssuedAt: now, RenewableUntil: now.Add(time.Hour)}
+	grantBytes, err := api.EncodeActAsGrant(grant)
+	if err != nil {
+		t.Fatal(err)
+	}
 	signatureInput, err := cbor.Marshal([]any{regularrp.GrantTag, grantBytes})
 	if err != nil {
 		t.Fatal(err)
@@ -298,7 +301,11 @@ func TestLonghouseCredentialRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		verified, err := v.VerifyCredential(context.Background(), api.EncodeActAsCredential(credential), nil)
+		encoded, err := api.EncodeActAsCredential(credential)
+		if err != nil {
+			t.Fatal(err)
+		}
+		verified, err := v.VerifyCredential(context.Background(), encoded, nil)
 		if wrongDigest {
 			if err == nil {
 				t.Fatal("accepted another operation digest")
@@ -316,15 +323,18 @@ func TestLonghouseCredentialRoundTrip(t *testing.T) {
 
 type keyTransport func(context.Context, string, string, []byte) ([]byte, error)
 
+func (f keyTransport) CallReply(ctx context.Context, s, o string, b []byte) (api.WireReply, error) {
+	panic("unexpected multi-arm RPC: " + s + "/" + o)
+}
 func (f keyTransport) Call(ctx context.Context, s, o string, b []byte) ([]byte, error) {
 	return f(ctx, s, o, b)
 }
 func TestRevocationEvidenceFailsClosed(t *testing.T) {
 	source := NewRPKeySource(keyTransport(func(_ context.Context, _, op string, _ []byte) ([]byte, error) {
 		if op == "resolve-act-as-revocations" {
-			return api.EncodeGetActAsGrantRevocationsResponse(api.GetActAsGrantRevocationsResponse{Revocations: []api.SignedActAsGrantRevocation{{Revocation: []byte{1}}}}), nil
+			return api.EncodeGetActAsGrantRevocationsResponse(api.GetActAsGrantRevocationsResponse{Revocations: []api.SignedActAsGrantRevocation{{Revocation: []byte{1}}}})
 		}
-		return api.EncodeRpResolveDomainKeysResponse(api.RpResolveDomainKeysResponse{Domain: "home.test", CacheStatus: "fresh"}), nil
+		return api.EncodeRpResolveDomainKeysResponse(api.RpResolveDomainKeysResponse{Domain: "home.test", CacheStatus: api.RpCacheStatusFresh})
 	}))
 	if _, err := source.RevokedGrants(context.Background(), "home.test", []string{"grant"}); err == nil {
 		t.Fatal("invalid revocation became permission")
@@ -332,7 +342,7 @@ func TestRevocationEvidenceFailsClosed(t *testing.T) {
 }
 func TestLocalRPScopeSet(t *testing.T) {
 	seed := make([]byte, 32)
-	v := &Verifier{Own: api.ApplicationRef{SubjectDomain: "home.test", SubjectUserId: "owner", ApplicationId: "longhouse"}, InstanceID: "instance", Signers: []regularrp.ApplicationSigner{{KeyID: "key", Algorithm: "ed25519", PrivateKeyBytes: seed}}}
+	v := &Verifier{Own: api.ApplicationRef{SubjectDomain: "home.test", SubjectUserId: "owner", ApplicationId: "longhouse"}, InstanceID: "instance", Signers: []regularrp.ApplicationSigner{{KeyID: "key", Algorithm: api.KeyAlgorithmEd25519, PrivateKeyBytes: seed}}}
 	fp := strings.Repeat("a", 64)
 	raw, err := v.SignScopeSet(context.Background(), ScopeSetRequest{LocalRPFingerprint: fp, Scopes: []string{"tasks.read"}})
 	if err != nil {

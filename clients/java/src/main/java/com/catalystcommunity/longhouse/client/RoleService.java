@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The RoleService server handler interface; the host implements it.
  */
@@ -11,8 +9,8 @@ public interface RoleService {
     Role createRole(Role req);
     Role updateRole(Role req);
     EmptyResponse deleteRole(RoleId req);
-    List<Role> listRoles(HouseScopedListRequest req);
+    RoleItems listRoles(HouseScopedListRequest req);
     EmptyResponse grantRole(MemberRoleRef req);
     EmptyResponse revokeRole(MemberRoleRef req);
-    List<Role> listMemberRoles(MemberScopedListRequest req);
+    RoleItems listMemberRoles(MemberScopedListRequest req);
 }

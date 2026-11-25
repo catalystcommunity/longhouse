@@ -73,7 +73,7 @@ func keySigner(key Key) (rp.ApplicationSigner, ed25519.PublicKey, error) {
 		return rp.ApplicationSigner{}, nil, errors.New("invalid key seed")
 	}
 	private := ed25519.NewKeyFromSeed(seed)
-	return rp.ApplicationSigner{KeyID: key.KeyID, Algorithm: "ed25519", PrivateKeyBytes: seed}, private.Public().(ed25519.PublicKey), nil
+	return rp.ApplicationSigner{KeyID: key.KeyID, Algorithm: lk.KeyAlgorithmEd25519, PrivateKeyBytes: seed}, private.Public().(ed25519.PublicKey), nil
 }
 
 // Enroll sends possession proofs through the owner's authenticated account.
@@ -86,15 +86,15 @@ func Enroll(ctx context.Context, transport lk.Transport, keys Keys) error {
 		if err != nil {
 			return err
 		}
-		challenge, err := client.StartKeyChallenge(ctx, lk.StartApplicationKeyChallengeRequest{SubjectUserId: keys.Application.SubjectUserId, ApplicationId: keys.Application.ApplicationId, InstanceId: keys.InstanceID, Purpose: "add", KeyUsage: "sign", Algorithm: "ed25519", PublicKey: pub})
+		challenge, err := client.StartKeyChallenge(ctx, lk.StartApplicationKeyChallengeRequest{SubjectUserId: keys.Application.SubjectUserId, ApplicationId: keys.Application.ApplicationId, InstanceId: keys.InstanceID, Purpose: lk.ApplicationKeyChallengePurposeAdd, KeyUsage: lk.KeyUsageSign, Algorithm: lk.KeyAlgorithmEd25519, PublicKey: pub})
 		if err != nil {
 			return err
 		}
 		if challenge.Challenge == nil {
 			return errors.New("home domain did not return a signing challenge")
 		}
-		now := time.Now().UTC()
-		addition, err := rp.SignAddition(lk.ApplicationKeyAddition{SubjectUserId: keys.Application.SubjectUserId, SubjectDomain: keys.Application.SubjectDomain, ApplicationId: keys.Application.ApplicationId, InstanceId: keys.InstanceID, KeyId: key.KeyID, KeyUsage: "sign", Algorithm: "ed25519", PublicKey: pub, Fingerprint: rp.Fingerprint(pub), RequestedKeyLifetimeSeconds: 365 * 24 * 60 * 60, ChallengeId: challenge.ChallengeId, Challenge: *challenge.Challenge, RequestedAt: now.Format(time.RFC3339), ExpiresAt: challenge.ExpiresAt}, nil, &signer)
+		now := time.Now().UTC().Truncate(time.Second)
+		addition, err := rp.SignAddition(lk.ApplicationKeyAddition{SubjectUserId: keys.Application.SubjectUserId, SubjectDomain: keys.Application.SubjectDomain, ApplicationId: keys.Application.ApplicationId, InstanceId: keys.InstanceID, KeyId: key.KeyID, KeyUsage: lk.KeyUsageSign, Algorithm: lk.KeyAlgorithmEd25519, PublicKey: pub, Fingerprint: rp.Fingerprint(pub), RequestedKeyLifetimeSeconds: 365 * 24 * 60 * 60, ChallengeId: challenge.ChallengeId, Challenge: *challenge.Challenge, RequestedAt: now, ExpiresAt: challenge.ExpiresAt}, nil, &signer)
 		if err != nil {
 			return err
 		}
@@ -116,14 +116,14 @@ func RenewKeys(ctx context.Context, transport lk.Transport, keys Keys) error {
 		if err != nil {
 			return err
 		}
-		challenge, err := client.StartKeyChallenge(ctx, lk.StartApplicationKeyChallengeRequest{SubjectUserId: keys.Application.SubjectUserId, ApplicationId: keys.Application.ApplicationId, InstanceId: keys.InstanceID, Purpose: "renew", KeyUsage: "sign", Algorithm: "ed25519", PublicKey: pub})
+		challenge, err := client.StartKeyChallenge(ctx, lk.StartApplicationKeyChallengeRequest{SubjectUserId: keys.Application.SubjectUserId, ApplicationId: keys.Application.ApplicationId, InstanceId: keys.InstanceID, Purpose: lk.ApplicationKeyChallengePurposeRenew, KeyUsage: lk.KeyUsageSign, Algorithm: lk.KeyAlgorithmEd25519, PublicKey: pub})
 		if err != nil {
 			return err
 		}
 		if challenge.Challenge == nil {
 			return errors.New("home domain did not return a signing challenge")
 		}
-		request, err := rp.SignRenewal(lk.ApplicationKeyRenewal{SubjectUserId: keys.Application.SubjectUserId, SubjectDomain: keys.Application.SubjectDomain, ApplicationId: keys.Application.ApplicationId, InstanceId: keys.InstanceID, KeyId: key.KeyID, ChallengeId: challenge.ChallengeId, Challenge: *challenge.Challenge, RequestedAt: time.Now().UTC().Format(time.RFC3339), ExpiresAt: challenge.ExpiresAt}, nil, &signer)
+		request, err := rp.SignRenewal(lk.ApplicationKeyRenewal{SubjectUserId: keys.Application.SubjectUserId, SubjectDomain: keys.Application.SubjectDomain, ApplicationId: keys.Application.ApplicationId, InstanceId: keys.InstanceID, KeyId: key.KeyID, ChallengeId: challenge.ChallengeId, Challenge: *challenge.Challenge, RequestedAt: time.Now().UTC().Truncate(time.Second), ExpiresAt: challenge.ExpiresAt}, nil, &signer)
 		if err != nil {
 			return err
 		}
@@ -198,15 +198,13 @@ func checkApplicationKeys(response lk.GetApplicationKeysResponse, keys Keys, cur
 			if attestation.KeyId != key.KeyID {
 				continue
 			}
-			if attestation.SubjectDomain != keys.Application.SubjectDomain || attestation.SubjectUserId != keys.Application.SubjectUserId || attestation.ApplicationId != keys.Application.ApplicationId || attestation.InstanceId != keys.InstanceID || attestation.Fingerprint != rp.Fingerprint(pub) || !bytes.Equal(attestation.PublicKey, pub) || attestation.KeyUsage != "sign" || attestation.Algorithm != "ed25519" {
+			if attestation.SubjectDomain != keys.Application.SubjectDomain || attestation.SubjectUserId != keys.Application.SubjectUserId || attestation.ApplicationId != keys.Application.ApplicationId || attestation.InstanceId != keys.InstanceID || attestation.Fingerprint != rp.Fingerprint(pub) || !bytes.Equal(attestation.PublicKey, pub) || attestation.KeyUsage != lk.KeyUsageSign || attestation.Algorithm != lk.KeyAlgorithmEd25519 {
 				return errors.New("existing application keys differ; refusing a trust reset")
 			}
 			if current {
-				for _, raw := range []string{attestation.KeyExpiresAt, attestation.AttestationExpiresAt} {
-					expires, err := time.Parse(time.RFC3339, raw)
-					if err != nil || !expires.After(time.Now()) {
-						return errors.New("application key attestation is expired")
-					}
+				now := time.Now()
+				if !attestation.KeyExpiresAt.After(now) || !attestation.AttestationExpiresAt.After(now) {
+					return errors.New("application key attestation is expired")
 				}
 			}
 			matched = true

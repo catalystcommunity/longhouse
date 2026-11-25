@@ -167,12 +167,13 @@ pub trait HouseService {
         ctx: &Self::Context,
         input: HouseID,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-houses (request/response).
     fn list_houses(
         &self,
         ctx: &Self::Context,
         input: HouseListRequest,
-    ) -> Result<Vec<House>, ServiceError>;
+    ) -> Result<HouseItems, ServiceError>;
 }
 
 /// MemberService service trait
@@ -208,12 +209,13 @@ pub trait MemberService {
         ctx: &Self::Context,
         input: MemberID,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-members (request/response).
     fn list_members(
         &self,
         ctx: &Self::Context,
         input: HouseScopedListRequest,
-    ) -> Result<Vec<Member>, ServiceError>;
+    ) -> Result<MemberItems, ServiceError>;
 }
 
 /// TrustedDomainService service trait
@@ -233,12 +235,13 @@ pub trait TrustedDomainService {
         ctx: &Self::Context,
         input: TrustedDomainID,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-trusted-domains (request/response).
     fn list_trusted_domains(
         &self,
         ctx: &Self::Context,
         input: HouseID,
-    ) -> Result<Vec<TrustedDomain>, ServiceError>;
+    ) -> Result<TrustedDomainItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// is-domain-trusted (request/response).
     fn is_domain_trusted(
@@ -264,12 +267,13 @@ pub trait RoleService {
         ctx: &Self::Context,
         input: RoleID,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-roles (request/response).
     fn list_roles(
         &self,
         ctx: &Self::Context,
         input: HouseScopedListRequest,
-    ) -> Result<Vec<Role>, ServiceError>;
+    ) -> Result<RoleItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// grant-role (request/response).
     fn grant_role(
@@ -284,12 +288,13 @@ pub trait RoleService {
         ctx: &Self::Context,
         input: MemberRoleRef,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-member-roles (request/response).
     fn list_member_roles(
         &self,
         ctx: &Self::Context,
         input: MemberScopedListRequest,
-    ) -> Result<Vec<Role>, ServiceError>;
+    ) -> Result<RoleItems, ServiceError>;
 }
 
 /// SkillService service trait
@@ -308,12 +313,13 @@ pub trait SkillService {
         ctx: &Self::Context,
         input: SkillID,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-skills (request/response).
     fn list_skills(
         &self,
         ctx: &Self::Context,
         input: HouseScopedListRequest,
-    ) -> Result<Vec<Skill>, ServiceError>;
+    ) -> Result<SkillItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// add-member-skill (request/response).
     fn add_member_skill(
@@ -328,12 +334,13 @@ pub trait SkillService {
         ctx: &Self::Context,
         input: MemberSkillRef,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-member-skills (request/response).
     fn list_member_skills(
         &self,
         ctx: &Self::Context,
         input: MemberScopedListRequest,
-    ) -> Result<Vec<Skill>, ServiceError>;
+    ) -> Result<SkillItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// add-group-skill (request/response).
     fn add_group_skill(
@@ -348,12 +355,13 @@ pub trait SkillService {
         ctx: &Self::Context,
         input: GroupSkillRef,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-group-skills (request/response).
     fn list_group_skills(
         &self,
         ctx: &Self::Context,
         input: GroupID,
-    ) -> Result<Vec<Skill>, ServiceError>;
+    ) -> Result<SkillItems, ServiceError>;
 }
 
 /// GroupService service trait
@@ -372,12 +380,13 @@ pub trait GroupService {
         ctx: &Self::Context,
         input: GroupID,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-groups (request/response).
     fn list_groups(
         &self,
         ctx: &Self::Context,
         input: HouseScopedListRequest,
-    ) -> Result<Vec<Group>, ServiceError>;
+    ) -> Result<GroupItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// add-group-member (request/response).
     fn add_group_member(
@@ -392,12 +401,13 @@ pub trait GroupService {
         ctx: &Self::Context,
         input: GroupMemberRef,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-group-members (request/response).
     fn list_group_members(
         &self,
         ctx: &Self::Context,
         input: MemberScopedListRequest,
-    ) -> Result<Vec<Member>, ServiceError>;
+    ) -> Result<MemberItems, ServiceError>;
 }
 
 /// ProjectService service trait
@@ -454,12 +464,13 @@ pub trait ProjectService {
         ctx: &Self::Context,
         input: ProjectTaskOrderRequest,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-project-members (request/response).
     fn list_project_members(
         &self,
         ctx: &Self::Context,
         input: ProjectID,
-    ) -> Result<Vec<Member>, ServiceError>;
+    ) -> Result<MemberItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// add-project-member (request/response).
     fn add_project_member(
@@ -474,12 +485,13 @@ pub trait ProjectService {
         ctx: &Self::Context,
         input: ProjectMemberRef,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-project-owners (request/response).
     fn list_project_owners(
         &self,
         ctx: &Self::Context,
         input: ProjectID,
-    ) -> Result<Vec<Member>, ServiceError>;
+    ) -> Result<MemberItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// add-project-owner (request/response).
     fn add_project_owner(
@@ -494,12 +506,13 @@ pub trait ProjectService {
         ctx: &Self::Context,
         input: ProjectOwnerRef,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-milestones (request/response).
     fn list_milestones(
         &self,
         ctx: &Self::Context,
         input: ProjectID,
-    ) -> Result<Vec<Milestone>, ServiceError>;
+    ) -> Result<MilestoneItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// create-milestone (request/response).
     fn create_milestone(
@@ -528,12 +541,13 @@ pub trait ProjectService {
         ctx: &Self::Context,
         input: SetProjectVisibilityRequest,
     ) -> Result<Project, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-project-grants (request/response).
     fn list_project_grants(
         &self,
         ctx: &Self::Context,
         input: ProjectID,
-    ) -> Result<Vec<Grant>, ServiceError>;
+    ) -> Result<GrantItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// put-project-grant (request/response).
     fn put_project_grant(
@@ -576,12 +590,13 @@ pub trait EventService {
         ctx: &Self::Context,
         input: EventID,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-events (request/response).
     fn list_events(
         &self,
         ctx: &Self::Context,
         input: EventListRequest,
-    ) -> Result<Vec<Event>, ServiceError>;
+    ) -> Result<EventItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// get-calendar-view (request/response).
     fn get_calendar_view(
@@ -613,12 +628,13 @@ pub trait EventService {
         ctx: &Self::Context,
         input: EventDecision,
     ) -> Result<Event, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-local-events (request/response).
     fn list_local_events(
         &self,
         ctx: &Self::Context,
         input: HouseID,
-    ) -> Result<Vec<Event>, ServiceError>;
+    ) -> Result<EventItems, ServiceError>;
 }
 
 /// CalendarService service trait
@@ -666,18 +682,20 @@ pub trait CalendarService {
         ctx: &Self::Context,
         input: HouseID,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// preview-migration (request/response).
     fn preview_migration(
         &self,
         ctx: &Self::Context,
         input: HouseID,
-    ) -> Result<Vec<CalendarMigrationRow>, ServiceError>;
+    ) -> Result<CalendarMigrationRowItems, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-trash (request/response).
     fn list_trash(
         &self,
         ctx: &Self::Context,
         input: HouseID,
-    ) -> Result<Vec<CalendarTrashEntry>, ServiceError>;
+    ) -> Result<CalendarTrashEntryItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// restore-event (request/response).
     fn restore_event(
@@ -723,12 +741,13 @@ pub trait TaskService {
         ctx: &Self::Context,
         input: SetTaskVisibilityRequest,
     ) -> Result<Task, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-task-grants (request/response).
     fn list_task_grants(
         &self,
         ctx: &Self::Context,
         input: TaskID,
-    ) -> Result<Vec<Grant>, ServiceError>;
+    ) -> Result<GrantItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// put-task-grant (request/response).
     fn put_task_grant(
@@ -790,23 +809,25 @@ pub trait CommentService {
         ctx: &Self::Context,
         input: CommentID,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-comments (request/response).
     fn list_comments(
         &self,
         ctx: &Self::Context,
         input: CommentListRequest,
-    ) -> Result<Vec<Comment>, ServiceError>;
+    ) -> Result<CommentItems, ServiceError>;
 }
 
 /// NotificationService service trait
 pub trait NotificationService {
     type Context;
+    #[allow(clippy::result_large_err)]
     /// list-notifications (request/response).
     fn list_notifications(
         &self,
         ctx: &Self::Context,
         input: NotificationListRequest,
-    ) -> Result<Vec<Notification>, ServiceError>;
+    ) -> Result<NotificationItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// unread-count (request/response).
     fn unread_count(
@@ -843,12 +864,13 @@ pub trait ShareService {
         ctx: &Self::Context,
         input: ShareID,
     ) -> Result<EmptyResponse, ServiceError>;
+    #[allow(clippy::result_large_err)]
     /// list-shares-by-resource (request/response).
     fn list_shares_by_resource(
         &self,
         ctx: &Self::Context,
         input: ResourceRef,
-    ) -> Result<Vec<Share>, ServiceError>;
+    ) -> Result<ShareItems, ServiceError>;
     #[allow(clippy::result_large_err)]
     /// check-access (request/response).
     fn check_access(
@@ -861,12 +883,13 @@ pub trait ShareService {
 /// MemberAuditService service trait
 pub trait MemberAuditService {
     type Context;
+    #[allow(clippy::result_large_err)]
     /// list-audits-for-member (request/response).
     fn list_audits_for_member(
         &self,
         ctx: &Self::Context,
         input: MemberScopedListRequest,
-    ) -> Result<Vec<MemberAudit>, ServiceError>;
+    ) -> Result<MemberAuditItems, ServiceError>;
 }
 
 /// SettingsService service trait

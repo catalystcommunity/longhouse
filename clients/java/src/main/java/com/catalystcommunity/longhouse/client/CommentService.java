@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The CommentService server handler interface; the host implements it.
  */
@@ -12,5 +10,5 @@ public interface CommentService {
     Comment getComment(CommentId req);
     Comment updateComment(Comment req);
     EmptyResponse deleteComment(CommentId req);
-    List<Comment> listComments(CommentListRequest req);
+    CommentItems listComments(CommentListRequest req);
 }

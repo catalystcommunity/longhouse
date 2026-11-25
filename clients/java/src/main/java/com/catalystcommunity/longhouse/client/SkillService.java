@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The SkillService server handler interface; the host implements it.
  */
@@ -11,11 +9,11 @@ public interface SkillService {
     Skill createSkill(Skill req);
     Skill updateSkill(Skill req);
     EmptyResponse deleteSkill(SkillId req);
-    List<Skill> listSkills(HouseScopedListRequest req);
+    SkillItems listSkills(HouseScopedListRequest req);
     EmptyResponse addMemberSkill(MemberSkillRef req);
     EmptyResponse removeMemberSkill(MemberSkillRef req);
-    List<Skill> listMemberSkills(MemberScopedListRequest req);
+    SkillItems listMemberSkills(MemberScopedListRequest req);
     EmptyResponse addGroupSkill(GroupSkillRef req);
     EmptyResponse removeGroupSkill(GroupSkillRef req);
-    List<Skill> listGroupSkills(GroupId req);
+    SkillItems listGroupSkills(GroupId req);
 }

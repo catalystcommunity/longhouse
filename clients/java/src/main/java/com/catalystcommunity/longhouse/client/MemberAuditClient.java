@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the MemberAuditService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -15,7 +13,8 @@ public final class MemberAuditClient {
         this.transport = transport;
     }
 
-    public List<MemberAudit> listAuditsForMember(MemberScopedListRequest req) throws ClientException {
-        return CsilCbor.decodeMemberAuditListAuditsForMemberResponse(transport.call("MemberAuditService", "list-audits-for-member", CsilCbor.encodeMemberScopedListRequest(req)));
+    public MemberAuditItems listAuditsForMember(MemberScopedListRequest req) throws ClientException {
+        WireReply reply = transport.callReply("MemberAuditService", "list-audits-for-member", CsilCbor.encodeMemberScopedListRequest(req));
+        return CsilCbor.decodeMemberAuditListAuditsForMemberResponse(CsilCbor.resolveRpcReply("MemberAuditService", "list-audits-for-member", reply.variant(), reply.payload()));
     }
 }

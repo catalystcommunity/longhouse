@@ -87,6 +87,19 @@ client uses `time.Time`. The TypeScript client uses `Date`. Upgrade the
 API, web app, CLI, and external clients together. For houses that use
 CatalystCal, follow the [calendar upgrade procedure](docs/catalystcal.md#upgrade-from-text-timestamps).
 
+## Client SDK upgrade
+
+Longhouse uses csilgen `0.3.3`. If you supply a Go or TypeScript transport,
+implement both `Call` and `CallReply` in Go, or `call` and `callReply` in
+TypeScript. Return the envelope's variant and payload from the reply method.
+The generated client uses the variant to select the response type.
+
+If you call encoders directly, check the error in Go, handle the `Result`
+in Rust, and use `try` in Swift. Set required enum fields before encoding.
+
+Deploy the Longhouse API before clients generated with csilgen 0.3.3.
+These clients check the reply variant for list operations.
+
 ## Auth
 
 Sign-in is delegated to [linkkeys](https://github.com/catalystcommunity/linkkeys)
@@ -126,12 +139,11 @@ Longhouse sends its own claim request in `Rp/sign-request`
 `email`, `display_name`, and `avatar_url` claims are optional. The RP server
 does not need an `RP_CLAIMS_CONFIG` for Longhouse.
 
-The request also names the application (`application_id`). LinkKeys 0.16.7
-and later keep standing consent for each application, and the consent screen
-shows the display name of the RP API-key account. The application ID comes
-from `LONGHOUSE_LINKKEYS_APPLICATION_ID`. When that is empty, it comes from the
-act-as key file (`LONGHOUSE_ACT_AS_KEYS_FILE`). Otherwise it is `longhouse`.
-Keep it equal to the act-as application ID.
+Linkkeys v0.16.11 selects the application from the RP API key. Set the
+application ID on that Linkkeys account to the ID that Longhouse expects.
+Longhouse checks the ID in the verified assertion. To set the expected ID,
+use `LONGHOUSE_LINKKEYS_APPLICATION_ID`. If this setting is empty, Longhouse
+uses the ID in the act-as key file, or `longhouse` if there is no file.
 
 The bearer token snapshots the caller's per-house membership and roles at mint
 time, so authorization needs no database lookup per request. Staleness is

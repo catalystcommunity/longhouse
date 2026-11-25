@@ -14,6 +14,7 @@ public final class BugClient {
     }
 
     public Task reportBug(BugReportRequest req) throws ClientException {
-        return CsilCbor.decodeTask(transport.call("BugService", "report-bug", CsilCbor.encodeBugReportRequest(req)));
+        WireReply reply = transport.callReply("BugService", "report-bug", CsilCbor.encodeBugReportRequest(req));
+        return CsilCbor.decodeTask(CsilCbor.resolveRpcReply("BugService", "report-bug", reply.variant(), reply.payload()));
     }
 }
