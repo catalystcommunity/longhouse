@@ -5,18 +5,28 @@ open Types
 (* The transport seam is supplied by the consumer: [call] performs the RPC named
    by (service, op) over its carrier and returns the raw reply payload, or an
    error string. The generated client owns serialization (it encodes the typed
-   request and decodes the typed reply via [Codec]); the carrier only moves bytes. *)
+   request and decodes the typed reply via [Codec]); the carrier only moves bytes.
+
+   This spec has operations with more than one reply arm, so the seam also needs
+   [call_reply]: it performs the same RPC and returns the CSIL-RPC response
+   envelope's [variant] (None when absent) with the reply payload. The client
+   picks the arm from the variant: the success arm returns [Ok], a declared error
+   arm returns its [Error] tag, and a missing or unknown variant returns
+   [Error (`Decode _)]. *)
 type client = {
   call : service:string -> op:string -> payload:bytes -> (bytes, string) result;
+  call_reply :
+    service:string -> op:string -> payload:bytes -> (string option * bytes, string) result;
 }
 
-let make_client ~call = { call }
+let make_client ~call ~call_reply = { call; call_reply }
 
 module Auth_service = struct
   let begin_browser_login (c : client) (req : begin_browser_login_request) =
     try
-      match c.call ~service:"AuthService" ~op:"begin-browser-login" ~payload:(Codec.encode_auth_service_begin_browser_login_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_begin_browser_login_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"begin-browser-login" ~payload:(Codec.encode_auth_service_begin_browser_login_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_begin_browser_login_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"begin-browser-login" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -24,8 +34,9 @@ module Auth_service = struct
 
   let get_act_as_scope_set (c : client) (req : act_as_scope_set_request) =
     try
-      match c.call ~service:"AuthService" ~op:"get-act-as-scope-set" ~payload:(Codec.encode_auth_service_get_act_as_scope_set_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_get_act_as_scope_set_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"get-act-as-scope-set" ~payload:(Codec.encode_auth_service_get_act_as_scope_set_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_get_act_as_scope_set_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"get-act-as-scope-set" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -33,8 +44,9 @@ module Auth_service = struct
 
   let exchange_act_as_credential (c : client) (req : exchange_act_as_credential_request) =
     try
-      match c.call ~service:"AuthService" ~op:"exchange-act-as-credential" ~payload:(Codec.encode_auth_service_exchange_act_as_credential_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_exchange_act_as_credential_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"exchange-act-as-credential" ~payload:(Codec.encode_auth_service_exchange_act_as_credential_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_exchange_act_as_credential_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"exchange-act-as-credential" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -42,8 +54,9 @@ module Auth_service = struct
 
   let login (c : client) (req : login_request) =
     try
-      match c.call ~service:"AuthService" ~op:"login" ~payload:(Codec.encode_auth_service_login_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_login_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"login" ~payload:(Codec.encode_auth_service_login_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_login_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"login" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -51,8 +64,9 @@ module Auth_service = struct
 
   let complete (c : client) (req : complete_request) =
     try
-      match c.call ~service:"AuthService" ~op:"complete" ~payload:(Codec.encode_auth_service_complete_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_complete_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"complete" ~payload:(Codec.encode_auth_service_complete_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_complete_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"complete" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -60,8 +74,9 @@ module Auth_service = struct
 
   let refresh (c : client) (req : empty_request) =
     try
-      match c.call ~service:"AuthService" ~op:"refresh" ~payload:(Codec.encode_auth_service_refresh_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_refresh_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"refresh" ~payload:(Codec.encode_auth_service_refresh_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_refresh_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"refresh" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -69,8 +84,9 @@ module Auth_service = struct
 
   let logout (c : client) (req : empty_request) =
     try
-      match c.call ~service:"AuthService" ~op:"logout" ~payload:(Codec.encode_auth_service_logout_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_logout_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"logout" ~payload:(Codec.encode_auth_service_logout_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_logout_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"logout" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -78,8 +94,9 @@ module Auth_service = struct
 
   let resume_session (c : client) (req : empty_request) =
     try
-      match c.call ~service:"AuthService" ~op:"resume-session" ~payload:(Codec.encode_auth_service_resume_session_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_resume_session_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"resume-session" ~payload:(Codec.encode_auth_service_resume_session_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_resume_session_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"resume-session" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -87,8 +104,9 @@ module Auth_service = struct
 
   let end_session (c : client) (req : empty_request) =
     try
-      match c.call ~service:"AuthService" ~op:"end-session" ~payload:(Codec.encode_auth_service_end_session_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_end_session_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"end-session" ~payload:(Codec.encode_auth_service_end_session_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_end_session_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"end-session" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -96,8 +114,9 @@ module Auth_service = struct
 
   let me (c : client) (req : empty_request) =
     try
-      match c.call ~service:"AuthService" ~op:"me" ~payload:(Codec.encode_auth_service_me_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_me_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"me" ~payload:(Codec.encode_auth_service_me_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_me_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"me" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -105,8 +124,9 @@ module Auth_service = struct
 
   let begin_cli_login (c : client) (req : begin_cli_login_request) =
     try
-      match c.call ~service:"AuthService" ~op:"begin-cli-login" ~payload:(Codec.encode_auth_service_begin_cli_login_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_begin_cli_login_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"begin-cli-login" ~payload:(Codec.encode_auth_service_begin_cli_login_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_begin_cli_login_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"begin-cli-login" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -114,8 +134,9 @@ module Auth_service = struct
 
   let inspect_cli_login (c : client) (req : approve_cli_login_request) =
     try
-      match c.call ~service:"AuthService" ~op:"inspect-cli-login" ~payload:(Codec.encode_auth_service_inspect_cli_login_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_inspect_cli_login_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"inspect-cli-login" ~payload:(Codec.encode_auth_service_inspect_cli_login_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_inspect_cli_login_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"inspect-cli-login" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -123,8 +144,9 @@ module Auth_service = struct
 
   let approve_cli_login (c : client) (req : approve_cli_login_request) =
     try
-      match c.call ~service:"AuthService" ~op:"approve-cli-login" ~payload:(Codec.encode_auth_service_approve_cli_login_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_approve_cli_login_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"approve-cli-login" ~payload:(Codec.encode_auth_service_approve_cli_login_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_approve_cli_login_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"approve-cli-login" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -132,8 +154,9 @@ module Auth_service = struct
 
   let deny_cli_login (c : client) (req : deny_cli_login_request) =
     try
-      match c.call ~service:"AuthService" ~op:"deny-cli-login" ~payload:(Codec.encode_auth_service_deny_cli_login_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_deny_cli_login_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"deny-cli-login" ~payload:(Codec.encode_auth_service_deny_cli_login_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_deny_cli_login_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"deny-cli-login" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -141,8 +164,9 @@ module Auth_service = struct
 
   let exchange_cli_login (c : client) (req : exchange_cli_login_request) =
     try
-      match c.call ~service:"AuthService" ~op:"exchange-cli-login" ~payload:(Codec.encode_auth_service_exchange_cli_login_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_exchange_cli_login_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"exchange-cli-login" ~payload:(Codec.encode_auth_service_exchange_cli_login_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_exchange_cli_login_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"exchange-cli-login" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -150,8 +174,9 @@ module Auth_service = struct
 
   let refresh_session (c : client) (req : refresh_session_request) =
     try
-      match c.call ~service:"AuthService" ~op:"refresh-session" ~payload:(Codec.encode_auth_service_refresh_session_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_refresh_session_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"refresh-session" ~payload:(Codec.encode_auth_service_refresh_session_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_refresh_session_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"refresh-session" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -159,8 +184,9 @@ module Auth_service = struct
 
   let list_sessions (c : client) (req : empty_request) =
     try
-      match c.call ~service:"AuthService" ~op:"list-sessions" ~payload:(Codec.encode_auth_service_list_sessions_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_list_sessions_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"list-sessions" ~payload:(Codec.encode_auth_service_list_sessions_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_list_sessions_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"list-sessions" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -168,8 +194,9 @@ module Auth_service = struct
 
   let revoke_session (c : client) (req : revoke_session_request) =
     try
-      match c.call ~service:"AuthService" ~op:"revoke-session" ~payload:(Codec.encode_auth_service_revoke_session_request req) with
-      | Ok bytes -> Ok (Codec.decode_auth_service_revoke_session_success bytes)
+      match c.call_reply ~service:"AuthService" ~op:"revoke-session" ~payload:(Codec.encode_auth_service_revoke_session_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_auth_service_revoke_session_success (Codec.resolve_rpc_reply ~service:"AuthService" ~op:"revoke-session" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -179,8 +206,9 @@ end
 module Dev_auth_service = struct
   let list_dev_users (c : client) (req : empty_request) =
     try
-      match c.call ~service:"DevAuthService" ~op:"list-dev-users" ~payload:(Codec.encode_dev_auth_service_list_dev_users_request req) with
-      | Ok bytes -> Ok (Codec.decode_dev_auth_service_list_dev_users_success bytes)
+      match c.call_reply ~service:"DevAuthService" ~op:"list-dev-users" ~payload:(Codec.encode_dev_auth_service_list_dev_users_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_dev_auth_service_list_dev_users_success (Codec.resolve_rpc_reply ~service:"DevAuthService" ~op:"list-dev-users" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -188,8 +216,9 @@ module Dev_auth_service = struct
 
   let dev_login (c : client) (req : dev_login_request) =
     try
-      match c.call ~service:"DevAuthService" ~op:"dev-login" ~payload:(Codec.encode_dev_auth_service_dev_login_request req) with
-      | Ok bytes -> Ok (Codec.decode_dev_auth_service_dev_login_success bytes)
+      match c.call_reply ~service:"DevAuthService" ~op:"dev-login" ~payload:(Codec.encode_dev_auth_service_dev_login_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_dev_auth_service_dev_login_success (Codec.resolve_rpc_reply ~service:"DevAuthService" ~op:"dev-login" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -199,8 +228,9 @@ end
 module House_service = struct
   let create_house (c : client) (req : house) =
     try
-      match c.call ~service:"HouseService" ~op:"create-house" ~payload:(Codec.encode_house_service_create_house_request req) with
-      | Ok bytes -> Ok (Codec.decode_house_service_create_house_success bytes)
+      match c.call_reply ~service:"HouseService" ~op:"create-house" ~payload:(Codec.encode_house_service_create_house_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_house_service_create_house_success (Codec.resolve_rpc_reply ~service:"HouseService" ~op:"create-house" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -208,8 +238,9 @@ module House_service = struct
 
   let get_house (c : client) (req : house_id) =
     try
-      match c.call ~service:"HouseService" ~op:"get-house" ~payload:(Codec.encode_house_service_get_house_request req) with
-      | Ok bytes -> Ok (Codec.decode_house_service_get_house_success bytes)
+      match c.call_reply ~service:"HouseService" ~op:"get-house" ~payload:(Codec.encode_house_service_get_house_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_house_service_get_house_success (Codec.resolve_rpc_reply ~service:"HouseService" ~op:"get-house" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -217,8 +248,9 @@ module House_service = struct
 
   let update_house (c : client) (req : house) =
     try
-      match c.call ~service:"HouseService" ~op:"update-house" ~payload:(Codec.encode_house_service_update_house_request req) with
-      | Ok bytes -> Ok (Codec.decode_house_service_update_house_success bytes)
+      match c.call_reply ~service:"HouseService" ~op:"update-house" ~payload:(Codec.encode_house_service_update_house_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_house_service_update_house_success (Codec.resolve_rpc_reply ~service:"HouseService" ~op:"update-house" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -226,26 +258,31 @@ module House_service = struct
 
   let delete_house (c : client) (req : house_id) =
     try
-      match c.call ~service:"HouseService" ~op:"delete-house" ~payload:(Codec.encode_house_service_delete_house_request req) with
-      | Ok bytes -> Ok (Codec.decode_house_service_delete_house_success bytes)
+      match c.call_reply ~service:"HouseService" ~op:"delete-house" ~payload:(Codec.encode_house_service_delete_house_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_house_service_delete_house_success (Codec.resolve_rpc_reply ~service:"HouseService" ~op:"delete-house" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_houses (c : client)
-      ~(decode_response : bytes -> house list)
-      (req : house_list_request) : (house list, string) result =
-    match c.call ~service:"HouseService" ~op:"list-houses" ~payload:(Codec.encode_house_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_houses (c : client) (req : house_list_request) =
+    try
+      match c.call_reply ~service:"HouseService" ~op:"list-houses" ~payload:(Codec.encode_house_service_list_houses_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_house_service_list_houses_success (Codec.resolve_rpc_reply ~service:"HouseService" ~op:"list-houses" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 end
 
 module Member_service = struct
   let create_member (c : client) (req : member) =
     try
-      match c.call ~service:"MemberService" ~op:"create-member" ~payload:(Codec.encode_member_service_create_member_request req) with
-      | Ok bytes -> Ok (Codec.decode_member_service_create_member_success bytes)
+      match c.call_reply ~service:"MemberService" ~op:"create-member" ~payload:(Codec.encode_member_service_create_member_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_member_service_create_member_success (Codec.resolve_rpc_reply ~service:"MemberService" ~op:"create-member" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -253,8 +290,9 @@ module Member_service = struct
 
   let get_member (c : client) (req : member_id) =
     try
-      match c.call ~service:"MemberService" ~op:"get-member" ~payload:(Codec.encode_member_service_get_member_request req) with
-      | Ok bytes -> Ok (Codec.decode_member_service_get_member_success bytes)
+      match c.call_reply ~service:"MemberService" ~op:"get-member" ~payload:(Codec.encode_member_service_get_member_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_member_service_get_member_success (Codec.resolve_rpc_reply ~service:"MemberService" ~op:"get-member" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -262,8 +300,9 @@ module Member_service = struct
 
   let get_member_by_identity (c : client) (req : member) =
     try
-      match c.call ~service:"MemberService" ~op:"get-member-by-identity" ~payload:(Codec.encode_member_service_get_member_by_identity_request req) with
-      | Ok bytes -> Ok (Codec.decode_member_service_get_member_by_identity_success bytes)
+      match c.call_reply ~service:"MemberService" ~op:"get-member-by-identity" ~payload:(Codec.encode_member_service_get_member_by_identity_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_member_service_get_member_by_identity_success (Codec.resolve_rpc_reply ~service:"MemberService" ~op:"get-member-by-identity" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -271,8 +310,9 @@ module Member_service = struct
 
   let update_member (c : client) (req : member) =
     try
-      match c.call ~service:"MemberService" ~op:"update-member" ~payload:(Codec.encode_member_service_update_member_request req) with
-      | Ok bytes -> Ok (Codec.decode_member_service_update_member_success bytes)
+      match c.call_reply ~service:"MemberService" ~op:"update-member" ~payload:(Codec.encode_member_service_update_member_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_member_service_update_member_success (Codec.resolve_rpc_reply ~service:"MemberService" ~op:"update-member" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -280,8 +320,9 @@ module Member_service = struct
 
   let deactivate_member (c : client) (req : member_id) =
     try
-      match c.call ~service:"MemberService" ~op:"deactivate-member" ~payload:(Codec.encode_member_service_deactivate_member_request req) with
-      | Ok bytes -> Ok (Codec.decode_member_service_deactivate_member_success bytes)
+      match c.call_reply ~service:"MemberService" ~op:"deactivate-member" ~payload:(Codec.encode_member_service_deactivate_member_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_member_service_deactivate_member_success (Codec.resolve_rpc_reply ~service:"MemberService" ~op:"deactivate-member" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -289,26 +330,31 @@ module Member_service = struct
 
   let reactivate_member (c : client) (req : member_id) =
     try
-      match c.call ~service:"MemberService" ~op:"reactivate-member" ~payload:(Codec.encode_member_service_reactivate_member_request req) with
-      | Ok bytes -> Ok (Codec.decode_member_service_reactivate_member_success bytes)
+      match c.call_reply ~service:"MemberService" ~op:"reactivate-member" ~payload:(Codec.encode_member_service_reactivate_member_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_member_service_reactivate_member_success (Codec.resolve_rpc_reply ~service:"MemberService" ~op:"reactivate-member" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_members (c : client)
-      ~(decode_response : bytes -> member list)
-      (req : house_scoped_list_request) : (member list, string) result =
-    match c.call ~service:"MemberService" ~op:"list-members" ~payload:(Codec.encode_house_scoped_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_members (c : client) (req : house_scoped_list_request) =
+    try
+      match c.call_reply ~service:"MemberService" ~op:"list-members" ~payload:(Codec.encode_member_service_list_members_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_member_service_list_members_success (Codec.resolve_rpc_reply ~service:"MemberService" ~op:"list-members" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 end
 
 module Trusted_domain_service = struct
   let add_trusted_domain (c : client) (req : trusted_domain) =
     try
-      match c.call ~service:"TrustedDomainService" ~op:"add-trusted-domain" ~payload:(Codec.encode_trusted_domain_service_add_trusted_domain_request req) with
-      | Ok bytes -> Ok (Codec.decode_trusted_domain_service_add_trusted_domain_success bytes)
+      match c.call_reply ~service:"TrustedDomainService" ~op:"add-trusted-domain" ~payload:(Codec.encode_trusted_domain_service_add_trusted_domain_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_trusted_domain_service_add_trusted_domain_success (Codec.resolve_rpc_reply ~service:"TrustedDomainService" ~op:"add-trusted-domain" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -316,25 +362,29 @@ module Trusted_domain_service = struct
 
   let remove_trusted_domain (c : client) (req : trusted_domain_id) =
     try
-      match c.call ~service:"TrustedDomainService" ~op:"remove-trusted-domain" ~payload:(Codec.encode_trusted_domain_service_remove_trusted_domain_request req) with
-      | Ok bytes -> Ok (Codec.decode_trusted_domain_service_remove_trusted_domain_success bytes)
+      match c.call_reply ~service:"TrustedDomainService" ~op:"remove-trusted-domain" ~payload:(Codec.encode_trusted_domain_service_remove_trusted_domain_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_trusted_domain_service_remove_trusted_domain_success (Codec.resolve_rpc_reply ~service:"TrustedDomainService" ~op:"remove-trusted-domain" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_trusted_domains (c : client)
-      ~(encode_request : house_id -> bytes)
-      ~(decode_response : bytes -> trusted_domain list)
-      (req : house_id) : (trusted_domain list, string) result =
-    match c.call ~service:"TrustedDomainService" ~op:"list-trusted-domains" ~payload:(encode_request req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_trusted_domains (c : client) (req : house_id) =
+    try
+      match c.call_reply ~service:"TrustedDomainService" ~op:"list-trusted-domains" ~payload:(Codec.encode_trusted_domain_service_list_trusted_domains_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_trusted_domain_service_list_trusted_domains_success (Codec.resolve_rpc_reply ~service:"TrustedDomainService" ~op:"list-trusted-domains" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let is_domain_trusted (c : client) (req : trusted_domain) =
     try
-      match c.call ~service:"TrustedDomainService" ~op:"is-domain-trusted" ~payload:(Codec.encode_trusted_domain_service_is_domain_trusted_request req) with
-      | Ok bytes -> Ok (Codec.decode_trusted_domain_service_is_domain_trusted_success bytes)
+      match c.call_reply ~service:"TrustedDomainService" ~op:"is-domain-trusted" ~payload:(Codec.encode_trusted_domain_service_is_domain_trusted_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_trusted_domain_service_is_domain_trusted_success (Codec.resolve_rpc_reply ~service:"TrustedDomainService" ~op:"is-domain-trusted" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -344,8 +394,9 @@ end
 module Role_service = struct
   let create_role (c : client) (req : role) =
     try
-      match c.call ~service:"RoleService" ~op:"create-role" ~payload:(Codec.encode_role_service_create_role_request req) with
-      | Ok bytes -> Ok (Codec.decode_role_service_create_role_success bytes)
+      match c.call_reply ~service:"RoleService" ~op:"create-role" ~payload:(Codec.encode_role_service_create_role_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_role_service_create_role_success (Codec.resolve_rpc_reply ~service:"RoleService" ~op:"create-role" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -353,8 +404,9 @@ module Role_service = struct
 
   let update_role (c : client) (req : role) =
     try
-      match c.call ~service:"RoleService" ~op:"update-role" ~payload:(Codec.encode_role_service_update_role_request req) with
-      | Ok bytes -> Ok (Codec.decode_role_service_update_role_success bytes)
+      match c.call_reply ~service:"RoleService" ~op:"update-role" ~payload:(Codec.encode_role_service_update_role_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_role_service_update_role_success (Codec.resolve_rpc_reply ~service:"RoleService" ~op:"update-role" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -362,24 +414,29 @@ module Role_service = struct
 
   let delete_role (c : client) (req : role_id) =
     try
-      match c.call ~service:"RoleService" ~op:"delete-role" ~payload:(Codec.encode_role_service_delete_role_request req) with
-      | Ok bytes -> Ok (Codec.decode_role_service_delete_role_success bytes)
+      match c.call_reply ~service:"RoleService" ~op:"delete-role" ~payload:(Codec.encode_role_service_delete_role_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_role_service_delete_role_success (Codec.resolve_rpc_reply ~service:"RoleService" ~op:"delete-role" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_roles (c : client)
-      ~(decode_response : bytes -> role list)
-      (req : house_scoped_list_request) : (role list, string) result =
-    match c.call ~service:"RoleService" ~op:"list-roles" ~payload:(Codec.encode_house_scoped_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_roles (c : client) (req : house_scoped_list_request) =
+    try
+      match c.call_reply ~service:"RoleService" ~op:"list-roles" ~payload:(Codec.encode_role_service_list_roles_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_role_service_list_roles_success (Codec.resolve_rpc_reply ~service:"RoleService" ~op:"list-roles" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let grant_role (c : client) (req : member_role_ref) =
     try
-      match c.call ~service:"RoleService" ~op:"grant-role" ~payload:(Codec.encode_role_service_grant_role_request req) with
-      | Ok bytes -> Ok (Codec.decode_role_service_grant_role_success bytes)
+      match c.call_reply ~service:"RoleService" ~op:"grant-role" ~payload:(Codec.encode_role_service_grant_role_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_role_service_grant_role_success (Codec.resolve_rpc_reply ~service:"RoleService" ~op:"grant-role" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -387,26 +444,31 @@ module Role_service = struct
 
   let revoke_role (c : client) (req : member_role_ref) =
     try
-      match c.call ~service:"RoleService" ~op:"revoke-role" ~payload:(Codec.encode_role_service_revoke_role_request req) with
-      | Ok bytes -> Ok (Codec.decode_role_service_revoke_role_success bytes)
+      match c.call_reply ~service:"RoleService" ~op:"revoke-role" ~payload:(Codec.encode_role_service_revoke_role_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_role_service_revoke_role_success (Codec.resolve_rpc_reply ~service:"RoleService" ~op:"revoke-role" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_member_roles (c : client)
-      ~(decode_response : bytes -> role list)
-      (req : member_scoped_list_request) : (role list, string) result =
-    match c.call ~service:"RoleService" ~op:"list-member-roles" ~payload:(Codec.encode_member_scoped_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_member_roles (c : client) (req : member_scoped_list_request) =
+    try
+      match c.call_reply ~service:"RoleService" ~op:"list-member-roles" ~payload:(Codec.encode_role_service_list_member_roles_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_role_service_list_member_roles_success (Codec.resolve_rpc_reply ~service:"RoleService" ~op:"list-member-roles" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 end
 
 module Skill_service = struct
   let create_skill (c : client) (req : skill) =
     try
-      match c.call ~service:"SkillService" ~op:"create-skill" ~payload:(Codec.encode_skill_service_create_skill_request req) with
-      | Ok bytes -> Ok (Codec.decode_skill_service_create_skill_success bytes)
+      match c.call_reply ~service:"SkillService" ~op:"create-skill" ~payload:(Codec.encode_skill_service_create_skill_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_skill_service_create_skill_success (Codec.resolve_rpc_reply ~service:"SkillService" ~op:"create-skill" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -414,8 +476,9 @@ module Skill_service = struct
 
   let update_skill (c : client) (req : skill) =
     try
-      match c.call ~service:"SkillService" ~op:"update-skill" ~payload:(Codec.encode_skill_service_update_skill_request req) with
-      | Ok bytes -> Ok (Codec.decode_skill_service_update_skill_success bytes)
+      match c.call_reply ~service:"SkillService" ~op:"update-skill" ~payload:(Codec.encode_skill_service_update_skill_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_skill_service_update_skill_success (Codec.resolve_rpc_reply ~service:"SkillService" ~op:"update-skill" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -423,24 +486,29 @@ module Skill_service = struct
 
   let delete_skill (c : client) (req : skill_id) =
     try
-      match c.call ~service:"SkillService" ~op:"delete-skill" ~payload:(Codec.encode_skill_service_delete_skill_request req) with
-      | Ok bytes -> Ok (Codec.decode_skill_service_delete_skill_success bytes)
+      match c.call_reply ~service:"SkillService" ~op:"delete-skill" ~payload:(Codec.encode_skill_service_delete_skill_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_skill_service_delete_skill_success (Codec.resolve_rpc_reply ~service:"SkillService" ~op:"delete-skill" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_skills (c : client)
-      ~(decode_response : bytes -> skill list)
-      (req : house_scoped_list_request) : (skill list, string) result =
-    match c.call ~service:"SkillService" ~op:"list-skills" ~payload:(Codec.encode_house_scoped_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_skills (c : client) (req : house_scoped_list_request) =
+    try
+      match c.call_reply ~service:"SkillService" ~op:"list-skills" ~payload:(Codec.encode_skill_service_list_skills_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_skill_service_list_skills_success (Codec.resolve_rpc_reply ~service:"SkillService" ~op:"list-skills" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let add_member_skill (c : client) (req : member_skill_ref) =
     try
-      match c.call ~service:"SkillService" ~op:"add-member-skill" ~payload:(Codec.encode_skill_service_add_member_skill_request req) with
-      | Ok bytes -> Ok (Codec.decode_skill_service_add_member_skill_success bytes)
+      match c.call_reply ~service:"SkillService" ~op:"add-member-skill" ~payload:(Codec.encode_skill_service_add_member_skill_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_skill_service_add_member_skill_success (Codec.resolve_rpc_reply ~service:"SkillService" ~op:"add-member-skill" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -448,24 +516,29 @@ module Skill_service = struct
 
   let remove_member_skill (c : client) (req : member_skill_ref) =
     try
-      match c.call ~service:"SkillService" ~op:"remove-member-skill" ~payload:(Codec.encode_skill_service_remove_member_skill_request req) with
-      | Ok bytes -> Ok (Codec.decode_skill_service_remove_member_skill_success bytes)
+      match c.call_reply ~service:"SkillService" ~op:"remove-member-skill" ~payload:(Codec.encode_skill_service_remove_member_skill_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_skill_service_remove_member_skill_success (Codec.resolve_rpc_reply ~service:"SkillService" ~op:"remove-member-skill" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_member_skills (c : client)
-      ~(decode_response : bytes -> skill list)
-      (req : member_scoped_list_request) : (skill list, string) result =
-    match c.call ~service:"SkillService" ~op:"list-member-skills" ~payload:(Codec.encode_member_scoped_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_member_skills (c : client) (req : member_scoped_list_request) =
+    try
+      match c.call_reply ~service:"SkillService" ~op:"list-member-skills" ~payload:(Codec.encode_skill_service_list_member_skills_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_skill_service_list_member_skills_success (Codec.resolve_rpc_reply ~service:"SkillService" ~op:"list-member-skills" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let add_group_skill (c : client) (req : group_skill_ref) =
     try
-      match c.call ~service:"SkillService" ~op:"add-group-skill" ~payload:(Codec.encode_skill_service_add_group_skill_request req) with
-      | Ok bytes -> Ok (Codec.decode_skill_service_add_group_skill_success bytes)
+      match c.call_reply ~service:"SkillService" ~op:"add-group-skill" ~payload:(Codec.encode_skill_service_add_group_skill_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_skill_service_add_group_skill_success (Codec.resolve_rpc_reply ~service:"SkillService" ~op:"add-group-skill" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -473,27 +546,31 @@ module Skill_service = struct
 
   let remove_group_skill (c : client) (req : group_skill_ref) =
     try
-      match c.call ~service:"SkillService" ~op:"remove-group-skill" ~payload:(Codec.encode_skill_service_remove_group_skill_request req) with
-      | Ok bytes -> Ok (Codec.decode_skill_service_remove_group_skill_success bytes)
+      match c.call_reply ~service:"SkillService" ~op:"remove-group-skill" ~payload:(Codec.encode_skill_service_remove_group_skill_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_skill_service_remove_group_skill_success (Codec.resolve_rpc_reply ~service:"SkillService" ~op:"remove-group-skill" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_group_skills (c : client)
-      ~(encode_request : group_id -> bytes)
-      ~(decode_response : bytes -> skill list)
-      (req : group_id) : (skill list, string) result =
-    match c.call ~service:"SkillService" ~op:"list-group-skills" ~payload:(encode_request req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_group_skills (c : client) (req : group_id) =
+    try
+      match c.call_reply ~service:"SkillService" ~op:"list-group-skills" ~payload:(Codec.encode_skill_service_list_group_skills_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_skill_service_list_group_skills_success (Codec.resolve_rpc_reply ~service:"SkillService" ~op:"list-group-skills" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 end
 
 module Group_service = struct
   let create_group (c : client) (req : group) =
     try
-      match c.call ~service:"GroupService" ~op:"create-group" ~payload:(Codec.encode_group_service_create_group_request req) with
-      | Ok bytes -> Ok (Codec.decode_group_service_create_group_success bytes)
+      match c.call_reply ~service:"GroupService" ~op:"create-group" ~payload:(Codec.encode_group_service_create_group_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_group_service_create_group_success (Codec.resolve_rpc_reply ~service:"GroupService" ~op:"create-group" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -501,8 +578,9 @@ module Group_service = struct
 
   let update_group (c : client) (req : group) =
     try
-      match c.call ~service:"GroupService" ~op:"update-group" ~payload:(Codec.encode_group_service_update_group_request req) with
-      | Ok bytes -> Ok (Codec.decode_group_service_update_group_success bytes)
+      match c.call_reply ~service:"GroupService" ~op:"update-group" ~payload:(Codec.encode_group_service_update_group_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_group_service_update_group_success (Codec.resolve_rpc_reply ~service:"GroupService" ~op:"update-group" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -510,24 +588,29 @@ module Group_service = struct
 
   let delete_group (c : client) (req : group_id) =
     try
-      match c.call ~service:"GroupService" ~op:"delete-group" ~payload:(Codec.encode_group_service_delete_group_request req) with
-      | Ok bytes -> Ok (Codec.decode_group_service_delete_group_success bytes)
+      match c.call_reply ~service:"GroupService" ~op:"delete-group" ~payload:(Codec.encode_group_service_delete_group_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_group_service_delete_group_success (Codec.resolve_rpc_reply ~service:"GroupService" ~op:"delete-group" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_groups (c : client)
-      ~(decode_response : bytes -> group list)
-      (req : house_scoped_list_request) : (group list, string) result =
-    match c.call ~service:"GroupService" ~op:"list-groups" ~payload:(Codec.encode_house_scoped_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_groups (c : client) (req : house_scoped_list_request) =
+    try
+      match c.call_reply ~service:"GroupService" ~op:"list-groups" ~payload:(Codec.encode_group_service_list_groups_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_group_service_list_groups_success (Codec.resolve_rpc_reply ~service:"GroupService" ~op:"list-groups" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let add_group_member (c : client) (req : group_member_ref) =
     try
-      match c.call ~service:"GroupService" ~op:"add-group-member" ~payload:(Codec.encode_group_service_add_group_member_request req) with
-      | Ok bytes -> Ok (Codec.decode_group_service_add_group_member_success bytes)
+      match c.call_reply ~service:"GroupService" ~op:"add-group-member" ~payload:(Codec.encode_group_service_add_group_member_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_group_service_add_group_member_success (Codec.resolve_rpc_reply ~service:"GroupService" ~op:"add-group-member" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -535,26 +618,31 @@ module Group_service = struct
 
   let remove_group_member (c : client) (req : group_member_ref) =
     try
-      match c.call ~service:"GroupService" ~op:"remove-group-member" ~payload:(Codec.encode_group_service_remove_group_member_request req) with
-      | Ok bytes -> Ok (Codec.decode_group_service_remove_group_member_success bytes)
+      match c.call_reply ~service:"GroupService" ~op:"remove-group-member" ~payload:(Codec.encode_group_service_remove_group_member_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_group_service_remove_group_member_success (Codec.resolve_rpc_reply ~service:"GroupService" ~op:"remove-group-member" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_group_members (c : client)
-      ~(decode_response : bytes -> member list)
-      (req : member_scoped_list_request) : (member list, string) result =
-    match c.call ~service:"GroupService" ~op:"list-group-members" ~payload:(Codec.encode_member_scoped_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_group_members (c : client) (req : member_scoped_list_request) =
+    try
+      match c.call_reply ~service:"GroupService" ~op:"list-group-members" ~payload:(Codec.encode_group_service_list_group_members_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_group_service_list_group_members_success (Codec.resolve_rpc_reply ~service:"GroupService" ~op:"list-group-members" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 end
 
 module Project_service = struct
   let create_project (c : client) (req : project) =
     try
-      match c.call ~service:"ProjectService" ~op:"create-project" ~payload:(Codec.encode_project_service_create_project_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_create_project_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"create-project" ~payload:(Codec.encode_project_service_create_project_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_create_project_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"create-project" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -562,8 +650,9 @@ module Project_service = struct
 
   let get_project (c : client) (req : project_id) =
     try
-      match c.call ~service:"ProjectService" ~op:"get-project" ~payload:(Codec.encode_project_service_get_project_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_get_project_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"get-project" ~payload:(Codec.encode_project_service_get_project_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_get_project_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"get-project" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -571,8 +660,9 @@ module Project_service = struct
 
   let update_project (c : client) (req : project) =
     try
-      match c.call ~service:"ProjectService" ~op:"update-project" ~payload:(Codec.encode_project_service_update_project_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_update_project_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"update-project" ~payload:(Codec.encode_project_service_update_project_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_update_project_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"update-project" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -580,8 +670,9 @@ module Project_service = struct
 
   let delete_project (c : client) (req : project_id) =
     try
-      match c.call ~service:"ProjectService" ~op:"delete-project" ~payload:(Codec.encode_project_service_delete_project_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_delete_project_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"delete-project" ~payload:(Codec.encode_project_service_delete_project_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_delete_project_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"delete-project" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -589,8 +680,9 @@ module Project_service = struct
 
   let list_projects (c : client) (req : house_scoped_list_request) =
     try
-      match c.call ~service:"ProjectService" ~op:"list-projects" ~payload:(Codec.encode_project_service_list_projects_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_list_projects_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"list-projects" ~payload:(Codec.encode_project_service_list_projects_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_list_projects_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"list-projects" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -598,8 +690,9 @@ module Project_service = struct
 
   let list_project_tasks (c : client) (req : project_scoped_list_request) =
     try
-      match c.call ~service:"ProjectService" ~op:"list-project-tasks" ~payload:(Codec.encode_project_service_list_project_tasks_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_list_project_tasks_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"list-project-tasks" ~payload:(Codec.encode_project_service_list_project_tasks_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_list_project_tasks_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"list-project-tasks" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -607,8 +700,9 @@ module Project_service = struct
 
   let add_project_task (c : client) (req : project_task_order_request) =
     try
-      match c.call ~service:"ProjectService" ~op:"add-project-task" ~payload:(Codec.encode_project_service_add_project_task_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_add_project_task_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"add-project-task" ~payload:(Codec.encode_project_service_add_project_task_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_add_project_task_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"add-project-task" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -616,8 +710,9 @@ module Project_service = struct
 
   let remove_project_task (c : client) (req : project_task_ref) =
     try
-      match c.call ~service:"ProjectService" ~op:"remove-project-task" ~payload:(Codec.encode_project_service_remove_project_task_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_remove_project_task_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"remove-project-task" ~payload:(Codec.encode_project_service_remove_project_task_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_remove_project_task_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"remove-project-task" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -625,25 +720,29 @@ module Project_service = struct
 
   let set_project_task_position (c : client) (req : project_task_order_request) =
     try
-      match c.call ~service:"ProjectService" ~op:"set-project-task-position" ~payload:(Codec.encode_project_service_set_project_task_position_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_set_project_task_position_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"set-project-task-position" ~payload:(Codec.encode_project_service_set_project_task_position_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_set_project_task_position_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"set-project-task-position" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_project_members (c : client)
-      ~(encode_request : project_id -> bytes)
-      ~(decode_response : bytes -> member list)
-      (req : project_id) : (member list, string) result =
-    match c.call ~service:"ProjectService" ~op:"list-project-members" ~payload:(encode_request req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_project_members (c : client) (req : project_id) =
+    try
+      match c.call_reply ~service:"ProjectService" ~op:"list-project-members" ~payload:(Codec.encode_project_service_list_project_members_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_list_project_members_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"list-project-members" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let add_project_member (c : client) (req : project_member_ref) =
     try
-      match c.call ~service:"ProjectService" ~op:"add-project-member" ~payload:(Codec.encode_project_service_add_project_member_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_add_project_member_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"add-project-member" ~payload:(Codec.encode_project_service_add_project_member_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_add_project_member_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"add-project-member" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -651,25 +750,29 @@ module Project_service = struct
 
   let remove_project_member (c : client) (req : project_member_ref) =
     try
-      match c.call ~service:"ProjectService" ~op:"remove-project-member" ~payload:(Codec.encode_project_service_remove_project_member_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_remove_project_member_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"remove-project-member" ~payload:(Codec.encode_project_service_remove_project_member_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_remove_project_member_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"remove-project-member" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_project_owners (c : client)
-      ~(encode_request : project_id -> bytes)
-      ~(decode_response : bytes -> member list)
-      (req : project_id) : (member list, string) result =
-    match c.call ~service:"ProjectService" ~op:"list-project-owners" ~payload:(encode_request req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_project_owners (c : client) (req : project_id) =
+    try
+      match c.call_reply ~service:"ProjectService" ~op:"list-project-owners" ~payload:(Codec.encode_project_service_list_project_owners_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_list_project_owners_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"list-project-owners" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let add_project_owner (c : client) (req : project_owner_ref) =
     try
-      match c.call ~service:"ProjectService" ~op:"add-project-owner" ~payload:(Codec.encode_project_service_add_project_owner_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_add_project_owner_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"add-project-owner" ~payload:(Codec.encode_project_service_add_project_owner_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_add_project_owner_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"add-project-owner" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -677,25 +780,29 @@ module Project_service = struct
 
   let remove_project_owner (c : client) (req : project_owner_ref) =
     try
-      match c.call ~service:"ProjectService" ~op:"remove-project-owner" ~payload:(Codec.encode_project_service_remove_project_owner_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_remove_project_owner_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"remove-project-owner" ~payload:(Codec.encode_project_service_remove_project_owner_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_remove_project_owner_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"remove-project-owner" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_milestones (c : client)
-      ~(encode_request : project_id -> bytes)
-      ~(decode_response : bytes -> milestone list)
-      (req : project_id) : (milestone list, string) result =
-    match c.call ~service:"ProjectService" ~op:"list-milestones" ~payload:(encode_request req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_milestones (c : client) (req : project_id) =
+    try
+      match c.call_reply ~service:"ProjectService" ~op:"list-milestones" ~payload:(Codec.encode_project_service_list_milestones_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_list_milestones_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"list-milestones" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let create_milestone (c : client) (req : milestone) =
     try
-      match c.call ~service:"ProjectService" ~op:"create-milestone" ~payload:(Codec.encode_project_service_create_milestone_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_create_milestone_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"create-milestone" ~payload:(Codec.encode_project_service_create_milestone_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_create_milestone_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"create-milestone" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -703,8 +810,9 @@ module Project_service = struct
 
   let update_milestone (c : client) (req : milestone) =
     try
-      match c.call ~service:"ProjectService" ~op:"update-milestone" ~payload:(Codec.encode_project_service_update_milestone_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_update_milestone_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"update-milestone" ~payload:(Codec.encode_project_service_update_milestone_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_update_milestone_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"update-milestone" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -712,8 +820,9 @@ module Project_service = struct
 
   let delete_milestone (c : client) (req : milestone_id) =
     try
-      match c.call ~service:"ProjectService" ~op:"delete-milestone" ~payload:(Codec.encode_project_service_delete_milestone_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_delete_milestone_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"delete-milestone" ~payload:(Codec.encode_project_service_delete_milestone_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_delete_milestone_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"delete-milestone" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -721,25 +830,29 @@ module Project_service = struct
 
   let set_project_visibility (c : client) (req : set_project_visibility_request) =
     try
-      match c.call ~service:"ProjectService" ~op:"set-project-visibility" ~payload:(Codec.encode_project_service_set_project_visibility_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_set_project_visibility_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"set-project-visibility" ~payload:(Codec.encode_project_service_set_project_visibility_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_set_project_visibility_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"set-project-visibility" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_project_grants (c : client)
-      ~(encode_request : project_id -> bytes)
-      ~(decode_response : bytes -> grant list)
-      (req : project_id) : (grant list, string) result =
-    match c.call ~service:"ProjectService" ~op:"list-project-grants" ~payload:(encode_request req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_project_grants (c : client) (req : project_id) =
+    try
+      match c.call_reply ~service:"ProjectService" ~op:"list-project-grants" ~payload:(Codec.encode_project_service_list_project_grants_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_list_project_grants_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"list-project-grants" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let put_project_grant (c : client) (req : put_project_grant_request) =
     try
-      match c.call ~service:"ProjectService" ~op:"put-project-grant" ~payload:(Codec.encode_project_service_put_project_grant_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_put_project_grant_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"put-project-grant" ~payload:(Codec.encode_project_service_put_project_grant_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_put_project_grant_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"put-project-grant" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -747,8 +860,9 @@ module Project_service = struct
 
   let delete_project_grant (c : client) (req : project_grant_ref) =
     try
-      match c.call ~service:"ProjectService" ~op:"delete-project-grant" ~payload:(Codec.encode_project_service_delete_project_grant_request req) with
-      | Ok bytes -> Ok (Codec.decode_project_service_delete_project_grant_success bytes)
+      match c.call_reply ~service:"ProjectService" ~op:"delete-project-grant" ~payload:(Codec.encode_project_service_delete_project_grant_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_project_service_delete_project_grant_success (Codec.resolve_rpc_reply ~service:"ProjectService" ~op:"delete-project-grant" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -758,8 +872,9 @@ end
 module Event_service = struct
   let create_event (c : client) (req : event) =
     try
-      match c.call ~service:"EventService" ~op:"create-event" ~payload:(Codec.encode_event_service_create_event_request req) with
-      | Ok bytes -> Ok (Codec.decode_event_service_create_event_success bytes)
+      match c.call_reply ~service:"EventService" ~op:"create-event" ~payload:(Codec.encode_event_service_create_event_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_create_event_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"create-event" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -767,8 +882,9 @@ module Event_service = struct
 
   let get_event (c : client) (req : event_id) =
     try
-      match c.call ~service:"EventService" ~op:"get-event" ~payload:(Codec.encode_event_service_get_event_request req) with
-      | Ok bytes -> Ok (Codec.decode_event_service_get_event_success bytes)
+      match c.call_reply ~service:"EventService" ~op:"get-event" ~payload:(Codec.encode_event_service_get_event_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_get_event_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"get-event" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -776,8 +892,9 @@ module Event_service = struct
 
   let update_event (c : client) (req : event) =
     try
-      match c.call ~service:"EventService" ~op:"update-event" ~payload:(Codec.encode_event_service_update_event_request req) with
-      | Ok bytes -> Ok (Codec.decode_event_service_update_event_success bytes)
+      match c.call_reply ~service:"EventService" ~op:"update-event" ~payload:(Codec.encode_event_service_update_event_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_update_event_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"update-event" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -785,8 +902,9 @@ module Event_service = struct
 
   let delete_event (c : client) (req : event_id) =
     try
-      match c.call ~service:"EventService" ~op:"delete-event" ~payload:(Codec.encode_event_service_delete_event_request req) with
-      | Ok bytes -> Ok (Codec.decode_event_service_delete_event_success bytes)
+      match c.call_reply ~service:"EventService" ~op:"delete-event" ~payload:(Codec.encode_event_service_delete_event_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_delete_event_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"delete-event" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -794,24 +912,29 @@ module Event_service = struct
 
   let delete_event_and_future (c : client) (req : event_id) =
     try
-      match c.call ~service:"EventService" ~op:"delete-event-and-future" ~payload:(Codec.encode_event_service_delete_event_and_future_request req) with
-      | Ok bytes -> Ok (Codec.decode_event_service_delete_event_and_future_success bytes)
+      match c.call_reply ~service:"EventService" ~op:"delete-event-and-future" ~payload:(Codec.encode_event_service_delete_event_and_future_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_delete_event_and_future_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"delete-event-and-future" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_events (c : client)
-      ~(decode_response : bytes -> event list)
-      (req : event_list_request) : (event list, string) result =
-    match c.call ~service:"EventService" ~op:"list-events" ~payload:(Codec.encode_event_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_events (c : client) (req : event_list_request) =
+    try
+      match c.call_reply ~service:"EventService" ~op:"list-events" ~payload:(Codec.encode_event_service_list_events_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_list_events_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"list-events" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let get_calendar_view (c : client) (req : house_id) =
     try
-      match c.call ~service:"EventService" ~op:"get-calendar-view" ~payload:(Codec.encode_event_service_get_calendar_view_request req) with
-      | Ok bytes -> Ok (Codec.decode_event_service_get_calendar_view_success bytes)
+      match c.call_reply ~service:"EventService" ~op:"get-calendar-view" ~payload:(Codec.encode_event_service_get_calendar_view_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_get_calendar_view_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"get-calendar-view" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -819,8 +942,9 @@ module Event_service = struct
 
   let set_calendar_view (c : client) (req : calendar_view) =
     try
-      match c.call ~service:"EventService" ~op:"set-calendar-view" ~payload:(Codec.encode_event_service_set_calendar_view_request req) with
-      | Ok bytes -> Ok (Codec.decode_event_service_set_calendar_view_success bytes)
+      match c.call_reply ~service:"EventService" ~op:"set-calendar-view" ~payload:(Codec.encode_event_service_set_calendar_view_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_set_calendar_view_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"set-calendar-view" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -828,8 +952,9 @@ module Event_service = struct
 
   let accept_event (c : client) (req : event_decision) =
     try
-      match c.call ~service:"EventService" ~op:"accept-event" ~payload:(Codec.encode_event_service_accept_event_request req) with
-      | Ok bytes -> Ok (Codec.decode_event_service_accept_event_success bytes)
+      match c.call_reply ~service:"EventService" ~op:"accept-event" ~payload:(Codec.encode_event_service_accept_event_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_accept_event_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"accept-event" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -837,8 +962,9 @@ module Event_service = struct
 
   let recover_edit (c : client) (req : event_id) =
     try
-      match c.call ~service:"EventService" ~op:"recover-edit" ~payload:(Codec.encode_event_service_recover_edit_request req) with
-      | Ok bytes -> Ok (Codec.decode_event_service_recover_edit_success bytes)
+      match c.call_reply ~service:"EventService" ~op:"recover-edit" ~payload:(Codec.encode_event_service_recover_edit_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_recover_edit_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"recover-edit" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -846,27 +972,31 @@ module Event_service = struct
 
   let decline_event (c : client) (req : event_decision) =
     try
-      match c.call ~service:"EventService" ~op:"decline-event" ~payload:(Codec.encode_event_service_decline_event_request req) with
-      | Ok bytes -> Ok (Codec.decode_event_service_decline_event_success bytes)
+      match c.call_reply ~service:"EventService" ~op:"decline-event" ~payload:(Codec.encode_event_service_decline_event_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_decline_event_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"decline-event" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_local_events (c : client)
-      ~(encode_request : house_id -> bytes)
-      ~(decode_response : bytes -> event list)
-      (req : house_id) : (event list, string) result =
-    match c.call ~service:"EventService" ~op:"list-local-events" ~payload:(encode_request req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_local_events (c : client) (req : house_id) =
+    try
+      match c.call_reply ~service:"EventService" ~op:"list-local-events" ~payload:(Codec.encode_event_service_list_local_events_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_event_service_list_local_events_success (Codec.resolve_rpc_reply ~service:"EventService" ~op:"list-local-events" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 end
 
 module Calendar_service = struct
   let list_project_deadlines (c : client) (req : project_deadline_request) =
     try
-      match c.call ~service:"CalendarService" ~op:"list-project-deadlines" ~payload:(Codec.encode_calendar_service_list_project_deadlines_request req) with
-      | Ok bytes -> Ok (Codec.decode_calendar_service_list_project_deadlines_success bytes)
+      match c.call_reply ~service:"CalendarService" ~op:"list-project-deadlines" ~payload:(Codec.encode_calendar_service_list_project_deadlines_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_calendar_service_list_project_deadlines_success (Codec.resolve_rpc_reply ~service:"CalendarService" ~op:"list-project-deadlines" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -874,8 +1004,9 @@ module Calendar_service = struct
 
   let get_status (c : client) (req : house_id) =
     try
-      match c.call ~service:"CalendarService" ~op:"get-status" ~payload:(Codec.encode_calendar_service_get_status_request req) with
-      | Ok bytes -> Ok (Codec.decode_calendar_service_get_status_success bytes)
+      match c.call_reply ~service:"CalendarService" ~op:"get-status" ~payload:(Codec.encode_calendar_service_get_status_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_calendar_service_get_status_success (Codec.resolve_rpc_reply ~service:"CalendarService" ~op:"get-status" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -883,8 +1014,9 @@ module Calendar_service = struct
 
   let configure_calendar (c : client) (req : configure_calendar_request) =
     try
-      match c.call ~service:"CalendarService" ~op:"configure-calendar" ~payload:(Codec.encode_calendar_service_configure_calendar_request req) with
-      | Ok bytes -> Ok (Codec.decode_calendar_service_configure_calendar_success bytes)
+      match c.call_reply ~service:"CalendarService" ~op:"configure-calendar" ~payload:(Codec.encode_calendar_service_configure_calendar_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_calendar_service_configure_calendar_success (Codec.resolve_rpc_reply ~service:"CalendarService" ~op:"configure-calendar" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -892,8 +1024,9 @@ module Calendar_service = struct
 
   let begin_connect (c : client) (req : house_id) =
     try
-      match c.call ~service:"CalendarService" ~op:"begin-connect" ~payload:(Codec.encode_calendar_service_begin_connect_request req) with
-      | Ok bytes -> Ok (Codec.decode_calendar_service_begin_connect_success bytes)
+      match c.call_reply ~service:"CalendarService" ~op:"begin-connect" ~payload:(Codec.encode_calendar_service_begin_connect_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_calendar_service_begin_connect_success (Codec.resolve_rpc_reply ~service:"CalendarService" ~op:"begin-connect" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -901,8 +1034,9 @@ module Calendar_service = struct
 
   let complete_connect (c : client) (req : complete_calendar_connect_request) =
     try
-      match c.call ~service:"CalendarService" ~op:"complete-connect" ~payload:(Codec.encode_calendar_service_complete_connect_request req) with
-      | Ok bytes -> Ok (Codec.decode_calendar_service_complete_connect_success bytes)
+      match c.call_reply ~service:"CalendarService" ~op:"complete-connect" ~payload:(Codec.encode_calendar_service_complete_connect_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_calendar_service_complete_connect_success (Codec.resolve_rpc_reply ~service:"CalendarService" ~op:"complete-connect" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -910,33 +1044,39 @@ module Calendar_service = struct
 
   let disconnect (c : client) (req : house_id) =
     try
-      match c.call ~service:"CalendarService" ~op:"disconnect" ~payload:(Codec.encode_calendar_service_disconnect_request req) with
-      | Ok bytes -> Ok (Codec.decode_calendar_service_disconnect_success bytes)
+      match c.call_reply ~service:"CalendarService" ~op:"disconnect" ~payload:(Codec.encode_calendar_service_disconnect_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_calendar_service_disconnect_success (Codec.resolve_rpc_reply ~service:"CalendarService" ~op:"disconnect" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let preview_migration (c : client)
-      ~(encode_request : house_id -> bytes)
-      ~(decode_response : bytes -> calendar_migration_row list)
-      (req : house_id) : (calendar_migration_row list, string) result =
-    match c.call ~service:"CalendarService" ~op:"preview-migration" ~payload:(encode_request req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let preview_migration (c : client) (req : house_id) =
+    try
+      match c.call_reply ~service:"CalendarService" ~op:"preview-migration" ~payload:(Codec.encode_calendar_service_preview_migration_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_calendar_service_preview_migration_success (Codec.resolve_rpc_reply ~service:"CalendarService" ~op:"preview-migration" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_trash (c : client)
-      ~(encode_request : house_id -> bytes)
-      ~(decode_response : bytes -> calendar_trash_entry list)
-      (req : house_id) : (calendar_trash_entry list, string) result =
-    match c.call ~service:"CalendarService" ~op:"list-trash" ~payload:(encode_request req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_trash (c : client) (req : house_id) =
+    try
+      match c.call_reply ~service:"CalendarService" ~op:"list-trash" ~payload:(Codec.encode_calendar_service_list_trash_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_calendar_service_list_trash_success (Codec.resolve_rpc_reply ~service:"CalendarService" ~op:"list-trash" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let restore_event (c : client) (req : restore_calendar_event_request) =
     try
-      match c.call ~service:"CalendarService" ~op:"restore-event" ~payload:(Codec.encode_calendar_service_restore_event_request req) with
-      | Ok bytes -> Ok (Codec.decode_calendar_service_restore_event_success bytes)
+      match c.call_reply ~service:"CalendarService" ~op:"restore-event" ~payload:(Codec.encode_calendar_service_restore_event_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_calendar_service_restore_event_success (Codec.resolve_rpc_reply ~service:"CalendarService" ~op:"restore-event" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -946,8 +1086,9 @@ end
 module Task_service = struct
   let create_task (c : client) (req : task) =
     try
-      match c.call ~service:"TaskService" ~op:"create-task" ~payload:(Codec.encode_task_service_create_task_request req) with
-      | Ok bytes -> Ok (Codec.decode_task_service_create_task_success bytes)
+      match c.call_reply ~service:"TaskService" ~op:"create-task" ~payload:(Codec.encode_task_service_create_task_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_task_service_create_task_success (Codec.resolve_rpc_reply ~service:"TaskService" ~op:"create-task" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -955,8 +1096,9 @@ module Task_service = struct
 
   let get_task (c : client) (req : task_id) =
     try
-      match c.call ~service:"TaskService" ~op:"get-task" ~payload:(Codec.encode_task_service_get_task_request req) with
-      | Ok bytes -> Ok (Codec.decode_task_service_get_task_success bytes)
+      match c.call_reply ~service:"TaskService" ~op:"get-task" ~payload:(Codec.encode_task_service_get_task_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_task_service_get_task_success (Codec.resolve_rpc_reply ~service:"TaskService" ~op:"get-task" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -964,8 +1106,9 @@ module Task_service = struct
 
   let update_task (c : client) (req : task) =
     try
-      match c.call ~service:"TaskService" ~op:"update-task" ~payload:(Codec.encode_task_service_update_task_request req) with
-      | Ok bytes -> Ok (Codec.decode_task_service_update_task_success bytes)
+      match c.call_reply ~service:"TaskService" ~op:"update-task" ~payload:(Codec.encode_task_service_update_task_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_task_service_update_task_success (Codec.resolve_rpc_reply ~service:"TaskService" ~op:"update-task" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -973,8 +1116,9 @@ module Task_service = struct
 
   let delete_task (c : client) (req : task_id) =
     try
-      match c.call ~service:"TaskService" ~op:"delete-task" ~payload:(Codec.encode_task_service_delete_task_request req) with
-      | Ok bytes -> Ok (Codec.decode_task_service_delete_task_success bytes)
+      match c.call_reply ~service:"TaskService" ~op:"delete-task" ~payload:(Codec.encode_task_service_delete_task_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_task_service_delete_task_success (Codec.resolve_rpc_reply ~service:"TaskService" ~op:"delete-task" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -982,8 +1126,9 @@ module Task_service = struct
 
   let list_tasks (c : client) (req : task_list_request) =
     try
-      match c.call ~service:"TaskService" ~op:"list-tasks" ~payload:(Codec.encode_task_service_list_tasks_request req) with
-      | Ok bytes -> Ok (Codec.decode_task_service_list_tasks_success bytes)
+      match c.call_reply ~service:"TaskService" ~op:"list-tasks" ~payload:(Codec.encode_task_service_list_tasks_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_task_service_list_tasks_success (Codec.resolve_rpc_reply ~service:"TaskService" ~op:"list-tasks" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -991,8 +1136,9 @@ module Task_service = struct
 
   let create_personal_task (c : client) (req : task) =
     try
-      match c.call ~service:"TaskService" ~op:"create-personal-task" ~payload:(Codec.encode_task_service_create_personal_task_request req) with
-      | Ok bytes -> Ok (Codec.decode_task_service_create_personal_task_success bytes)
+      match c.call_reply ~service:"TaskService" ~op:"create-personal-task" ~payload:(Codec.encode_task_service_create_personal_task_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_task_service_create_personal_task_success (Codec.resolve_rpc_reply ~service:"TaskService" ~op:"create-personal-task" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1000,25 +1146,29 @@ module Task_service = struct
 
   let set_task_visibility (c : client) (req : set_task_visibility_request) =
     try
-      match c.call ~service:"TaskService" ~op:"set-task-visibility" ~payload:(Codec.encode_task_service_set_task_visibility_request req) with
-      | Ok bytes -> Ok (Codec.decode_task_service_set_task_visibility_success bytes)
+      match c.call_reply ~service:"TaskService" ~op:"set-task-visibility" ~payload:(Codec.encode_task_service_set_task_visibility_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_task_service_set_task_visibility_success (Codec.resolve_rpc_reply ~service:"TaskService" ~op:"set-task-visibility" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_task_grants (c : client)
-      ~(encode_request : task_id -> bytes)
-      ~(decode_response : bytes -> grant list)
-      (req : task_id) : (grant list, string) result =
-    match c.call ~service:"TaskService" ~op:"list-task-grants" ~payload:(encode_request req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_task_grants (c : client) (req : task_id) =
+    try
+      match c.call_reply ~service:"TaskService" ~op:"list-task-grants" ~payload:(Codec.encode_task_service_list_task_grants_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_task_service_list_task_grants_success (Codec.resolve_rpc_reply ~service:"TaskService" ~op:"list-task-grants" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let put_task_grant (c : client) (req : put_task_grant_request) =
     try
-      match c.call ~service:"TaskService" ~op:"put-task-grant" ~payload:(Codec.encode_task_service_put_task_grant_request req) with
-      | Ok bytes -> Ok (Codec.decode_task_service_put_task_grant_success bytes)
+      match c.call_reply ~service:"TaskService" ~op:"put-task-grant" ~payload:(Codec.encode_task_service_put_task_grant_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_task_service_put_task_grant_success (Codec.resolve_rpc_reply ~service:"TaskService" ~op:"put-task-grant" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1026,8 +1176,9 @@ module Task_service = struct
 
   let delete_task_grant (c : client) (req : task_grant_ref) =
     try
-      match c.call ~service:"TaskService" ~op:"delete-task-grant" ~payload:(Codec.encode_task_service_delete_task_grant_request req) with
-      | Ok bytes -> Ok (Codec.decode_task_service_delete_task_grant_success bytes)
+      match c.call_reply ~service:"TaskService" ~op:"delete-task-grant" ~payload:(Codec.encode_task_service_delete_task_grant_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_task_service_delete_task_grant_success (Codec.resolve_rpc_reply ~service:"TaskService" ~op:"delete-task-grant" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1037,8 +1188,9 @@ end
 module Dependency_service = struct
   let add_dependency (c : client) (req : dependency_ref) =
     try
-      match c.call ~service:"DependencyService" ~op:"add-dependency" ~payload:(Codec.encode_dependency_service_add_dependency_request req) with
-      | Ok bytes -> Ok (Codec.decode_dependency_service_add_dependency_success bytes)
+      match c.call_reply ~service:"DependencyService" ~op:"add-dependency" ~payload:(Codec.encode_dependency_service_add_dependency_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_dependency_service_add_dependency_success (Codec.resolve_rpc_reply ~service:"DependencyService" ~op:"add-dependency" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1046,8 +1198,9 @@ module Dependency_service = struct
 
   let remove_dependency (c : client) (req : dependency_ref) =
     try
-      match c.call ~service:"DependencyService" ~op:"remove-dependency" ~payload:(Codec.encode_dependency_service_remove_dependency_request req) with
-      | Ok bytes -> Ok (Codec.decode_dependency_service_remove_dependency_success bytes)
+      match c.call_reply ~service:"DependencyService" ~op:"remove-dependency" ~payload:(Codec.encode_dependency_service_remove_dependency_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_dependency_service_remove_dependency_success (Codec.resolve_rpc_reply ~service:"DependencyService" ~op:"remove-dependency" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1055,8 +1208,9 @@ module Dependency_service = struct
 
   let get_dependencies (c : client) (req : dependency_target) =
     try
-      match c.call ~service:"DependencyService" ~op:"get-dependencies" ~payload:(Codec.encode_dependency_service_get_dependencies_request req) with
-      | Ok bytes -> Ok (Codec.decode_dependency_service_get_dependencies_success bytes)
+      match c.call_reply ~service:"DependencyService" ~op:"get-dependencies" ~payload:(Codec.encode_dependency_service_get_dependencies_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_dependency_service_get_dependencies_success (Codec.resolve_rpc_reply ~service:"DependencyService" ~op:"get-dependencies" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1066,8 +1220,9 @@ end
 module Comment_service = struct
   let create_comment (c : client) (req : comment) =
     try
-      match c.call ~service:"CommentService" ~op:"create-comment" ~payload:(Codec.encode_comment_service_create_comment_request req) with
-      | Ok bytes -> Ok (Codec.decode_comment_service_create_comment_success bytes)
+      match c.call_reply ~service:"CommentService" ~op:"create-comment" ~payload:(Codec.encode_comment_service_create_comment_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_comment_service_create_comment_success (Codec.resolve_rpc_reply ~service:"CommentService" ~op:"create-comment" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1075,8 +1230,9 @@ module Comment_service = struct
 
   let get_comment (c : client) (req : comment_id) =
     try
-      match c.call ~service:"CommentService" ~op:"get-comment" ~payload:(Codec.encode_comment_service_get_comment_request req) with
-      | Ok bytes -> Ok (Codec.decode_comment_service_get_comment_success bytes)
+      match c.call_reply ~service:"CommentService" ~op:"get-comment" ~payload:(Codec.encode_comment_service_get_comment_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_comment_service_get_comment_success (Codec.resolve_rpc_reply ~service:"CommentService" ~op:"get-comment" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1084,8 +1240,9 @@ module Comment_service = struct
 
   let update_comment (c : client) (req : comment) =
     try
-      match c.call ~service:"CommentService" ~op:"update-comment" ~payload:(Codec.encode_comment_service_update_comment_request req) with
-      | Ok bytes -> Ok (Codec.decode_comment_service_update_comment_success bytes)
+      match c.call_reply ~service:"CommentService" ~op:"update-comment" ~payload:(Codec.encode_comment_service_update_comment_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_comment_service_update_comment_success (Codec.resolve_rpc_reply ~service:"CommentService" ~op:"update-comment" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1093,33 +1250,41 @@ module Comment_service = struct
 
   let delete_comment (c : client) (req : comment_id) =
     try
-      match c.call ~service:"CommentService" ~op:"delete-comment" ~payload:(Codec.encode_comment_service_delete_comment_request req) with
-      | Ok bytes -> Ok (Codec.decode_comment_service_delete_comment_success bytes)
+      match c.call_reply ~service:"CommentService" ~op:"delete-comment" ~payload:(Codec.encode_comment_service_delete_comment_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_comment_service_delete_comment_success (Codec.resolve_rpc_reply ~service:"CommentService" ~op:"delete-comment" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_comments (c : client)
-      ~(decode_response : bytes -> comment list)
-      (req : comment_list_request) : (comment list, string) result =
-    match c.call ~service:"CommentService" ~op:"list-comments" ~payload:(Codec.encode_comment_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_comments (c : client) (req : comment_list_request) =
+    try
+      match c.call_reply ~service:"CommentService" ~op:"list-comments" ~payload:(Codec.encode_comment_service_list_comments_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_comment_service_list_comments_success (Codec.resolve_rpc_reply ~service:"CommentService" ~op:"list-comments" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 end
 
 module Notification_service = struct
-  let list_notifications (c : client)
-      ~(decode_response : bytes -> notification list)
-      (req : notification_list_request) : (notification list, string) result =
-    match c.call ~service:"NotificationService" ~op:"list-notifications" ~payload:(Codec.encode_notification_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_notifications (c : client) (req : notification_list_request) =
+    try
+      match c.call_reply ~service:"NotificationService" ~op:"list-notifications" ~payload:(Codec.encode_notification_service_list_notifications_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_notification_service_list_notifications_success (Codec.resolve_rpc_reply ~service:"NotificationService" ~op:"list-notifications" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let unread_count (c : client) (req : house_id) =
     try
-      match c.call ~service:"NotificationService" ~op:"unread-count" ~payload:(Codec.encode_notification_service_unread_count_request req) with
-      | Ok bytes -> Ok (Codec.decode_notification_service_unread_count_success bytes)
+      match c.call_reply ~service:"NotificationService" ~op:"unread-count" ~payload:(Codec.encode_notification_service_unread_count_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_notification_service_unread_count_success (Codec.resolve_rpc_reply ~service:"NotificationService" ~op:"unread-count" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1127,8 +1292,9 @@ module Notification_service = struct
 
   let mark_read (c : client) (req : notification_id) =
     try
-      match c.call ~service:"NotificationService" ~op:"mark-read" ~payload:(Codec.encode_notification_service_mark_read_request req) with
-      | Ok bytes -> Ok (Codec.decode_notification_service_mark_read_success bytes)
+      match c.call_reply ~service:"NotificationService" ~op:"mark-read" ~payload:(Codec.encode_notification_service_mark_read_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_notification_service_mark_read_success (Codec.resolve_rpc_reply ~service:"NotificationService" ~op:"mark-read" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1136,8 +1302,9 @@ module Notification_service = struct
 
   let mark_all_read (c : client) (req : house_id) =
     try
-      match c.call ~service:"NotificationService" ~op:"mark-all-read" ~payload:(Codec.encode_notification_service_mark_all_read_request req) with
-      | Ok bytes -> Ok (Codec.decode_notification_service_mark_all_read_success bytes)
+      match c.call_reply ~service:"NotificationService" ~op:"mark-all-read" ~payload:(Codec.encode_notification_service_mark_all_read_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_notification_service_mark_all_read_success (Codec.resolve_rpc_reply ~service:"NotificationService" ~op:"mark-all-read" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1147,8 +1314,9 @@ end
 module Share_service = struct
   let create_share (c : client) (req : share) =
     try
-      match c.call ~service:"ShareService" ~op:"create-share" ~payload:(Codec.encode_share_service_create_share_request req) with
-      | Ok bytes -> Ok (Codec.decode_share_service_create_share_success bytes)
+      match c.call_reply ~service:"ShareService" ~op:"create-share" ~payload:(Codec.encode_share_service_create_share_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_share_service_create_share_success (Codec.resolve_rpc_reply ~service:"ShareService" ~op:"create-share" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1156,24 +1324,29 @@ module Share_service = struct
 
   let delete_share (c : client) (req : share_id) =
     try
-      match c.call ~service:"ShareService" ~op:"delete-share" ~payload:(Codec.encode_share_service_delete_share_request req) with
-      | Ok bytes -> Ok (Codec.decode_share_service_delete_share_success bytes)
+      match c.call_reply ~service:"ShareService" ~op:"delete-share" ~payload:(Codec.encode_share_service_delete_share_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_share_service_delete_share_success (Codec.resolve_rpc_reply ~service:"ShareService" ~op:"delete-share" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
     | Failure e | Invalid_argument e -> Error (`Decode e)
 
-  let list_shares_by_resource (c : client)
-      ~(decode_response : bytes -> share list)
-      (req : resource_ref) : (share list, string) result =
-    match c.call ~service:"ShareService" ~op:"list-shares-by-resource" ~payload:(Codec.encode_resource_ref_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_shares_by_resource (c : client) (req : resource_ref) =
+    try
+      match c.call_reply ~service:"ShareService" ~op:"list-shares-by-resource" ~payload:(Codec.encode_share_service_list_shares_by_resource_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_share_service_list_shares_by_resource_success (Codec.resolve_rpc_reply ~service:"ShareService" ~op:"list-shares-by-resource" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 
   let check_access (c : client) (req : share_access_request) =
     try
-      match c.call ~service:"ShareService" ~op:"check-access" ~payload:(Codec.encode_share_service_check_access_request req) with
-      | Ok bytes -> Ok (Codec.decode_share_service_check_access_success bytes)
+      match c.call_reply ~service:"ShareService" ~op:"check-access" ~payload:(Codec.encode_share_service_check_access_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_share_service_check_access_success (Codec.resolve_rpc_reply ~service:"ShareService" ~op:"check-access" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1181,19 +1354,23 @@ module Share_service = struct
 end
 
 module Member_audit_service = struct
-  let list_audits_for_member (c : client)
-      ~(decode_response : bytes -> member_audit list)
-      (req : member_scoped_list_request) : (member_audit list, string) result =
-    match c.call ~service:"MemberAuditService" ~op:"list-audits-for-member" ~payload:(Codec.encode_member_scoped_list_request_bytes req) with
-    | Ok payload -> Ok (decode_response payload)
-    | Error _ as e -> e
+  let list_audits_for_member (c : client) (req : member_scoped_list_request) =
+    try
+      match c.call_reply ~service:"MemberAuditService" ~op:"list-audits-for-member" ~payload:(Codec.encode_member_audit_service_list_audits_for_member_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_member_audit_service_list_audits_for_member_success (Codec.resolve_rpc_reply ~service:"MemberAuditService" ~op:"list-audits-for-member" ~variant bytes))
+      | Error e -> Error (`Transport e)
+    with
+    | Codec.Service_error_refusal value -> Error (`Service_error value)
+    | Failure e | Invalid_argument e -> Error (`Decode e)
 end
 
 module Settings_service = struct
   let get_settings (c : client) (req : house_id) =
     try
-      match c.call ~service:"SettingsService" ~op:"get-settings" ~payload:(Codec.encode_settings_service_get_settings_request req) with
-      | Ok bytes -> Ok (Codec.decode_settings_service_get_settings_success bytes)
+      match c.call_reply ~service:"SettingsService" ~op:"get-settings" ~payload:(Codec.encode_settings_service_get_settings_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_settings_service_get_settings_success (Codec.resolve_rpc_reply ~service:"SettingsService" ~op:"get-settings" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1201,8 +1378,9 @@ module Settings_service = struct
 
   let update_settings (c : client) (req : update_settings_request) =
     try
-      match c.call ~service:"SettingsService" ~op:"update-settings" ~payload:(Codec.encode_settings_service_update_settings_request req) with
-      | Ok bytes -> Ok (Codec.decode_settings_service_update_settings_success bytes)
+      match c.call_reply ~service:"SettingsService" ~op:"update-settings" ~payload:(Codec.encode_settings_service_update_settings_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_settings_service_update_settings_success (Codec.resolve_rpc_reply ~service:"SettingsService" ~op:"update-settings" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1212,8 +1390,9 @@ end
 module Bug_service = struct
   let report_bug (c : client) (req : bug_report_request) =
     try
-      match c.call ~service:"BugService" ~op:"report-bug" ~payload:(Codec.encode_bug_service_report_bug_request req) with
-      | Ok bytes -> Ok (Codec.decode_bug_service_report_bug_success bytes)
+      match c.call_reply ~service:"BugService" ~op:"report-bug" ~payload:(Codec.encode_bug_service_report_bug_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_bug_service_report_bug_success (Codec.resolve_rpc_reply ~service:"BugService" ~op:"report-bug" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1223,8 +1402,9 @@ end
 module Audit_service = struct
   let query_audit (c : client) (req : audit_query) =
     try
-      match c.call ~service:"AuditService" ~op:"query-audit" ~payload:(Codec.encode_audit_service_query_audit_request req) with
-      | Ok bytes -> Ok (Codec.decode_audit_service_query_audit_success bytes)
+      match c.call_reply ~service:"AuditService" ~op:"query-audit" ~payload:(Codec.encode_audit_service_query_audit_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_audit_service_query_audit_success (Codec.resolve_rpc_reply ~service:"AuditService" ~op:"query-audit" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1234,8 +1414,9 @@ end
 module Trash_service = struct
   let list_trash (c : client) (req : house_scoped_list_request) =
     try
-      match c.call ~service:"TrashService" ~op:"list-trash" ~payload:(Codec.encode_trash_service_list_trash_request req) with
-      | Ok bytes -> Ok (Codec.decode_trash_service_list_trash_success bytes)
+      match c.call_reply ~service:"TrashService" ~op:"list-trash" ~payload:(Codec.encode_trash_service_list_trash_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_trash_service_list_trash_success (Codec.resolve_rpc_reply ~service:"TrashService" ~op:"list-trash" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1243,8 +1424,9 @@ module Trash_service = struct
 
   let restore (c : client) (req : restore_request) =
     try
-      match c.call ~service:"TrashService" ~op:"restore" ~payload:(Codec.encode_trash_service_restore_request req) with
-      | Ok bytes -> Ok (Codec.decode_trash_service_restore_success bytes)
+      match c.call_reply ~service:"TrashService" ~op:"restore" ~payload:(Codec.encode_trash_service_restore_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_trash_service_restore_success (Codec.resolve_rpc_reply ~service:"TrashService" ~op:"restore" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)
@@ -1252,8 +1434,9 @@ module Trash_service = struct
 
   let purge (c : client) (req : purge_request) =
     try
-      match c.call ~service:"TrashService" ~op:"purge" ~payload:(Codec.encode_trash_service_purge_request req) with
-      | Ok bytes -> Ok (Codec.decode_trash_service_purge_success bytes)
+      match c.call_reply ~service:"TrashService" ~op:"purge" ~payload:(Codec.encode_trash_service_purge_request req) with
+      | Ok (variant, bytes) ->
+        Ok (Codec.decode_trash_service_purge_success (Codec.resolve_rpc_reply ~service:"TrashService" ~op:"purge" ~variant bytes))
       | Error e -> Error (`Transport e)
     with
     | Codec.Service_error_refusal value -> Error (`Service_error value)

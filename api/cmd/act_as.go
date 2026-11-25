@@ -56,7 +56,7 @@ func buildActAsProvider() (actas.Provider, error) {
 	signers := make([]rp.ApplicationSigner, 0, len(keys.Keys))
 	for _, key := range keys.Keys {
 		seed, _ := base64.StdEncoding.DecodeString(key.Seed)
-		signers = append(signers, rp.ApplicationSigner{KeyID: key.KeyID, Algorithm: "ed25519", PrivateKeyBytes: seed})
+		signers = append(signers, rp.ApplicationSigner{KeyID: key.KeyID, Algorithm: lk.KeyAlgorithmEd25519, PrivateKeyBytes: seed})
 	}
 	// Renew through the account's home domain. Reuse the configured endpoint
 	// only when the RP domain is also the application's home domain.

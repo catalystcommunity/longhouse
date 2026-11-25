@@ -934,6 +934,36 @@ ExchangeActAsCredentialRequest = Data.define(:credential)
 # scopes [Array<String>]
 ActAsTokenResponse = Data.define(:token, :domain, :user_id, :expires_at, :grant_id, :grantee, :scopes)
 
+# CalendarMigrationRowItems is an alias for Array<CalendarMigrationRow>.
+
+# CalendarTrashEntryItems is an alias for Array<CalendarTrashEntry>.
+
+# CommentItems is an alias for Array<Comment>.
+
+# EventItems is an alias for Array<Event>.
+
+# GrantItems is an alias for Array<Grant>.
+
+# GroupItems is an alias for Array<Group>.
+
+# HouseItems is an alias for Array<House>.
+
+# MemberItems is an alias for Array<Member>.
+
+# MemberAuditItems is an alias for Array<MemberAudit>.
+
+# MilestoneItems is an alias for Array<Milestone>.
+
+# NotificationItems is an alias for Array<Notification>.
+
+# RoleItems is an alias for Array<Role>.
+
+# ShareItems is an alias for Array<Share>.
+
+# SkillItems is an alias for Array<Skill>.
+
+# TrustedDomainItems is an alias for Array<TrustedDomain>.
+
 # subject_member_id [MemberId]
 # enabled [Boolean]
 CalendarSubscription = Data.define(:subject_member_id, :enabled)

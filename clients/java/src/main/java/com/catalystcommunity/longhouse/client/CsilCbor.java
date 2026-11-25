@@ -5,6 +5,7 @@ package com.catalystcommunity.longhouse.client;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -34,7 +35,16 @@ public final class CsilCbor {
     public record CborBytes(byte[] value) implements CborValue {}
     public record CborArray(List<CborValue> items) implements CborValue {}
     public record CborEntry(CborValue key, CborValue val) {}
-    public record CborMap(List<CborEntry> entries) implements CborValue {}
+    /**
+     * A map. {@code canonical} is false when a decoded map's encoded keys were not in
+     * strictly ascending bytewise order (RFC 8949 section 4.2.1); a dynamic map decoder
+     * rejects such a map, while a record accepts its fields in any order.
+     */
+    public record CborMap(List<CborEntry> entries, boolean canonical) implements CborValue {
+        public CborMap(List<CborEntry> entries) {
+            this(entries, true);
+        }
+    }
     public record CborTag(long num, CborValue inner) implements CborValue {}
 
     /**
@@ -43,6 +53,8 @@ public final class CsilCbor {
      * not a recoverable application error (those ride inside the decoded payload).
      */
     public static final class CsilCborException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public CsilCborException(String message) {
             super(message);
         }
@@ -142,6 +154,21 @@ public final class CsilCbor {
         }
     }
 
+    // Float.float16ToFloat needs JDK 20; the generated code targets JDK 17.
+    private static double halfToDouble(int h) {
+        int exp = (h >> 10) & 0x1f;
+        int mant = h & 0x3ff;
+        double magnitude;
+        if (exp == 0) {
+            magnitude = Math.scalb((double) mant, -24);
+        } else if (exp == 31) {
+            magnitude = mant == 0 ? Double.POSITIVE_INFINITY : Double.NaN;
+        } else {
+            magnitude = Math.scalb((double) (mant | 0x400), exp - 25);
+        }
+        return (h & 0x8000) != 0 ? -magnitude : magnitude;
+    }
+
     private static long readArg(byte[] b, int[] pos, int low) {
         if (low < 24) {
             pos[0] += 1;
@@ -220,6 +247,10 @@ public final class CsilCbor {
                 case 23:
                     pos[0] += 1;
                     return new CborNull();
+                case 25: {
+                    long bits = readArg(b, pos, low);
+                    return new CborFloat(halfToDouble((int) bits));
+                }
                 case 26: {
                     long bits = readArg(b, pos, low);
                     return new CborFloat(Float.intBitsToFloat((int) bits));
@@ -278,18 +309,72 @@ public final class CsilCbor {
                 }
                 int n = (int) arg;
                 List<CborEntry> entries = new ArrayList<>(Math.min(n, PREALLOC_LIMIT));
+                // Each key is compared with the one before it as raw bytes, so the order
+                // check is O(n). Only a map out of order can repeat a key, so the set of
+                // seen keys is built only then.
+                boolean ascending = true;
+                java.util.Set<java.nio.ByteBuffer> seen = null;
+                List<int[]> keyRanges = new ArrayList<>(Math.min(n, PREALLOC_LIMIT));
                 for (int i = 0; i < n; i++) {
+                    int keyStart = pos[0];
                     CborValue k = dec(b, pos, depth + 1);
+                    int keyEnd = pos[0];
+                    if (!shortestHead(b, keyStart)) {
+                        throw new CsilCborException("csil cbor: map key is not in shortest form");
+                    }
+                    if (i > 0 && ascending) {
+                        int[] prev = keyRanges.get(i - 1);
+                        if (Arrays.compareUnsigned(b, prev[0], prev[1], b, keyStart, keyEnd) >= 0) {
+                            ascending = false;
+                            seen = new java.util.HashSet<>();
+                            for (int[] r : keyRanges) {
+                                seen.add(java.nio.ByteBuffer.wrap(b, r[0], r[1] - r[0]));
+                            }
+                        }
+                    }
+                    if (!ascending && !seen.add(java.nio.ByteBuffer.wrap(b, keyStart, keyEnd - keyStart))) {
+                        throw new CsilCborException("csil cbor: duplicate key " + describeKey(k));
+                    }
+                    keyRanges.add(new int[] {keyStart, keyEnd});
                     CborValue val = dec(b, pos, depth + 1);
                     entries.add(new CborEntry(k, val));
                 }
-                return new CborMap(entries);
+                return new CborMap(entries, ascending);
             }
             case 6:
                 return new CborTag(arg, dec(b, pos, depth + 1));
             default:
                 throw new CsilCborException("csil cbor: unexpected major type");
         }
+    }
+
+    /** Whether the head at {@code at} uses the shortest argument for its value. A float
+     * head (major 7) carries no length, so it is not checked. */
+    private static boolean shortestHead(byte[] b, int at) {
+        int major = (b[at] & 0xff) >> 5;
+        int low = b[at] & 0x1f;
+        if (major == 7 || low < 24) {
+            return true;
+        }
+        int width = 1 << (low - 24);
+        long arg = 0;
+        for (int i = 1; i <= width; i++) {
+            arg = (arg << 8) | (b[at + i] & 0xffL);
+        }
+        long floor = low == 24 ? 24L : 1L << (8 * (width / 2));
+        return Long.compareUnsigned(arg, floor) >= 0;
+    }
+
+    private static String describeKey(CborValue k) {
+        if (k instanceof CborText t) {
+            return "\"" + t.value() + "\"";
+        }
+        return java.util.HexFormat.of().formatHex(encode(k));
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T> T csilUnchecked(Object value) {
+        return (T) value;
     }
 
     public static long asI64(CborValue v) {
@@ -415,11 +500,25 @@ public final class CsilCbor {
     }
 
     public static <K, V> CborValue encMap(Map<K, V> m, Function<K, CborValue> kf, Function<V, CborValue> vf) {
+        // A dynamic map goes out in canonical key order: bytewise order of each key's
+        // encoding (RFC 8949 section 4.2.1), which is not the order of the Java keys.
+        List<byte[]> keys = new ArrayList<>(m.size());
         List<CborEntry> entries = new ArrayList<>(m.size());
         for (Map.Entry<K, V> e : m.entrySet()) {
-            entries.add(new CborEntry(kf.apply(e.getKey()), vf.apply(e.getValue())));
+            CborValue key = kf.apply(e.getKey());
+            keys.add(encode(key));
+            entries.add(new CborEntry(key, vf.apply(e.getValue())));
         }
-        return new CborMap(entries);
+        Integer[] order = new Integer[entries.size()];
+        for (int i = 0; i < order.length; i++) {
+            order[i] = i;
+        }
+        Arrays.sort(order, (x, y) -> Arrays.compareUnsigned(keys.get(x), keys.get(y)));
+        List<CborEntry> sorted = new ArrayList<>(entries.size());
+        for (int i : order) {
+            sorted.add(entries.get(i));
+        }
+        return new CborMap(sorted);
     }
 
     public static <E> List<E> decArray(CborValue v, Function<CborValue, E> f) {
@@ -432,6 +531,9 @@ public final class CsilCbor {
     }
 
     public static <K, V> Map<K, V> decMap(CborValue v, Function<CborValue, K> kf, Function<CborValue, V> vf) {
+        if (v instanceof CborMap x && !x.canonical()) {
+            throw new CsilCborException("csil cbor: map keys are not in canonical order");
+        }
         Map<K, V> out = new LinkedHashMap<>();
         for (CborEntry e : asMap(v)) {
             out.put(kf.apply(e.key()), vf.apply(e.val()));
@@ -440,15 +542,137 @@ public final class CsilCbor {
     }
 
     public static CborValue encTimestamp(Instant t) {
-        return new CborTag(0, new CborText(t.toString()));
+        java.time.OffsetDateTime u = t.atOffset(java.time.ZoneOffset.UTC);
+        int year = u.getYear();
+        if (year < 1 || year > 9999) {
+            throw new CsilCborException("csil cbor: timestamp year outside 0001-9999");
+        }
+        StringBuilder b = new StringBuilder(30);
+        timestampDigits(b, year, 4).append('-');
+        timestampDigits(b, u.getMonthValue(), 2).append('-');
+        timestampDigits(b, u.getDayOfMonth(), 2).append('T');
+        timestampDigits(b, u.getHour(), 2).append(':');
+        timestampDigits(b, u.getMinute(), 2).append(':');
+        timestampDigits(b, u.getSecond(), 2);
+        int nano = u.getNano();
+        if (nano != 0) {
+            b.append('.');
+            if (nano % 1_000_000 == 0) {
+                timestampDigits(b, nano / 1_000_000, 3);
+            } else if (nano % 1_000 == 0) {
+                timestampDigits(b, nano / 1_000, 6);
+            } else {
+                timestampDigits(b, nano, 9);
+            }
+        }
+        b.append('Z');
+        return new CborTag(0, new CborText(b.toString()));
+    }
+
+    private static StringBuilder timestampDigits(StringBuilder b, int value, int width) {
+        String text = Integer.toString(value);
+        for (int i = text.length(); i < width; i++) {
+            b.append('0');
+        }
+        return b.append(text);
     }
 
     public static Instant asTimestamp(CborValue v) {
         if (v instanceof CborTag t && t.num() == 0 && t.inner() instanceof CborText s) {
-            return Instant.parse(s.value());
+            return parseTimestamp(s.value());
         }
         throw new CsilCborException("csil cbor: expected CBOR tag 0 timestamp");
     }
+
+    private static int timestampField(String s, int at, int width) {
+        if (at + width > s.length()) {
+            throw new CsilCborException("csil cbor: invalid timestamp text");
+        }
+        int value = 0;
+        for (int i = at; i < at + width; i++) {
+            char c = s.charAt(i);
+            if (c < '0' || c > '9') {
+                throw new CsilCborException("csil cbor: invalid timestamp text");
+            }
+            value = value * 10 + (c - '0');
+        }
+        return value;
+    }
+
+    private static void timestampSeparator(String s, int at, char a, char b) {
+        if (at >= s.length() || (s.charAt(at) != a && s.charAt(at) != b)) {
+            throw new CsilCborException("csil cbor: invalid timestamp text");
+        }
+    }
+
+    private static Instant parseTimestamp(String s) {
+        int year = timestampField(s, 0, 4);
+        timestampSeparator(s, 4, '-', '-');
+        int month = timestampField(s, 5, 2);
+        timestampSeparator(s, 7, '-', '-');
+        int day = timestampField(s, 8, 2);
+        timestampSeparator(s, 10, 'T', 't');
+        int hour = timestampField(s, 11, 2);
+        timestampSeparator(s, 13, ':', ':');
+        int minute = timestampField(s, 14, 2);
+        timestampSeparator(s, 16, ':', ':');
+        int second = timestampField(s, 17, 2);
+        if (year < 1 || month < 1 || month > 12 || day < 1
+                || day > java.time.YearMonth.of(year, month).lengthOfMonth()
+                || hour > 23 || minute > 59 || second > 59) {
+            throw new CsilCborException("csil cbor: invalid timestamp value");
+        }
+        int at = 19;
+        int nano = 0;
+        if (at < s.length() && s.charAt(at) == '.') {
+            int start = ++at;
+            while (at < s.length() && s.charAt(at) >= '0' && s.charAt(at) <= '9') {
+                at++;
+            }
+            int digits = at - start;
+            if (digits < 1 || digits > 9) {
+                throw new CsilCborException("csil cbor: invalid timestamp fraction");
+            }
+            nano = timestampField(s, start, digits);
+            for (int i = digits; i < 9; i++) {
+                nano *= 10;
+            }
+        }
+        if (at >= s.length()) {
+            throw new CsilCborException("csil cbor: timestamp has no offset");
+        }
+        char zone = s.charAt(at);
+        int offset;
+        if (zone == 'Z' || zone == 'z') {
+            offset = 0;
+            at += 1;
+        } else if (zone == '+' || zone == '-') {
+            int offsetHour = timestampField(s, at + 1, 2);
+            timestampSeparator(s, at + 3, ':', ':');
+            int offsetMinute = timestampField(s, at + 4, 2);
+            if (offsetHour > 23 || offsetMinute > 59) {
+                throw new CsilCborException("csil cbor: invalid timestamp offset");
+            }
+            offset = (zone == '-' ? -1 : 1) * (offsetHour * 3600 + offsetMinute * 60);
+            at += 6;
+        } else {
+            throw new CsilCborException("csil cbor: invalid timestamp offset");
+        }
+        if (at != s.length()) {
+            throw new CsilCborException("csil cbor: trailing timestamp text");
+        }
+        long epoch = LocalDate.of(year, month, day).toEpochDay() * 86_400L
+            + hour * 3_600L + minute * 60L + second - offset;
+        // The range is checked again after conversion to UTC, because an offset can move
+        // a written year 0001 or 9999 value outside it.
+        if (epoch < TIMESTAMP_MIN_EPOCH || epoch >= TIMESTAMP_END_EPOCH) {
+            throw new CsilCborException("csil cbor: timestamp year outside 0001-9999");
+        }
+        return Instant.ofEpochSecond(epoch, nano);
+    }
+
+    private static final long TIMESTAMP_MIN_EPOCH = LocalDate.of(1, 1, 1).toEpochDay() * 86_400L;
+    private static final long TIMESTAMP_END_EPOCH = LocalDate.of(10000, 1, 1).toEpochDay() * 86_400L;
 
     static CborValue encHouse(House v) {
         List<CborEntry> csilEntries = new ArrayList<>(5);
@@ -4213,12 +4437,12 @@ public final class CsilCbor {
         return new HouseId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeHouseListHousesResponse(List<House> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encHouse(csilElem0)));
+    public static byte[] encodeHouseListHousesResponse(HouseItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encHouse(csilElem0)));
     }
 
-    public static List<House> decodeHouseListHousesResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decHouse(csilE0));
+    public static HouseItems decodeHouseListHousesResponse(byte[] csilData) {
+        return new HouseItems(decArray(decode(csilData), csilE0 -> decHouse(csilE0)));
     }
 
     public static byte[] encodeMemberGetMemberRequest(MemberId csilV) {
@@ -4245,12 +4469,12 @@ public final class CsilCbor {
         return new MemberId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeMemberListMembersResponse(List<Member> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encMember(csilElem0)));
+    public static byte[] encodeMemberListMembersResponse(MemberItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encMember(csilElem0)));
     }
 
-    public static List<Member> decodeMemberListMembersResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decMember(csilE0));
+    public static MemberItems decodeMemberListMembersResponse(byte[] csilData) {
+        return new MemberItems(decArray(decode(csilData), csilE0 -> decMember(csilE0)));
     }
 
     public static byte[] encodeTrustedDomainRemoveTrustedDomainRequest(TrustedDomainId csilV) {
@@ -4269,12 +4493,12 @@ public final class CsilCbor {
         return new HouseId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeTrustedDomainListTrustedDomainsResponse(List<TrustedDomain> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encTrustedDomain(csilElem0)));
+    public static byte[] encodeTrustedDomainListTrustedDomainsResponse(TrustedDomainItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encTrustedDomain(csilElem0)));
     }
 
-    public static List<TrustedDomain> decodeTrustedDomainListTrustedDomainsResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decTrustedDomain(csilE0));
+    public static TrustedDomainItems decodeTrustedDomainListTrustedDomainsResponse(byte[] csilData) {
+        return new TrustedDomainItems(decArray(decode(csilData), csilE0 -> decTrustedDomain(csilE0)));
     }
 
     public static byte[] encodeRoleDeleteRoleRequest(RoleId csilV) {
@@ -4285,20 +4509,20 @@ public final class CsilCbor {
         return new RoleId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeRoleListRolesResponse(List<Role> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encRole(csilElem0)));
+    public static byte[] encodeRoleListRolesResponse(RoleItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encRole(csilElem0)));
     }
 
-    public static List<Role> decodeRoleListRolesResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decRole(csilE0));
+    public static RoleItems decodeRoleListRolesResponse(byte[] csilData) {
+        return new RoleItems(decArray(decode(csilData), csilE0 -> decRole(csilE0)));
     }
 
-    public static byte[] encodeRoleListMemberRolesResponse(List<Role> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encRole(csilElem0)));
+    public static byte[] encodeRoleListMemberRolesResponse(RoleItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encRole(csilElem0)));
     }
 
-    public static List<Role> decodeRoleListMemberRolesResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decRole(csilE0));
+    public static RoleItems decodeRoleListMemberRolesResponse(byte[] csilData) {
+        return new RoleItems(decArray(decode(csilData), csilE0 -> decRole(csilE0)));
     }
 
     public static byte[] encodeSkillDeleteSkillRequest(SkillId csilV) {
@@ -4309,20 +4533,20 @@ public final class CsilCbor {
         return new SkillId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeSkillListSkillsResponse(List<Skill> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encSkill(csilElem0)));
+    public static byte[] encodeSkillListSkillsResponse(SkillItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encSkill(csilElem0)));
     }
 
-    public static List<Skill> decodeSkillListSkillsResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decSkill(csilE0));
+    public static SkillItems decodeSkillListSkillsResponse(byte[] csilData) {
+        return new SkillItems(decArray(decode(csilData), csilE0 -> decSkill(csilE0)));
     }
 
-    public static byte[] encodeSkillListMemberSkillsResponse(List<Skill> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encSkill(csilElem0)));
+    public static byte[] encodeSkillListMemberSkillsResponse(SkillItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encSkill(csilElem0)));
     }
 
-    public static List<Skill> decodeSkillListMemberSkillsResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decSkill(csilE0));
+    public static SkillItems decodeSkillListMemberSkillsResponse(byte[] csilData) {
+        return new SkillItems(decArray(decode(csilData), csilE0 -> decSkill(csilE0)));
     }
 
     public static byte[] encodeSkillListGroupSkillsRequest(GroupId csilV) {
@@ -4333,12 +4557,12 @@ public final class CsilCbor {
         return new GroupId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeSkillListGroupSkillsResponse(List<Skill> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encSkill(csilElem0)));
+    public static byte[] encodeSkillListGroupSkillsResponse(SkillItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encSkill(csilElem0)));
     }
 
-    public static List<Skill> decodeSkillListGroupSkillsResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decSkill(csilE0));
+    public static SkillItems decodeSkillListGroupSkillsResponse(byte[] csilData) {
+        return new SkillItems(decArray(decode(csilData), csilE0 -> decSkill(csilE0)));
     }
 
     public static byte[] encodeGroupDeleteGroupRequest(GroupId csilV) {
@@ -4349,20 +4573,20 @@ public final class CsilCbor {
         return new GroupId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeGroupListGroupsResponse(List<Group> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encGroup(csilElem0)));
+    public static byte[] encodeGroupListGroupsResponse(GroupItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encGroup(csilElem0)));
     }
 
-    public static List<Group> decodeGroupListGroupsResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decGroup(csilE0));
+    public static GroupItems decodeGroupListGroupsResponse(byte[] csilData) {
+        return new GroupItems(decArray(decode(csilData), csilE0 -> decGroup(csilE0)));
     }
 
-    public static byte[] encodeGroupListGroupMembersResponse(List<Member> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encMember(csilElem0)));
+    public static byte[] encodeGroupListGroupMembersResponse(MemberItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encMember(csilElem0)));
     }
 
-    public static List<Member> decodeGroupListGroupMembersResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decMember(csilE0));
+    public static MemberItems decodeGroupListGroupMembersResponse(byte[] csilData) {
+        return new MemberItems(decArray(decode(csilData), csilE0 -> decMember(csilE0)));
     }
 
     public static byte[] encodeProjectGetProjectRequest(ProjectId csilV) {
@@ -4389,12 +4613,12 @@ public final class CsilCbor {
         return new ProjectId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeProjectListProjectMembersResponse(List<Member> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encMember(csilElem0)));
+    public static byte[] encodeProjectListProjectMembersResponse(MemberItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encMember(csilElem0)));
     }
 
-    public static List<Member> decodeProjectListProjectMembersResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decMember(csilE0));
+    public static MemberItems decodeProjectListProjectMembersResponse(byte[] csilData) {
+        return new MemberItems(decArray(decode(csilData), csilE0 -> decMember(csilE0)));
     }
 
     public static byte[] encodeProjectListProjectOwnersRequest(ProjectId csilV) {
@@ -4405,12 +4629,12 @@ public final class CsilCbor {
         return new ProjectId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeProjectListProjectOwnersResponse(List<Member> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encMember(csilElem0)));
+    public static byte[] encodeProjectListProjectOwnersResponse(MemberItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encMember(csilElem0)));
     }
 
-    public static List<Member> decodeProjectListProjectOwnersResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decMember(csilE0));
+    public static MemberItems decodeProjectListProjectOwnersResponse(byte[] csilData) {
+        return new MemberItems(decArray(decode(csilData), csilE0 -> decMember(csilE0)));
     }
 
     public static byte[] encodeProjectListMilestonesRequest(ProjectId csilV) {
@@ -4421,12 +4645,12 @@ public final class CsilCbor {
         return new ProjectId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeProjectListMilestonesResponse(List<Milestone> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encMilestone(csilElem0)));
+    public static byte[] encodeProjectListMilestonesResponse(MilestoneItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encMilestone(csilElem0)));
     }
 
-    public static List<Milestone> decodeProjectListMilestonesResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decMilestone(csilE0));
+    public static MilestoneItems decodeProjectListMilestonesResponse(byte[] csilData) {
+        return new MilestoneItems(decArray(decode(csilData), csilE0 -> decMilestone(csilE0)));
     }
 
     public static byte[] encodeProjectDeleteMilestoneRequest(MilestoneId csilV) {
@@ -4445,12 +4669,12 @@ public final class CsilCbor {
         return new ProjectId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeProjectListProjectGrantsResponse(List<Grant> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encGrant(csilElem0)));
+    public static byte[] encodeProjectListProjectGrantsResponse(GrantItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encGrant(csilElem0)));
     }
 
-    public static List<Grant> decodeProjectListProjectGrantsResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decGrant(csilE0));
+    public static GrantItems decodeProjectListProjectGrantsResponse(byte[] csilData) {
+        return new GrantItems(decArray(decode(csilData), csilE0 -> decGrant(csilE0)));
     }
 
     public static byte[] encodeEventGetEventRequest(EventId csilV) {
@@ -4477,12 +4701,12 @@ public final class CsilCbor {
         return new EventId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeEventListEventsResponse(List<Event> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encEvent(csilElem0)));
+    public static byte[] encodeEventListEventsResponse(EventItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encEvent(csilElem0)));
     }
 
-    public static List<Event> decodeEventListEventsResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decEvent(csilE0));
+    public static EventItems decodeEventListEventsResponse(byte[] csilData) {
+        return new EventItems(decArray(decode(csilData), csilE0 -> decEvent(csilE0)));
     }
 
     public static byte[] encodeEventGetCalendarViewRequest(HouseId csilV) {
@@ -4509,12 +4733,12 @@ public final class CsilCbor {
         return new HouseId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeEventListLocalEventsResponse(List<Event> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encEvent(csilElem0)));
+    public static byte[] encodeEventListLocalEventsResponse(EventItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encEvent(csilElem0)));
     }
 
-    public static List<Event> decodeEventListLocalEventsResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decEvent(csilE0));
+    public static EventItems decodeEventListLocalEventsResponse(byte[] csilData) {
+        return new EventItems(decArray(decode(csilData), csilE0 -> decEvent(csilE0)));
     }
 
     public static byte[] encodeCalendarGetStatusRequest(HouseId csilV) {
@@ -4549,12 +4773,12 @@ public final class CsilCbor {
         return new HouseId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeCalendarPreviewMigrationResponse(List<CalendarMigrationRow> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encCalendarMigrationRow(csilElem0)));
+    public static byte[] encodeCalendarPreviewMigrationResponse(CalendarMigrationRowItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encCalendarMigrationRow(csilElem0)));
     }
 
-    public static List<CalendarMigrationRow> decodeCalendarPreviewMigrationResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decCalendarMigrationRow(csilE0));
+    public static CalendarMigrationRowItems decodeCalendarPreviewMigrationResponse(byte[] csilData) {
+        return new CalendarMigrationRowItems(decArray(decode(csilData), csilE0 -> decCalendarMigrationRow(csilE0)));
     }
 
     public static byte[] encodeCalendarListTrashRequest(HouseId csilV) {
@@ -4565,12 +4789,12 @@ public final class CsilCbor {
         return new HouseId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeCalendarListTrashResponse(List<CalendarTrashEntry> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encCalendarTrashEntry(csilElem0)));
+    public static byte[] encodeCalendarListTrashResponse(CalendarTrashEntryItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encCalendarTrashEntry(csilElem0)));
     }
 
-    public static List<CalendarTrashEntry> decodeCalendarListTrashResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decCalendarTrashEntry(csilE0));
+    public static CalendarTrashEntryItems decodeCalendarListTrashResponse(byte[] csilData) {
+        return new CalendarTrashEntryItems(decArray(decode(csilData), csilE0 -> decCalendarTrashEntry(csilE0)));
     }
 
     public static byte[] encodeTaskGetTaskRequest(TaskId csilV) {
@@ -4597,12 +4821,12 @@ public final class CsilCbor {
         return new TaskId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeTaskListTaskGrantsResponse(List<Grant> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encGrant(csilElem0)));
+    public static byte[] encodeTaskListTaskGrantsResponse(GrantItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encGrant(csilElem0)));
     }
 
-    public static List<Grant> decodeTaskListTaskGrantsResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decGrant(csilE0));
+    public static GrantItems decodeTaskListTaskGrantsResponse(byte[] csilData) {
+        return new GrantItems(decArray(decode(csilData), csilE0 -> decGrant(csilE0)));
     }
 
     public static byte[] encodeCommentGetCommentRequest(CommentId csilV) {
@@ -4621,20 +4845,20 @@ public final class CsilCbor {
         return new CommentId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeCommentListCommentsResponse(List<Comment> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encComment(csilElem0)));
+    public static byte[] encodeCommentListCommentsResponse(CommentItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encComment(csilElem0)));
     }
 
-    public static List<Comment> decodeCommentListCommentsResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decComment(csilE0));
+    public static CommentItems decodeCommentListCommentsResponse(byte[] csilData) {
+        return new CommentItems(decArray(decode(csilData), csilE0 -> decComment(csilE0)));
     }
 
-    public static byte[] encodeNotificationListNotificationsResponse(List<Notification> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encNotification(csilElem0)));
+    public static byte[] encodeNotificationListNotificationsResponse(NotificationItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encNotification(csilElem0)));
     }
 
-    public static List<Notification> decodeNotificationListNotificationsResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decNotification(csilE0));
+    public static NotificationItems decodeNotificationListNotificationsResponse(byte[] csilData) {
+        return new NotificationItems(decArray(decode(csilData), csilE0 -> decNotification(csilE0)));
     }
 
     public static byte[] encodeNotificationUnreadCountRequest(HouseId csilV) {
@@ -4669,20 +4893,20 @@ public final class CsilCbor {
         return new ShareId(asText(decode(csilData)));
     }
 
-    public static byte[] encodeShareListSharesByResourceResponse(List<Share> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encShare(csilElem0)));
+    public static byte[] encodeShareListSharesByResourceResponse(ShareItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encShare(csilElem0)));
     }
 
-    public static List<Share> decodeShareListSharesByResourceResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decShare(csilE0));
+    public static ShareItems decodeShareListSharesByResourceResponse(byte[] csilData) {
+        return new ShareItems(decArray(decode(csilData), csilE0 -> decShare(csilE0)));
     }
 
-    public static byte[] encodeMemberAuditListAuditsForMemberResponse(List<MemberAudit> csilV) {
-        return encode(encArray(csilV, csilElem0 -> encMemberAudit(csilElem0)));
+    public static byte[] encodeMemberAuditListAuditsForMemberResponse(MemberAuditItems csilV) {
+        return encode(encArray((csilV).value(), csilElem0 -> encMemberAudit(csilElem0)));
     }
 
-    public static List<MemberAudit> decodeMemberAuditListAuditsForMemberResponse(byte[] csilData) {
-        return decArray(decode(csilData), csilE0 -> decMemberAudit(csilE0));
+    public static MemberAuditItems decodeMemberAuditListAuditsForMemberResponse(byte[] csilData) {
+        return new MemberAuditItems(decArray(decode(csilData), csilE0 -> decMemberAudit(csilE0)));
     }
 
     public static byte[] encodeSettingsGetSettingsRequest(HouseId csilV) {
@@ -4921,6 +5145,15 @@ public final class CsilCbor {
         }
     }
 
+    public static RpcReply encodeHouseListHousesReply(java.util.function.Supplier<HouseItems> handler) {
+        try {
+            HouseItems value = handler.get();
+            return new RpcReply("HouseItems", encode(encArray((value).value(), csilElem0 -> encHouse(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
     public static RpcReply encodeMemberCreateMemberReply(java.util.function.Supplier<Member> handler) {
         try {
             Member value = handler.get();
@@ -4975,6 +5208,15 @@ public final class CsilCbor {
         }
     }
 
+    public static RpcReply encodeMemberListMembersReply(java.util.function.Supplier<MemberItems> handler) {
+        try {
+            MemberItems value = handler.get();
+            return new RpcReply("MemberItems", encode(encArray((value).value(), csilElem0 -> encMember(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
     public static RpcReply encodeTrustedDomainAddTrustedDomainReply(java.util.function.Supplier<TrustedDomain> handler) {
         try {
             TrustedDomain value = handler.get();
@@ -4988,6 +5230,15 @@ public final class CsilCbor {
         try {
             EmptyResponse value = handler.get();
             return new RpcReply("EmptyResponse", encode(encEmptyResponse(value)));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeTrustedDomainListTrustedDomainsReply(java.util.function.Supplier<TrustedDomainItems> handler) {
+        try {
+            TrustedDomainItems value = handler.get();
+            return new RpcReply("TrustedDomainItems", encode(encArray((value).value(), csilElem0 -> encTrustedDomain(csilElem0))));
         } catch (ServiceErrorRefusal refusal) {
             return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
         }
@@ -5029,6 +5280,15 @@ public final class CsilCbor {
         }
     }
 
+    public static RpcReply encodeRoleListRolesReply(java.util.function.Supplier<RoleItems> handler) {
+        try {
+            RoleItems value = handler.get();
+            return new RpcReply("RoleItems", encode(encArray((value).value(), csilElem0 -> encRole(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
     public static RpcReply encodeRoleGrantRoleReply(java.util.function.Supplier<EmptyResponse> handler) {
         try {
             EmptyResponse value = handler.get();
@@ -5042,6 +5302,15 @@ public final class CsilCbor {
         try {
             EmptyResponse value = handler.get();
             return new RpcReply("EmptyResponse", encode(encEmptyResponse(value)));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeRoleListMemberRolesReply(java.util.function.Supplier<RoleItems> handler) {
+        try {
+            RoleItems value = handler.get();
+            return new RpcReply("RoleItems", encode(encArray((value).value(), csilElem0 -> encRole(csilElem0))));
         } catch (ServiceErrorRefusal refusal) {
             return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
         }
@@ -5074,6 +5343,15 @@ public final class CsilCbor {
         }
     }
 
+    public static RpcReply encodeSkillListSkillsReply(java.util.function.Supplier<SkillItems> handler) {
+        try {
+            SkillItems value = handler.get();
+            return new RpcReply("SkillItems", encode(encArray((value).value(), csilElem0 -> encSkill(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
     public static RpcReply encodeSkillAddMemberSkillReply(java.util.function.Supplier<EmptyResponse> handler) {
         try {
             EmptyResponse value = handler.get();
@@ -5092,6 +5370,15 @@ public final class CsilCbor {
         }
     }
 
+    public static RpcReply encodeSkillListMemberSkillsReply(java.util.function.Supplier<SkillItems> handler) {
+        try {
+            SkillItems value = handler.get();
+            return new RpcReply("SkillItems", encode(encArray((value).value(), csilElem0 -> encSkill(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
     public static RpcReply encodeSkillAddGroupSkillReply(java.util.function.Supplier<EmptyResponse> handler) {
         try {
             EmptyResponse value = handler.get();
@@ -5105,6 +5392,15 @@ public final class CsilCbor {
         try {
             EmptyResponse value = handler.get();
             return new RpcReply("EmptyResponse", encode(encEmptyResponse(value)));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeSkillListGroupSkillsReply(java.util.function.Supplier<SkillItems> handler) {
+        try {
+            SkillItems value = handler.get();
+            return new RpcReply("SkillItems", encode(encArray((value).value(), csilElem0 -> encSkill(csilElem0))));
         } catch (ServiceErrorRefusal refusal) {
             return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
         }
@@ -5137,6 +5433,15 @@ public final class CsilCbor {
         }
     }
 
+    public static RpcReply encodeGroupListGroupsReply(java.util.function.Supplier<GroupItems> handler) {
+        try {
+            GroupItems value = handler.get();
+            return new RpcReply("GroupItems", encode(encArray((value).value(), csilElem0 -> encGroup(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
     public static RpcReply encodeGroupAddGroupMemberReply(java.util.function.Supplier<EmptyResponse> handler) {
         try {
             EmptyResponse value = handler.get();
@@ -5150,6 +5455,15 @@ public final class CsilCbor {
         try {
             EmptyResponse value = handler.get();
             return new RpcReply("EmptyResponse", encode(encEmptyResponse(value)));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeGroupListGroupMembersReply(java.util.function.Supplier<MemberItems> handler) {
+        try {
+            MemberItems value = handler.get();
+            return new RpcReply("MemberItems", encode(encArray((value).value(), csilElem0 -> encMember(csilElem0))));
         } catch (ServiceErrorRefusal refusal) {
             return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
         }
@@ -5236,6 +5550,15 @@ public final class CsilCbor {
         }
     }
 
+    public static RpcReply encodeProjectListProjectMembersReply(java.util.function.Supplier<MemberItems> handler) {
+        try {
+            MemberItems value = handler.get();
+            return new RpcReply("MemberItems", encode(encArray((value).value(), csilElem0 -> encMember(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
     public static RpcReply encodeProjectAddProjectMemberReply(java.util.function.Supplier<EmptyResponse> handler) {
         try {
             EmptyResponse value = handler.get();
@@ -5254,6 +5577,15 @@ public final class CsilCbor {
         }
     }
 
+    public static RpcReply encodeProjectListProjectOwnersReply(java.util.function.Supplier<MemberItems> handler) {
+        try {
+            MemberItems value = handler.get();
+            return new RpcReply("MemberItems", encode(encArray((value).value(), csilElem0 -> encMember(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
     public static RpcReply encodeProjectAddProjectOwnerReply(java.util.function.Supplier<EmptyResponse> handler) {
         try {
             EmptyResponse value = handler.get();
@@ -5267,6 +5599,15 @@ public final class CsilCbor {
         try {
             EmptyResponse value = handler.get();
             return new RpcReply("EmptyResponse", encode(encEmptyResponse(value)));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeProjectListMilestonesReply(java.util.function.Supplier<MilestoneItems> handler) {
+        try {
+            MilestoneItems value = handler.get();
+            return new RpcReply("MilestoneItems", encode(encArray((value).value(), csilElem0 -> encMilestone(csilElem0))));
         } catch (ServiceErrorRefusal refusal) {
             return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
         }
@@ -5303,6 +5644,15 @@ public final class CsilCbor {
         try {
             Project value = handler.get();
             return new RpcReply("Project", encode(encProject(value)));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeProjectListProjectGrantsReply(java.util.function.Supplier<GrantItems> handler) {
+        try {
+            GrantItems value = handler.get();
+            return new RpcReply("GrantItems", encode(encArray((value).value(), csilElem0 -> encGrant(csilElem0))));
         } catch (ServiceErrorRefusal refusal) {
             return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
         }
@@ -5371,6 +5721,15 @@ public final class CsilCbor {
         }
     }
 
+    public static RpcReply encodeEventListEventsReply(java.util.function.Supplier<EventItems> handler) {
+        try {
+            EventItems value = handler.get();
+            return new RpcReply("EventItems", encode(encArray((value).value(), csilElem0 -> encEvent(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
     public static RpcReply encodeEventGetCalendarViewReply(java.util.function.Supplier<CalendarView> handler) {
         try {
             CalendarView value = handler.get();
@@ -5411,6 +5770,15 @@ public final class CsilCbor {
         try {
             Event value = handler.get();
             return new RpcReply("Event", encode(encEvent(value)));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeEventListLocalEventsReply(java.util.function.Supplier<EventItems> handler) {
+        try {
+            EventItems value = handler.get();
+            return new RpcReply("EventItems", encode(encArray((value).value(), csilElem0 -> encEvent(csilElem0))));
         } catch (ServiceErrorRefusal refusal) {
             return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
         }
@@ -5465,6 +5833,24 @@ public final class CsilCbor {
         try {
             EmptyResponse value = handler.get();
             return new RpcReply("EmptyResponse", encode(encEmptyResponse(value)));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeCalendarPreviewMigrationReply(java.util.function.Supplier<CalendarMigrationRowItems> handler) {
+        try {
+            CalendarMigrationRowItems value = handler.get();
+            return new RpcReply("CalendarMigrationRowItems", encode(encArray((value).value(), csilElem0 -> encCalendarMigrationRow(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeCalendarListTrashReply(java.util.function.Supplier<CalendarTrashEntryItems> handler) {
+        try {
+            CalendarTrashEntryItems value = handler.get();
+            return new RpcReply("CalendarTrashEntryItems", encode(encArray((value).value(), csilElem0 -> encCalendarTrashEntry(csilElem0))));
         } catch (ServiceErrorRefusal refusal) {
             return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
         }
@@ -5537,6 +5923,15 @@ public final class CsilCbor {
         try {
             Task value = handler.get();
             return new RpcReply("Task", encode(encTask(value)));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeTaskListTaskGrantsReply(java.util.function.Supplier<GrantItems> handler) {
+        try {
+            GrantItems value = handler.get();
+            return new RpcReply("GrantItems", encode(encArray((value).value(), csilElem0 -> encGrant(csilElem0))));
         } catch (ServiceErrorRefusal refusal) {
             return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
         }
@@ -5623,6 +6018,24 @@ public final class CsilCbor {
         }
     }
 
+    public static RpcReply encodeCommentListCommentsReply(java.util.function.Supplier<CommentItems> handler) {
+        try {
+            CommentItems value = handler.get();
+            return new RpcReply("CommentItems", encode(encArray((value).value(), csilElem0 -> encComment(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeNotificationListNotificationsReply(java.util.function.Supplier<NotificationItems> handler) {
+        try {
+            NotificationItems value = handler.get();
+            return new RpcReply("NotificationItems", encode(encArray((value).value(), csilElem0 -> encNotification(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
     public static RpcReply encodeNotificationUnreadCountReply(java.util.function.Supplier<NotificationUnreadCount> handler) {
         try {
             NotificationUnreadCount value = handler.get();
@@ -5668,10 +6081,28 @@ public final class CsilCbor {
         }
     }
 
+    public static RpcReply encodeShareListSharesByResourceReply(java.util.function.Supplier<ShareItems> handler) {
+        try {
+            ShareItems value = handler.get();
+            return new RpcReply("ShareItems", encode(encArray((value).value(), csilElem0 -> encShare(csilElem0))));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
     public static RpcReply encodeShareCheckAccessReply(java.util.function.Supplier<Share> handler) {
         try {
             Share value = handler.get();
             return new RpcReply("Share", encode(encShare(value)));
+        } catch (ServiceErrorRefusal refusal) {
+            return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
+        }
+    }
+
+    public static RpcReply encodeMemberAuditListAuditsForMemberReply(java.util.function.Supplier<MemberAuditItems> handler) {
+        try {
+            MemberAuditItems value = handler.get();
+            return new RpcReply("MemberAuditItems", encode(encArray((value).value(), csilElem0 -> encMemberAudit(csilElem0))));
         } catch (ServiceErrorRefusal refusal) {
             return new RpcReply("ServiceError", encode(encServiceError(refusal.value)));
         }
@@ -5861,6 +6292,11 @@ public final class CsilCbor {
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
+        if ("HouseService".equals(service) && "list-houses".equals(op)) {
+            if ("HouseItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
         if ("MemberService".equals(service) && "create-member".equals(op)) {
             if ("Member".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
@@ -5891,6 +6327,11 @@ public final class CsilCbor {
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
+        if ("MemberService".equals(service) && "list-members".equals(op)) {
+            if ("MemberItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
         if ("TrustedDomainService".equals(service) && "add-trusted-domain".equals(op)) {
             if ("TrustedDomain".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
@@ -5898,6 +6339,11 @@ public final class CsilCbor {
         }
         if ("TrustedDomainService".equals(service) && "remove-trusted-domain".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("TrustedDomainService".equals(service) && "list-trusted-domains".equals(op)) {
+            if ("TrustedDomainItems".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
@@ -5921,6 +6367,11 @@ public final class CsilCbor {
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
+        if ("RoleService".equals(service) && "list-roles".equals(op)) {
+            if ("RoleItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
         if ("RoleService".equals(service) && "grant-role".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
@@ -5928,6 +6379,11 @@ public final class CsilCbor {
         }
         if ("RoleService".equals(service) && "revoke-role".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("RoleService".equals(service) && "list-member-roles".equals(op)) {
+            if ("RoleItems".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
@@ -5946,6 +6402,11 @@ public final class CsilCbor {
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
+        if ("SkillService".equals(service) && "list-skills".equals(op)) {
+            if ("SkillItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
         if ("SkillService".equals(service) && "add-member-skill".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
@@ -5956,6 +6417,11 @@ public final class CsilCbor {
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
+        if ("SkillService".equals(service) && "list-member-skills".equals(op)) {
+            if ("SkillItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
         if ("SkillService".equals(service) && "add-group-skill".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
@@ -5963,6 +6429,11 @@ public final class CsilCbor {
         }
         if ("SkillService".equals(service) && "remove-group-skill".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("SkillService".equals(service) && "list-group-skills".equals(op)) {
+            if ("SkillItems".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
@@ -5981,6 +6452,11 @@ public final class CsilCbor {
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
+        if ("GroupService".equals(service) && "list-groups".equals(op)) {
+            if ("GroupItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
         if ("GroupService".equals(service) && "add-group-member".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
@@ -5988,6 +6464,11 @@ public final class CsilCbor {
         }
         if ("GroupService".equals(service) && "remove-group-member".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("GroupService".equals(service) && "list-group-members".equals(op)) {
+            if ("MemberItems".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
@@ -6036,6 +6517,11 @@ public final class CsilCbor {
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
+        if ("ProjectService".equals(service) && "list-project-members".equals(op)) {
+            if ("MemberItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
         if ("ProjectService".equals(service) && "add-project-member".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
@@ -6046,6 +6532,11 @@ public final class CsilCbor {
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
+        if ("ProjectService".equals(service) && "list-project-owners".equals(op)) {
+            if ("MemberItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
         if ("ProjectService".equals(service) && "add-project-owner".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
@@ -6053,6 +6544,11 @@ public final class CsilCbor {
         }
         if ("ProjectService".equals(service) && "remove-project-owner".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("ProjectService".equals(service) && "list-milestones".equals(op)) {
+            if ("MilestoneItems".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
@@ -6073,6 +6569,11 @@ public final class CsilCbor {
         }
         if ("ProjectService".equals(service) && "set-project-visibility".equals(op)) {
             if ("Project".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("ProjectService".equals(service) && "list-project-grants".equals(op)) {
+            if ("GrantItems".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
@@ -6111,6 +6612,11 @@ public final class CsilCbor {
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
+        if ("EventService".equals(service) && "list-events".equals(op)) {
+            if ("EventItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
         if ("EventService".equals(service) && "get-calendar-view".equals(op)) {
             if ("CalendarView".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
@@ -6133,6 +6639,11 @@ public final class CsilCbor {
         }
         if ("EventService".equals(service) && "decline-event".equals(op)) {
             if ("Event".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("EventService".equals(service) && "list-local-events".equals(op)) {
+            if ("EventItems".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
@@ -6163,6 +6674,16 @@ public final class CsilCbor {
         }
         if ("CalendarService".equals(service) && "disconnect".equals(op)) {
             if ("EmptyResponse".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("CalendarService".equals(service) && "preview-migration".equals(op)) {
+            if ("CalendarMigrationRowItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("CalendarService".equals(service) && "list-trash".equals(op)) {
+            if ("CalendarTrashEntryItems".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
@@ -6203,6 +6724,11 @@ public final class CsilCbor {
         }
         if ("TaskService".equals(service) && "set-task-visibility".equals(op)) {
             if ("Task".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("TaskService".equals(service) && "list-task-grants".equals(op)) {
+            if ("GrantItems".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
@@ -6251,6 +6777,16 @@ public final class CsilCbor {
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
+        if ("CommentService".equals(service) && "list-comments".equals(op)) {
+            if ("CommentItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("NotificationService".equals(service) && "list-notifications".equals(op)) {
+            if ("NotificationItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
         if ("NotificationService".equals(service) && "unread-count".equals(op)) {
             if ("NotificationUnreadCount".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
@@ -6276,8 +6812,18 @@ public final class CsilCbor {
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }
+        if ("ShareService".equals(service) && "list-shares-by-resource".equals(op)) {
+            if ("ShareItems".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
         if ("ShareService".equals(service) && "check-access".equals(op)) {
             if ("Share".equals(variant)) return payload;
+            if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
+            throw new CsilCborException("invalid RPC reply variant: " + variant);
+        }
+        if ("MemberAuditService".equals(service) && "list-audits-for-member".equals(op)) {
+            if ("MemberAuditItems".equals(variant)) return payload;
             if ("ServiceError".equals(variant)) throw new ServiceErrorRefusal(decServiceError(decode(payload)));
             throw new CsilCborException("invalid RPC reply variant: " + variant);
         }

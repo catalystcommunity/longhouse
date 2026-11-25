@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the ShareService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -16,18 +14,22 @@ public final class ShareClient {
     }
 
     public Share createShare(Share req) throws ClientException {
-        return CsilCbor.decodeShare(transport.call("ShareService", "create-share", CsilCbor.encodeShare(req)));
+        WireReply reply = transport.callReply("ShareService", "create-share", CsilCbor.encodeShare(req));
+        return CsilCbor.decodeShare(CsilCbor.resolveRpcReply("ShareService", "create-share", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deleteShare(ShareId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ShareService", "delete-share", CsilCbor.encodeShareDeleteShareRequest(req)));
+        WireReply reply = transport.callReply("ShareService", "delete-share", CsilCbor.encodeShareDeleteShareRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ShareService", "delete-share", reply.variant(), reply.payload()));
     }
 
-    public List<Share> listSharesByResource(ResourceRef req) throws ClientException {
-        return CsilCbor.decodeShareListSharesByResourceResponse(transport.call("ShareService", "list-shares-by-resource", CsilCbor.encodeResourceRef(req)));
+    public ShareItems listSharesByResource(ResourceRef req) throws ClientException {
+        WireReply reply = transport.callReply("ShareService", "list-shares-by-resource", CsilCbor.encodeResourceRef(req));
+        return CsilCbor.decodeShareListSharesByResourceResponse(CsilCbor.resolveRpcReply("ShareService", "list-shares-by-resource", reply.variant(), reply.payload()));
     }
 
     public Share checkAccess(ShareAccessRequest req) throws ClientException {
-        return CsilCbor.decodeShare(transport.call("ShareService", "check-access", CsilCbor.encodeShareAccessRequest(req)));
+        WireReply reply = transport.callReply("ShareService", "check-access", CsilCbor.encodeShareAccessRequest(req));
+        return CsilCbor.decodeShare(CsilCbor.resolveRpcReply("ShareService", "check-access", reply.variant(), reply.payload()));
     }
 }

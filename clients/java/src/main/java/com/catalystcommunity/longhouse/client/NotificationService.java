@@ -2,13 +2,11 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The NotificationService server handler interface; the host implements it.
  */
 public interface NotificationService {
-    List<Notification> listNotifications(NotificationListRequest req);
+    NotificationItems listNotifications(NotificationListRequest req);
     NotificationUnreadCount unreadCount(HouseId req);
     Notification markRead(NotificationId req);
     EmptyResponse markAllRead(HouseId req);

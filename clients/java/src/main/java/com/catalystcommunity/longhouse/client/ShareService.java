@@ -2,14 +2,12 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The ShareService server handler interface; the host implements it.
  */
 public interface ShareService {
     Share createShare(Share req);
     EmptyResponse deleteShare(ShareId req);
-    List<Share> listSharesByResource(ResourceRef req);
+    ShareItems listSharesByResource(ResourceRef req);
     Share checkAccess(ShareAccessRequest req);
 }

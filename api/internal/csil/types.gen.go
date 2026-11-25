@@ -154,57 +154,74 @@ const (
 
 // House represents a structured data type
 type House struct {
-	HouseId     HouseID   `json:"house_id" yaml:"house_id"`
-	Name        string    `json:"name" yaml:"name"`
-	Description *string   `json:"description,omitempty" yaml:"description,omitempty"`
-	CreatedAt   time.Time `json:"created_at" yaml:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" yaml:"updated_at"`
+	// receive-only
+	HouseId     HouseID `json:"house_id" yaml:"house_id"`
+	Name        string  `json:"name" yaml:"name"`
+	Description *string `json:"description,omitempty" yaml:"description,omitempty"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	// receive-only
+	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
 }
 
 // Member represents a structured data type
 type Member struct {
-	MemberId        MemberID   `json:"member_id" yaml:"member_id"`
-	HouseId         HouseID    `json:"house_id" yaml:"house_id"`
-	LinkkeysDomain  string     `json:"linkkeys_domain" yaml:"linkkeys_domain"`
-	LinkkeysUserId  string     `json:"linkkeys_user_id" yaml:"linkkeys_user_id"`
-	DisplayName     *string    `json:"display_name,omitempty" yaml:"display_name,omitempty"`
-	Email           *string    `json:"email,omitempty" yaml:"email,omitempty"`
-	AvatarUrl       *string    `json:"avatar_url,omitempty" yaml:"avatar_url,omitempty"`
-	Handle          *string    `json:"handle,omitempty" yaml:"handle,omitempty"`
-	CachedPublicKey *[]byte    `json:"cached_public_key,omitempty" yaml:"cached_public_key,omitempty"`
-	CreatedAt       time.Time  `json:"created_at" yaml:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at" yaml:"updated_at"`
-	LastSeenAt      *time.Time `json:"last_seen_at,omitempty" yaml:"last_seen_at,omitempty"`
-	DeactivatedAt   *time.Time `json:"deactivated_at,omitempty" yaml:"deactivated_at,omitempty"`
+	// receive-only
+	MemberId       MemberID `json:"member_id" yaml:"member_id"`
+	HouseId        HouseID  `json:"house_id" yaml:"house_id"`
+	LinkkeysDomain string   `json:"linkkeys_domain" yaml:"linkkeys_domain"`
+	LinkkeysUserId string   `json:"linkkeys_user_id" yaml:"linkkeys_user_id"`
+	DisplayName    *string  `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+	// receive-only
+	Email     *string `json:"email,omitempty" yaml:"email,omitempty"`
+	AvatarUrl *string `json:"avatar_url,omitempty" yaml:"avatar_url,omitempty"`
+	// receive-only
+	Handle          *string `json:"handle,omitempty" yaml:"handle,omitempty"`
+	CachedPublicKey *[]byte `json:"cached_public_key,omitempty" yaml:"cached_public_key,omitempty"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	// receive-only
+	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
+	// receive-only
+	LastSeenAt *time.Time `json:"last_seen_at,omitempty" yaml:"last_seen_at,omitempty"`
+	// receive-only
+	DeactivatedAt *time.Time `json:"deactivated_at,omitempty" yaml:"deactivated_at,omitempty"`
 }
 
 // TrustedDomain represents a structured data type
 type TrustedDomain struct {
+	// receive-only
 	TrustedDomainId TrustedDomainID `json:"trusted_domain_id" yaml:"trusted_domain_id"`
 	HouseId         HouseID         `json:"house_id" yaml:"house_id"`
 	Domain          string          `json:"domain" yaml:"domain"`
-	CreatedAt       time.Time       `json:"created_at" yaml:"created_at"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
 // Role represents a structured data type
 type Role struct {
-	RoleId      RoleID    `json:"role_id" yaml:"role_id"`
-	HouseId     HouseID   `json:"house_id" yaml:"house_id"`
-	Name        string    `json:"name" yaml:"name"`
-	Description *string   `json:"description,omitempty" yaml:"description,omitempty"`
-	CreatedAt   time.Time `json:"created_at" yaml:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" yaml:"updated_at"`
+	// receive-only
+	RoleId      RoleID  `json:"role_id" yaml:"role_id"`
+	HouseId     HouseID `json:"house_id" yaml:"house_id"`
+	Name        string  `json:"name" yaml:"name"`
+	Description *string `json:"description,omitempty" yaml:"description,omitempty"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	// receive-only
+	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
 }
 
 // MemberRole represents a structured data type
 type MemberRole struct {
-	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
-	RoleId    RoleID    `json:"role_id" yaml:"role_id"`
+	MemberId MemberID `json:"member_id" yaml:"member_id"`
+	RoleId   RoleID   `json:"role_id" yaml:"role_id"`
+	// receive-only
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
 // MemberAudit represents a structured data type
 type MemberAudit struct {
+	// receive-only
 	AuditId         MemberAuditID `json:"audit_id" yaml:"audit_id"`
 	HouseId         HouseID       `json:"house_id" yaml:"house_id"`
 	SubjectMemberId MemberID      `json:"subject_member_id" yaml:"subject_member_id"`
@@ -213,63 +230,78 @@ type MemberAudit struct {
 	TargetType      *string       `json:"target_type,omitempty" yaml:"target_type,omitempty"`
 	TargetId        *string       `json:"target_id,omitempty" yaml:"target_id,omitempty"`
 	Detail          *string       `json:"detail,omitempty" yaml:"detail,omitempty"`
-	CreatedAt       time.Time     `json:"created_at" yaml:"created_at"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
 // Skill represents a structured data type
 type Skill struct {
-	SkillId     SkillID   `json:"skill_id" yaml:"skill_id"`
-	HouseId     HouseID   `json:"house_id" yaml:"house_id"`
-	Name        string    `json:"name" yaml:"name"`
-	Description *string   `json:"description,omitempty" yaml:"description,omitempty"`
-	CreatedAt   time.Time `json:"created_at" yaml:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" yaml:"updated_at"`
+	// receive-only
+	SkillId     SkillID `json:"skill_id" yaml:"skill_id"`
+	HouseId     HouseID `json:"house_id" yaml:"house_id"`
+	Name        string  `json:"name" yaml:"name"`
+	Description *string `json:"description,omitempty" yaml:"description,omitempty"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	// receive-only
+	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
 }
 
 // MemberSkill represents a structured data type
 type MemberSkill struct {
-	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
-	SkillId   SkillID   `json:"skill_id" yaml:"skill_id"`
+	MemberId MemberID `json:"member_id" yaml:"member_id"`
+	SkillId  SkillID  `json:"skill_id" yaml:"skill_id"`
+	// receive-only
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
 // GroupSkill represents a structured data type
 type GroupSkill struct {
-	GroupId   GroupID   `json:"group_id" yaml:"group_id"`
-	SkillId   SkillID   `json:"skill_id" yaml:"skill_id"`
+	GroupId GroupID `json:"group_id" yaml:"group_id"`
+	SkillId SkillID `json:"skill_id" yaml:"skill_id"`
+	// receive-only
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
 // Group represents a structured data type
 type Group struct {
-	GroupId     GroupID   `json:"group_id" yaml:"group_id"`
-	HouseId     HouseID   `json:"house_id" yaml:"house_id"`
-	Name        string    `json:"name" yaml:"name"`
-	Description *string   `json:"description,omitempty" yaml:"description,omitempty"`
-	CreatedAt   time.Time `json:"created_at" yaml:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" yaml:"updated_at"`
+	// receive-only
+	GroupId     GroupID `json:"group_id" yaml:"group_id"`
+	HouseId     HouseID `json:"house_id" yaml:"house_id"`
+	Name        string  `json:"name" yaml:"name"`
+	Description *string `json:"description,omitempty" yaml:"description,omitempty"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	// receive-only
+	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
 }
 
 // GroupMember represents a structured data type
 type GroupMember struct {
-	GroupId   GroupID   `json:"group_id" yaml:"group_id"`
-	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+	GroupId  GroupID  `json:"group_id" yaml:"group_id"`
+	MemberId MemberID `json:"member_id" yaml:"member_id"`
+	// receive-only
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
 // Project represents a structured data type
 type Project struct {
-	ProjectId         ProjectID      `json:"project_id" yaml:"project_id"`
-	HouseId           HouseID        `json:"house_id" yaml:"house_id"`
-	Name              string         `json:"name" yaml:"name"`
-	Description       *string        `json:"description,omitempty" yaml:"description,omitempty"`
-	Category          *string        `json:"category,omitempty" yaml:"category,omitempty"`
-	Status            *ProjectStatus `json:"status,omitempty" yaml:"status,omitempty"`
-	Visibility        *AccessLevel   `json:"visibility,omitempty" yaml:"visibility,omitempty"`
-	CreatedByMemberId *MemberID      `json:"created_by_member_id,omitempty" yaml:"created_by_member_id,omitempty"`
-	Personal          *bool          `json:"personal,omitempty" yaml:"personal,omitempty"`
-	CreatedAt         time.Time      `json:"created_at" yaml:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at" yaml:"updated_at"`
+	// receive-only
+	ProjectId   ProjectID      `json:"project_id" yaml:"project_id"`
+	HouseId     HouseID        `json:"house_id" yaml:"house_id"`
+	Name        string         `json:"name" yaml:"name"`
+	Description *string        `json:"description,omitempty" yaml:"description,omitempty"`
+	Category    *string        `json:"category,omitempty" yaml:"category,omitempty"`
+	Status      *ProjectStatus `json:"status,omitempty" yaml:"status,omitempty"`
+	Visibility  *AccessLevel   `json:"visibility,omitempty" yaml:"visibility,omitempty"`
+	// receive-only
+	CreatedByMemberId *MemberID `json:"created_by_member_id,omitempty" yaml:"created_by_member_id,omitempty"`
+	// receive-only
+	Personal *bool `json:"personal,omitempty" yaml:"personal,omitempty"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	// receive-only
+	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
 }
 
 // ProjectTask represents a structured data type
@@ -277,6 +309,7 @@ type ProjectTask struct {
 	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
 	TaskId    TaskID    `json:"task_id" yaml:"task_id"`
 	Position  int64     `json:"position" yaml:"position"`
+	// receive-only
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
@@ -284,6 +317,7 @@ type ProjectTask struct {
 type ProjectMember struct {
 	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
 	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+	// receive-only
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
@@ -291,23 +325,28 @@ type ProjectMember struct {
 type ProjectOwner struct {
 	ProjectId ProjectID `json:"project_id" yaml:"project_id"`
 	MemberId  MemberID  `json:"member_id" yaml:"member_id"`
+	// receive-only
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
 // Milestone represents a structured data type
 type Milestone struct {
+	// receive-only
 	MilestoneId MilestoneID    `json:"milestone_id" yaml:"milestone_id"`
 	ProjectId   ProjectID      `json:"project_id" yaml:"project_id"`
 	Label       string         `json:"label" yaml:"label"`
 	WhenLabel   string         `json:"when_label" yaml:"when_label"`
 	State       MilestoneState `json:"state" yaml:"state"`
 	Position    int64          `json:"position" yaml:"position"`
-	CreatedAt   time.Time      `json:"created_at" yaml:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at" yaml:"updated_at"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	// receive-only
+	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
 }
 
 // Event represents a structured data type
 type Event struct {
+	// receive-only
 	EventId               EventID         `json:"event_id" yaml:"event_id"`
 	HouseId               HouseID         `json:"house_id" yaml:"house_id"`
 	OwnerMemberId         MemberID        `json:"owner_member_id" yaml:"owner_member_id"`
@@ -326,19 +365,27 @@ type Event struct {
 	RecurrenceBySetpos    *int64          `json:"recurrence_by_setpos,omitempty" yaml:"recurrence_by_setpos,omitempty"`
 	NextRecurrenceAt      *time.Time      `json:"next_recurrence_at,omitempty" yaml:"next_recurrence_at,omitempty"`
 	RecurrenceRootEventId *EventID        `json:"recurrence_root_event_id,omitempty" yaml:"recurrence_root_event_id,omitempty"`
-	CalendarState         *string         `json:"calendar_state,omitempty" yaml:"calendar_state,omitempty"`
-	Revision              *uint64         `json:"revision,omitempty" yaml:"revision,omitempty"`
-	ProposedByMemberId    *MemberID       `json:"proposed_by_member_id,omitempty" yaml:"proposed_by_member_id,omitempty"`
-	PublicationError      *string         `json:"publication_error,omitempty" yaml:"publication_error,omitempty"`
-	EditPendingMemberId   *MemberID       `json:"edit_pending_member_id,omitempty" yaml:"edit_pending_member_id,omitempty"`
-	CalendarUnbound       *bool           `json:"calendar_unbound,omitempty" yaml:"calendar_unbound,omitempty"`
-	EditScope             *string         `json:"edit_scope,omitempty" yaml:"edit_scope,omitempty"`
-	CreatedAt             time.Time       `json:"created_at" yaml:"created_at"`
-	UpdatedAt             time.Time       `json:"updated_at" yaml:"updated_at"`
+	// receive-only
+	CalendarState *string `json:"calendar_state,omitempty" yaml:"calendar_state,omitempty"`
+	Revision      *uint64 `json:"revision,omitempty" yaml:"revision,omitempty"`
+	// receive-only
+	ProposedByMemberId *MemberID `json:"proposed_by_member_id,omitempty" yaml:"proposed_by_member_id,omitempty"`
+	// receive-only
+	PublicationError *string `json:"publication_error,omitempty" yaml:"publication_error,omitempty"`
+	// receive-only
+	EditPendingMemberId *MemberID `json:"edit_pending_member_id,omitempty" yaml:"edit_pending_member_id,omitempty"`
+	// receive-only
+	CalendarUnbound *bool   `json:"calendar_unbound,omitempty" yaml:"calendar_unbound,omitempty"`
+	EditScope       *string `json:"edit_scope,omitempty" yaml:"edit_scope,omitempty"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	// receive-only
+	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
 }
 
 // Task represents a structured data type
 type Task struct {
+	// receive-only
 	TaskId               TaskID          `json:"task_id" yaml:"task_id"`
 	HouseId              HouseID         `json:"house_id" yaml:"house_id"`
 	OwnerMemberId        MemberID        `json:"owner_member_id" yaml:"owner_member_id"`
@@ -360,34 +407,43 @@ type Task struct {
 	NextRecurrenceAt     *time.Time      `json:"next_recurrence_at,omitempty" yaml:"next_recurrence_at,omitempty"`
 	RecurrenceRootTaskId *TaskID         `json:"recurrence_root_task_id,omitempty" yaml:"recurrence_root_task_id,omitempty"`
 	DeletedAt            *time.Time      `json:"deleted_at,omitempty" yaml:"deleted_at,omitempty"`
-	CreatedAt            time.Time       `json:"created_at" yaml:"created_at"`
-	UpdatedAt            time.Time       `json:"updated_at" yaml:"updated_at"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	// receive-only
+	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
 }
 
 // Comment represents a structured data type
 type Comment struct {
-	CommentId  CommentID  `json:"comment_id" yaml:"comment_id"`
-	HouseId    HouseID    `json:"house_id" yaml:"house_id"`
+	// receive-only
+	CommentId CommentID `json:"comment_id" yaml:"comment_id"`
+	HouseId   HouseID   `json:"house_id" yaml:"house_id"`
+	// receive-only
 	MemberId   MemberID   `json:"member_id" yaml:"member_id"`
 	TargetType TargetType `json:"target_type" yaml:"target_type"`
 	TargetId   string     `json:"target_id" yaml:"target_id"`
 	Body       string     `json:"body" yaml:"body"`
-	CreatedAt  time.Time  `json:"created_at" yaml:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at" yaml:"updated_at"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+	// receive-only
+	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
 }
 
 // Share represents a structured data type
 type Share struct {
-	ShareId        ShareID      `json:"share_id" yaml:"share_id"`
-	HouseId        HouseID      `json:"house_id" yaml:"house_id"`
+	// receive-only
+	ShareId ShareID `json:"share_id" yaml:"share_id"`
+	HouseId HouseID `json:"house_id" yaml:"house_id"`
+	// receive-only
 	SharedBy       MemberID     `json:"shared_by" yaml:"shared_by"`
 	LinkkeysDomain string       `json:"linkkeys_domain" yaml:"linkkeys_domain"`
 	LinkkeysUserId string       `json:"linkkeys_user_id" yaml:"linkkeys_user_id"`
 	ResourceType   ResourceType `json:"resource_type" yaml:"resource_type"`
 	ResourceId     string       `json:"resource_id" yaml:"resource_id"`
 	AccessLevel    *AccessLevel `json:"access_level,omitempty" yaml:"access_level,omitempty"`
-	CreatedAt      time.Time    `json:"created_at" yaml:"created_at"`
-	ExpiresAt      *time.Time   `json:"expires_at,omitempty" yaml:"expires_at,omitempty"`
+	// receive-only
+	CreatedAt time.Time  `json:"created_at" yaml:"created_at"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty" yaml:"expires_at,omitempty"`
 }
 
 // HouseSummary represents a structured data type
@@ -760,10 +816,12 @@ type DependencyTarget struct {
 
 // DependencyNode represents a structured data type
 type DependencyNode struct {
-	Type   DependencyNodeType `json:"type" yaml:"type"`
-	Id     string             `json:"id" yaml:"id"`
-	Title  string             `json:"title" yaml:"title"`
-	Status *string            `json:"status,omitempty" yaml:"status,omitempty"`
+	Type DependencyNodeType `json:"type" yaml:"type"`
+	Id   string             `json:"id" yaml:"id"`
+	// receive-only
+	Title string `json:"title" yaml:"title"`
+	// receive-only
+	Status *string `json:"status,omitempty" yaml:"status,omitempty"`
 }
 
 // DependencyGraph represents a structured data type
@@ -878,6 +936,51 @@ type ActAsTokenResponse struct {
 	Scopes    []string  `json:"scopes" yaml:"scopes"`
 }
 
+// CalendarMigrationRowItems is a type alias
+type CalendarMigrationRowItems []CalendarMigrationRow
+
+// CalendarTrashEntryItems is a type alias
+type CalendarTrashEntryItems []CalendarTrashEntry
+
+// CommentItems is a type alias
+type CommentItems []Comment
+
+// EventItems is a type alias
+type EventItems []Event
+
+// GrantItems is a type alias
+type GrantItems []Grant
+
+// GroupItems is a type alias
+type GroupItems []Group
+
+// HouseItems is a type alias
+type HouseItems []House
+
+// MemberItems is a type alias
+type MemberItems []Member
+
+// MemberAuditItems is a type alias
+type MemberAuditItems []MemberAudit
+
+// MilestoneItems is a type alias
+type MilestoneItems []Milestone
+
+// NotificationItems is a type alias
+type NotificationItems []Notification
+
+// RoleItems is a type alias
+type RoleItems []Role
+
+// ShareItems is a type alias
+type ShareItems []Share
+
+// SkillItems is a type alias
+type SkillItems []Skill
+
+// TrustedDomainItems is a type alias
+type TrustedDomainItems []TrustedDomain
+
 // CalendarSubscription represents a structured data type
 type CalendarSubscription struct {
 	SubjectMemberId MemberID `json:"subject_member_id" yaml:"subject_member_id"`
@@ -886,7 +989,8 @@ type CalendarSubscription struct {
 
 // CalendarView represents a structured data type
 type CalendarView struct {
-	HouseId        HouseID                `json:"house_id" yaml:"house_id"`
+	HouseId HouseID `json:"house_id" yaml:"house_id"`
+	// receive-only
 	ViewerMemberId MemberID               `json:"viewer_member_id" yaml:"viewer_member_id"`
 	Subscriptions  []CalendarSubscription `json:"subscriptions,omitempty" yaml:"subscriptions,omitempty"`
 }
@@ -976,6 +1080,7 @@ type AuditID string
 
 // AuditEntry represents a structured data type
 type AuditEntry struct {
+	// receive-only
 	AuditId       AuditID   `json:"audit_id" yaml:"audit_id"`
 	HouseId       *HouseID  `json:"house_id,omitempty" yaml:"house_id,omitempty"`
 	ActorMemberId *MemberID `json:"actor_member_id,omitempty" yaml:"actor_member_id,omitempty"`
@@ -990,7 +1095,8 @@ type AuditEntry struct {
 	Before        *string   `json:"before,omitempty" yaml:"before,omitempty"`
 	After         *string   `json:"after,omitempty" yaml:"after,omitempty"`
 	Detail        *string   `json:"detail,omitempty" yaml:"detail,omitempty"`
-	CreatedAt     time.Time `json:"created_at" yaml:"created_at"`
+	// receive-only
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
 // AuditQuery represents a structured data type

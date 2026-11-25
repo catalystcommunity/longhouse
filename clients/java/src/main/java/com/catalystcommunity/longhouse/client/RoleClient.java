@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the RoleService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -16,30 +14,37 @@ public final class RoleClient {
     }
 
     public Role createRole(Role req) throws ClientException {
-        return CsilCbor.decodeRole(transport.call("RoleService", "create-role", CsilCbor.encodeRole(req)));
+        WireReply reply = transport.callReply("RoleService", "create-role", CsilCbor.encodeRole(req));
+        return CsilCbor.decodeRole(CsilCbor.resolveRpcReply("RoleService", "create-role", reply.variant(), reply.payload()));
     }
 
     public Role updateRole(Role req) throws ClientException {
-        return CsilCbor.decodeRole(transport.call("RoleService", "update-role", CsilCbor.encodeRole(req)));
+        WireReply reply = transport.callReply("RoleService", "update-role", CsilCbor.encodeRole(req));
+        return CsilCbor.decodeRole(CsilCbor.resolveRpcReply("RoleService", "update-role", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deleteRole(RoleId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("RoleService", "delete-role", CsilCbor.encodeRoleDeleteRoleRequest(req)));
+        WireReply reply = transport.callReply("RoleService", "delete-role", CsilCbor.encodeRoleDeleteRoleRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("RoleService", "delete-role", reply.variant(), reply.payload()));
     }
 
-    public List<Role> listRoles(HouseScopedListRequest req) throws ClientException {
-        return CsilCbor.decodeRoleListRolesResponse(transport.call("RoleService", "list-roles", CsilCbor.encodeHouseScopedListRequest(req)));
+    public RoleItems listRoles(HouseScopedListRequest req) throws ClientException {
+        WireReply reply = transport.callReply("RoleService", "list-roles", CsilCbor.encodeHouseScopedListRequest(req));
+        return CsilCbor.decodeRoleListRolesResponse(CsilCbor.resolveRpcReply("RoleService", "list-roles", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse grantRole(MemberRoleRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("RoleService", "grant-role", CsilCbor.encodeMemberRoleRef(req)));
+        WireReply reply = transport.callReply("RoleService", "grant-role", CsilCbor.encodeMemberRoleRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("RoleService", "grant-role", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse revokeRole(MemberRoleRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("RoleService", "revoke-role", CsilCbor.encodeMemberRoleRef(req)));
+        WireReply reply = transport.callReply("RoleService", "revoke-role", CsilCbor.encodeMemberRoleRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("RoleService", "revoke-role", reply.variant(), reply.payload()));
     }
 
-    public List<Role> listMemberRoles(MemberScopedListRequest req) throws ClientException {
-        return CsilCbor.decodeRoleListMemberRolesResponse(transport.call("RoleService", "list-member-roles", CsilCbor.encodeMemberScopedListRequest(req)));
+    public RoleItems listMemberRoles(MemberScopedListRequest req) throws ClientException {
+        WireReply reply = transport.callReply("RoleService", "list-member-roles", CsilCbor.encodeMemberScopedListRequest(req));
+        return CsilCbor.decodeRoleListMemberRolesResponse(CsilCbor.resolveRpcReply("RoleService", "list-member-roles", reply.variant(), reply.payload()));
     }
 }

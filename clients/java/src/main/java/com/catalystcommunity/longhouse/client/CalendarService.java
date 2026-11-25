@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The CalendarService server handler interface; the host implements it.
  */
@@ -14,7 +12,7 @@ public interface CalendarService {
     CalendarConnectResponse beginConnect(HouseId req);
     CalendarStatus completeConnect(CompleteCalendarConnectRequest req);
     EmptyResponse disconnect(HouseId req);
-    List<CalendarMigrationRow> previewMigration(HouseId req);
-    List<CalendarTrashEntry> listTrash(HouseId req);
+    CalendarMigrationRowItems previewMigration(HouseId req);
+    CalendarTrashEntryItems listTrash(HouseId req);
     Event restoreEvent(RestoreCalendarEventRequest req);
 }

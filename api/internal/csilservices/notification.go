@@ -25,7 +25,7 @@ func (s *NotificationService) Register(d *csilrpc.Dispatcher) {
 	d.RegisterTyped("notification", "MarkAllRead", csilrpc.Route(s.MarkAllRead, csil.DecodeNotificationMarkAllReadRequest, csil.EncodeEmptyResponse))
 }
 
-func (s *NotificationService) ListNotifications(ctx context.Context, req csil.NotificationListRequest) ([]csil.Notification, error) {
+func (s *NotificationService) ListNotifications(ctx context.Context, req csil.NotificationListRequest) (csil.NotificationItems, error) {
 	_, memberID, err := requireMemberForHouse(ctx, string(req.HouseId))
 	if err != nil {
 		return nil, err

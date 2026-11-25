@@ -8,6 +8,26 @@ require_relative "codec"
 # delegates only byte movement to a host-supplied transport seam: a duck-typed
 # object responding to `call(service, op, req_bytes) -> resp_bytes`. The carrier
 # moves bytes (HTTP, a queue, an in-process loop); it never sees the typed values.
+#
+# This spec has operations with more than one reply arm, so the transport must
+# also respond to `call_reply(service, op, req_bytes) -> [variant, payload]`:
+# `variant` is the CSIL-RPC response envelope's `variant` text (nil when absent)
+# and `payload` the reply bytes. The client picks the arm from `variant`: the
+# success arm returns its value, a declared error arm raises its
+# `CsilCbor::<Arm>Refusal`, and a missing or unknown variant raises ArgumentError.
+
+module CsilCbor
+  module_function
+
+  def rpc_reply_payload(transport, service, op, req_bytes)
+    unless transport.respond_to?(:call_reply)
+      raise NotImplementedError,
+            "transport must implement call_reply(service, op, req_bytes) -> [variant, payload] for #{service}/#{op}"
+    end
+    variant, payload = transport.call_reply(service, op, req_bytes)
+    resolve_rpc_reply(service, op, variant, payload)
+  end
+end
 
 # Typed client for the AuthService service.
 class AuthClient
@@ -17,92 +37,92 @@ class AuthClient
 
   # begin-browser-login: -> BeginBrowserLoginResponse
   def begin_browser_login(req)
-    BeginBrowserLoginResponse.from_cbor(@transport.call("AuthService", "begin-browser-login", req.to_cbor))
+    BeginBrowserLoginResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "begin-browser-login", req.to_cbor))
   end
 
   # get-act-as-scope-set: -> ActAsScopeSetResponse
   def get_act_as_scope_set(req)
-    ActAsScopeSetResponse.from_cbor(@transport.call("AuthService", "get-act-as-scope-set", req.to_cbor))
+    ActAsScopeSetResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "get-act-as-scope-set", req.to_cbor))
   end
 
   # exchange-act-as-credential: -> ActAsTokenResponse
   def exchange_act_as_credential(req)
-    ActAsTokenResponse.from_cbor(@transport.call("AuthService", "exchange-act-as-credential", req.to_cbor))
+    ActAsTokenResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "exchange-act-as-credential", req.to_cbor))
   end
 
   # login: -> LoginResponse
   def login(req)
-    LoginResponse.from_cbor(@transport.call("AuthService", "login", req.to_cbor))
+    LoginResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "login", req.to_cbor))
   end
 
   # complete: -> LoginResponse
   def complete(req)
-    LoginResponse.from_cbor(@transport.call("AuthService", "complete", req.to_cbor))
+    LoginResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "complete", req.to_cbor))
   end
 
   # refresh: -> LoginResponse
   def refresh(req)
-    LoginResponse.from_cbor(@transport.call("AuthService", "refresh", req.to_cbor))
+    LoginResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "refresh", req.to_cbor))
   end
 
   # logout: -> EmptyResponse
   def logout(req)
-    EmptyResponse.from_cbor(@transport.call("AuthService", "logout", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "logout", req.to_cbor))
   end
 
   # resume-session: -> LoginResponse
   def resume_session(req)
-    LoginResponse.from_cbor(@transport.call("AuthService", "resume-session", req.to_cbor))
+    LoginResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "resume-session", req.to_cbor))
   end
 
   # end-session: -> EmptyResponse
   def end_session(req)
-    EmptyResponse.from_cbor(@transport.call("AuthService", "end-session", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "end-session", req.to_cbor))
   end
 
   # me: -> MeResponse
   def me(req)
-    MeResponse.from_cbor(@transport.call("AuthService", "me", req.to_cbor))
+    MeResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "me", req.to_cbor))
   end
 
   # begin-cli-login: -> BeginCliLoginResponse
   def begin_cli_login(req)
-    BeginCliLoginResponse.from_cbor(@transport.call("AuthService", "begin-cli-login", req.to_cbor))
+    BeginCliLoginResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "begin-cli-login", req.to_cbor))
   end
 
   # inspect-cli-login: -> CliLoginRequestInfo
   def inspect_cli_login(req)
-    CliLoginRequestInfo.from_cbor(@transport.call("AuthService", "inspect-cli-login", req.to_cbor))
+    CliLoginRequestInfo.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "inspect-cli-login", req.to_cbor))
   end
 
   # approve-cli-login: -> EmptyResponse
   def approve_cli_login(req)
-    EmptyResponse.from_cbor(@transport.call("AuthService", "approve-cli-login", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "approve-cli-login", req.to_cbor))
   end
 
   # deny-cli-login: -> EmptyResponse
   def deny_cli_login(req)
-    EmptyResponse.from_cbor(@transport.call("AuthService", "deny-cli-login", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "deny-cli-login", req.to_cbor))
   end
 
   # exchange-cli-login: -> ExchangeCliLoginResponse
   def exchange_cli_login(req)
-    ExchangeCliLoginResponse.from_cbor(@transport.call("AuthService", "exchange-cli-login", req.to_cbor))
+    ExchangeCliLoginResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "exchange-cli-login", req.to_cbor))
   end
 
   # refresh-session: -> CliTokenResponse
   def refresh_session(req)
-    CliTokenResponse.from_cbor(@transport.call("AuthService", "refresh-session", req.to_cbor))
+    CliTokenResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "refresh-session", req.to_cbor))
   end
 
   # list-sessions: -> CliSessionsResponse
   def list_sessions(req)
-    CliSessionsResponse.from_cbor(@transport.call("AuthService", "list-sessions", req.to_cbor))
+    CliSessionsResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "list-sessions", req.to_cbor))
   end
 
   # revoke-session: -> EmptyResponse
   def revoke_session(req)
-    EmptyResponse.from_cbor(@transport.call("AuthService", "revoke-session", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuthService", "revoke-session", req.to_cbor))
   end
 end
 
@@ -114,12 +134,12 @@ class DevAuthClient
 
   # list-dev-users: -> DevUsersResponse
   def list_dev_users(req)
-    DevUsersResponse.from_cbor(@transport.call("DevAuthService", "list-dev-users", req.to_cbor))
+    DevUsersResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "DevAuthService", "list-dev-users", req.to_cbor))
   end
 
   # dev-login: -> LoginResponse
   def dev_login(req)
-    LoginResponse.from_cbor(@transport.call("DevAuthService", "dev-login", req.to_cbor))
+    LoginResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "DevAuthService", "dev-login", req.to_cbor))
   end
 end
 
@@ -131,27 +151,27 @@ class HouseClient
 
   # create-house: -> House
   def create_house(req)
-    House.from_cbor(@transport.call("HouseService", "create-house", req.to_cbor))
+    House.from_cbor(CsilCbor.rpc_reply_payload(@transport, "HouseService", "create-house", req.to_cbor))
   end
 
   # get-house: -> House
   def get_house(req)
-    House.from_cbor(@transport.call("HouseService", "get-house", CsilCbor.encode(req)))
+    House.from_cbor(CsilCbor.rpc_reply_payload(@transport, "HouseService", "get-house", CsilCbor.encode(req)))
   end
 
   # update-house: -> House
   def update_house(req)
-    House.from_cbor(@transport.call("HouseService", "update-house", req.to_cbor))
+    House.from_cbor(CsilCbor.rpc_reply_payload(@transport, "HouseService", "update-house", req.to_cbor))
   end
 
   # delete-house: -> EmptyResponse
   def delete_house(req)
-    EmptyResponse.from_cbor(@transport.call("HouseService", "delete-house", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "HouseService", "delete-house", CsilCbor.encode(req)))
   end
 
-  # list-houses: -> Array<House>
+  # list-houses: -> HouseItems
   def list_houses(req)
-    @transport.call("HouseService", "list-houses", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "HouseService", "list-houses", req.to_cbor))).map { |csil_e| House.csil_from_tree(csil_e) }
   end
 end
 
@@ -163,37 +183,37 @@ class MemberClient
 
   # create-member: -> Member
   def create_member(req)
-    Member.from_cbor(@transport.call("MemberService", "create-member", req.to_cbor))
+    Member.from_cbor(CsilCbor.rpc_reply_payload(@transport, "MemberService", "create-member", req.to_cbor))
   end
 
   # get-member: -> Member
   def get_member(req)
-    Member.from_cbor(@transport.call("MemberService", "get-member", CsilCbor.encode(req)))
+    Member.from_cbor(CsilCbor.rpc_reply_payload(@transport, "MemberService", "get-member", CsilCbor.encode(req)))
   end
 
   # get-member-by-identity: -> Member
   def get_member_by_identity(req)
-    Member.from_cbor(@transport.call("MemberService", "get-member-by-identity", req.to_cbor))
+    Member.from_cbor(CsilCbor.rpc_reply_payload(@transport, "MemberService", "get-member-by-identity", req.to_cbor))
   end
 
   # update-member: -> Member
   def update_member(req)
-    Member.from_cbor(@transport.call("MemberService", "update-member", req.to_cbor))
+    Member.from_cbor(CsilCbor.rpc_reply_payload(@transport, "MemberService", "update-member", req.to_cbor))
   end
 
   # deactivate-member: -> EmptyResponse
   def deactivate_member(req)
-    EmptyResponse.from_cbor(@transport.call("MemberService", "deactivate-member", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "MemberService", "deactivate-member", CsilCbor.encode(req)))
   end
 
   # reactivate-member: -> EmptyResponse
   def reactivate_member(req)
-    EmptyResponse.from_cbor(@transport.call("MemberService", "reactivate-member", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "MemberService", "reactivate-member", CsilCbor.encode(req)))
   end
 
-  # list-members: -> Array<Member>
+  # list-members: -> MemberItems
   def list_members(req)
-    @transport.call("MemberService", "list-members", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "MemberService", "list-members", req.to_cbor))).map { |csil_e| Member.csil_from_tree(csil_e) }
   end
 end
 
@@ -205,22 +225,22 @@ class TrustedDomainClient
 
   # add-trusted-domain: -> TrustedDomain
   def add_trusted_domain(req)
-    TrustedDomain.from_cbor(@transport.call("TrustedDomainService", "add-trusted-domain", req.to_cbor))
+    TrustedDomain.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TrustedDomainService", "add-trusted-domain", req.to_cbor))
   end
 
   # remove-trusted-domain: -> EmptyResponse
   def remove_trusted_domain(req)
-    EmptyResponse.from_cbor(@transport.call("TrustedDomainService", "remove-trusted-domain", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TrustedDomainService", "remove-trusted-domain", CsilCbor.encode(req)))
   end
 
-  # list-trusted-domains: -> Array<TrustedDomain>
+  # list-trusted-domains: -> TrustedDomainItems
   def list_trusted_domains(req)
-    @transport.call("TrustedDomainService", "list-trusted-domains", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "TrustedDomainService", "list-trusted-domains", CsilCbor.encode(req)))).map { |csil_e| TrustedDomain.csil_from_tree(csil_e) }
   end
 
   # is-domain-trusted: -> BoolResponse
   def is_domain_trusted(req)
-    BoolResponse.from_cbor(@transport.call("TrustedDomainService", "is-domain-trusted", req.to_cbor))
+    BoolResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TrustedDomainService", "is-domain-trusted", req.to_cbor))
   end
 end
 
@@ -232,37 +252,37 @@ class RoleClient
 
   # create-role: -> Role
   def create_role(req)
-    Role.from_cbor(@transport.call("RoleService", "create-role", req.to_cbor))
+    Role.from_cbor(CsilCbor.rpc_reply_payload(@transport, "RoleService", "create-role", req.to_cbor))
   end
 
   # update-role: -> Role
   def update_role(req)
-    Role.from_cbor(@transport.call("RoleService", "update-role", req.to_cbor))
+    Role.from_cbor(CsilCbor.rpc_reply_payload(@transport, "RoleService", "update-role", req.to_cbor))
   end
 
   # delete-role: -> EmptyResponse
   def delete_role(req)
-    EmptyResponse.from_cbor(@transport.call("RoleService", "delete-role", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "RoleService", "delete-role", CsilCbor.encode(req)))
   end
 
-  # list-roles: -> Array<Role>
+  # list-roles: -> RoleItems
   def list_roles(req)
-    @transport.call("RoleService", "list-roles", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "RoleService", "list-roles", req.to_cbor))).map { |csil_e| Role.csil_from_tree(csil_e) }
   end
 
   # grant-role: -> EmptyResponse
   def grant_role(req)
-    EmptyResponse.from_cbor(@transport.call("RoleService", "grant-role", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "RoleService", "grant-role", req.to_cbor))
   end
 
   # revoke-role: -> EmptyResponse
   def revoke_role(req)
-    EmptyResponse.from_cbor(@transport.call("RoleService", "revoke-role", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "RoleService", "revoke-role", req.to_cbor))
   end
 
-  # list-member-roles: -> Array<Role>
+  # list-member-roles: -> RoleItems
   def list_member_roles(req)
-    @transport.call("RoleService", "list-member-roles", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "RoleService", "list-member-roles", req.to_cbor))).map { |csil_e| Role.csil_from_tree(csil_e) }
   end
 end
 
@@ -274,52 +294,52 @@ class SkillClient
 
   # create-skill: -> Skill
   def create_skill(req)
-    Skill.from_cbor(@transport.call("SkillService", "create-skill", req.to_cbor))
+    Skill.from_cbor(CsilCbor.rpc_reply_payload(@transport, "SkillService", "create-skill", req.to_cbor))
   end
 
   # update-skill: -> Skill
   def update_skill(req)
-    Skill.from_cbor(@transport.call("SkillService", "update-skill", req.to_cbor))
+    Skill.from_cbor(CsilCbor.rpc_reply_payload(@transport, "SkillService", "update-skill", req.to_cbor))
   end
 
   # delete-skill: -> EmptyResponse
   def delete_skill(req)
-    EmptyResponse.from_cbor(@transport.call("SkillService", "delete-skill", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "SkillService", "delete-skill", CsilCbor.encode(req)))
   end
 
-  # list-skills: -> Array<Skill>
+  # list-skills: -> SkillItems
   def list_skills(req)
-    @transport.call("SkillService", "list-skills", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "SkillService", "list-skills", req.to_cbor))).map { |csil_e| Skill.csil_from_tree(csil_e) }
   end
 
   # add-member-skill: -> EmptyResponse
   def add_member_skill(req)
-    EmptyResponse.from_cbor(@transport.call("SkillService", "add-member-skill", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "SkillService", "add-member-skill", req.to_cbor))
   end
 
   # remove-member-skill: -> EmptyResponse
   def remove_member_skill(req)
-    EmptyResponse.from_cbor(@transport.call("SkillService", "remove-member-skill", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "SkillService", "remove-member-skill", req.to_cbor))
   end
 
-  # list-member-skills: -> Array<Skill>
+  # list-member-skills: -> SkillItems
   def list_member_skills(req)
-    @transport.call("SkillService", "list-member-skills", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "SkillService", "list-member-skills", req.to_cbor))).map { |csil_e| Skill.csil_from_tree(csil_e) }
   end
 
   # add-group-skill: -> EmptyResponse
   def add_group_skill(req)
-    EmptyResponse.from_cbor(@transport.call("SkillService", "add-group-skill", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "SkillService", "add-group-skill", req.to_cbor))
   end
 
   # remove-group-skill: -> EmptyResponse
   def remove_group_skill(req)
-    EmptyResponse.from_cbor(@transport.call("SkillService", "remove-group-skill", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "SkillService", "remove-group-skill", req.to_cbor))
   end
 
-  # list-group-skills: -> Array<Skill>
+  # list-group-skills: -> SkillItems
   def list_group_skills(req)
-    @transport.call("SkillService", "list-group-skills", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "SkillService", "list-group-skills", CsilCbor.encode(req)))).map { |csil_e| Skill.csil_from_tree(csil_e) }
   end
 end
 
@@ -331,37 +351,37 @@ class GroupClient
 
   # create-group: -> Group
   def create_group(req)
-    Group.from_cbor(@transport.call("GroupService", "create-group", req.to_cbor))
+    Group.from_cbor(CsilCbor.rpc_reply_payload(@transport, "GroupService", "create-group", req.to_cbor))
   end
 
   # update-group: -> Group
   def update_group(req)
-    Group.from_cbor(@transport.call("GroupService", "update-group", req.to_cbor))
+    Group.from_cbor(CsilCbor.rpc_reply_payload(@transport, "GroupService", "update-group", req.to_cbor))
   end
 
   # delete-group: -> EmptyResponse
   def delete_group(req)
-    EmptyResponse.from_cbor(@transport.call("GroupService", "delete-group", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "GroupService", "delete-group", CsilCbor.encode(req)))
   end
 
-  # list-groups: -> Array<Group>
+  # list-groups: -> GroupItems
   def list_groups(req)
-    @transport.call("GroupService", "list-groups", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "GroupService", "list-groups", req.to_cbor))).map { |csil_e| Group.csil_from_tree(csil_e) }
   end
 
   # add-group-member: -> EmptyResponse
   def add_group_member(req)
-    EmptyResponse.from_cbor(@transport.call("GroupService", "add-group-member", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "GroupService", "add-group-member", req.to_cbor))
   end
 
   # remove-group-member: -> EmptyResponse
   def remove_group_member(req)
-    EmptyResponse.from_cbor(@transport.call("GroupService", "remove-group-member", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "GroupService", "remove-group-member", req.to_cbor))
   end
 
-  # list-group-members: -> Array<Member>
+  # list-group-members: -> MemberItems
   def list_group_members(req)
-    @transport.call("GroupService", "list-group-members", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "GroupService", "list-group-members", req.to_cbor))).map { |csil_e| Member.csil_from_tree(csil_e) }
   end
 end
 
@@ -373,117 +393,117 @@ class ProjectClient
 
   # create-project: -> Project
   def create_project(req)
-    Project.from_cbor(@transport.call("ProjectService", "create-project", req.to_cbor))
+    Project.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "create-project", req.to_cbor))
   end
 
   # get-project: -> Project
   def get_project(req)
-    Project.from_cbor(@transport.call("ProjectService", "get-project", CsilCbor.encode(req)))
+    Project.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "get-project", CsilCbor.encode(req)))
   end
 
   # update-project: -> Project
   def update_project(req)
-    Project.from_cbor(@transport.call("ProjectService", "update-project", req.to_cbor))
+    Project.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "update-project", req.to_cbor))
   end
 
   # delete-project: -> EmptyResponse
   def delete_project(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "delete-project", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "delete-project", CsilCbor.encode(req)))
   end
 
   # list-projects: -> ProjectList
   def list_projects(req)
-    ProjectList.from_cbor(@transport.call("ProjectService", "list-projects", req.to_cbor))
+    ProjectList.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "list-projects", req.to_cbor))
   end
 
   # list-project-tasks: -> TaskList
   def list_project_tasks(req)
-    TaskList.from_cbor(@transport.call("ProjectService", "list-project-tasks", req.to_cbor))
+    TaskList.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "list-project-tasks", req.to_cbor))
   end
 
   # add-project-task: -> EmptyResponse
   def add_project_task(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "add-project-task", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "add-project-task", req.to_cbor))
   end
 
   # remove-project-task: -> EmptyResponse
   def remove_project_task(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "remove-project-task", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "remove-project-task", req.to_cbor))
   end
 
   # set-project-task-position: -> EmptyResponse
   def set_project_task_position(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "set-project-task-position", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "set-project-task-position", req.to_cbor))
   end
 
-  # list-project-members: -> Array<Member>
+  # list-project-members: -> MemberItems
   def list_project_members(req)
-    @transport.call("ProjectService", "list-project-members", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "list-project-members", CsilCbor.encode(req)))).map { |csil_e| Member.csil_from_tree(csil_e) }
   end
 
   # add-project-member: -> EmptyResponse
   def add_project_member(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "add-project-member", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "add-project-member", req.to_cbor))
   end
 
   # remove-project-member: -> EmptyResponse
   def remove_project_member(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "remove-project-member", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "remove-project-member", req.to_cbor))
   end
 
-  # list-project-owners: -> Array<Member>
+  # list-project-owners: -> MemberItems
   def list_project_owners(req)
-    @transport.call("ProjectService", "list-project-owners", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "list-project-owners", CsilCbor.encode(req)))).map { |csil_e| Member.csil_from_tree(csil_e) }
   end
 
   # add-project-owner: -> EmptyResponse
   def add_project_owner(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "add-project-owner", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "add-project-owner", req.to_cbor))
   end
 
   # remove-project-owner: -> EmptyResponse
   def remove_project_owner(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "remove-project-owner", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "remove-project-owner", req.to_cbor))
   end
 
-  # list-milestones: -> Array<Milestone>
+  # list-milestones: -> MilestoneItems
   def list_milestones(req)
-    @transport.call("ProjectService", "list-milestones", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "list-milestones", CsilCbor.encode(req)))).map { |csil_e| Milestone.csil_from_tree(csil_e) }
   end
 
   # create-milestone: -> Milestone
   def create_milestone(req)
-    Milestone.from_cbor(@transport.call("ProjectService", "create-milestone", req.to_cbor))
+    Milestone.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "create-milestone", req.to_cbor))
   end
 
   # update-milestone: -> Milestone
   def update_milestone(req)
-    Milestone.from_cbor(@transport.call("ProjectService", "update-milestone", req.to_cbor))
+    Milestone.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "update-milestone", req.to_cbor))
   end
 
   # delete-milestone: -> EmptyResponse
   def delete_milestone(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "delete-milestone", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "delete-milestone", CsilCbor.encode(req)))
   end
 
   # set-project-visibility: -> Project
   def set_project_visibility(req)
-    Project.from_cbor(@transport.call("ProjectService", "set-project-visibility", req.to_cbor))
+    Project.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "set-project-visibility", req.to_cbor))
   end
 
-  # list-project-grants: -> Array<Grant>
+  # list-project-grants: -> GrantItems
   def list_project_grants(req)
-    @transport.call("ProjectService", "list-project-grants", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "list-project-grants", CsilCbor.encode(req)))).map { |csil_e| Grant.csil_from_tree(csil_e) }
   end
 
   # put-project-grant: -> EmptyResponse
   def put_project_grant(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "put-project-grant", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "put-project-grant", req.to_cbor))
   end
 
   # delete-project-grant: -> EmptyResponse
   def delete_project_grant(req)
-    EmptyResponse.from_cbor(@transport.call("ProjectService", "delete-project-grant", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ProjectService", "delete-project-grant", req.to_cbor))
   end
 end
 
@@ -495,62 +515,62 @@ class EventClient
 
   # create-event: -> Event
   def create_event(req)
-    Event.from_cbor(@transport.call("EventService", "create-event", req.to_cbor))
+    Event.from_cbor(CsilCbor.rpc_reply_payload(@transport, "EventService", "create-event", req.to_cbor))
   end
 
   # get-event: -> Event
   def get_event(req)
-    Event.from_cbor(@transport.call("EventService", "get-event", CsilCbor.encode(req)))
+    Event.from_cbor(CsilCbor.rpc_reply_payload(@transport, "EventService", "get-event", CsilCbor.encode(req)))
   end
 
   # update-event: -> Event
   def update_event(req)
-    Event.from_cbor(@transport.call("EventService", "update-event", req.to_cbor))
+    Event.from_cbor(CsilCbor.rpc_reply_payload(@transport, "EventService", "update-event", req.to_cbor))
   end
 
   # delete-event: -> EmptyResponse
   def delete_event(req)
-    EmptyResponse.from_cbor(@transport.call("EventService", "delete-event", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "EventService", "delete-event", CsilCbor.encode(req)))
   end
 
   # delete-event-and-future: -> EmptyResponse
   def delete_event_and_future(req)
-    EmptyResponse.from_cbor(@transport.call("EventService", "delete-event-and-future", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "EventService", "delete-event-and-future", CsilCbor.encode(req)))
   end
 
-  # list-events: -> Array<Event>
+  # list-events: -> EventItems
   def list_events(req)
-    @transport.call("EventService", "list-events", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "EventService", "list-events", req.to_cbor))).map { |csil_e| Event.csil_from_tree(csil_e) }
   end
 
   # get-calendar-view: -> CalendarView
   def get_calendar_view(req)
-    CalendarView.from_cbor(@transport.call("EventService", "get-calendar-view", CsilCbor.encode(req)))
+    CalendarView.from_cbor(CsilCbor.rpc_reply_payload(@transport, "EventService", "get-calendar-view", CsilCbor.encode(req)))
   end
 
   # set-calendar-view: -> CalendarView
   def set_calendar_view(req)
-    CalendarView.from_cbor(@transport.call("EventService", "set-calendar-view", req.to_cbor))
+    CalendarView.from_cbor(CsilCbor.rpc_reply_payload(@transport, "EventService", "set-calendar-view", req.to_cbor))
   end
 
   # accept-event: -> Event
   def accept_event(req)
-    Event.from_cbor(@transport.call("EventService", "accept-event", req.to_cbor))
+    Event.from_cbor(CsilCbor.rpc_reply_payload(@transport, "EventService", "accept-event", req.to_cbor))
   end
 
   # recover-edit: -> Event
   def recover_edit(req)
-    Event.from_cbor(@transport.call("EventService", "recover-edit", CsilCbor.encode(req)))
+    Event.from_cbor(CsilCbor.rpc_reply_payload(@transport, "EventService", "recover-edit", CsilCbor.encode(req)))
   end
 
   # decline-event: -> Event
   def decline_event(req)
-    Event.from_cbor(@transport.call("EventService", "decline-event", req.to_cbor))
+    Event.from_cbor(CsilCbor.rpc_reply_payload(@transport, "EventService", "decline-event", req.to_cbor))
   end
 
-  # list-local-events: -> Array<Event>
+  # list-local-events: -> EventItems
   def list_local_events(req)
-    @transport.call("EventService", "list-local-events", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "EventService", "list-local-events", CsilCbor.encode(req)))).map { |csil_e| Event.csil_from_tree(csil_e) }
   end
 end
 
@@ -562,47 +582,47 @@ class CalendarClient
 
   # list-project-deadlines: -> ProjectDeadlineList
   def list_project_deadlines(req)
-    ProjectDeadlineList.from_cbor(@transport.call("CalendarService", "list-project-deadlines", req.to_cbor))
+    ProjectDeadlineList.from_cbor(CsilCbor.rpc_reply_payload(@transport, "CalendarService", "list-project-deadlines", req.to_cbor))
   end
 
   # get-status: -> CalendarStatus
   def get_status(req)
-    CalendarStatus.from_cbor(@transport.call("CalendarService", "get-status", CsilCbor.encode(req)))
+    CalendarStatus.from_cbor(CsilCbor.rpc_reply_payload(@transport, "CalendarService", "get-status", CsilCbor.encode(req)))
   end
 
   # configure-calendar: -> CalendarStatus
   def configure_calendar(req)
-    CalendarStatus.from_cbor(@transport.call("CalendarService", "configure-calendar", req.to_cbor))
+    CalendarStatus.from_cbor(CsilCbor.rpc_reply_payload(@transport, "CalendarService", "configure-calendar", req.to_cbor))
   end
 
   # begin-connect: -> CalendarConnectResponse
   def begin_connect(req)
-    CalendarConnectResponse.from_cbor(@transport.call("CalendarService", "begin-connect", CsilCbor.encode(req)))
+    CalendarConnectResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "CalendarService", "begin-connect", CsilCbor.encode(req)))
   end
 
   # complete-connect: -> CalendarStatus
   def complete_connect(req)
-    CalendarStatus.from_cbor(@transport.call("CalendarService", "complete-connect", req.to_cbor))
+    CalendarStatus.from_cbor(CsilCbor.rpc_reply_payload(@transport, "CalendarService", "complete-connect", req.to_cbor))
   end
 
   # disconnect: -> EmptyResponse
   def disconnect(req)
-    EmptyResponse.from_cbor(@transport.call("CalendarService", "disconnect", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "CalendarService", "disconnect", CsilCbor.encode(req)))
   end
 
-  # preview-migration: -> Array<CalendarMigrationRow>
+  # preview-migration: -> CalendarMigrationRowItems
   def preview_migration(req)
-    @transport.call("CalendarService", "preview-migration", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "CalendarService", "preview-migration", CsilCbor.encode(req)))).map { |csil_e| CalendarMigrationRow.csil_from_tree(csil_e) }
   end
 
-  # list-trash: -> Array<CalendarTrashEntry>
+  # list-trash: -> CalendarTrashEntryItems
   def list_trash(req)
-    @transport.call("CalendarService", "list-trash", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "CalendarService", "list-trash", CsilCbor.encode(req)))).map { |csil_e| CalendarTrashEntry.csil_from_tree(csil_e) }
   end
 
   # restore-event: -> Event
   def restore_event(req)
-    Event.from_cbor(@transport.call("CalendarService", "restore-event", req.to_cbor))
+    Event.from_cbor(CsilCbor.rpc_reply_payload(@transport, "CalendarService", "restore-event", req.to_cbor))
   end
 end
 
@@ -614,52 +634,52 @@ class TaskClient
 
   # create-task: -> Task
   def create_task(req)
-    Task.from_cbor(@transport.call("TaskService", "create-task", req.to_cbor))
+    Task.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TaskService", "create-task", req.to_cbor))
   end
 
   # get-task: -> Task
   def get_task(req)
-    Task.from_cbor(@transport.call("TaskService", "get-task", CsilCbor.encode(req)))
+    Task.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TaskService", "get-task", CsilCbor.encode(req)))
   end
 
   # update-task: -> Task
   def update_task(req)
-    Task.from_cbor(@transport.call("TaskService", "update-task", req.to_cbor))
+    Task.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TaskService", "update-task", req.to_cbor))
   end
 
   # delete-task: -> EmptyResponse
   def delete_task(req)
-    EmptyResponse.from_cbor(@transport.call("TaskService", "delete-task", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TaskService", "delete-task", CsilCbor.encode(req)))
   end
 
   # list-tasks: -> TaskList
   def list_tasks(req)
-    TaskList.from_cbor(@transport.call("TaskService", "list-tasks", req.to_cbor))
+    TaskList.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TaskService", "list-tasks", req.to_cbor))
   end
 
   # create-personal-task: -> Task
   def create_personal_task(req)
-    Task.from_cbor(@transport.call("TaskService", "create-personal-task", req.to_cbor))
+    Task.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TaskService", "create-personal-task", req.to_cbor))
   end
 
   # set-task-visibility: -> Task
   def set_task_visibility(req)
-    Task.from_cbor(@transport.call("TaskService", "set-task-visibility", req.to_cbor))
+    Task.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TaskService", "set-task-visibility", req.to_cbor))
   end
 
-  # list-task-grants: -> Array<Grant>
+  # list-task-grants: -> GrantItems
   def list_task_grants(req)
-    @transport.call("TaskService", "list-task-grants", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "TaskService", "list-task-grants", CsilCbor.encode(req)))).map { |csil_e| Grant.csil_from_tree(csil_e) }
   end
 
   # put-task-grant: -> EmptyResponse
   def put_task_grant(req)
-    EmptyResponse.from_cbor(@transport.call("TaskService", "put-task-grant", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TaskService", "put-task-grant", req.to_cbor))
   end
 
   # delete-task-grant: -> EmptyResponse
   def delete_task_grant(req)
-    EmptyResponse.from_cbor(@transport.call("TaskService", "delete-task-grant", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TaskService", "delete-task-grant", req.to_cbor))
   end
 end
 
@@ -671,17 +691,17 @@ class DependencyClient
 
   # add-dependency: -> EmptyResponse
   def add_dependency(req)
-    EmptyResponse.from_cbor(@transport.call("DependencyService", "add-dependency", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "DependencyService", "add-dependency", req.to_cbor))
   end
 
   # remove-dependency: -> EmptyResponse
   def remove_dependency(req)
-    EmptyResponse.from_cbor(@transport.call("DependencyService", "remove-dependency", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "DependencyService", "remove-dependency", req.to_cbor))
   end
 
   # get-dependencies: -> DependencyGraph
   def get_dependencies(req)
-    DependencyGraph.from_cbor(@transport.call("DependencyService", "get-dependencies", req.to_cbor))
+    DependencyGraph.from_cbor(CsilCbor.rpc_reply_payload(@transport, "DependencyService", "get-dependencies", req.to_cbor))
   end
 end
 
@@ -693,27 +713,27 @@ class CommentClient
 
   # create-comment: -> Comment
   def create_comment(req)
-    Comment.from_cbor(@transport.call("CommentService", "create-comment", req.to_cbor))
+    Comment.from_cbor(CsilCbor.rpc_reply_payload(@transport, "CommentService", "create-comment", req.to_cbor))
   end
 
   # get-comment: -> Comment
   def get_comment(req)
-    Comment.from_cbor(@transport.call("CommentService", "get-comment", CsilCbor.encode(req)))
+    Comment.from_cbor(CsilCbor.rpc_reply_payload(@transport, "CommentService", "get-comment", CsilCbor.encode(req)))
   end
 
   # update-comment: -> Comment
   def update_comment(req)
-    Comment.from_cbor(@transport.call("CommentService", "update-comment", req.to_cbor))
+    Comment.from_cbor(CsilCbor.rpc_reply_payload(@transport, "CommentService", "update-comment", req.to_cbor))
   end
 
   # delete-comment: -> EmptyResponse
   def delete_comment(req)
-    EmptyResponse.from_cbor(@transport.call("CommentService", "delete-comment", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "CommentService", "delete-comment", CsilCbor.encode(req)))
   end
 
-  # list-comments: -> Array<Comment>
+  # list-comments: -> CommentItems
   def list_comments(req)
-    @transport.call("CommentService", "list-comments", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "CommentService", "list-comments", req.to_cbor))).map { |csil_e| Comment.csil_from_tree(csil_e) }
   end
 end
 
@@ -723,24 +743,24 @@ class NotificationClient
     @transport = transport
   end
 
-  # list-notifications: -> Array<Notification>
+  # list-notifications: -> NotificationItems
   def list_notifications(req)
-    @transport.call("NotificationService", "list-notifications", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "NotificationService", "list-notifications", req.to_cbor))).map { |csil_e| Notification.csil_from_tree(csil_e) }
   end
 
   # unread-count: -> NotificationUnreadCount
   def unread_count(req)
-    NotificationUnreadCount.from_cbor(@transport.call("NotificationService", "unread-count", CsilCbor.encode(req)))
+    NotificationUnreadCount.from_cbor(CsilCbor.rpc_reply_payload(@transport, "NotificationService", "unread-count", CsilCbor.encode(req)))
   end
 
   # mark-read: -> Notification
   def mark_read(req)
-    Notification.from_cbor(@transport.call("NotificationService", "mark-read", CsilCbor.encode(req)))
+    Notification.from_cbor(CsilCbor.rpc_reply_payload(@transport, "NotificationService", "mark-read", CsilCbor.encode(req)))
   end
 
   # mark-all-read: -> EmptyResponse
   def mark_all_read(req)
-    EmptyResponse.from_cbor(@transport.call("NotificationService", "mark-all-read", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "NotificationService", "mark-all-read", CsilCbor.encode(req)))
   end
 end
 
@@ -752,22 +772,22 @@ class ShareClient
 
   # create-share: -> Share
   def create_share(req)
-    Share.from_cbor(@transport.call("ShareService", "create-share", req.to_cbor))
+    Share.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ShareService", "create-share", req.to_cbor))
   end
 
   # delete-share: -> EmptyResponse
   def delete_share(req)
-    EmptyResponse.from_cbor(@transport.call("ShareService", "delete-share", CsilCbor.encode(req)))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ShareService", "delete-share", CsilCbor.encode(req)))
   end
 
-  # list-shares-by-resource: -> Array<Share>
+  # list-shares-by-resource: -> ShareItems
   def list_shares_by_resource(req)
-    @transport.call("ShareService", "list-shares-by-resource", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "ShareService", "list-shares-by-resource", req.to_cbor))).map { |csil_e| Share.csil_from_tree(csil_e) }
   end
 
   # check-access: -> Share
   def check_access(req)
-    Share.from_cbor(@transport.call("ShareService", "check-access", req.to_cbor))
+    Share.from_cbor(CsilCbor.rpc_reply_payload(@transport, "ShareService", "check-access", req.to_cbor))
   end
 end
 
@@ -777,9 +797,9 @@ class MemberAuditClient
     @transport = transport
   end
 
-  # list-audits-for-member: -> Array<MemberAudit>
+  # list-audits-for-member: -> MemberAuditItems
   def list_audits_for_member(req)
-    @transport.call("MemberAuditService", "list-audits-for-member", req.to_cbor)
+    (CsilCbor.decode(CsilCbor.rpc_reply_payload(@transport, "MemberAuditService", "list-audits-for-member", req.to_cbor))).map { |csil_e| MemberAudit.csil_from_tree(csil_e) }
   end
 end
 
@@ -791,12 +811,12 @@ class SettingsClient
 
   # get-settings: -> EffectiveSettings
   def get_settings(req)
-    EffectiveSettings.from_cbor(@transport.call("SettingsService", "get-settings", CsilCbor.encode(req)))
+    EffectiveSettings.from_cbor(CsilCbor.rpc_reply_payload(@transport, "SettingsService", "get-settings", CsilCbor.encode(req)))
   end
 
   # update-settings: -> EffectiveSettings
   def update_settings(req)
-    EffectiveSettings.from_cbor(@transport.call("SettingsService", "update-settings", req.to_cbor))
+    EffectiveSettings.from_cbor(CsilCbor.rpc_reply_payload(@transport, "SettingsService", "update-settings", req.to_cbor))
   end
 end
 
@@ -808,7 +828,7 @@ class BugClient
 
   # report-bug: -> Task
   def report_bug(req)
-    Task.from_cbor(@transport.call("BugService", "report-bug", req.to_cbor))
+    Task.from_cbor(CsilCbor.rpc_reply_payload(@transport, "BugService", "report-bug", req.to_cbor))
   end
 end
 
@@ -820,7 +840,7 @@ class AuditClient
 
   # query-audit: -> AuditPage
   def query_audit(req)
-    AuditPage.from_cbor(@transport.call("AuditService", "query-audit", req.to_cbor))
+    AuditPage.from_cbor(CsilCbor.rpc_reply_payload(@transport, "AuditService", "query-audit", req.to_cbor))
   end
 end
 
@@ -832,16 +852,16 @@ class TrashClient
 
   # list-trash: -> TrashPage
   def list_trash(req)
-    TrashPage.from_cbor(@transport.call("TrashService", "list-trash", req.to_cbor))
+    TrashPage.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TrashService", "list-trash", req.to_cbor))
   end
 
   # restore: -> EmptyResponse
   def restore(req)
-    EmptyResponse.from_cbor(@transport.call("TrashService", "restore", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TrashService", "restore", req.to_cbor))
   end
 
   # purge: -> EmptyResponse
   def purge(req)
-    EmptyResponse.from_cbor(@transport.call("TrashService", "purge", req.to_cbor))
+    EmptyResponse.from_cbor(CsilCbor.rpc_reply_payload(@transport, "TrashService", "purge", req.to_cbor))
   end
 end

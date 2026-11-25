@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the CalendarService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -16,38 +14,47 @@ public final class CalendarClient {
     }
 
     public ProjectDeadlineList listProjectDeadlines(ProjectDeadlineRequest req) throws ClientException {
-        return CsilCbor.decodeProjectDeadlineList(transport.call("CalendarService", "list-project-deadlines", CsilCbor.encodeProjectDeadlineRequest(req)));
+        WireReply reply = transport.callReply("CalendarService", "list-project-deadlines", CsilCbor.encodeProjectDeadlineRequest(req));
+        return CsilCbor.decodeProjectDeadlineList(CsilCbor.resolveRpcReply("CalendarService", "list-project-deadlines", reply.variant(), reply.payload()));
     }
 
     public CalendarStatus getStatus(HouseId req) throws ClientException {
-        return CsilCbor.decodeCalendarStatus(transport.call("CalendarService", "get-status", CsilCbor.encodeCalendarGetStatusRequest(req)));
+        WireReply reply = transport.callReply("CalendarService", "get-status", CsilCbor.encodeCalendarGetStatusRequest(req));
+        return CsilCbor.decodeCalendarStatus(CsilCbor.resolveRpcReply("CalendarService", "get-status", reply.variant(), reply.payload()));
     }
 
     public CalendarStatus configureCalendar(ConfigureCalendarRequest req) throws ClientException {
-        return CsilCbor.decodeCalendarStatus(transport.call("CalendarService", "configure-calendar", CsilCbor.encodeConfigureCalendarRequest(req)));
+        WireReply reply = transport.callReply("CalendarService", "configure-calendar", CsilCbor.encodeConfigureCalendarRequest(req));
+        return CsilCbor.decodeCalendarStatus(CsilCbor.resolveRpcReply("CalendarService", "configure-calendar", reply.variant(), reply.payload()));
     }
 
     public CalendarConnectResponse beginConnect(HouseId req) throws ClientException {
-        return CsilCbor.decodeCalendarConnectResponse(transport.call("CalendarService", "begin-connect", CsilCbor.encodeCalendarBeginConnectRequest(req)));
+        WireReply reply = transport.callReply("CalendarService", "begin-connect", CsilCbor.encodeCalendarBeginConnectRequest(req));
+        return CsilCbor.decodeCalendarConnectResponse(CsilCbor.resolveRpcReply("CalendarService", "begin-connect", reply.variant(), reply.payload()));
     }
 
     public CalendarStatus completeConnect(CompleteCalendarConnectRequest req) throws ClientException {
-        return CsilCbor.decodeCalendarStatus(transport.call("CalendarService", "complete-connect", CsilCbor.encodeCompleteCalendarConnectRequest(req)));
+        WireReply reply = transport.callReply("CalendarService", "complete-connect", CsilCbor.encodeCompleteCalendarConnectRequest(req));
+        return CsilCbor.decodeCalendarStatus(CsilCbor.resolveRpcReply("CalendarService", "complete-connect", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse disconnect(HouseId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("CalendarService", "disconnect", CsilCbor.encodeCalendarDisconnectRequest(req)));
+        WireReply reply = transport.callReply("CalendarService", "disconnect", CsilCbor.encodeCalendarDisconnectRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("CalendarService", "disconnect", reply.variant(), reply.payload()));
     }
 
-    public List<CalendarMigrationRow> previewMigration(HouseId req) throws ClientException {
-        return CsilCbor.decodeCalendarPreviewMigrationResponse(transport.call("CalendarService", "preview-migration", CsilCbor.encodeCalendarPreviewMigrationRequest(req)));
+    public CalendarMigrationRowItems previewMigration(HouseId req) throws ClientException {
+        WireReply reply = transport.callReply("CalendarService", "preview-migration", CsilCbor.encodeCalendarPreviewMigrationRequest(req));
+        return CsilCbor.decodeCalendarPreviewMigrationResponse(CsilCbor.resolveRpcReply("CalendarService", "preview-migration", reply.variant(), reply.payload()));
     }
 
-    public List<CalendarTrashEntry> listTrash(HouseId req) throws ClientException {
-        return CsilCbor.decodeCalendarListTrashResponse(transport.call("CalendarService", "list-trash", CsilCbor.encodeCalendarListTrashRequest(req)));
+    public CalendarTrashEntryItems listTrash(HouseId req) throws ClientException {
+        WireReply reply = transport.callReply("CalendarService", "list-trash", CsilCbor.encodeCalendarListTrashRequest(req));
+        return CsilCbor.decodeCalendarListTrashResponse(CsilCbor.resolveRpcReply("CalendarService", "list-trash", reply.variant(), reply.payload()));
     }
 
     public Event restoreEvent(RestoreCalendarEventRequest req) throws ClientException {
-        return CsilCbor.decodeEvent(transport.call("CalendarService", "restore-event", CsilCbor.encodeRestoreCalendarEventRequest(req)));
+        WireReply reply = transport.callReply("CalendarService", "restore-event", CsilCbor.encodeRestoreCalendarEventRequest(req));
+        return CsilCbor.decodeEvent(CsilCbor.resolveRpcReply("CalendarService", "restore-event", reply.variant(), reply.payload()));
     }
 }

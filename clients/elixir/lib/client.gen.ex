@@ -18,6 +18,19 @@ defmodule Csilgen.Generated.Transport do
   def call(%mod{} = transport, service, method, req) do
     mod.call(transport, service, method, req)
   end
+
+  @doc """
+  Performs a call for an operation with more than one reply arm and returns
+  `{variant, payload}`; `variant` is `nil` when the reply carries none.
+  """
+  @callback call_reply(t(), service :: String.t(), method :: String.t(), req :: binary()) ::
+              {String.t() | nil, binary()}
+
+  @doc "Dispatches a multi-arm call to the transport struct's implementing module."
+  @spec call_reply(t(), String.t(), String.t(), binary()) :: {String.t() | nil, binary()}
+  def call_reply(%mod{} = transport, service, method, req) do
+    mod.call_reply(transport, service, method, req)
+  end
 end
 
 defmodule Csilgen.Generated.AuthClient do
@@ -33,12 +46,20 @@ defmodule Csilgen.Generated.AuthClient do
   @spec begin_browser_login(t(), Csilgen.Generated.BeginBrowserLoginRequest.t()) ::
           Csilgen.Generated.BeginBrowserLoginResponse.t()
   def begin_browser_login(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "begin-browser-login",
         Csilgen.Generated.BeginBrowserLoginRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "AuthService",
+        "begin-browser-login",
+        variant,
+        payload
       )
 
     Csilgen.Generated.BeginBrowserLoginResponse.from_cbor(resp)
@@ -47,12 +68,20 @@ defmodule Csilgen.Generated.AuthClient do
   @spec get_act_as_scope_set(t(), Csilgen.Generated.ActAsScopeSetRequest.t()) ::
           Csilgen.Generated.ActAsScopeSetResponse.t()
   def get_act_as_scope_set(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "get-act-as-scope-set",
         Csilgen.Generated.ActAsScopeSetRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "AuthService",
+        "get-act-as-scope-set",
+        variant,
+        payload
       )
 
     Csilgen.Generated.ActAsScopeSetResponse.from_cbor(resp)
@@ -61,12 +90,20 @@ defmodule Csilgen.Generated.AuthClient do
   @spec exchange_act_as_credential(t(), Csilgen.Generated.ExchangeActAsCredentialRequest.t()) ::
           Csilgen.Generated.ActAsTokenResponse.t()
   def exchange_act_as_credential(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "exchange-act-as-credential",
         Csilgen.Generated.ExchangeActAsCredentialRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "AuthService",
+        "exchange-act-as-credential",
+        variant,
+        payload
       )
 
     Csilgen.Generated.ActAsTokenResponse.from_cbor(resp)
@@ -74,67 +111,74 @@ defmodule Csilgen.Generated.AuthClient do
 
   @spec login(t(), Csilgen.Generated.LoginRequest.t()) :: Csilgen.Generated.LoginResponse.t()
   def login(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "login",
         Csilgen.Generated.LoginRequest.to_cbor(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "login", variant, payload)
     Csilgen.Generated.LoginResponse.from_cbor(resp)
   end
 
   @spec complete(t(), Csilgen.Generated.CompleteRequest.t()) ::
           Csilgen.Generated.LoginResponse.t()
   def complete(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "complete",
         Csilgen.Generated.CompleteRequest.to_cbor(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "complete", variant, payload)
     Csilgen.Generated.LoginResponse.from_cbor(resp)
   end
 
   @spec refresh(t(), Csilgen.Generated.EmptyRequest.t()) :: Csilgen.Generated.LoginResponse.t()
   def refresh(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "refresh",
         Csilgen.Generated.EmptyRequest.to_cbor(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "refresh", variant, payload)
     Csilgen.Generated.LoginResponse.from_cbor(resp)
   end
 
   @spec logout(t(), Csilgen.Generated.EmptyRequest.t()) :: Csilgen.Generated.EmptyResponse.t()
   def logout(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "logout",
         Csilgen.Generated.EmptyRequest.to_cbor(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "logout", variant, payload)
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec resume_session(t(), Csilgen.Generated.EmptyRequest.t()) ::
           Csilgen.Generated.LoginResponse.t()
   def resume_session(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "resume-session",
         Csilgen.Generated.EmptyRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "resume-session", variant, payload)
 
     Csilgen.Generated.LoginResponse.from_cbor(resp)
   end
@@ -142,40 +186,47 @@ defmodule Csilgen.Generated.AuthClient do
   @spec end_session(t(), Csilgen.Generated.EmptyRequest.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def end_session(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "end-session",
         Csilgen.Generated.EmptyRequest.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "end-session", variant, payload)
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec me(t(), Csilgen.Generated.EmptyRequest.t()) :: Csilgen.Generated.MeResponse.t()
   def me(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "me",
         Csilgen.Generated.EmptyRequest.to_cbor(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "me", variant, payload)
     Csilgen.Generated.MeResponse.from_cbor(resp)
   end
 
   @spec begin_cli_login(t(), Csilgen.Generated.BeginCliLoginRequest.t()) ::
           Csilgen.Generated.BeginCliLoginResponse.t()
   def begin_cli_login(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "begin-cli-login",
         Csilgen.Generated.BeginCliLoginRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "begin-cli-login", variant, payload)
 
     Csilgen.Generated.BeginCliLoginResponse.from_cbor(resp)
   end
@@ -183,12 +234,20 @@ defmodule Csilgen.Generated.AuthClient do
   @spec inspect_cli_login(t(), Csilgen.Generated.ApproveCliLoginRequest.t()) ::
           Csilgen.Generated.CliLoginRequestInfo.t()
   def inspect_cli_login(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "inspect-cli-login",
         Csilgen.Generated.ApproveCliLoginRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "AuthService",
+        "inspect-cli-login",
+        variant,
+        payload
       )
 
     Csilgen.Generated.CliLoginRequestInfo.from_cbor(resp)
@@ -197,12 +256,20 @@ defmodule Csilgen.Generated.AuthClient do
   @spec approve_cli_login(t(), Csilgen.Generated.ApproveCliLoginRequest.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def approve_cli_login(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "approve-cli-login",
         Csilgen.Generated.ApproveCliLoginRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "AuthService",
+        "approve-cli-login",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -211,13 +278,16 @@ defmodule Csilgen.Generated.AuthClient do
   @spec deny_cli_login(t(), Csilgen.Generated.DenyCliLoginRequest.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def deny_cli_login(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "deny-cli-login",
         Csilgen.Generated.DenyCliLoginRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "deny-cli-login", variant, payload)
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
@@ -225,12 +295,20 @@ defmodule Csilgen.Generated.AuthClient do
   @spec exchange_cli_login(t(), Csilgen.Generated.ExchangeCliLoginRequest.t()) ::
           Csilgen.Generated.ExchangeCliLoginResponse.t()
   def exchange_cli_login(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "exchange-cli-login",
         Csilgen.Generated.ExchangeCliLoginRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "AuthService",
+        "exchange-cli-login",
+        variant,
+        payload
       )
 
     Csilgen.Generated.ExchangeCliLoginResponse.from_cbor(resp)
@@ -239,13 +317,16 @@ defmodule Csilgen.Generated.AuthClient do
   @spec refresh_session(t(), Csilgen.Generated.RefreshSessionRequest.t()) ::
           Csilgen.Generated.CliTokenResponse.t()
   def refresh_session(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "refresh-session",
         Csilgen.Generated.RefreshSessionRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "refresh-session", variant, payload)
 
     Csilgen.Generated.CliTokenResponse.from_cbor(resp)
   end
@@ -253,13 +334,16 @@ defmodule Csilgen.Generated.AuthClient do
   @spec list_sessions(t(), Csilgen.Generated.EmptyRequest.t()) ::
           Csilgen.Generated.CliSessionsResponse.t()
   def list_sessions(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "list-sessions",
         Csilgen.Generated.EmptyRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "list-sessions", variant, payload)
 
     Csilgen.Generated.CliSessionsResponse.from_cbor(resp)
   end
@@ -267,13 +351,16 @@ defmodule Csilgen.Generated.AuthClient do
   @spec revoke_session(t(), Csilgen.Generated.RevokeSessionRequest.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def revoke_session(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuthService",
         "revoke-session",
         Csilgen.Generated.RevokeSessionRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("AuthService", "revoke-session", variant, payload)
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
@@ -292,12 +379,20 @@ defmodule Csilgen.Generated.DevAuthClient do
   @spec list_dev_users(t(), Csilgen.Generated.EmptyRequest.t()) ::
           Csilgen.Generated.DevUsersResponse.t()
   def list_dev_users(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "DevAuthService",
         "list-dev-users",
         Csilgen.Generated.EmptyRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "DevAuthService",
+        "list-dev-users",
+        variant,
+        payload
       )
 
     Csilgen.Generated.DevUsersResponse.from_cbor(resp)
@@ -306,13 +401,16 @@ defmodule Csilgen.Generated.DevAuthClient do
   @spec dev_login(t(), Csilgen.Generated.DevLoginRequest.t()) ::
           Csilgen.Generated.LoginResponse.t()
   def dev_login(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "DevAuthService",
         "dev-login",
         Csilgen.Generated.DevLoginRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("DevAuthService", "dev-login", variant, payload)
 
     Csilgen.Generated.LoginResponse.from_cbor(resp)
   end
@@ -330,65 +428,79 @@ defmodule Csilgen.Generated.HouseClient do
 
   @spec create_house(t(), Csilgen.Generated.House.t()) :: Csilgen.Generated.House.t()
   def create_house(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "HouseService",
         "create-house",
         Csilgen.Generated.House.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("HouseService", "create-house", variant, payload)
+
     Csilgen.Generated.House.from_cbor(resp)
   end
 
   @spec get_house(t(), Csilgen.Generated.HouseID.t()) :: Csilgen.Generated.House.t()
   def get_house(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "HouseService",
         "get-house",
         encode_get_house_request(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("HouseService", "get-house", variant, payload)
     Csilgen.Generated.House.from_cbor(resp)
   end
 
   @spec update_house(t(), Csilgen.Generated.House.t()) :: Csilgen.Generated.House.t()
   def update_house(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "HouseService",
         "update-house",
         Csilgen.Generated.House.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("HouseService", "update-house", variant, payload)
+
     Csilgen.Generated.House.from_cbor(resp)
   end
 
   @spec delete_house(t(), Csilgen.Generated.HouseID.t()) :: Csilgen.Generated.EmptyResponse.t()
   def delete_house(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "HouseService",
         "delete-house",
         encode_delete_house_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("HouseService", "delete-house", variant, payload)
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
-  @spec list_houses(t(), Csilgen.Generated.HouseListRequest.t()) :: [Csilgen.Generated.House.t()]
+  @spec list_houses(t(), Csilgen.Generated.HouseListRequest.t()) ::
+          Csilgen.Generated.HouseItems.t()
   def list_houses(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "HouseService",
         "list-houses",
         Csilgen.Generated.HouseListRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("HouseService", "list-houses", variant, payload)
 
     decode_list_houses_response(resp)
   end
@@ -423,38 +535,52 @@ defmodule Csilgen.Generated.MemberClient do
 
   @spec create_member(t(), Csilgen.Generated.Member.t()) :: Csilgen.Generated.Member.t()
   def create_member(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "MemberService",
         "create-member",
         Csilgen.Generated.Member.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("MemberService", "create-member", variant, payload)
+
     Csilgen.Generated.Member.from_cbor(resp)
   end
 
   @spec get_member(t(), Csilgen.Generated.MemberID.t()) :: Csilgen.Generated.Member.t()
   def get_member(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "MemberService",
         "get-member",
         encode_get_member_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("MemberService", "get-member", variant, payload)
+
     Csilgen.Generated.Member.from_cbor(resp)
   end
 
   @spec get_member_by_identity(t(), Csilgen.Generated.Member.t()) :: Csilgen.Generated.Member.t()
   def get_member_by_identity(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "MemberService",
         "get-member-by-identity",
         Csilgen.Generated.Member.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "MemberService",
+        "get-member-by-identity",
+        variant,
+        payload
       )
 
     Csilgen.Generated.Member.from_cbor(resp)
@@ -462,13 +588,16 @@ defmodule Csilgen.Generated.MemberClient do
 
   @spec update_member(t(), Csilgen.Generated.Member.t()) :: Csilgen.Generated.Member.t()
   def update_member(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "MemberService",
         "update-member",
         Csilgen.Generated.Member.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("MemberService", "update-member", variant, payload)
 
     Csilgen.Generated.Member.from_cbor(resp)
   end
@@ -476,12 +605,20 @@ defmodule Csilgen.Generated.MemberClient do
   @spec deactivate_member(t(), Csilgen.Generated.MemberID.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def deactivate_member(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "MemberService",
         "deactivate-member",
         encode_deactivate_member_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "MemberService",
+        "deactivate-member",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -490,27 +627,38 @@ defmodule Csilgen.Generated.MemberClient do
   @spec reactivate_member(t(), Csilgen.Generated.MemberID.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def reactivate_member(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "MemberService",
         "reactivate-member",
         encode_reactivate_member_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "MemberService",
+        "reactivate-member",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_members(t(), Csilgen.Generated.HouseScopedListRequest.t()) ::
-          [Csilgen.Generated.Member.t()]
+          Csilgen.Generated.MemberItems.t()
   def list_members(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "MemberService",
         "list-members",
         Csilgen.Generated.HouseScopedListRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("MemberService", "list-members", variant, payload)
 
     decode_list_members_response(resp)
   end
@@ -550,12 +698,20 @@ defmodule Csilgen.Generated.TrustedDomainClient do
   @spec add_trusted_domain(t(), Csilgen.Generated.TrustedDomain.t()) ::
           Csilgen.Generated.TrustedDomain.t()
   def add_trusted_domain(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TrustedDomainService",
         "add-trusted-domain",
         Csilgen.Generated.TrustedDomain.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "TrustedDomainService",
+        "add-trusted-domain",
+        variant,
+        payload
       )
 
     Csilgen.Generated.TrustedDomain.from_cbor(resp)
@@ -564,26 +720,42 @@ defmodule Csilgen.Generated.TrustedDomainClient do
   @spec remove_trusted_domain(t(), Csilgen.Generated.TrustedDomainID.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def remove_trusted_domain(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TrustedDomainService",
         "remove-trusted-domain",
         encode_remove_trusted_domain_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "TrustedDomainService",
+        "remove-trusted-domain",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_trusted_domains(t(), Csilgen.Generated.HouseID.t()) ::
-          [Csilgen.Generated.TrustedDomain.t()]
+          Csilgen.Generated.TrustedDomainItems.t()
   def list_trusted_domains(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TrustedDomainService",
         "list-trusted-domains",
         encode_list_trusted_domains_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "TrustedDomainService",
+        "list-trusted-domains",
+        variant,
+        payload
       )
 
     decode_list_trusted_domains_response(resp)
@@ -592,12 +764,20 @@ defmodule Csilgen.Generated.TrustedDomainClient do
   @spec is_domain_trusted(t(), Csilgen.Generated.TrustedDomain.t()) ::
           Csilgen.Generated.BoolResponse.t()
   def is_domain_trusted(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TrustedDomainService",
         "is-domain-trusted",
         Csilgen.Generated.TrustedDomain.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "TrustedDomainService",
+        "is-domain-trusted",
+        variant,
+        payload
       )
 
     Csilgen.Generated.BoolResponse.from_cbor(resp)
@@ -635,94 +815,116 @@ defmodule Csilgen.Generated.RoleClient do
 
   @spec create_role(t(), Csilgen.Generated.Role.t()) :: Csilgen.Generated.Role.t()
   def create_role(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "RoleService",
         "create-role",
         Csilgen.Generated.Role.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("RoleService", "create-role", variant, payload)
+
     Csilgen.Generated.Role.from_cbor(resp)
   end
 
   @spec update_role(t(), Csilgen.Generated.Role.t()) :: Csilgen.Generated.Role.t()
   def update_role(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "RoleService",
         "update-role",
         Csilgen.Generated.Role.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("RoleService", "update-role", variant, payload)
+
     Csilgen.Generated.Role.from_cbor(resp)
   end
 
   @spec delete_role(t(), Csilgen.Generated.RoleID.t()) :: Csilgen.Generated.EmptyResponse.t()
   def delete_role(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "RoleService",
         "delete-role",
         encode_delete_role_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("RoleService", "delete-role", variant, payload)
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_roles(t(), Csilgen.Generated.HouseScopedListRequest.t()) ::
-          [Csilgen.Generated.Role.t()]
+          Csilgen.Generated.RoleItems.t()
   def list_roles(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "RoleService",
         "list-roles",
         Csilgen.Generated.HouseScopedListRequest.to_cbor(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("RoleService", "list-roles", variant, payload)
     decode_list_roles_response(resp)
   end
 
   @spec grant_role(t(), Csilgen.Generated.MemberRoleRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def grant_role(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "RoleService",
         "grant-role",
         Csilgen.Generated.MemberRoleRef.to_cbor(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("RoleService", "grant-role", variant, payload)
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec revoke_role(t(), Csilgen.Generated.MemberRoleRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def revoke_role(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "RoleService",
         "revoke-role",
         Csilgen.Generated.MemberRoleRef.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("RoleService", "revoke-role", variant, payload)
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_member_roles(t(), Csilgen.Generated.MemberScopedListRequest.t()) ::
-          [Csilgen.Generated.Role.t()]
+          Csilgen.Generated.RoleItems.t()
   def list_member_roles(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "RoleService",
         "list-member-roles",
         Csilgen.Generated.MemberScopedListRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "RoleService",
+        "list-member-roles",
+        variant,
+        payload
       )
 
     decode_list_member_roles_response(resp)
@@ -763,53 +965,65 @@ defmodule Csilgen.Generated.SkillClient do
 
   @spec create_skill(t(), Csilgen.Generated.Skill.t()) :: Csilgen.Generated.Skill.t()
   def create_skill(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SkillService",
         "create-skill",
         Csilgen.Generated.Skill.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("SkillService", "create-skill", variant, payload)
+
     Csilgen.Generated.Skill.from_cbor(resp)
   end
 
   @spec update_skill(t(), Csilgen.Generated.Skill.t()) :: Csilgen.Generated.Skill.t()
   def update_skill(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SkillService",
         "update-skill",
         Csilgen.Generated.Skill.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("SkillService", "update-skill", variant, payload)
+
     Csilgen.Generated.Skill.from_cbor(resp)
   end
 
   @spec delete_skill(t(), Csilgen.Generated.SkillID.t()) :: Csilgen.Generated.EmptyResponse.t()
   def delete_skill(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SkillService",
         "delete-skill",
         encode_delete_skill_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("SkillService", "delete-skill", variant, payload)
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_skills(t(), Csilgen.Generated.HouseScopedListRequest.t()) ::
-          [Csilgen.Generated.Skill.t()]
+          Csilgen.Generated.SkillItems.t()
   def list_skills(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SkillService",
         "list-skills",
         Csilgen.Generated.HouseScopedListRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("SkillService", "list-skills", variant, payload)
 
     decode_list_skills_response(resp)
   end
@@ -817,12 +1031,20 @@ defmodule Csilgen.Generated.SkillClient do
   @spec add_member_skill(t(), Csilgen.Generated.MemberSkillRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def add_member_skill(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SkillService",
         "add-member-skill",
         Csilgen.Generated.MemberSkillRef.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "SkillService",
+        "add-member-skill",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -831,26 +1053,42 @@ defmodule Csilgen.Generated.SkillClient do
   @spec remove_member_skill(t(), Csilgen.Generated.MemberSkillRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def remove_member_skill(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SkillService",
         "remove-member-skill",
         Csilgen.Generated.MemberSkillRef.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "SkillService",
+        "remove-member-skill",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_member_skills(t(), Csilgen.Generated.MemberScopedListRequest.t()) ::
-          [Csilgen.Generated.Skill.t()]
+          Csilgen.Generated.SkillItems.t()
   def list_member_skills(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SkillService",
         "list-member-skills",
         Csilgen.Generated.MemberScopedListRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "SkillService",
+        "list-member-skills",
+        variant,
+        payload
       )
 
     decode_list_member_skills_response(resp)
@@ -859,12 +1097,20 @@ defmodule Csilgen.Generated.SkillClient do
   @spec add_group_skill(t(), Csilgen.Generated.GroupSkillRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def add_group_skill(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SkillService",
         "add-group-skill",
         Csilgen.Generated.GroupSkillRef.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "SkillService",
+        "add-group-skill",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -873,25 +1119,41 @@ defmodule Csilgen.Generated.SkillClient do
   @spec remove_group_skill(t(), Csilgen.Generated.GroupSkillRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def remove_group_skill(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SkillService",
         "remove-group-skill",
         Csilgen.Generated.GroupSkillRef.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "SkillService",
+        "remove-group-skill",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
-  @spec list_group_skills(t(), Csilgen.Generated.GroupID.t()) :: [Csilgen.Generated.Skill.t()]
+  @spec list_group_skills(t(), Csilgen.Generated.GroupID.t()) :: Csilgen.Generated.SkillItems.t()
   def list_group_skills(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SkillService",
         "list-group-skills",
         encode_list_group_skills_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "SkillService",
+        "list-group-skills",
+        variant,
+        payload
       )
 
     decode_list_group_skills_response(resp)
@@ -945,53 +1207,65 @@ defmodule Csilgen.Generated.GroupClient do
 
   @spec create_group(t(), Csilgen.Generated.Group.t()) :: Csilgen.Generated.Group.t()
   def create_group(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "GroupService",
         "create-group",
         Csilgen.Generated.Group.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("GroupService", "create-group", variant, payload)
+
     Csilgen.Generated.Group.from_cbor(resp)
   end
 
   @spec update_group(t(), Csilgen.Generated.Group.t()) :: Csilgen.Generated.Group.t()
   def update_group(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "GroupService",
         "update-group",
         Csilgen.Generated.Group.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("GroupService", "update-group", variant, payload)
+
     Csilgen.Generated.Group.from_cbor(resp)
   end
 
   @spec delete_group(t(), Csilgen.Generated.GroupID.t()) :: Csilgen.Generated.EmptyResponse.t()
   def delete_group(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "GroupService",
         "delete-group",
         encode_delete_group_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("GroupService", "delete-group", variant, payload)
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_groups(t(), Csilgen.Generated.HouseScopedListRequest.t()) ::
-          [Csilgen.Generated.Group.t()]
+          Csilgen.Generated.GroupItems.t()
   def list_groups(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "GroupService",
         "list-groups",
         Csilgen.Generated.HouseScopedListRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("GroupService", "list-groups", variant, payload)
 
     decode_list_groups_response(resp)
   end
@@ -999,12 +1273,20 @@ defmodule Csilgen.Generated.GroupClient do
   @spec add_group_member(t(), Csilgen.Generated.GroupMemberRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def add_group_member(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "GroupService",
         "add-group-member",
         Csilgen.Generated.GroupMemberRef.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "GroupService",
+        "add-group-member",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -1013,26 +1295,42 @@ defmodule Csilgen.Generated.GroupClient do
   @spec remove_group_member(t(), Csilgen.Generated.GroupMemberRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def remove_group_member(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "GroupService",
         "remove-group-member",
         Csilgen.Generated.GroupMemberRef.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "GroupService",
+        "remove-group-member",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_group_members(t(), Csilgen.Generated.MemberScopedListRequest.t()) ::
-          [Csilgen.Generated.Member.t()]
+          Csilgen.Generated.MemberItems.t()
   def list_group_members(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "GroupService",
         "list-group-members",
         Csilgen.Generated.MemberScopedListRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "GroupService",
+        "list-group-members",
+        variant,
+        payload
       )
 
     decode_list_group_members_response(resp)
@@ -1073,12 +1371,20 @@ defmodule Csilgen.Generated.ProjectClient do
 
   @spec create_project(t(), Csilgen.Generated.Project.t()) :: Csilgen.Generated.Project.t()
   def create_project(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "create-project",
         Csilgen.Generated.Project.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "create-project",
+        variant,
+        payload
       )
 
     Csilgen.Generated.Project.from_cbor(resp)
@@ -1086,25 +1392,36 @@ defmodule Csilgen.Generated.ProjectClient do
 
   @spec get_project(t(), Csilgen.Generated.ProjectID.t()) :: Csilgen.Generated.Project.t()
   def get_project(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "get-project",
         encode_get_project_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("ProjectService", "get-project", variant, payload)
+
     Csilgen.Generated.Project.from_cbor(resp)
   end
 
   @spec update_project(t(), Csilgen.Generated.Project.t()) :: Csilgen.Generated.Project.t()
   def update_project(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "update-project",
         Csilgen.Generated.Project.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "update-project",
+        variant,
+        payload
       )
 
     Csilgen.Generated.Project.from_cbor(resp)
@@ -1113,12 +1430,20 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec delete_project(t(), Csilgen.Generated.ProjectID.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def delete_project(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "delete-project",
         encode_delete_project_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "delete-project",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -1127,12 +1452,20 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec list_projects(t(), Csilgen.Generated.HouseScopedListRequest.t()) ::
           Csilgen.Generated.ProjectList.t()
   def list_projects(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "list-projects",
         Csilgen.Generated.HouseScopedListRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "list-projects",
+        variant,
+        payload
       )
 
     Csilgen.Generated.ProjectList.from_cbor(resp)
@@ -1141,12 +1474,20 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec list_project_tasks(t(), Csilgen.Generated.ProjectScopedListRequest.t()) ::
           Csilgen.Generated.TaskList.t()
   def list_project_tasks(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "list-project-tasks",
         Csilgen.Generated.ProjectScopedListRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "list-project-tasks",
+        variant,
+        payload
       )
 
     Csilgen.Generated.TaskList.from_cbor(resp)
@@ -1155,12 +1496,20 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec add_project_task(t(), Csilgen.Generated.ProjectTaskOrderRequest.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def add_project_task(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "add-project-task",
         Csilgen.Generated.ProjectTaskOrderRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "add-project-task",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -1169,12 +1518,20 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec remove_project_task(t(), Csilgen.Generated.ProjectTaskRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def remove_project_task(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "remove-project-task",
         Csilgen.Generated.ProjectTaskRef.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "remove-project-task",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -1183,26 +1540,42 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec set_project_task_position(t(), Csilgen.Generated.ProjectTaskOrderRequest.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def set_project_task_position(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "set-project-task-position",
         Csilgen.Generated.ProjectTaskOrderRequest.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "set-project-task-position",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_project_members(t(), Csilgen.Generated.ProjectID.t()) ::
-          [Csilgen.Generated.Member.t()]
+          Csilgen.Generated.MemberItems.t()
   def list_project_members(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "list-project-members",
         encode_list_project_members_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "list-project-members",
+        variant,
+        payload
       )
 
     decode_list_project_members_response(resp)
@@ -1211,12 +1584,20 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec add_project_member(t(), Csilgen.Generated.ProjectMemberRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def add_project_member(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "add-project-member",
         Csilgen.Generated.ProjectMemberRef.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "add-project-member",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -1225,26 +1606,42 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec remove_project_member(t(), Csilgen.Generated.ProjectMemberRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def remove_project_member(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "remove-project-member",
         Csilgen.Generated.ProjectMemberRef.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "remove-project-member",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_project_owners(t(), Csilgen.Generated.ProjectID.t()) ::
-          [Csilgen.Generated.Member.t()]
+          Csilgen.Generated.MemberItems.t()
   def list_project_owners(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "list-project-owners",
         encode_list_project_owners_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "list-project-owners",
+        variant,
+        payload
       )
 
     decode_list_project_owners_response(resp)
@@ -1253,12 +1650,20 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec add_project_owner(t(), Csilgen.Generated.ProjectOwnerRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def add_project_owner(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "add-project-owner",
         Csilgen.Generated.ProjectOwnerRef.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "add-project-owner",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -1267,25 +1672,42 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec remove_project_owner(t(), Csilgen.Generated.ProjectOwnerRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def remove_project_owner(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "remove-project-owner",
         Csilgen.Generated.ProjectOwnerRef.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "remove-project-owner",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
-  @spec list_milestones(t(), Csilgen.Generated.ProjectID.t()) :: [Csilgen.Generated.Milestone.t()]
+  @spec list_milestones(t(), Csilgen.Generated.ProjectID.t()) ::
+          Csilgen.Generated.MilestoneItems.t()
   def list_milestones(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "list-milestones",
         encode_list_milestones_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "list-milestones",
+        variant,
+        payload
       )
 
     decode_list_milestones_response(resp)
@@ -1293,12 +1715,20 @@ defmodule Csilgen.Generated.ProjectClient do
 
   @spec create_milestone(t(), Csilgen.Generated.Milestone.t()) :: Csilgen.Generated.Milestone.t()
   def create_milestone(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "create-milestone",
         Csilgen.Generated.Milestone.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "create-milestone",
+        variant,
+        payload
       )
 
     Csilgen.Generated.Milestone.from_cbor(resp)
@@ -1306,12 +1736,20 @@ defmodule Csilgen.Generated.ProjectClient do
 
   @spec update_milestone(t(), Csilgen.Generated.Milestone.t()) :: Csilgen.Generated.Milestone.t()
   def update_milestone(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "update-milestone",
         Csilgen.Generated.Milestone.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "update-milestone",
+        variant,
+        payload
       )
 
     Csilgen.Generated.Milestone.from_cbor(resp)
@@ -1320,12 +1758,20 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec delete_milestone(t(), Csilgen.Generated.MilestoneID.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def delete_milestone(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "delete-milestone",
         encode_delete_milestone_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "delete-milestone",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -1334,25 +1780,42 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec set_project_visibility(t(), Csilgen.Generated.SetProjectVisibilityRequest.t()) ::
           Csilgen.Generated.Project.t()
   def set_project_visibility(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "set-project-visibility",
         Csilgen.Generated.SetProjectVisibilityRequest.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "set-project-visibility",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.Project.from_cbor(resp)
   end
 
-  @spec list_project_grants(t(), Csilgen.Generated.ProjectID.t()) :: [Csilgen.Generated.Grant.t()]
+  @spec list_project_grants(t(), Csilgen.Generated.ProjectID.t()) ::
+          Csilgen.Generated.GrantItems.t()
   def list_project_grants(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "list-project-grants",
         encode_list_project_grants_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "list-project-grants",
+        variant,
+        payload
       )
 
     decode_list_project_grants_response(resp)
@@ -1361,12 +1824,20 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec put_project_grant(t(), Csilgen.Generated.PutProjectGrantRequest.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def put_project_grant(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "put-project-grant",
         Csilgen.Generated.PutProjectGrantRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "put-project-grant",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -1375,12 +1846,20 @@ defmodule Csilgen.Generated.ProjectClient do
   @spec delete_project_grant(t(), Csilgen.Generated.ProjectGrantRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def delete_project_grant(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ProjectService",
         "delete-project-grant",
         Csilgen.Generated.ProjectGrantRef.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ProjectService",
+        "delete-project-grant",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -1463,52 +1942,62 @@ defmodule Csilgen.Generated.EventClient do
 
   @spec create_event(t(), Csilgen.Generated.Event.t()) :: Csilgen.Generated.Event.t()
   def create_event(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "create-event",
         Csilgen.Generated.Event.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("EventService", "create-event", variant, payload)
+
     Csilgen.Generated.Event.from_cbor(resp)
   end
 
   @spec get_event(t(), Csilgen.Generated.EventID.t()) :: Csilgen.Generated.Event.t()
   def get_event(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "get-event",
         encode_get_event_request(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("EventService", "get-event", variant, payload)
     Csilgen.Generated.Event.from_cbor(resp)
   end
 
   @spec update_event(t(), Csilgen.Generated.Event.t()) :: Csilgen.Generated.Event.t()
   def update_event(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "update-event",
         Csilgen.Generated.Event.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("EventService", "update-event", variant, payload)
+
     Csilgen.Generated.Event.from_cbor(resp)
   end
 
   @spec delete_event(t(), Csilgen.Generated.EventID.t()) :: Csilgen.Generated.EmptyResponse.t()
   def delete_event(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "delete-event",
         encode_delete_event_request(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("EventService", "delete-event", variant, payload)
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
@@ -1516,26 +2005,38 @@ defmodule Csilgen.Generated.EventClient do
   @spec delete_event_and_future(t(), Csilgen.Generated.EventID.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def delete_event_and_future(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "delete-event-and-future",
         encode_delete_event_and_future_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "EventService",
+        "delete-event-and-future",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
-  @spec list_events(t(), Csilgen.Generated.EventListRequest.t()) :: [Csilgen.Generated.Event.t()]
+  @spec list_events(t(), Csilgen.Generated.EventListRequest.t()) ::
+          Csilgen.Generated.EventItems.t()
   def list_events(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "list-events",
         Csilgen.Generated.EventListRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("EventService", "list-events", variant, payload)
 
     decode_list_events_response(resp)
   end
@@ -1543,12 +2044,20 @@ defmodule Csilgen.Generated.EventClient do
   @spec get_calendar_view(t(), Csilgen.Generated.HouseID.t()) ::
           Csilgen.Generated.CalendarView.t()
   def get_calendar_view(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "get-calendar-view",
         encode_get_calendar_view_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "EventService",
+        "get-calendar-view",
+        variant,
+        payload
       )
 
     Csilgen.Generated.CalendarView.from_cbor(resp)
@@ -1557,12 +2066,20 @@ defmodule Csilgen.Generated.EventClient do
   @spec set_calendar_view(t(), Csilgen.Generated.CalendarView.t()) ::
           Csilgen.Generated.CalendarView.t()
   def set_calendar_view(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "set-calendar-view",
         Csilgen.Generated.CalendarView.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "EventService",
+        "set-calendar-view",
+        variant,
+        payload
       )
 
     Csilgen.Generated.CalendarView.from_cbor(resp)
@@ -1570,51 +2087,68 @@ defmodule Csilgen.Generated.EventClient do
 
   @spec accept_event(t(), Csilgen.Generated.EventDecision.t()) :: Csilgen.Generated.Event.t()
   def accept_event(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "accept-event",
         Csilgen.Generated.EventDecision.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("EventService", "accept-event", variant, payload)
+
     Csilgen.Generated.Event.from_cbor(resp)
   end
 
   @spec recover_edit(t(), Csilgen.Generated.EventID.t()) :: Csilgen.Generated.Event.t()
   def recover_edit(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "recover-edit",
         encode_recover_edit_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("EventService", "recover-edit", variant, payload)
+
     Csilgen.Generated.Event.from_cbor(resp)
   end
 
   @spec decline_event(t(), Csilgen.Generated.EventDecision.t()) :: Csilgen.Generated.Event.t()
   def decline_event(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "decline-event",
         Csilgen.Generated.EventDecision.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("EventService", "decline-event", variant, payload)
+
     Csilgen.Generated.Event.from_cbor(resp)
   end
 
-  @spec list_local_events(t(), Csilgen.Generated.HouseID.t()) :: [Csilgen.Generated.Event.t()]
+  @spec list_local_events(t(), Csilgen.Generated.HouseID.t()) :: Csilgen.Generated.EventItems.t()
   def list_local_events(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "EventService",
         "list-local-events",
         encode_list_local_events_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "EventService",
+        "list-local-events",
+        variant,
+        payload
       )
 
     decode_list_local_events_response(resp)
@@ -1676,12 +2210,20 @@ defmodule Csilgen.Generated.CalendarClient do
   @spec list_project_deadlines(t(), Csilgen.Generated.ProjectDeadlineRequest.t()) ::
           Csilgen.Generated.ProjectDeadlineList.t()
   def list_project_deadlines(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CalendarService",
         "list-project-deadlines",
         Csilgen.Generated.ProjectDeadlineRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "CalendarService",
+        "list-project-deadlines",
+        variant,
+        payload
       )
 
     Csilgen.Generated.ProjectDeadlineList.from_cbor(resp)
@@ -1689,13 +2231,16 @@ defmodule Csilgen.Generated.CalendarClient do
 
   @spec get_status(t(), Csilgen.Generated.HouseID.t()) :: Csilgen.Generated.CalendarStatus.t()
   def get_status(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CalendarService",
         "get-status",
         encode_get_status_request(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("CalendarService", "get-status", variant, payload)
 
     Csilgen.Generated.CalendarStatus.from_cbor(resp)
   end
@@ -1703,12 +2248,20 @@ defmodule Csilgen.Generated.CalendarClient do
   @spec configure_calendar(t(), Csilgen.Generated.ConfigureCalendarRequest.t()) ::
           Csilgen.Generated.CalendarStatus.t()
   def configure_calendar(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CalendarService",
         "configure-calendar",
         Csilgen.Generated.ConfigureCalendarRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "CalendarService",
+        "configure-calendar",
+        variant,
+        payload
       )
 
     Csilgen.Generated.CalendarStatus.from_cbor(resp)
@@ -1717,12 +2270,20 @@ defmodule Csilgen.Generated.CalendarClient do
   @spec begin_connect(t(), Csilgen.Generated.HouseID.t()) ::
           Csilgen.Generated.CalendarConnectResponse.t()
   def begin_connect(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CalendarService",
         "begin-connect",
         encode_begin_connect_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "CalendarService",
+        "begin-connect",
+        variant,
+        payload
       )
 
     Csilgen.Generated.CalendarConnectResponse.from_cbor(resp)
@@ -1731,12 +2292,20 @@ defmodule Csilgen.Generated.CalendarClient do
   @spec complete_connect(t(), Csilgen.Generated.CompleteCalendarConnectRequest.t()) ::
           Csilgen.Generated.CalendarStatus.t()
   def complete_connect(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CalendarService",
         "complete-connect",
         Csilgen.Generated.CompleteCalendarConnectRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "CalendarService",
+        "complete-connect",
+        variant,
+        payload
       )
 
     Csilgen.Generated.CalendarStatus.from_cbor(resp)
@@ -1744,41 +2313,55 @@ defmodule Csilgen.Generated.CalendarClient do
 
   @spec disconnect(t(), Csilgen.Generated.HouseID.t()) :: Csilgen.Generated.EmptyResponse.t()
   def disconnect(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CalendarService",
         "disconnect",
         encode_disconnect_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("CalendarService", "disconnect", variant, payload)
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec preview_migration(t(), Csilgen.Generated.HouseID.t()) ::
-          [Csilgen.Generated.CalendarMigrationRow.t()]
+          Csilgen.Generated.CalendarMigrationRowItems.t()
   def preview_migration(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CalendarService",
         "preview-migration",
         encode_preview_migration_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "CalendarService",
+        "preview-migration",
+        variant,
+        payload
+      )
+
     decode_preview_migration_response(resp)
   end
 
   @spec list_trash(t(), Csilgen.Generated.HouseID.t()) ::
-          [Csilgen.Generated.CalendarTrashEntry.t()]
+          Csilgen.Generated.CalendarTrashEntryItems.t()
   def list_trash(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CalendarService",
         "list-trash",
         encode_list_trash_request(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("CalendarService", "list-trash", variant, payload)
 
     decode_list_trash_response(resp)
   end
@@ -1786,12 +2369,20 @@ defmodule Csilgen.Generated.CalendarClient do
   @spec restore_event(t(), Csilgen.Generated.RestoreCalendarEventRequest.t()) ::
           Csilgen.Generated.Event.t()
   def restore_event(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CalendarService",
         "restore-event",
         Csilgen.Generated.RestoreCalendarEventRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "CalendarService",
+        "restore-event",
+        variant,
+        payload
       )
 
     Csilgen.Generated.Event.from_cbor(resp)
@@ -1852,77 +2443,96 @@ defmodule Csilgen.Generated.TaskClient do
 
   @spec create_task(t(), Csilgen.Generated.Task.t()) :: Csilgen.Generated.Task.t()
   def create_task(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TaskService",
         "create-task",
         Csilgen.Generated.Task.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("TaskService", "create-task", variant, payload)
+
     Csilgen.Generated.Task.from_cbor(resp)
   end
 
   @spec get_task(t(), Csilgen.Generated.TaskID.t()) :: Csilgen.Generated.Task.t()
   def get_task(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TaskService",
         "get-task",
         encode_get_task_request(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("TaskService", "get-task", variant, payload)
     Csilgen.Generated.Task.from_cbor(resp)
   end
 
   @spec update_task(t(), Csilgen.Generated.Task.t()) :: Csilgen.Generated.Task.t()
   def update_task(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TaskService",
         "update-task",
         Csilgen.Generated.Task.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("TaskService", "update-task", variant, payload)
+
     Csilgen.Generated.Task.from_cbor(resp)
   end
 
   @spec delete_task(t(), Csilgen.Generated.TaskID.t()) :: Csilgen.Generated.EmptyResponse.t()
   def delete_task(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TaskService",
         "delete-task",
         encode_delete_task_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("TaskService", "delete-task", variant, payload)
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_tasks(t(), Csilgen.Generated.TaskListRequest.t()) :: Csilgen.Generated.TaskList.t()
   def list_tasks(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TaskService",
         "list-tasks",
         Csilgen.Generated.TaskListRequest.to_cbor(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("TaskService", "list-tasks", variant, payload)
     Csilgen.Generated.TaskList.from_cbor(resp)
   end
 
   @spec create_personal_task(t(), Csilgen.Generated.Task.t()) :: Csilgen.Generated.Task.t()
   def create_personal_task(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TaskService",
         "create-personal-task",
         Csilgen.Generated.Task.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "TaskService",
+        "create-personal-task",
+        variant,
+        payload
       )
 
     Csilgen.Generated.Task.from_cbor(resp)
@@ -1931,25 +2541,41 @@ defmodule Csilgen.Generated.TaskClient do
   @spec set_task_visibility(t(), Csilgen.Generated.SetTaskVisibilityRequest.t()) ::
           Csilgen.Generated.Task.t()
   def set_task_visibility(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TaskService",
         "set-task-visibility",
         Csilgen.Generated.SetTaskVisibilityRequest.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "TaskService",
+        "set-task-visibility",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.Task.from_cbor(resp)
   end
 
-  @spec list_task_grants(t(), Csilgen.Generated.TaskID.t()) :: [Csilgen.Generated.Grant.t()]
+  @spec list_task_grants(t(), Csilgen.Generated.TaskID.t()) :: Csilgen.Generated.GrantItems.t()
   def list_task_grants(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TaskService",
         "list-task-grants",
         encode_list_task_grants_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "TaskService",
+        "list-task-grants",
+        variant,
+        payload
       )
 
     decode_list_task_grants_response(resp)
@@ -1958,13 +2584,16 @@ defmodule Csilgen.Generated.TaskClient do
   @spec put_task_grant(t(), Csilgen.Generated.PutTaskGrantRequest.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def put_task_grant(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TaskService",
         "put-task-grant",
         Csilgen.Generated.PutTaskGrantRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("TaskService", "put-task-grant", variant, payload)
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
@@ -1972,12 +2601,20 @@ defmodule Csilgen.Generated.TaskClient do
   @spec delete_task_grant(t(), Csilgen.Generated.TaskGrantRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def delete_task_grant(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TaskService",
         "delete-task-grant",
         Csilgen.Generated.TaskGrantRef.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "TaskService",
+        "delete-task-grant",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -2018,12 +2655,20 @@ defmodule Csilgen.Generated.DependencyClient do
   @spec add_dependency(t(), Csilgen.Generated.DependencyRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def add_dependency(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "DependencyService",
         "add-dependency",
         Csilgen.Generated.DependencyRef.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "DependencyService",
+        "add-dependency",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -2032,12 +2677,20 @@ defmodule Csilgen.Generated.DependencyClient do
   @spec remove_dependency(t(), Csilgen.Generated.DependencyRef.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def remove_dependency(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "DependencyService",
         "remove-dependency",
         Csilgen.Generated.DependencyRef.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "DependencyService",
+        "remove-dependency",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -2046,12 +2699,20 @@ defmodule Csilgen.Generated.DependencyClient do
   @spec get_dependencies(t(), Csilgen.Generated.DependencyTarget.t()) ::
           Csilgen.Generated.DependencyGraph.t()
   def get_dependencies(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "DependencyService",
         "get-dependencies",
         Csilgen.Generated.DependencyTarget.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "DependencyService",
+        "get-dependencies",
+        variant,
+        payload
       )
 
     Csilgen.Generated.DependencyGraph.from_cbor(resp)
@@ -2070,12 +2731,20 @@ defmodule Csilgen.Generated.CommentClient do
 
   @spec create_comment(t(), Csilgen.Generated.Comment.t()) :: Csilgen.Generated.Comment.t()
   def create_comment(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CommentService",
         "create-comment",
         Csilgen.Generated.Comment.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "CommentService",
+        "create-comment",
+        variant,
+        payload
       )
 
     Csilgen.Generated.Comment.from_cbor(resp)
@@ -2083,25 +2752,36 @@ defmodule Csilgen.Generated.CommentClient do
 
   @spec get_comment(t(), Csilgen.Generated.CommentID.t()) :: Csilgen.Generated.Comment.t()
   def get_comment(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CommentService",
         "get-comment",
         encode_get_comment_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("CommentService", "get-comment", variant, payload)
+
     Csilgen.Generated.Comment.from_cbor(resp)
   end
 
   @spec update_comment(t(), Csilgen.Generated.Comment.t()) :: Csilgen.Generated.Comment.t()
   def update_comment(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CommentService",
         "update-comment",
         Csilgen.Generated.Comment.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "CommentService",
+        "update-comment",
+        variant,
+        payload
       )
 
     Csilgen.Generated.Comment.from_cbor(resp)
@@ -2110,26 +2790,42 @@ defmodule Csilgen.Generated.CommentClient do
   @spec delete_comment(t(), Csilgen.Generated.CommentID.t()) ::
           Csilgen.Generated.EmptyResponse.t()
   def delete_comment(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CommentService",
         "delete-comment",
         encode_delete_comment_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "CommentService",
+        "delete-comment",
+        variant,
+        payload
+      )
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_comments(t(), Csilgen.Generated.CommentListRequest.t()) ::
-          [Csilgen.Generated.Comment.t()]
+          Csilgen.Generated.CommentItems.t()
   def list_comments(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "CommentService",
         "list-comments",
         Csilgen.Generated.CommentListRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "CommentService",
+        "list-comments",
+        variant,
+        payload
       )
 
     decode_list_comments_response(resp)
@@ -2164,14 +2860,22 @@ defmodule Csilgen.Generated.NotificationClient do
   def new(transport), do: %__MODULE__{transport: transport}
 
   @spec list_notifications(t(), Csilgen.Generated.NotificationListRequest.t()) ::
-          [Csilgen.Generated.Notification.t()]
+          Csilgen.Generated.NotificationItems.t()
   def list_notifications(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "NotificationService",
         "list-notifications",
         Csilgen.Generated.NotificationListRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "NotificationService",
+        "list-notifications",
+        variant,
+        payload
       )
 
     decode_list_notifications_response(resp)
@@ -2180,12 +2884,20 @@ defmodule Csilgen.Generated.NotificationClient do
   @spec unread_count(t(), Csilgen.Generated.HouseID.t()) ::
           Csilgen.Generated.NotificationUnreadCount.t()
   def unread_count(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "NotificationService",
         "unread-count",
         encode_unread_count_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "NotificationService",
+        "unread-count",
+        variant,
+        payload
       )
 
     Csilgen.Generated.NotificationUnreadCount.from_cbor(resp)
@@ -2193,12 +2905,20 @@ defmodule Csilgen.Generated.NotificationClient do
 
   @spec mark_read(t(), Csilgen.Generated.NotificationID.t()) :: Csilgen.Generated.Notification.t()
   def mark_read(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "NotificationService",
         "mark-read",
         encode_mark_read_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "NotificationService",
+        "mark-read",
+        variant,
+        payload
       )
 
     Csilgen.Generated.Notification.from_cbor(resp)
@@ -2206,12 +2926,20 @@ defmodule Csilgen.Generated.NotificationClient do
 
   @spec mark_all_read(t(), Csilgen.Generated.HouseID.t()) :: Csilgen.Generated.EmptyResponse.t()
   def mark_all_read(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "NotificationService",
         "mark-all-read",
         encode_mark_all_read_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "NotificationService",
+        "mark-all-read",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
@@ -2251,39 +2979,53 @@ defmodule Csilgen.Generated.ShareClient do
 
   @spec create_share(t(), Csilgen.Generated.Share.t()) :: Csilgen.Generated.Share.t()
   def create_share(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ShareService",
         "create-share",
         Csilgen.Generated.Share.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("ShareService", "create-share", variant, payload)
+
     Csilgen.Generated.Share.from_cbor(resp)
   end
 
   @spec delete_share(t(), Csilgen.Generated.ShareID.t()) :: Csilgen.Generated.EmptyResponse.t()
   def delete_share(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ShareService",
         "delete-share",
         encode_delete_share_request(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("ShareService", "delete-share", variant, payload)
+
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec list_shares_by_resource(t(), Csilgen.Generated.ResourceRef.t()) ::
-          [Csilgen.Generated.Share.t()]
+          Csilgen.Generated.ShareItems.t()
   def list_shares_by_resource(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ShareService",
         "list-shares-by-resource",
         Csilgen.Generated.ResourceRef.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "ShareService",
+        "list-shares-by-resource",
+        variant,
+        payload
       )
 
     decode_list_shares_by_resource_response(resp)
@@ -2291,13 +3033,16 @@ defmodule Csilgen.Generated.ShareClient do
 
   @spec check_access(t(), Csilgen.Generated.ShareAccessRequest.t()) :: Csilgen.Generated.Share.t()
   def check_access(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "ShareService",
         "check-access",
         Csilgen.Generated.ShareAccessRequest.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("ShareService", "check-access", variant, payload)
 
     Csilgen.Generated.Share.from_cbor(resp)
   end
@@ -2327,14 +3072,22 @@ defmodule Csilgen.Generated.MemberAuditClient do
   def new(transport), do: %__MODULE__{transport: transport}
 
   @spec list_audits_for_member(t(), Csilgen.Generated.MemberScopedListRequest.t()) ::
-          [Csilgen.Generated.MemberAudit.t()]
+          Csilgen.Generated.MemberAuditItems.t()
   def list_audits_for_member(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "MemberAuditService",
         "list-audits-for-member",
         Csilgen.Generated.MemberScopedListRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "MemberAuditService",
+        "list-audits-for-member",
+        variant,
+        payload
       )
 
     decode_list_audits_for_member_response(resp)
@@ -2363,12 +3116,20 @@ defmodule Csilgen.Generated.SettingsClient do
   @spec get_settings(t(), Csilgen.Generated.HouseID.t()) ::
           Csilgen.Generated.EffectiveSettings.t()
   def get_settings(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SettingsService",
         "get-settings",
         encode_get_settings_request(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "SettingsService",
+        "get-settings",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EffectiveSettings.from_cbor(resp)
@@ -2377,12 +3138,20 @@ defmodule Csilgen.Generated.SettingsClient do
   @spec update_settings(t(), Csilgen.Generated.UpdateSettingsRequest.t()) ::
           Csilgen.Generated.EffectiveSettings.t()
   def update_settings(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "SettingsService",
         "update-settings",
         Csilgen.Generated.UpdateSettingsRequest.to_cbor(req)
+      )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply(
+        "SettingsService",
+        "update-settings",
+        variant,
+        payload
       )
 
     Csilgen.Generated.EffectiveSettings.from_cbor(resp)
@@ -2405,14 +3174,15 @@ defmodule Csilgen.Generated.BugClient do
 
   @spec report_bug(t(), Csilgen.Generated.BugReportRequest.t()) :: Csilgen.Generated.Task.t()
   def report_bug(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "BugService",
         "report-bug",
         Csilgen.Generated.BugReportRequest.to_cbor(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("BugService", "report-bug", variant, payload)
     Csilgen.Generated.Task.from_cbor(resp)
   end
 end
@@ -2429,13 +3199,16 @@ defmodule Csilgen.Generated.AuditClient do
 
   @spec query_audit(t(), Csilgen.Generated.AuditQuery.t()) :: Csilgen.Generated.AuditPage.t()
   def query_audit(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "AuditService",
         "query-audit",
         Csilgen.Generated.AuditQuery.to_cbor(req)
       )
+
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("AuditService", "query-audit", variant, payload)
 
     Csilgen.Generated.AuditPage.from_cbor(resp)
   end
@@ -2454,40 +3227,45 @@ defmodule Csilgen.Generated.TrashClient do
   @spec list_trash(t(), Csilgen.Generated.HouseScopedListRequest.t()) ::
           Csilgen.Generated.TrashPage.t()
   def list_trash(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TrashService",
         "list-trash",
         Csilgen.Generated.HouseScopedListRequest.to_cbor(req)
       )
 
+    resp =
+      Csilgen.Generated.Cbor.resolve_rpc_reply("TrashService", "list-trash", variant, payload)
+
     Csilgen.Generated.TrashPage.from_cbor(resp)
   end
 
   @spec restore(t(), Csilgen.Generated.RestoreRequest.t()) :: Csilgen.Generated.EmptyResponse.t()
   def restore(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TrashService",
         "restore",
         Csilgen.Generated.RestoreRequest.to_cbor(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("TrashService", "restore", variant, payload)
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 
   @spec purge(t(), Csilgen.Generated.PurgeRequest.t()) :: Csilgen.Generated.EmptyResponse.t()
   def purge(%__MODULE__{transport: transport}, req) do
-    resp =
-      Csilgen.Generated.Transport.call(
+    {variant, payload} =
+      Csilgen.Generated.Transport.call_reply(
         transport,
         "TrashService",
         "purge",
         Csilgen.Generated.PurgeRequest.to_cbor(req)
       )
 
+    resp = Csilgen.Generated.Cbor.resolve_rpc_reply("TrashService", "purge", variant, payload)
     Csilgen.Generated.EmptyResponse.from_cbor(resp)
   end
 end

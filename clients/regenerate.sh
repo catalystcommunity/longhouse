@@ -98,19 +98,10 @@ for entry in "${LANGS[@]}"; do
     fi
 done
 
-# csilgen 0.2.15 needs parentheses to return a CBOR tag from an array mapper.
-sed -i 's/=> { tag: 0, value: csilTsToText(csilE) }/=> ({ tag: 0, value: csilTsToText(csilE) })/g' "$OUT/typescript/codec.gen.ts"
-
-# Avoid a name collision with the req argument in the Zig reply encoders.
-sed -i 's/\<req(/requiredField(/g' "$OUT/zig/codec.gen.zig"
-
-# The Python JSON helpers also need to convert datetime fields and arrays.
-python3 "$OUT/fix_python_timestamps.py" "$OUT/python/longhouse_client/types.py"
-
 # Go: gofmt the generated package so it matches repo style and is verifiably
 # parseable.
 if command -v gofmt >/dev/null && [ -d "$OUT/go" ]; then
-    gofmt -w "$OUT/go" 2>/dev/null || true
+    gofmt -w "$OUT/go"
 fi
 
 echo

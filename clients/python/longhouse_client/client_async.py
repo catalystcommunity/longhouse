@@ -28,6 +28,15 @@ class AsyncTransport(Protocol):
     """
     async def call(self, service: str, method: str, req: bytes) -> bytes: ...
 
+    async def call_reply(
+        self, service: str, method: str, req: bytes
+    ) -> "tuple[Optional[str], bytes]":
+        """Perform an operation that declares more than one reply arm. Return
+        the CSIL-RPC response variant (the CSIL name of the arm, or None) and
+        its payload bytes; the client decodes the arm that the variant names.
+        """
+        ...
+
 class AuthAsyncClient:
     """Typed client for the AuthService service."""
     def __init__(self, transport: AsyncTransport):
@@ -35,75 +44,93 @@ class AuthAsyncClient:
 
     async def begin_browser_login(self, req: BeginBrowserLoginRequest) -> BeginBrowserLoginResponse:
         """begin-browser-login"""
-        return BeginBrowserLoginResponse.from_cbor(await self._transport.call("AuthService", "begin-browser-login", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "begin-browser-login", req.to_cbor())
+        return BeginBrowserLoginResponse.from_cbor(resolve_rpc_reply("AuthService", "begin-browser-login", variant, payload))
 
     async def get_act_as_scope_set(self, req: ActAsScopeSetRequest) -> ActAsScopeSetResponse:
         """get-act-as-scope-set"""
-        return ActAsScopeSetResponse.from_cbor(await self._transport.call("AuthService", "get-act-as-scope-set", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "get-act-as-scope-set", req.to_cbor())
+        return ActAsScopeSetResponse.from_cbor(resolve_rpc_reply("AuthService", "get-act-as-scope-set", variant, payload))
 
     async def exchange_act_as_credential(self, req: ExchangeActAsCredentialRequest) -> ActAsTokenResponse:
         """exchange-act-as-credential"""
-        return ActAsTokenResponse.from_cbor(await self._transport.call("AuthService", "exchange-act-as-credential", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "exchange-act-as-credential", req.to_cbor())
+        return ActAsTokenResponse.from_cbor(resolve_rpc_reply("AuthService", "exchange-act-as-credential", variant, payload))
 
     async def login(self, req: LoginRequest) -> LoginResponse:
         """login"""
-        return LoginResponse.from_cbor(await self._transport.call("AuthService", "login", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "login", req.to_cbor())
+        return LoginResponse.from_cbor(resolve_rpc_reply("AuthService", "login", variant, payload))
 
     async def complete(self, req: CompleteRequest) -> LoginResponse:
         """complete"""
-        return LoginResponse.from_cbor(await self._transport.call("AuthService", "complete", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "complete", req.to_cbor())
+        return LoginResponse.from_cbor(resolve_rpc_reply("AuthService", "complete", variant, payload))
 
     async def refresh(self, req: EmptyRequest) -> LoginResponse:
         """refresh"""
-        return LoginResponse.from_cbor(await self._transport.call("AuthService", "refresh", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "refresh", req.to_cbor())
+        return LoginResponse.from_cbor(resolve_rpc_reply("AuthService", "refresh", variant, payload))
 
     async def logout(self, req: EmptyRequest) -> EmptyResponse:
         """logout"""
-        return EmptyResponse.from_cbor(await self._transport.call("AuthService", "logout", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "logout", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("AuthService", "logout", variant, payload))
 
     async def resume_session(self, req: EmptyRequest) -> LoginResponse:
         """resume-session"""
-        return LoginResponse.from_cbor(await self._transport.call("AuthService", "resume-session", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "resume-session", req.to_cbor())
+        return LoginResponse.from_cbor(resolve_rpc_reply("AuthService", "resume-session", variant, payload))
 
     async def end_session(self, req: EmptyRequest) -> EmptyResponse:
         """end-session"""
-        return EmptyResponse.from_cbor(await self._transport.call("AuthService", "end-session", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "end-session", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("AuthService", "end-session", variant, payload))
 
     async def me(self, req: EmptyRequest) -> MeResponse:
         """me"""
-        return MeResponse.from_cbor(await self._transport.call("AuthService", "me", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "me", req.to_cbor())
+        return MeResponse.from_cbor(resolve_rpc_reply("AuthService", "me", variant, payload))
 
     async def begin_cli_login(self, req: BeginCliLoginRequest) -> BeginCliLoginResponse:
         """begin-cli-login"""
-        return BeginCliLoginResponse.from_cbor(await self._transport.call("AuthService", "begin-cli-login", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "begin-cli-login", req.to_cbor())
+        return BeginCliLoginResponse.from_cbor(resolve_rpc_reply("AuthService", "begin-cli-login", variant, payload))
 
     async def inspect_cli_login(self, req: ApproveCliLoginRequest) -> CliLoginRequestInfo:
         """inspect-cli-login"""
-        return CliLoginRequestInfo.from_cbor(await self._transport.call("AuthService", "inspect-cli-login", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "inspect-cli-login", req.to_cbor())
+        return CliLoginRequestInfo.from_cbor(resolve_rpc_reply("AuthService", "inspect-cli-login", variant, payload))
 
     async def approve_cli_login(self, req: ApproveCliLoginRequest) -> EmptyResponse:
         """approve-cli-login"""
-        return EmptyResponse.from_cbor(await self._transport.call("AuthService", "approve-cli-login", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "approve-cli-login", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("AuthService", "approve-cli-login", variant, payload))
 
     async def deny_cli_login(self, req: DenyCliLoginRequest) -> EmptyResponse:
         """deny-cli-login"""
-        return EmptyResponse.from_cbor(await self._transport.call("AuthService", "deny-cli-login", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "deny-cli-login", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("AuthService", "deny-cli-login", variant, payload))
 
     async def exchange_cli_login(self, req: ExchangeCliLoginRequest) -> ExchangeCliLoginResponse:
         """exchange-cli-login"""
-        return ExchangeCliLoginResponse.from_cbor(await self._transport.call("AuthService", "exchange-cli-login", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "exchange-cli-login", req.to_cbor())
+        return ExchangeCliLoginResponse.from_cbor(resolve_rpc_reply("AuthService", "exchange-cli-login", variant, payload))
 
     async def refresh_session(self, req: RefreshSessionRequest) -> CliTokenResponse:
         """refresh-session"""
-        return CliTokenResponse.from_cbor(await self._transport.call("AuthService", "refresh-session", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "refresh-session", req.to_cbor())
+        return CliTokenResponse.from_cbor(resolve_rpc_reply("AuthService", "refresh-session", variant, payload))
 
     async def list_sessions(self, req: EmptyRequest) -> CliSessionsResponse:
         """list-sessions"""
-        return CliSessionsResponse.from_cbor(await self._transport.call("AuthService", "list-sessions", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "list-sessions", req.to_cbor())
+        return CliSessionsResponse.from_cbor(resolve_rpc_reply("AuthService", "list-sessions", variant, payload))
 
     async def revoke_session(self, req: RevokeSessionRequest) -> EmptyResponse:
         """revoke-session"""
-        return EmptyResponse.from_cbor(await self._transport.call("AuthService", "revoke-session", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuthService", "revoke-session", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("AuthService", "revoke-session", variant, payload))
 
 class DevAuthAsyncClient:
     """Typed client for the DevAuthService service."""
@@ -112,11 +139,13 @@ class DevAuthAsyncClient:
 
     async def list_dev_users(self, req: EmptyRequest) -> DevUsersResponse:
         """list-dev-users"""
-        return DevUsersResponse.from_cbor(await self._transport.call("DevAuthService", "list-dev-users", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("DevAuthService", "list-dev-users", req.to_cbor())
+        return DevUsersResponse.from_cbor(resolve_rpc_reply("DevAuthService", "list-dev-users", variant, payload))
 
     async def dev_login(self, req: DevLoginRequest) -> LoginResponse:
         """dev-login"""
-        return LoginResponse.from_cbor(await self._transport.call("DevAuthService", "dev-login", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("DevAuthService", "dev-login", req.to_cbor())
+        return LoginResponse.from_cbor(resolve_rpc_reply("DevAuthService", "dev-login", variant, payload))
 
 class HouseAsyncClient:
     """Typed client for the HouseService service."""
@@ -125,23 +154,28 @@ class HouseAsyncClient:
 
     async def create_house(self, req: House) -> House:
         """create-house"""
-        return House.from_cbor(await self._transport.call("HouseService", "create-house", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("HouseService", "create-house", req.to_cbor())
+        return House.from_cbor(resolve_rpc_reply("HouseService", "create-house", variant, payload))
 
     async def get_house(self, req: HouseId) -> House:
         """get-house"""
-        return House.from_cbor(await self._transport.call("HouseService", "get-house", encode_house_get_house_request(req)))
+        variant, payload = await self._transport.call_reply("HouseService", "get-house", encode_house_get_house_request(req))
+        return House.from_cbor(resolve_rpc_reply("HouseService", "get-house", variant, payload))
 
     async def update_house(self, req: House) -> House:
         """update-house"""
-        return House.from_cbor(await self._transport.call("HouseService", "update-house", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("HouseService", "update-house", req.to_cbor())
+        return House.from_cbor(resolve_rpc_reply("HouseService", "update-house", variant, payload))
 
     async def delete_house(self, req: HouseId) -> EmptyResponse:
         """delete-house"""
-        return EmptyResponse.from_cbor(await self._transport.call("HouseService", "delete-house", encode_house_delete_house_request(req)))
+        variant, payload = await self._transport.call_reply("HouseService", "delete-house", encode_house_delete_house_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("HouseService", "delete-house", variant, payload))
 
-    async def list_houses(self, req: HouseListRequest) -> List[House]:
+    async def list_houses(self, req: HouseListRequest) -> HouseItems:
         """list-houses"""
-        return decode_house_list_houses_response(await self._transport.call("HouseService", "list-houses", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("HouseService", "list-houses", req.to_cbor())
+        return decode_house_list_houses_response(resolve_rpc_reply("HouseService", "list-houses", variant, payload))
 
 class MemberAsyncClient:
     """Typed client for the MemberService service."""
@@ -150,31 +184,38 @@ class MemberAsyncClient:
 
     async def create_member(self, req: Member) -> Member:
         """create-member"""
-        return Member.from_cbor(await self._transport.call("MemberService", "create-member", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("MemberService", "create-member", req.to_cbor())
+        return Member.from_cbor(resolve_rpc_reply("MemberService", "create-member", variant, payload))
 
     async def get_member(self, req: MemberId) -> Member:
         """get-member"""
-        return Member.from_cbor(await self._transport.call("MemberService", "get-member", encode_member_get_member_request(req)))
+        variant, payload = await self._transport.call_reply("MemberService", "get-member", encode_member_get_member_request(req))
+        return Member.from_cbor(resolve_rpc_reply("MemberService", "get-member", variant, payload))
 
     async def get_member_by_identity(self, req: Member) -> Member:
         """get-member-by-identity"""
-        return Member.from_cbor(await self._transport.call("MemberService", "get-member-by-identity", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("MemberService", "get-member-by-identity", req.to_cbor())
+        return Member.from_cbor(resolve_rpc_reply("MemberService", "get-member-by-identity", variant, payload))
 
     async def update_member(self, req: Member) -> Member:
         """update-member"""
-        return Member.from_cbor(await self._transport.call("MemberService", "update-member", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("MemberService", "update-member", req.to_cbor())
+        return Member.from_cbor(resolve_rpc_reply("MemberService", "update-member", variant, payload))
 
     async def deactivate_member(self, req: MemberId) -> EmptyResponse:
         """deactivate-member"""
-        return EmptyResponse.from_cbor(await self._transport.call("MemberService", "deactivate-member", encode_member_deactivate_member_request(req)))
+        variant, payload = await self._transport.call_reply("MemberService", "deactivate-member", encode_member_deactivate_member_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("MemberService", "deactivate-member", variant, payload))
 
     async def reactivate_member(self, req: MemberId) -> EmptyResponse:
         """reactivate-member"""
-        return EmptyResponse.from_cbor(await self._transport.call("MemberService", "reactivate-member", encode_member_reactivate_member_request(req)))
+        variant, payload = await self._transport.call_reply("MemberService", "reactivate-member", encode_member_reactivate_member_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("MemberService", "reactivate-member", variant, payload))
 
-    async def list_members(self, req: HouseScopedListRequest) -> List[Member]:
+    async def list_members(self, req: HouseScopedListRequest) -> MemberItems:
         """list-members"""
-        return decode_member_list_members_response(await self._transport.call("MemberService", "list-members", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("MemberService", "list-members", req.to_cbor())
+        return decode_member_list_members_response(resolve_rpc_reply("MemberService", "list-members", variant, payload))
 
 class TrustedDomainAsyncClient:
     """Typed client for the TrustedDomainService service."""
@@ -183,19 +224,23 @@ class TrustedDomainAsyncClient:
 
     async def add_trusted_domain(self, req: TrustedDomain) -> TrustedDomain:
         """add-trusted-domain"""
-        return TrustedDomain.from_cbor(await self._transport.call("TrustedDomainService", "add-trusted-domain", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TrustedDomainService", "add-trusted-domain", req.to_cbor())
+        return TrustedDomain.from_cbor(resolve_rpc_reply("TrustedDomainService", "add-trusted-domain", variant, payload))
 
     async def remove_trusted_domain(self, req: TrustedDomainId) -> EmptyResponse:
         """remove-trusted-domain"""
-        return EmptyResponse.from_cbor(await self._transport.call("TrustedDomainService", "remove-trusted-domain", encode_trusted_domain_remove_trusted_domain_request(req)))
+        variant, payload = await self._transport.call_reply("TrustedDomainService", "remove-trusted-domain", encode_trusted_domain_remove_trusted_domain_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("TrustedDomainService", "remove-trusted-domain", variant, payload))
 
-    async def list_trusted_domains(self, req: HouseId) -> List[TrustedDomain]:
+    async def list_trusted_domains(self, req: HouseId) -> TrustedDomainItems:
         """list-trusted-domains"""
-        return decode_trusted_domain_list_trusted_domains_response(await self._transport.call("TrustedDomainService", "list-trusted-domains", encode_trusted_domain_list_trusted_domains_request(req)))
+        variant, payload = await self._transport.call_reply("TrustedDomainService", "list-trusted-domains", encode_trusted_domain_list_trusted_domains_request(req))
+        return decode_trusted_domain_list_trusted_domains_response(resolve_rpc_reply("TrustedDomainService", "list-trusted-domains", variant, payload))
 
     async def is_domain_trusted(self, req: TrustedDomain) -> BoolResponse:
         """is-domain-trusted"""
-        return BoolResponse.from_cbor(await self._transport.call("TrustedDomainService", "is-domain-trusted", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TrustedDomainService", "is-domain-trusted", req.to_cbor())
+        return BoolResponse.from_cbor(resolve_rpc_reply("TrustedDomainService", "is-domain-trusted", variant, payload))
 
 class RoleAsyncClient:
     """Typed client for the RoleService service."""
@@ -204,31 +249,38 @@ class RoleAsyncClient:
 
     async def create_role(self, req: Role) -> Role:
         """create-role"""
-        return Role.from_cbor(await self._transport.call("RoleService", "create-role", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("RoleService", "create-role", req.to_cbor())
+        return Role.from_cbor(resolve_rpc_reply("RoleService", "create-role", variant, payload))
 
     async def update_role(self, req: Role) -> Role:
         """update-role"""
-        return Role.from_cbor(await self._transport.call("RoleService", "update-role", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("RoleService", "update-role", req.to_cbor())
+        return Role.from_cbor(resolve_rpc_reply("RoleService", "update-role", variant, payload))
 
     async def delete_role(self, req: RoleId) -> EmptyResponse:
         """delete-role"""
-        return EmptyResponse.from_cbor(await self._transport.call("RoleService", "delete-role", encode_role_delete_role_request(req)))
+        variant, payload = await self._transport.call_reply("RoleService", "delete-role", encode_role_delete_role_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("RoleService", "delete-role", variant, payload))
 
-    async def list_roles(self, req: HouseScopedListRequest) -> List[Role]:
+    async def list_roles(self, req: HouseScopedListRequest) -> RoleItems:
         """list-roles"""
-        return decode_role_list_roles_response(await self._transport.call("RoleService", "list-roles", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("RoleService", "list-roles", req.to_cbor())
+        return decode_role_list_roles_response(resolve_rpc_reply("RoleService", "list-roles", variant, payload))
 
     async def grant_role(self, req: MemberRoleRef) -> EmptyResponse:
         """grant-role"""
-        return EmptyResponse.from_cbor(await self._transport.call("RoleService", "grant-role", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("RoleService", "grant-role", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("RoleService", "grant-role", variant, payload))
 
     async def revoke_role(self, req: MemberRoleRef) -> EmptyResponse:
         """revoke-role"""
-        return EmptyResponse.from_cbor(await self._transport.call("RoleService", "revoke-role", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("RoleService", "revoke-role", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("RoleService", "revoke-role", variant, payload))
 
-    async def list_member_roles(self, req: MemberScopedListRequest) -> List[Role]:
+    async def list_member_roles(self, req: MemberScopedListRequest) -> RoleItems:
         """list-member-roles"""
-        return decode_role_list_member_roles_response(await self._transport.call("RoleService", "list-member-roles", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("RoleService", "list-member-roles", req.to_cbor())
+        return decode_role_list_member_roles_response(resolve_rpc_reply("RoleService", "list-member-roles", variant, payload))
 
 class SkillAsyncClient:
     """Typed client for the SkillService service."""
@@ -237,43 +289,53 @@ class SkillAsyncClient:
 
     async def create_skill(self, req: Skill) -> Skill:
         """create-skill"""
-        return Skill.from_cbor(await self._transport.call("SkillService", "create-skill", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("SkillService", "create-skill", req.to_cbor())
+        return Skill.from_cbor(resolve_rpc_reply("SkillService", "create-skill", variant, payload))
 
     async def update_skill(self, req: Skill) -> Skill:
         """update-skill"""
-        return Skill.from_cbor(await self._transport.call("SkillService", "update-skill", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("SkillService", "update-skill", req.to_cbor())
+        return Skill.from_cbor(resolve_rpc_reply("SkillService", "update-skill", variant, payload))
 
     async def delete_skill(self, req: SkillId) -> EmptyResponse:
         """delete-skill"""
-        return EmptyResponse.from_cbor(await self._transport.call("SkillService", "delete-skill", encode_skill_delete_skill_request(req)))
+        variant, payload = await self._transport.call_reply("SkillService", "delete-skill", encode_skill_delete_skill_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("SkillService", "delete-skill", variant, payload))
 
-    async def list_skills(self, req: HouseScopedListRequest) -> List[Skill]:
+    async def list_skills(self, req: HouseScopedListRequest) -> SkillItems:
         """list-skills"""
-        return decode_skill_list_skills_response(await self._transport.call("SkillService", "list-skills", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("SkillService", "list-skills", req.to_cbor())
+        return decode_skill_list_skills_response(resolve_rpc_reply("SkillService", "list-skills", variant, payload))
 
     async def add_member_skill(self, req: MemberSkillRef) -> EmptyResponse:
         """add-member-skill"""
-        return EmptyResponse.from_cbor(await self._transport.call("SkillService", "add-member-skill", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("SkillService", "add-member-skill", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("SkillService", "add-member-skill", variant, payload))
 
     async def remove_member_skill(self, req: MemberSkillRef) -> EmptyResponse:
         """remove-member-skill"""
-        return EmptyResponse.from_cbor(await self._transport.call("SkillService", "remove-member-skill", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("SkillService", "remove-member-skill", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("SkillService", "remove-member-skill", variant, payload))
 
-    async def list_member_skills(self, req: MemberScopedListRequest) -> List[Skill]:
+    async def list_member_skills(self, req: MemberScopedListRequest) -> SkillItems:
         """list-member-skills"""
-        return decode_skill_list_member_skills_response(await self._transport.call("SkillService", "list-member-skills", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("SkillService", "list-member-skills", req.to_cbor())
+        return decode_skill_list_member_skills_response(resolve_rpc_reply("SkillService", "list-member-skills", variant, payload))
 
     async def add_group_skill(self, req: GroupSkillRef) -> EmptyResponse:
         """add-group-skill"""
-        return EmptyResponse.from_cbor(await self._transport.call("SkillService", "add-group-skill", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("SkillService", "add-group-skill", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("SkillService", "add-group-skill", variant, payload))
 
     async def remove_group_skill(self, req: GroupSkillRef) -> EmptyResponse:
         """remove-group-skill"""
-        return EmptyResponse.from_cbor(await self._transport.call("SkillService", "remove-group-skill", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("SkillService", "remove-group-skill", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("SkillService", "remove-group-skill", variant, payload))
 
-    async def list_group_skills(self, req: GroupId) -> List[Skill]:
+    async def list_group_skills(self, req: GroupId) -> SkillItems:
         """list-group-skills"""
-        return decode_skill_list_group_skills_response(await self._transport.call("SkillService", "list-group-skills", encode_skill_list_group_skills_request(req)))
+        variant, payload = await self._transport.call_reply("SkillService", "list-group-skills", encode_skill_list_group_skills_request(req))
+        return decode_skill_list_group_skills_response(resolve_rpc_reply("SkillService", "list-group-skills", variant, payload))
 
 class GroupAsyncClient:
     """Typed client for the GroupService service."""
@@ -282,31 +344,38 @@ class GroupAsyncClient:
 
     async def create_group(self, req: Group) -> Group:
         """create-group"""
-        return Group.from_cbor(await self._transport.call("GroupService", "create-group", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("GroupService", "create-group", req.to_cbor())
+        return Group.from_cbor(resolve_rpc_reply("GroupService", "create-group", variant, payload))
 
     async def update_group(self, req: Group) -> Group:
         """update-group"""
-        return Group.from_cbor(await self._transport.call("GroupService", "update-group", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("GroupService", "update-group", req.to_cbor())
+        return Group.from_cbor(resolve_rpc_reply("GroupService", "update-group", variant, payload))
 
     async def delete_group(self, req: GroupId) -> EmptyResponse:
         """delete-group"""
-        return EmptyResponse.from_cbor(await self._transport.call("GroupService", "delete-group", encode_group_delete_group_request(req)))
+        variant, payload = await self._transport.call_reply("GroupService", "delete-group", encode_group_delete_group_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("GroupService", "delete-group", variant, payload))
 
-    async def list_groups(self, req: HouseScopedListRequest) -> List[Group]:
+    async def list_groups(self, req: HouseScopedListRequest) -> GroupItems:
         """list-groups"""
-        return decode_group_list_groups_response(await self._transport.call("GroupService", "list-groups", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("GroupService", "list-groups", req.to_cbor())
+        return decode_group_list_groups_response(resolve_rpc_reply("GroupService", "list-groups", variant, payload))
 
     async def add_group_member(self, req: GroupMemberRef) -> EmptyResponse:
         """add-group-member"""
-        return EmptyResponse.from_cbor(await self._transport.call("GroupService", "add-group-member", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("GroupService", "add-group-member", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("GroupService", "add-group-member", variant, payload))
 
     async def remove_group_member(self, req: GroupMemberRef) -> EmptyResponse:
         """remove-group-member"""
-        return EmptyResponse.from_cbor(await self._transport.call("GroupService", "remove-group-member", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("GroupService", "remove-group-member", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("GroupService", "remove-group-member", variant, payload))
 
-    async def list_group_members(self, req: MemberScopedListRequest) -> List[Member]:
+    async def list_group_members(self, req: MemberScopedListRequest) -> MemberItems:
         """list-group-members"""
-        return decode_group_list_group_members_response(await self._transport.call("GroupService", "list-group-members", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("GroupService", "list-group-members", req.to_cbor())
+        return decode_group_list_group_members_response(resolve_rpc_reply("GroupService", "list-group-members", variant, payload))
 
 class ProjectAsyncClient:
     """Typed client for the ProjectService service."""
@@ -315,95 +384,118 @@ class ProjectAsyncClient:
 
     async def create_project(self, req: Project) -> Project:
         """create-project"""
-        return Project.from_cbor(await self._transport.call("ProjectService", "create-project", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "create-project", req.to_cbor())
+        return Project.from_cbor(resolve_rpc_reply("ProjectService", "create-project", variant, payload))
 
     async def get_project(self, req: ProjectId) -> Project:
         """get-project"""
-        return Project.from_cbor(await self._transport.call("ProjectService", "get-project", encode_project_get_project_request(req)))
+        variant, payload = await self._transport.call_reply("ProjectService", "get-project", encode_project_get_project_request(req))
+        return Project.from_cbor(resolve_rpc_reply("ProjectService", "get-project", variant, payload))
 
     async def update_project(self, req: Project) -> Project:
         """update-project"""
-        return Project.from_cbor(await self._transport.call("ProjectService", "update-project", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "update-project", req.to_cbor())
+        return Project.from_cbor(resolve_rpc_reply("ProjectService", "update-project", variant, payload))
 
     async def delete_project(self, req: ProjectId) -> EmptyResponse:
         """delete-project"""
-        return EmptyResponse.from_cbor(await self._transport.call("ProjectService", "delete-project", encode_project_delete_project_request(req)))
+        variant, payload = await self._transport.call_reply("ProjectService", "delete-project", encode_project_delete_project_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ProjectService", "delete-project", variant, payload))
 
     async def list_projects(self, req: HouseScopedListRequest) -> ProjectList:
         """list-projects"""
-        return ProjectList.from_cbor(await self._transport.call("ProjectService", "list-projects", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "list-projects", req.to_cbor())
+        return ProjectList.from_cbor(resolve_rpc_reply("ProjectService", "list-projects", variant, payload))
 
     async def list_project_tasks(self, req: ProjectScopedListRequest) -> TaskList:
         """list-project-tasks"""
-        return TaskList.from_cbor(await self._transport.call("ProjectService", "list-project-tasks", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "list-project-tasks", req.to_cbor())
+        return TaskList.from_cbor(resolve_rpc_reply("ProjectService", "list-project-tasks", variant, payload))
 
     async def add_project_task(self, req: ProjectTaskOrderRequest) -> EmptyResponse:
         """add-project-task"""
-        return EmptyResponse.from_cbor(await self._transport.call("ProjectService", "add-project-task", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "add-project-task", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ProjectService", "add-project-task", variant, payload))
 
     async def remove_project_task(self, req: ProjectTaskRef) -> EmptyResponse:
         """remove-project-task"""
-        return EmptyResponse.from_cbor(await self._transport.call("ProjectService", "remove-project-task", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "remove-project-task", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ProjectService", "remove-project-task", variant, payload))
 
     async def set_project_task_position(self, req: ProjectTaskOrderRequest) -> EmptyResponse:
         """set-project-task-position"""
-        return EmptyResponse.from_cbor(await self._transport.call("ProjectService", "set-project-task-position", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "set-project-task-position", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ProjectService", "set-project-task-position", variant, payload))
 
-    async def list_project_members(self, req: ProjectId) -> List[Member]:
+    async def list_project_members(self, req: ProjectId) -> MemberItems:
         """list-project-members"""
-        return decode_project_list_project_members_response(await self._transport.call("ProjectService", "list-project-members", encode_project_list_project_members_request(req)))
+        variant, payload = await self._transport.call_reply("ProjectService", "list-project-members", encode_project_list_project_members_request(req))
+        return decode_project_list_project_members_response(resolve_rpc_reply("ProjectService", "list-project-members", variant, payload))
 
     async def add_project_member(self, req: ProjectMemberRef) -> EmptyResponse:
         """add-project-member"""
-        return EmptyResponse.from_cbor(await self._transport.call("ProjectService", "add-project-member", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "add-project-member", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ProjectService", "add-project-member", variant, payload))
 
     async def remove_project_member(self, req: ProjectMemberRef) -> EmptyResponse:
         """remove-project-member"""
-        return EmptyResponse.from_cbor(await self._transport.call("ProjectService", "remove-project-member", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "remove-project-member", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ProjectService", "remove-project-member", variant, payload))
 
-    async def list_project_owners(self, req: ProjectId) -> List[Member]:
+    async def list_project_owners(self, req: ProjectId) -> MemberItems:
         """list-project-owners"""
-        return decode_project_list_project_owners_response(await self._transport.call("ProjectService", "list-project-owners", encode_project_list_project_owners_request(req)))
+        variant, payload = await self._transport.call_reply("ProjectService", "list-project-owners", encode_project_list_project_owners_request(req))
+        return decode_project_list_project_owners_response(resolve_rpc_reply("ProjectService", "list-project-owners", variant, payload))
 
     async def add_project_owner(self, req: ProjectOwnerRef) -> EmptyResponse:
         """add-project-owner"""
-        return EmptyResponse.from_cbor(await self._transport.call("ProjectService", "add-project-owner", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "add-project-owner", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ProjectService", "add-project-owner", variant, payload))
 
     async def remove_project_owner(self, req: ProjectOwnerRef) -> EmptyResponse:
         """remove-project-owner"""
-        return EmptyResponse.from_cbor(await self._transport.call("ProjectService", "remove-project-owner", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "remove-project-owner", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ProjectService", "remove-project-owner", variant, payload))
 
-    async def list_milestones(self, req: ProjectId) -> List[Milestone]:
+    async def list_milestones(self, req: ProjectId) -> MilestoneItems:
         """list-milestones"""
-        return decode_project_list_milestones_response(await self._transport.call("ProjectService", "list-milestones", encode_project_list_milestones_request(req)))
+        variant, payload = await self._transport.call_reply("ProjectService", "list-milestones", encode_project_list_milestones_request(req))
+        return decode_project_list_milestones_response(resolve_rpc_reply("ProjectService", "list-milestones", variant, payload))
 
     async def create_milestone(self, req: Milestone) -> Milestone:
         """create-milestone"""
-        return Milestone.from_cbor(await self._transport.call("ProjectService", "create-milestone", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "create-milestone", req.to_cbor())
+        return Milestone.from_cbor(resolve_rpc_reply("ProjectService", "create-milestone", variant, payload))
 
     async def update_milestone(self, req: Milestone) -> Milestone:
         """update-milestone"""
-        return Milestone.from_cbor(await self._transport.call("ProjectService", "update-milestone", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "update-milestone", req.to_cbor())
+        return Milestone.from_cbor(resolve_rpc_reply("ProjectService", "update-milestone", variant, payload))
 
     async def delete_milestone(self, req: MilestoneId) -> EmptyResponse:
         """delete-milestone"""
-        return EmptyResponse.from_cbor(await self._transport.call("ProjectService", "delete-milestone", encode_project_delete_milestone_request(req)))
+        variant, payload = await self._transport.call_reply("ProjectService", "delete-milestone", encode_project_delete_milestone_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ProjectService", "delete-milestone", variant, payload))
 
     async def set_project_visibility(self, req: SetProjectVisibilityRequest) -> Project:
         """set-project-visibility"""
-        return Project.from_cbor(await self._transport.call("ProjectService", "set-project-visibility", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "set-project-visibility", req.to_cbor())
+        return Project.from_cbor(resolve_rpc_reply("ProjectService", "set-project-visibility", variant, payload))
 
-    async def list_project_grants(self, req: ProjectId) -> List[Grant]:
+    async def list_project_grants(self, req: ProjectId) -> GrantItems:
         """list-project-grants"""
-        return decode_project_list_project_grants_response(await self._transport.call("ProjectService", "list-project-grants", encode_project_list_project_grants_request(req)))
+        variant, payload = await self._transport.call_reply("ProjectService", "list-project-grants", encode_project_list_project_grants_request(req))
+        return decode_project_list_project_grants_response(resolve_rpc_reply("ProjectService", "list-project-grants", variant, payload))
 
     async def put_project_grant(self, req: PutProjectGrantRequest) -> EmptyResponse:
         """put-project-grant"""
-        return EmptyResponse.from_cbor(await self._transport.call("ProjectService", "put-project-grant", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "put-project-grant", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ProjectService", "put-project-grant", variant, payload))
 
     async def delete_project_grant(self, req: ProjectGrantRef) -> EmptyResponse:
         """delete-project-grant"""
-        return EmptyResponse.from_cbor(await self._transport.call("ProjectService", "delete-project-grant", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ProjectService", "delete-project-grant", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ProjectService", "delete-project-grant", variant, payload))
 
 class EventAsyncClient:
     """Typed client for the EventService service."""
@@ -412,51 +504,63 @@ class EventAsyncClient:
 
     async def create_event(self, req: Event) -> Event:
         """create-event"""
-        return Event.from_cbor(await self._transport.call("EventService", "create-event", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("EventService", "create-event", req.to_cbor())
+        return Event.from_cbor(resolve_rpc_reply("EventService", "create-event", variant, payload))
 
     async def get_event(self, req: EventId) -> Event:
         """get-event"""
-        return Event.from_cbor(await self._transport.call("EventService", "get-event", encode_event_get_event_request(req)))
+        variant, payload = await self._transport.call_reply("EventService", "get-event", encode_event_get_event_request(req))
+        return Event.from_cbor(resolve_rpc_reply("EventService", "get-event", variant, payload))
 
     async def update_event(self, req: Event) -> Event:
         """update-event"""
-        return Event.from_cbor(await self._transport.call("EventService", "update-event", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("EventService", "update-event", req.to_cbor())
+        return Event.from_cbor(resolve_rpc_reply("EventService", "update-event", variant, payload))
 
     async def delete_event(self, req: EventId) -> EmptyResponse:
         """delete-event"""
-        return EmptyResponse.from_cbor(await self._transport.call("EventService", "delete-event", encode_event_delete_event_request(req)))
+        variant, payload = await self._transport.call_reply("EventService", "delete-event", encode_event_delete_event_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("EventService", "delete-event", variant, payload))
 
     async def delete_event_and_future(self, req: EventId) -> EmptyResponse:
         """delete-event-and-future"""
-        return EmptyResponse.from_cbor(await self._transport.call("EventService", "delete-event-and-future", encode_event_delete_event_and_future_request(req)))
+        variant, payload = await self._transport.call_reply("EventService", "delete-event-and-future", encode_event_delete_event_and_future_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("EventService", "delete-event-and-future", variant, payload))
 
-    async def list_events(self, req: EventListRequest) -> List[Event]:
+    async def list_events(self, req: EventListRequest) -> EventItems:
         """list-events"""
-        return decode_event_list_events_response(await self._transport.call("EventService", "list-events", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("EventService", "list-events", req.to_cbor())
+        return decode_event_list_events_response(resolve_rpc_reply("EventService", "list-events", variant, payload))
 
     async def get_calendar_view(self, req: HouseId) -> CalendarView:
         """get-calendar-view"""
-        return CalendarView.from_cbor(await self._transport.call("EventService", "get-calendar-view", encode_event_get_calendar_view_request(req)))
+        variant, payload = await self._transport.call_reply("EventService", "get-calendar-view", encode_event_get_calendar_view_request(req))
+        return CalendarView.from_cbor(resolve_rpc_reply("EventService", "get-calendar-view", variant, payload))
 
     async def set_calendar_view(self, req: CalendarView) -> CalendarView:
         """set-calendar-view"""
-        return CalendarView.from_cbor(await self._transport.call("EventService", "set-calendar-view", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("EventService", "set-calendar-view", req.to_cbor())
+        return CalendarView.from_cbor(resolve_rpc_reply("EventService", "set-calendar-view", variant, payload))
 
     async def accept_event(self, req: EventDecision) -> Event:
         """accept-event"""
-        return Event.from_cbor(await self._transport.call("EventService", "accept-event", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("EventService", "accept-event", req.to_cbor())
+        return Event.from_cbor(resolve_rpc_reply("EventService", "accept-event", variant, payload))
 
     async def recover_edit(self, req: EventId) -> Event:
         """recover-edit"""
-        return Event.from_cbor(await self._transport.call("EventService", "recover-edit", encode_event_recover_edit_request(req)))
+        variant, payload = await self._transport.call_reply("EventService", "recover-edit", encode_event_recover_edit_request(req))
+        return Event.from_cbor(resolve_rpc_reply("EventService", "recover-edit", variant, payload))
 
     async def decline_event(self, req: EventDecision) -> Event:
         """decline-event"""
-        return Event.from_cbor(await self._transport.call("EventService", "decline-event", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("EventService", "decline-event", req.to_cbor())
+        return Event.from_cbor(resolve_rpc_reply("EventService", "decline-event", variant, payload))
 
-    async def list_local_events(self, req: HouseId) -> List[Event]:
+    async def list_local_events(self, req: HouseId) -> EventItems:
         """list-local-events"""
-        return decode_event_list_local_events_response(await self._transport.call("EventService", "list-local-events", encode_event_list_local_events_request(req)))
+        variant, payload = await self._transport.call_reply("EventService", "list-local-events", encode_event_list_local_events_request(req))
+        return decode_event_list_local_events_response(resolve_rpc_reply("EventService", "list-local-events", variant, payload))
 
 class CalendarAsyncClient:
     """Typed client for the CalendarService service."""
@@ -465,39 +569,48 @@ class CalendarAsyncClient:
 
     async def list_project_deadlines(self, req: ProjectDeadlineRequest) -> ProjectDeadlineList:
         """list-project-deadlines"""
-        return ProjectDeadlineList.from_cbor(await self._transport.call("CalendarService", "list-project-deadlines", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("CalendarService", "list-project-deadlines", req.to_cbor())
+        return ProjectDeadlineList.from_cbor(resolve_rpc_reply("CalendarService", "list-project-deadlines", variant, payload))
 
     async def get_status(self, req: HouseId) -> CalendarStatus:
         """get-status"""
-        return CalendarStatus.from_cbor(await self._transport.call("CalendarService", "get-status", encode_calendar_get_status_request(req)))
+        variant, payload = await self._transport.call_reply("CalendarService", "get-status", encode_calendar_get_status_request(req))
+        return CalendarStatus.from_cbor(resolve_rpc_reply("CalendarService", "get-status", variant, payload))
 
     async def configure_calendar(self, req: ConfigureCalendarRequest) -> CalendarStatus:
         """configure-calendar"""
-        return CalendarStatus.from_cbor(await self._transport.call("CalendarService", "configure-calendar", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("CalendarService", "configure-calendar", req.to_cbor())
+        return CalendarStatus.from_cbor(resolve_rpc_reply("CalendarService", "configure-calendar", variant, payload))
 
     async def begin_connect(self, req: HouseId) -> CalendarConnectResponse:
         """begin-connect"""
-        return CalendarConnectResponse.from_cbor(await self._transport.call("CalendarService", "begin-connect", encode_calendar_begin_connect_request(req)))
+        variant, payload = await self._transport.call_reply("CalendarService", "begin-connect", encode_calendar_begin_connect_request(req))
+        return CalendarConnectResponse.from_cbor(resolve_rpc_reply("CalendarService", "begin-connect", variant, payload))
 
     async def complete_connect(self, req: CompleteCalendarConnectRequest) -> CalendarStatus:
         """complete-connect"""
-        return CalendarStatus.from_cbor(await self._transport.call("CalendarService", "complete-connect", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("CalendarService", "complete-connect", req.to_cbor())
+        return CalendarStatus.from_cbor(resolve_rpc_reply("CalendarService", "complete-connect", variant, payload))
 
     async def disconnect(self, req: HouseId) -> EmptyResponse:
         """disconnect"""
-        return EmptyResponse.from_cbor(await self._transport.call("CalendarService", "disconnect", encode_calendar_disconnect_request(req)))
+        variant, payload = await self._transport.call_reply("CalendarService", "disconnect", encode_calendar_disconnect_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("CalendarService", "disconnect", variant, payload))
 
-    async def preview_migration(self, req: HouseId) -> List[CalendarMigrationRow]:
+    async def preview_migration(self, req: HouseId) -> CalendarMigrationRowItems:
         """preview-migration"""
-        return decode_calendar_preview_migration_response(await self._transport.call("CalendarService", "preview-migration", encode_calendar_preview_migration_request(req)))
+        variant, payload = await self._transport.call_reply("CalendarService", "preview-migration", encode_calendar_preview_migration_request(req))
+        return decode_calendar_preview_migration_response(resolve_rpc_reply("CalendarService", "preview-migration", variant, payload))
 
-    async def list_trash(self, req: HouseId) -> List[CalendarTrashEntry]:
+    async def list_trash(self, req: HouseId) -> CalendarTrashEntryItems:
         """list-trash"""
-        return decode_calendar_list_trash_response(await self._transport.call("CalendarService", "list-trash", encode_calendar_list_trash_request(req)))
+        variant, payload = await self._transport.call_reply("CalendarService", "list-trash", encode_calendar_list_trash_request(req))
+        return decode_calendar_list_trash_response(resolve_rpc_reply("CalendarService", "list-trash", variant, payload))
 
     async def restore_event(self, req: RestoreCalendarEventRequest) -> Event:
         """restore-event"""
-        return Event.from_cbor(await self._transport.call("CalendarService", "restore-event", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("CalendarService", "restore-event", req.to_cbor())
+        return Event.from_cbor(resolve_rpc_reply("CalendarService", "restore-event", variant, payload))
 
 class TaskAsyncClient:
     """Typed client for the TaskService service."""
@@ -506,43 +619,53 @@ class TaskAsyncClient:
 
     async def create_task(self, req: Task) -> Task:
         """create-task"""
-        return Task.from_cbor(await self._transport.call("TaskService", "create-task", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TaskService", "create-task", req.to_cbor())
+        return Task.from_cbor(resolve_rpc_reply("TaskService", "create-task", variant, payload))
 
     async def get_task(self, req: TaskId) -> Task:
         """get-task"""
-        return Task.from_cbor(await self._transport.call("TaskService", "get-task", encode_task_get_task_request(req)))
+        variant, payload = await self._transport.call_reply("TaskService", "get-task", encode_task_get_task_request(req))
+        return Task.from_cbor(resolve_rpc_reply("TaskService", "get-task", variant, payload))
 
     async def update_task(self, req: Task) -> Task:
         """update-task"""
-        return Task.from_cbor(await self._transport.call("TaskService", "update-task", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TaskService", "update-task", req.to_cbor())
+        return Task.from_cbor(resolve_rpc_reply("TaskService", "update-task", variant, payload))
 
     async def delete_task(self, req: TaskId) -> EmptyResponse:
         """delete-task"""
-        return EmptyResponse.from_cbor(await self._transport.call("TaskService", "delete-task", encode_task_delete_task_request(req)))
+        variant, payload = await self._transport.call_reply("TaskService", "delete-task", encode_task_delete_task_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("TaskService", "delete-task", variant, payload))
 
     async def list_tasks(self, req: TaskListRequest) -> TaskList:
         """list-tasks"""
-        return TaskList.from_cbor(await self._transport.call("TaskService", "list-tasks", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TaskService", "list-tasks", req.to_cbor())
+        return TaskList.from_cbor(resolve_rpc_reply("TaskService", "list-tasks", variant, payload))
 
     async def create_personal_task(self, req: Task) -> Task:
         """create-personal-task"""
-        return Task.from_cbor(await self._transport.call("TaskService", "create-personal-task", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TaskService", "create-personal-task", req.to_cbor())
+        return Task.from_cbor(resolve_rpc_reply("TaskService", "create-personal-task", variant, payload))
 
     async def set_task_visibility(self, req: SetTaskVisibilityRequest) -> Task:
         """set-task-visibility"""
-        return Task.from_cbor(await self._transport.call("TaskService", "set-task-visibility", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TaskService", "set-task-visibility", req.to_cbor())
+        return Task.from_cbor(resolve_rpc_reply("TaskService", "set-task-visibility", variant, payload))
 
-    async def list_task_grants(self, req: TaskId) -> List[Grant]:
+    async def list_task_grants(self, req: TaskId) -> GrantItems:
         """list-task-grants"""
-        return decode_task_list_task_grants_response(await self._transport.call("TaskService", "list-task-grants", encode_task_list_task_grants_request(req)))
+        variant, payload = await self._transport.call_reply("TaskService", "list-task-grants", encode_task_list_task_grants_request(req))
+        return decode_task_list_task_grants_response(resolve_rpc_reply("TaskService", "list-task-grants", variant, payload))
 
     async def put_task_grant(self, req: PutTaskGrantRequest) -> EmptyResponse:
         """put-task-grant"""
-        return EmptyResponse.from_cbor(await self._transport.call("TaskService", "put-task-grant", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TaskService", "put-task-grant", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("TaskService", "put-task-grant", variant, payload))
 
     async def delete_task_grant(self, req: TaskGrantRef) -> EmptyResponse:
         """delete-task-grant"""
-        return EmptyResponse.from_cbor(await self._transport.call("TaskService", "delete-task-grant", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TaskService", "delete-task-grant", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("TaskService", "delete-task-grant", variant, payload))
 
 class DependencyAsyncClient:
     """Typed client for the DependencyService service."""
@@ -551,15 +674,18 @@ class DependencyAsyncClient:
 
     async def add_dependency(self, req: DependencyRef) -> EmptyResponse:
         """add-dependency"""
-        return EmptyResponse.from_cbor(await self._transport.call("DependencyService", "add-dependency", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("DependencyService", "add-dependency", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("DependencyService", "add-dependency", variant, payload))
 
     async def remove_dependency(self, req: DependencyRef) -> EmptyResponse:
         """remove-dependency"""
-        return EmptyResponse.from_cbor(await self._transport.call("DependencyService", "remove-dependency", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("DependencyService", "remove-dependency", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("DependencyService", "remove-dependency", variant, payload))
 
     async def get_dependencies(self, req: DependencyTarget) -> DependencyGraph:
         """get-dependencies"""
-        return DependencyGraph.from_cbor(await self._transport.call("DependencyService", "get-dependencies", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("DependencyService", "get-dependencies", req.to_cbor())
+        return DependencyGraph.from_cbor(resolve_rpc_reply("DependencyService", "get-dependencies", variant, payload))
 
 class CommentAsyncClient:
     """Typed client for the CommentService service."""
@@ -568,44 +694,53 @@ class CommentAsyncClient:
 
     async def create_comment(self, req: Comment) -> Comment:
         """create-comment"""
-        return Comment.from_cbor(await self._transport.call("CommentService", "create-comment", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("CommentService", "create-comment", req.to_cbor())
+        return Comment.from_cbor(resolve_rpc_reply("CommentService", "create-comment", variant, payload))
 
     async def get_comment(self, req: CommentId) -> Comment:
         """get-comment"""
-        return Comment.from_cbor(await self._transport.call("CommentService", "get-comment", encode_comment_get_comment_request(req)))
+        variant, payload = await self._transport.call_reply("CommentService", "get-comment", encode_comment_get_comment_request(req))
+        return Comment.from_cbor(resolve_rpc_reply("CommentService", "get-comment", variant, payload))
 
     async def update_comment(self, req: Comment) -> Comment:
         """update-comment"""
-        return Comment.from_cbor(await self._transport.call("CommentService", "update-comment", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("CommentService", "update-comment", req.to_cbor())
+        return Comment.from_cbor(resolve_rpc_reply("CommentService", "update-comment", variant, payload))
 
     async def delete_comment(self, req: CommentId) -> EmptyResponse:
         """delete-comment"""
-        return EmptyResponse.from_cbor(await self._transport.call("CommentService", "delete-comment", encode_comment_delete_comment_request(req)))
+        variant, payload = await self._transport.call_reply("CommentService", "delete-comment", encode_comment_delete_comment_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("CommentService", "delete-comment", variant, payload))
 
-    async def list_comments(self, req: CommentListRequest) -> List[Comment]:
+    async def list_comments(self, req: CommentListRequest) -> CommentItems:
         """list-comments"""
-        return decode_comment_list_comments_response(await self._transport.call("CommentService", "list-comments", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("CommentService", "list-comments", req.to_cbor())
+        return decode_comment_list_comments_response(resolve_rpc_reply("CommentService", "list-comments", variant, payload))
 
 class NotificationAsyncClient:
     """Typed client for the NotificationService service."""
     def __init__(self, transport: AsyncTransport):
         self._transport = transport
 
-    async def list_notifications(self, req: NotificationListRequest) -> List[Notification]:
+    async def list_notifications(self, req: NotificationListRequest) -> NotificationItems:
         """list-notifications"""
-        return decode_notification_list_notifications_response(await self._transport.call("NotificationService", "list-notifications", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("NotificationService", "list-notifications", req.to_cbor())
+        return decode_notification_list_notifications_response(resolve_rpc_reply("NotificationService", "list-notifications", variant, payload))
 
     async def unread_count(self, req: HouseId) -> NotificationUnreadCount:
         """unread-count"""
-        return NotificationUnreadCount.from_cbor(await self._transport.call("NotificationService", "unread-count", encode_notification_unread_count_request(req)))
+        variant, payload = await self._transport.call_reply("NotificationService", "unread-count", encode_notification_unread_count_request(req))
+        return NotificationUnreadCount.from_cbor(resolve_rpc_reply("NotificationService", "unread-count", variant, payload))
 
     async def mark_read(self, req: NotificationId) -> Notification:
         """mark-read"""
-        return Notification.from_cbor(await self._transport.call("NotificationService", "mark-read", encode_notification_mark_read_request(req)))
+        variant, payload = await self._transport.call_reply("NotificationService", "mark-read", encode_notification_mark_read_request(req))
+        return Notification.from_cbor(resolve_rpc_reply("NotificationService", "mark-read", variant, payload))
 
     async def mark_all_read(self, req: HouseId) -> EmptyResponse:
         """mark-all-read"""
-        return EmptyResponse.from_cbor(await self._transport.call("NotificationService", "mark-all-read", encode_notification_mark_all_read_request(req)))
+        variant, payload = await self._transport.call_reply("NotificationService", "mark-all-read", encode_notification_mark_all_read_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("NotificationService", "mark-all-read", variant, payload))
 
 class ShareAsyncClient:
     """Typed client for the ShareService service."""
@@ -614,28 +749,33 @@ class ShareAsyncClient:
 
     async def create_share(self, req: Share) -> Share:
         """create-share"""
-        return Share.from_cbor(await self._transport.call("ShareService", "create-share", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ShareService", "create-share", req.to_cbor())
+        return Share.from_cbor(resolve_rpc_reply("ShareService", "create-share", variant, payload))
 
     async def delete_share(self, req: ShareId) -> EmptyResponse:
         """delete-share"""
-        return EmptyResponse.from_cbor(await self._transport.call("ShareService", "delete-share", encode_share_delete_share_request(req)))
+        variant, payload = await self._transport.call_reply("ShareService", "delete-share", encode_share_delete_share_request(req))
+        return EmptyResponse.from_cbor(resolve_rpc_reply("ShareService", "delete-share", variant, payload))
 
-    async def list_shares_by_resource(self, req: ResourceRef) -> List[Share]:
+    async def list_shares_by_resource(self, req: ResourceRef) -> ShareItems:
         """list-shares-by-resource"""
-        return decode_share_list_shares_by_resource_response(await self._transport.call("ShareService", "list-shares-by-resource", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ShareService", "list-shares-by-resource", req.to_cbor())
+        return decode_share_list_shares_by_resource_response(resolve_rpc_reply("ShareService", "list-shares-by-resource", variant, payload))
 
     async def check_access(self, req: ShareAccessRequest) -> Share:
         """check-access"""
-        return Share.from_cbor(await self._transport.call("ShareService", "check-access", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("ShareService", "check-access", req.to_cbor())
+        return Share.from_cbor(resolve_rpc_reply("ShareService", "check-access", variant, payload))
 
 class MemberAuditAsyncClient:
     """Typed client for the MemberAuditService service."""
     def __init__(self, transport: AsyncTransport):
         self._transport = transport
 
-    async def list_audits_for_member(self, req: MemberScopedListRequest) -> List[MemberAudit]:
+    async def list_audits_for_member(self, req: MemberScopedListRequest) -> MemberAuditItems:
         """list-audits-for-member"""
-        return decode_member_audit_list_audits_for_member_response(await self._transport.call("MemberAuditService", "list-audits-for-member", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("MemberAuditService", "list-audits-for-member", req.to_cbor())
+        return decode_member_audit_list_audits_for_member_response(resolve_rpc_reply("MemberAuditService", "list-audits-for-member", variant, payload))
 
 class SettingsAsyncClient:
     """Typed client for the SettingsService service."""
@@ -644,11 +784,13 @@ class SettingsAsyncClient:
 
     async def get_settings(self, req: HouseId) -> EffectiveSettings:
         """get-settings"""
-        return EffectiveSettings.from_cbor(await self._transport.call("SettingsService", "get-settings", encode_settings_get_settings_request(req)))
+        variant, payload = await self._transport.call_reply("SettingsService", "get-settings", encode_settings_get_settings_request(req))
+        return EffectiveSettings.from_cbor(resolve_rpc_reply("SettingsService", "get-settings", variant, payload))
 
     async def update_settings(self, req: UpdateSettingsRequest) -> EffectiveSettings:
         """update-settings"""
-        return EffectiveSettings.from_cbor(await self._transport.call("SettingsService", "update-settings", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("SettingsService", "update-settings", req.to_cbor())
+        return EffectiveSettings.from_cbor(resolve_rpc_reply("SettingsService", "update-settings", variant, payload))
 
 class BugAsyncClient:
     """Typed client for the BugService service."""
@@ -657,7 +799,8 @@ class BugAsyncClient:
 
     async def report_bug(self, req: BugReportRequest) -> Task:
         """report-bug"""
-        return Task.from_cbor(await self._transport.call("BugService", "report-bug", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("BugService", "report-bug", req.to_cbor())
+        return Task.from_cbor(resolve_rpc_reply("BugService", "report-bug", variant, payload))
 
 class AuditAsyncClient:
     """Typed client for the AuditService service."""
@@ -666,7 +809,8 @@ class AuditAsyncClient:
 
     async def query_audit(self, req: AuditQuery) -> AuditPage:
         """query-audit"""
-        return AuditPage.from_cbor(await self._transport.call("AuditService", "query-audit", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("AuditService", "query-audit", req.to_cbor())
+        return AuditPage.from_cbor(resolve_rpc_reply("AuditService", "query-audit", variant, payload))
 
 class TrashAsyncClient:
     """Typed client for the TrashService service."""
@@ -675,13 +819,16 @@ class TrashAsyncClient:
 
     async def list_trash(self, req: HouseScopedListRequest) -> TrashPage:
         """list-trash"""
-        return TrashPage.from_cbor(await self._transport.call("TrashService", "list-trash", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TrashService", "list-trash", req.to_cbor())
+        return TrashPage.from_cbor(resolve_rpc_reply("TrashService", "list-trash", variant, payload))
 
     async def restore(self, req: RestoreRequest) -> EmptyResponse:
         """restore"""
-        return EmptyResponse.from_cbor(await self._transport.call("TrashService", "restore", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TrashService", "restore", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("TrashService", "restore", variant, payload))
 
     async def purge(self, req: PurgeRequest) -> EmptyResponse:
         """purge"""
-        return EmptyResponse.from_cbor(await self._transport.call("TrashService", "purge", req.to_cbor()))
+        variant, payload = await self._transport.call_reply("TrashService", "purge", req.to_cbor())
+        return EmptyResponse.from_cbor(resolve_rpc_reply("TrashService", "purge", variant, payload))
 

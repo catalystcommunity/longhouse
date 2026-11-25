@@ -255,7 +255,7 @@ func remoteError(err error) error {
 	log.WithError(err).Warn("catalystcal request failed")
 	return csilrpc.Internal("calendar service is unavailable; retry later")
 }
-func (s *CalendarService) PreviewMigration(ctx context.Context, id csil.HouseID) ([]csil.CalendarMigrationRow, error) {
+func (s *CalendarService) PreviewMigration(ctx context.Context, id csil.HouseID) (csil.CalendarMigrationRowItems, error) {
 	if _, err := s.member(ctx, string(id), true); err != nil {
 		return nil, err
 	}

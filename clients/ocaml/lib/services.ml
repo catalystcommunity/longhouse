@@ -179,8 +179,7 @@ module House_service = struct
     get_house : house_id -> (house, [ `Service_error of service_error ]) result;
     update_house : house -> (house, [ `Service_error of service_error ]) result;
     delete_house : house_id -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: house_list_request *)
-    list_houses : bytes -> outcome;
+    list_houses : house_list_request -> (house_items, [ `Service_error of service_error ]) result;
   }
 
   let dispatch_create_house h payload =
@@ -203,6 +202,11 @@ module House_service = struct
     let variant, payload = Codec.encode_house_service_delete_house_reply (h.delete_house request) in
     reply ~variant ~payload
 
+  let dispatch_list_houses h payload =
+    let request = Codec.decode_house_service_list_houses_request payload in
+    let variant, payload = Codec.encode_house_service_list_houses_reply (h.list_houses request) in
+    reply ~variant ~payload
+
   (* Verbose router: dispatch one request by operation name to its handler
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
@@ -211,7 +215,7 @@ module House_service = struct
     | "get-house" -> dispatch_get_house h payload
     | "update-house" -> dispatch_update_house h payload
     | "delete-house" -> dispatch_delete_house h payload
-    | "list-houses" -> h.list_houses payload
+    | "list-houses" -> dispatch_list_houses h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -223,8 +227,7 @@ module Member_service = struct
     update_member : member -> (member, [ `Service_error of service_error ]) result;
     deactivate_member : member_id -> (empty_response, [ `Service_error of service_error ]) result;
     reactivate_member : member_id -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: house_scoped_list_request *)
-    list_members : bytes -> outcome;
+    list_members : house_scoped_list_request -> (member_items, [ `Service_error of service_error ]) result;
   }
 
   let dispatch_create_member h payload =
@@ -257,6 +260,11 @@ module Member_service = struct
     let variant, payload = Codec.encode_member_service_reactivate_member_reply (h.reactivate_member request) in
     reply ~variant ~payload
 
+  let dispatch_list_members h payload =
+    let request = Codec.decode_member_service_list_members_request payload in
+    let variant, payload = Codec.encode_member_service_list_members_reply (h.list_members request) in
+    reply ~variant ~payload
+
   (* Verbose router: dispatch one request by operation name to its handler
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
@@ -267,7 +275,7 @@ module Member_service = struct
     | "update-member" -> dispatch_update_member h payload
     | "deactivate-member" -> dispatch_deactivate_member h payload
     | "reactivate-member" -> dispatch_reactivate_member h payload
-    | "list-members" -> h.list_members payload
+    | "list-members" -> dispatch_list_members h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -275,8 +283,7 @@ module Trusted_domain_service = struct
   type handler = {
     add_trusted_domain : trusted_domain -> (trusted_domain, [ `Service_error of service_error ]) result;
     remove_trusted_domain : trusted_domain_id -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: house_id *)
-    list_trusted_domains : bytes -> outcome;
+    list_trusted_domains : house_id -> (trusted_domain_items, [ `Service_error of service_error ]) result;
     is_domain_trusted : trusted_domain -> (bool_response, [ `Service_error of service_error ]) result;
   }
 
@@ -290,6 +297,11 @@ module Trusted_domain_service = struct
     let variant, payload = Codec.encode_trusted_domain_service_remove_trusted_domain_reply (h.remove_trusted_domain request) in
     reply ~variant ~payload
 
+  let dispatch_list_trusted_domains h payload =
+    let request = Codec.decode_trusted_domain_service_list_trusted_domains_request payload in
+    let variant, payload = Codec.encode_trusted_domain_service_list_trusted_domains_reply (h.list_trusted_domains request) in
+    reply ~variant ~payload
+
   let dispatch_is_domain_trusted h payload =
     let request = Codec.decode_trusted_domain_service_is_domain_trusted_request payload in
     let variant, payload = Codec.encode_trusted_domain_service_is_domain_trusted_reply (h.is_domain_trusted request) in
@@ -301,7 +313,7 @@ module Trusted_domain_service = struct
     match op with
     | "add-trusted-domain" -> dispatch_add_trusted_domain h payload
     | "remove-trusted-domain" -> dispatch_remove_trusted_domain h payload
-    | "list-trusted-domains" -> h.list_trusted_domains payload
+    | "list-trusted-domains" -> dispatch_list_trusted_domains h payload
     | "is-domain-trusted" -> dispatch_is_domain_trusted h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
@@ -311,12 +323,10 @@ module Role_service = struct
     create_role : role -> (role, [ `Service_error of service_error ]) result;
     update_role : role -> (role, [ `Service_error of service_error ]) result;
     delete_role : role_id -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: house_scoped_list_request *)
-    list_roles : bytes -> outcome;
+    list_roles : house_scoped_list_request -> (role_items, [ `Service_error of service_error ]) result;
     grant_role : member_role_ref -> (empty_response, [ `Service_error of service_error ]) result;
     revoke_role : member_role_ref -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: member_scoped_list_request *)
-    list_member_roles : bytes -> outcome;
+    list_member_roles : member_scoped_list_request -> (role_items, [ `Service_error of service_error ]) result;
   }
 
   let dispatch_create_role h payload =
@@ -334,6 +344,11 @@ module Role_service = struct
     let variant, payload = Codec.encode_role_service_delete_role_reply (h.delete_role request) in
     reply ~variant ~payload
 
+  let dispatch_list_roles h payload =
+    let request = Codec.decode_role_service_list_roles_request payload in
+    let variant, payload = Codec.encode_role_service_list_roles_reply (h.list_roles request) in
+    reply ~variant ~payload
+
   let dispatch_grant_role h payload =
     let request = Codec.decode_role_service_grant_role_request payload in
     let variant, payload = Codec.encode_role_service_grant_role_reply (h.grant_role request) in
@@ -344,6 +359,11 @@ module Role_service = struct
     let variant, payload = Codec.encode_role_service_revoke_role_reply (h.revoke_role request) in
     reply ~variant ~payload
 
+  let dispatch_list_member_roles h payload =
+    let request = Codec.decode_role_service_list_member_roles_request payload in
+    let variant, payload = Codec.encode_role_service_list_member_roles_reply (h.list_member_roles request) in
+    reply ~variant ~payload
+
   (* Verbose router: dispatch one request by operation name to its handler
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
@@ -351,10 +371,10 @@ module Role_service = struct
     | "create-role" -> dispatch_create_role h payload
     | "update-role" -> dispatch_update_role h payload
     | "delete-role" -> dispatch_delete_role h payload
-    | "list-roles" -> h.list_roles payload
+    | "list-roles" -> dispatch_list_roles h payload
     | "grant-role" -> dispatch_grant_role h payload
     | "revoke-role" -> dispatch_revoke_role h payload
-    | "list-member-roles" -> h.list_member_roles payload
+    | "list-member-roles" -> dispatch_list_member_roles h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -363,16 +383,13 @@ module Skill_service = struct
     create_skill : skill -> (skill, [ `Service_error of service_error ]) result;
     update_skill : skill -> (skill, [ `Service_error of service_error ]) result;
     delete_skill : skill_id -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: house_scoped_list_request *)
-    list_skills : bytes -> outcome;
+    list_skills : house_scoped_list_request -> (skill_items, [ `Service_error of service_error ]) result;
     add_member_skill : member_skill_ref -> (empty_response, [ `Service_error of service_error ]) result;
     remove_member_skill : member_skill_ref -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: member_scoped_list_request *)
-    list_member_skills : bytes -> outcome;
+    list_member_skills : member_scoped_list_request -> (skill_items, [ `Service_error of service_error ]) result;
     add_group_skill : group_skill_ref -> (empty_response, [ `Service_error of service_error ]) result;
     remove_group_skill : group_skill_ref -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: group_id *)
-    list_group_skills : bytes -> outcome;
+    list_group_skills : group_id -> (skill_items, [ `Service_error of service_error ]) result;
   }
 
   let dispatch_create_skill h payload =
@@ -390,6 +407,11 @@ module Skill_service = struct
     let variant, payload = Codec.encode_skill_service_delete_skill_reply (h.delete_skill request) in
     reply ~variant ~payload
 
+  let dispatch_list_skills h payload =
+    let request = Codec.decode_skill_service_list_skills_request payload in
+    let variant, payload = Codec.encode_skill_service_list_skills_reply (h.list_skills request) in
+    reply ~variant ~payload
+
   let dispatch_add_member_skill h payload =
     let request = Codec.decode_skill_service_add_member_skill_request payload in
     let variant, payload = Codec.encode_skill_service_add_member_skill_reply (h.add_member_skill request) in
@@ -398,6 +420,11 @@ module Skill_service = struct
   let dispatch_remove_member_skill h payload =
     let request = Codec.decode_skill_service_remove_member_skill_request payload in
     let variant, payload = Codec.encode_skill_service_remove_member_skill_reply (h.remove_member_skill request) in
+    reply ~variant ~payload
+
+  let dispatch_list_member_skills h payload =
+    let request = Codec.decode_skill_service_list_member_skills_request payload in
+    let variant, payload = Codec.encode_skill_service_list_member_skills_reply (h.list_member_skills request) in
     reply ~variant ~payload
 
   let dispatch_add_group_skill h payload =
@@ -410,6 +437,11 @@ module Skill_service = struct
     let variant, payload = Codec.encode_skill_service_remove_group_skill_reply (h.remove_group_skill request) in
     reply ~variant ~payload
 
+  let dispatch_list_group_skills h payload =
+    let request = Codec.decode_skill_service_list_group_skills_request payload in
+    let variant, payload = Codec.encode_skill_service_list_group_skills_reply (h.list_group_skills request) in
+    reply ~variant ~payload
+
   (* Verbose router: dispatch one request by operation name to its handler
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
@@ -417,13 +449,13 @@ module Skill_service = struct
     | "create-skill" -> dispatch_create_skill h payload
     | "update-skill" -> dispatch_update_skill h payload
     | "delete-skill" -> dispatch_delete_skill h payload
-    | "list-skills" -> h.list_skills payload
+    | "list-skills" -> dispatch_list_skills h payload
     | "add-member-skill" -> dispatch_add_member_skill h payload
     | "remove-member-skill" -> dispatch_remove_member_skill h payload
-    | "list-member-skills" -> h.list_member_skills payload
+    | "list-member-skills" -> dispatch_list_member_skills h payload
     | "add-group-skill" -> dispatch_add_group_skill h payload
     | "remove-group-skill" -> dispatch_remove_group_skill h payload
-    | "list-group-skills" -> h.list_group_skills payload
+    | "list-group-skills" -> dispatch_list_group_skills h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -432,12 +464,10 @@ module Group_service = struct
     create_group : group -> (group, [ `Service_error of service_error ]) result;
     update_group : group -> (group, [ `Service_error of service_error ]) result;
     delete_group : group_id -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: house_scoped_list_request *)
-    list_groups : bytes -> outcome;
+    list_groups : house_scoped_list_request -> (group_items, [ `Service_error of service_error ]) result;
     add_group_member : group_member_ref -> (empty_response, [ `Service_error of service_error ]) result;
     remove_group_member : group_member_ref -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: member_scoped_list_request *)
-    list_group_members : bytes -> outcome;
+    list_group_members : member_scoped_list_request -> (member_items, [ `Service_error of service_error ]) result;
   }
 
   let dispatch_create_group h payload =
@@ -455,6 +485,11 @@ module Group_service = struct
     let variant, payload = Codec.encode_group_service_delete_group_reply (h.delete_group request) in
     reply ~variant ~payload
 
+  let dispatch_list_groups h payload =
+    let request = Codec.decode_group_service_list_groups_request payload in
+    let variant, payload = Codec.encode_group_service_list_groups_reply (h.list_groups request) in
+    reply ~variant ~payload
+
   let dispatch_add_group_member h payload =
     let request = Codec.decode_group_service_add_group_member_request payload in
     let variant, payload = Codec.encode_group_service_add_group_member_reply (h.add_group_member request) in
@@ -465,6 +500,11 @@ module Group_service = struct
     let variant, payload = Codec.encode_group_service_remove_group_member_reply (h.remove_group_member request) in
     reply ~variant ~payload
 
+  let dispatch_list_group_members h payload =
+    let request = Codec.decode_group_service_list_group_members_request payload in
+    let variant, payload = Codec.encode_group_service_list_group_members_reply (h.list_group_members request) in
+    reply ~variant ~payload
+
   (* Verbose router: dispatch one request by operation name to its handler
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
@@ -472,10 +512,10 @@ module Group_service = struct
     | "create-group" -> dispatch_create_group h payload
     | "update-group" -> dispatch_update_group h payload
     | "delete-group" -> dispatch_delete_group h payload
-    | "list-groups" -> h.list_groups payload
+    | "list-groups" -> dispatch_list_groups h payload
     | "add-group-member" -> dispatch_add_group_member h payload
     | "remove-group-member" -> dispatch_remove_group_member h payload
-    | "list-group-members" -> h.list_group_members payload
+    | "list-group-members" -> dispatch_list_group_members h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -490,22 +530,18 @@ module Project_service = struct
     add_project_task : project_task_order_request -> (empty_response, [ `Service_error of service_error ]) result;
     remove_project_task : project_task_ref -> (empty_response, [ `Service_error of service_error ]) result;
     set_project_task_position : project_task_order_request -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: project_id *)
-    list_project_members : bytes -> outcome;
+    list_project_members : project_id -> (member_items, [ `Service_error of service_error ]) result;
     add_project_member : project_member_ref -> (empty_response, [ `Service_error of service_error ]) result;
     remove_project_member : project_member_ref -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: project_id *)
-    list_project_owners : bytes -> outcome;
+    list_project_owners : project_id -> (member_items, [ `Service_error of service_error ]) result;
     add_project_owner : project_owner_ref -> (empty_response, [ `Service_error of service_error ]) result;
     remove_project_owner : project_owner_ref -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: project_id *)
-    list_milestones : bytes -> outcome;
+    list_milestones : project_id -> (milestone_items, [ `Service_error of service_error ]) result;
     create_milestone : milestone -> (milestone, [ `Service_error of service_error ]) result;
     update_milestone : milestone -> (milestone, [ `Service_error of service_error ]) result;
     delete_milestone : milestone_id -> (empty_response, [ `Service_error of service_error ]) result;
     set_project_visibility : set_project_visibility_request -> (project, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: project_id *)
-    list_project_grants : bytes -> outcome;
+    list_project_grants : project_id -> (grant_items, [ `Service_error of service_error ]) result;
     put_project_grant : put_project_grant_request -> (empty_response, [ `Service_error of service_error ]) result;
     delete_project_grant : project_grant_ref -> (empty_response, [ `Service_error of service_error ]) result;
   }
@@ -555,6 +591,11 @@ module Project_service = struct
     let variant, payload = Codec.encode_project_service_set_project_task_position_reply (h.set_project_task_position request) in
     reply ~variant ~payload
 
+  let dispatch_list_project_members h payload =
+    let request = Codec.decode_project_service_list_project_members_request payload in
+    let variant, payload = Codec.encode_project_service_list_project_members_reply (h.list_project_members request) in
+    reply ~variant ~payload
+
   let dispatch_add_project_member h payload =
     let request = Codec.decode_project_service_add_project_member_request payload in
     let variant, payload = Codec.encode_project_service_add_project_member_reply (h.add_project_member request) in
@@ -565,6 +606,11 @@ module Project_service = struct
     let variant, payload = Codec.encode_project_service_remove_project_member_reply (h.remove_project_member request) in
     reply ~variant ~payload
 
+  let dispatch_list_project_owners h payload =
+    let request = Codec.decode_project_service_list_project_owners_request payload in
+    let variant, payload = Codec.encode_project_service_list_project_owners_reply (h.list_project_owners request) in
+    reply ~variant ~payload
+
   let dispatch_add_project_owner h payload =
     let request = Codec.decode_project_service_add_project_owner_request payload in
     let variant, payload = Codec.encode_project_service_add_project_owner_reply (h.add_project_owner request) in
@@ -573,6 +619,11 @@ module Project_service = struct
   let dispatch_remove_project_owner h payload =
     let request = Codec.decode_project_service_remove_project_owner_request payload in
     let variant, payload = Codec.encode_project_service_remove_project_owner_reply (h.remove_project_owner request) in
+    reply ~variant ~payload
+
+  let dispatch_list_milestones h payload =
+    let request = Codec.decode_project_service_list_milestones_request payload in
+    let variant, payload = Codec.encode_project_service_list_milestones_reply (h.list_milestones request) in
     reply ~variant ~payload
 
   let dispatch_create_milestone h payload =
@@ -593,6 +644,11 @@ module Project_service = struct
   let dispatch_set_project_visibility h payload =
     let request = Codec.decode_project_service_set_project_visibility_request payload in
     let variant, payload = Codec.encode_project_service_set_project_visibility_reply (h.set_project_visibility request) in
+    reply ~variant ~payload
+
+  let dispatch_list_project_grants h payload =
+    let request = Codec.decode_project_service_list_project_grants_request payload in
+    let variant, payload = Codec.encode_project_service_list_project_grants_reply (h.list_project_grants request) in
     reply ~variant ~payload
 
   let dispatch_put_project_grant h payload =
@@ -618,18 +674,18 @@ module Project_service = struct
     | "add-project-task" -> dispatch_add_project_task h payload
     | "remove-project-task" -> dispatch_remove_project_task h payload
     | "set-project-task-position" -> dispatch_set_project_task_position h payload
-    | "list-project-members" -> h.list_project_members payload
+    | "list-project-members" -> dispatch_list_project_members h payload
     | "add-project-member" -> dispatch_add_project_member h payload
     | "remove-project-member" -> dispatch_remove_project_member h payload
-    | "list-project-owners" -> h.list_project_owners payload
+    | "list-project-owners" -> dispatch_list_project_owners h payload
     | "add-project-owner" -> dispatch_add_project_owner h payload
     | "remove-project-owner" -> dispatch_remove_project_owner h payload
-    | "list-milestones" -> h.list_milestones payload
+    | "list-milestones" -> dispatch_list_milestones h payload
     | "create-milestone" -> dispatch_create_milestone h payload
     | "update-milestone" -> dispatch_update_milestone h payload
     | "delete-milestone" -> dispatch_delete_milestone h payload
     | "set-project-visibility" -> dispatch_set_project_visibility h payload
-    | "list-project-grants" -> h.list_project_grants payload
+    | "list-project-grants" -> dispatch_list_project_grants h payload
     | "put-project-grant" -> dispatch_put_project_grant h payload
     | "delete-project-grant" -> dispatch_delete_project_grant h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
@@ -642,15 +698,13 @@ module Event_service = struct
     update_event : event -> (event, [ `Service_error of service_error ]) result;
     delete_event : event_id -> (empty_response, [ `Service_error of service_error ]) result;
     delete_event_and_future : event_id -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: event_list_request *)
-    list_events : bytes -> outcome;
+    list_events : event_list_request -> (event_items, [ `Service_error of service_error ]) result;
     get_calendar_view : house_id -> (calendar_view, [ `Service_error of service_error ]) result;
     set_calendar_view : calendar_view -> (calendar_view, [ `Service_error of service_error ]) result;
     accept_event : event_decision -> (event, [ `Service_error of service_error ]) result;
     recover_edit : event_id -> (event, [ `Service_error of service_error ]) result;
     decline_event : event_decision -> (event, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: house_id *)
-    list_local_events : bytes -> outcome;
+    list_local_events : house_id -> (event_items, [ `Service_error of service_error ]) result;
   }
 
   let dispatch_create_event h payload =
@@ -678,6 +732,11 @@ module Event_service = struct
     let variant, payload = Codec.encode_event_service_delete_event_and_future_reply (h.delete_event_and_future request) in
     reply ~variant ~payload
 
+  let dispatch_list_events h payload =
+    let request = Codec.decode_event_service_list_events_request payload in
+    let variant, payload = Codec.encode_event_service_list_events_reply (h.list_events request) in
+    reply ~variant ~payload
+
   let dispatch_get_calendar_view h payload =
     let request = Codec.decode_event_service_get_calendar_view_request payload in
     let variant, payload = Codec.encode_event_service_get_calendar_view_reply (h.get_calendar_view request) in
@@ -703,6 +762,11 @@ module Event_service = struct
     let variant, payload = Codec.encode_event_service_decline_event_reply (h.decline_event request) in
     reply ~variant ~payload
 
+  let dispatch_list_local_events h payload =
+    let request = Codec.decode_event_service_list_local_events_request payload in
+    let variant, payload = Codec.encode_event_service_list_local_events_reply (h.list_local_events request) in
+    reply ~variant ~payload
+
   (* Verbose router: dispatch one request by operation name to its handler
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
@@ -712,13 +776,13 @@ module Event_service = struct
     | "update-event" -> dispatch_update_event h payload
     | "delete-event" -> dispatch_delete_event h payload
     | "delete-event-and-future" -> dispatch_delete_event_and_future h payload
-    | "list-events" -> h.list_events payload
+    | "list-events" -> dispatch_list_events h payload
     | "get-calendar-view" -> dispatch_get_calendar_view h payload
     | "set-calendar-view" -> dispatch_set_calendar_view h payload
     | "accept-event" -> dispatch_accept_event h payload
     | "recover-edit" -> dispatch_recover_edit h payload
     | "decline-event" -> dispatch_decline_event h payload
-    | "list-local-events" -> h.list_local_events payload
+    | "list-local-events" -> dispatch_list_local_events h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
@@ -730,10 +794,8 @@ module Calendar_service = struct
     begin_connect : house_id -> (calendar_connect_response, [ `Service_error of service_error ]) result;
     complete_connect : complete_calendar_connect_request -> (calendar_status, [ `Service_error of service_error ]) result;
     disconnect : house_id -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: house_id *)
-    preview_migration : bytes -> outcome;
-    (* request payload decodes to: house_id *)
-    list_trash : bytes -> outcome;
+    preview_migration : house_id -> (calendar_migration_row_items, [ `Service_error of service_error ]) result;
+    list_trash : house_id -> (calendar_trash_entry_items, [ `Service_error of service_error ]) result;
     restore_event : restore_calendar_event_request -> (event, [ `Service_error of service_error ]) result;
   }
 
@@ -767,6 +829,16 @@ module Calendar_service = struct
     let variant, payload = Codec.encode_calendar_service_disconnect_reply (h.disconnect request) in
     reply ~variant ~payload
 
+  let dispatch_preview_migration h payload =
+    let request = Codec.decode_calendar_service_preview_migration_request payload in
+    let variant, payload = Codec.encode_calendar_service_preview_migration_reply (h.preview_migration request) in
+    reply ~variant ~payload
+
+  let dispatch_list_trash h payload =
+    let request = Codec.decode_calendar_service_list_trash_request payload in
+    let variant, payload = Codec.encode_calendar_service_list_trash_reply (h.list_trash request) in
+    reply ~variant ~payload
+
   let dispatch_restore_event h payload =
     let request = Codec.decode_calendar_service_restore_event_request payload in
     let variant, payload = Codec.encode_calendar_service_restore_event_reply (h.restore_event request) in
@@ -782,8 +854,8 @@ module Calendar_service = struct
     | "begin-connect" -> dispatch_begin_connect h payload
     | "complete-connect" -> dispatch_complete_connect h payload
     | "disconnect" -> dispatch_disconnect h payload
-    | "preview-migration" -> h.preview_migration payload
-    | "list-trash" -> h.list_trash payload
+    | "preview-migration" -> dispatch_preview_migration h payload
+    | "list-trash" -> dispatch_list_trash h payload
     | "restore-event" -> dispatch_restore_event h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
@@ -797,8 +869,7 @@ module Task_service = struct
     list_tasks : task_list_request -> (task_list, [ `Service_error of service_error ]) result;
     create_personal_task : task -> (task, [ `Service_error of service_error ]) result;
     set_task_visibility : set_task_visibility_request -> (task, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: task_id *)
-    list_task_grants : bytes -> outcome;
+    list_task_grants : task_id -> (grant_items, [ `Service_error of service_error ]) result;
     put_task_grant : put_task_grant_request -> (empty_response, [ `Service_error of service_error ]) result;
     delete_task_grant : task_grant_ref -> (empty_response, [ `Service_error of service_error ]) result;
   }
@@ -838,6 +909,11 @@ module Task_service = struct
     let variant, payload = Codec.encode_task_service_set_task_visibility_reply (h.set_task_visibility request) in
     reply ~variant ~payload
 
+  let dispatch_list_task_grants h payload =
+    let request = Codec.decode_task_service_list_task_grants_request payload in
+    let variant, payload = Codec.encode_task_service_list_task_grants_reply (h.list_task_grants request) in
+    reply ~variant ~payload
+
   let dispatch_put_task_grant h payload =
     let request = Codec.decode_task_service_put_task_grant_request payload in
     let variant, payload = Codec.encode_task_service_put_task_grant_reply (h.put_task_grant request) in
@@ -859,7 +935,7 @@ module Task_service = struct
     | "list-tasks" -> dispatch_list_tasks h payload
     | "create-personal-task" -> dispatch_create_personal_task h payload
     | "set-task-visibility" -> dispatch_set_task_visibility h payload
-    | "list-task-grants" -> h.list_task_grants payload
+    | "list-task-grants" -> dispatch_list_task_grants h payload
     | "put-task-grant" -> dispatch_put_task_grant h payload
     | "delete-task-grant" -> dispatch_delete_task_grant h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
@@ -903,8 +979,7 @@ module Comment_service = struct
     get_comment : comment_id -> (comment, [ `Service_error of service_error ]) result;
     update_comment : comment -> (comment, [ `Service_error of service_error ]) result;
     delete_comment : comment_id -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: comment_list_request *)
-    list_comments : bytes -> outcome;
+    list_comments : comment_list_request -> (comment_items, [ `Service_error of service_error ]) result;
   }
 
   let dispatch_create_comment h payload =
@@ -927,6 +1002,11 @@ module Comment_service = struct
     let variant, payload = Codec.encode_comment_service_delete_comment_reply (h.delete_comment request) in
     reply ~variant ~payload
 
+  let dispatch_list_comments h payload =
+    let request = Codec.decode_comment_service_list_comments_request payload in
+    let variant, payload = Codec.encode_comment_service_list_comments_reply (h.list_comments request) in
+    reply ~variant ~payload
+
   (* Verbose router: dispatch one request by operation name to its handler
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
@@ -935,18 +1015,22 @@ module Comment_service = struct
     | "get-comment" -> dispatch_get_comment h payload
     | "update-comment" -> dispatch_update_comment h payload
     | "delete-comment" -> dispatch_delete_comment h payload
-    | "list-comments" -> h.list_comments payload
+    | "list-comments" -> dispatch_list_comments h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
 module Notification_service = struct
   type handler = {
-    (* request payload decodes to: notification_list_request *)
-    list_notifications : bytes -> outcome;
+    list_notifications : notification_list_request -> (notification_items, [ `Service_error of service_error ]) result;
     unread_count : house_id -> (notification_unread_count, [ `Service_error of service_error ]) result;
     mark_read : notification_id -> (notification, [ `Service_error of service_error ]) result;
     mark_all_read : house_id -> (empty_response, [ `Service_error of service_error ]) result;
   }
+
+  let dispatch_list_notifications h payload =
+    let request = Codec.decode_notification_service_list_notifications_request payload in
+    let variant, payload = Codec.encode_notification_service_list_notifications_reply (h.list_notifications request) in
+    reply ~variant ~payload
 
   let dispatch_unread_count h payload =
     let request = Codec.decode_notification_service_unread_count_request payload in
@@ -967,7 +1051,7 @@ module Notification_service = struct
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "list-notifications" -> h.list_notifications payload
+    | "list-notifications" -> dispatch_list_notifications h payload
     | "unread-count" -> dispatch_unread_count h payload
     | "mark-read" -> dispatch_mark_read h payload
     | "mark-all-read" -> dispatch_mark_all_read h payload
@@ -978,8 +1062,7 @@ module Share_service = struct
   type handler = {
     create_share : share -> (share, [ `Service_error of service_error ]) result;
     delete_share : share_id -> (empty_response, [ `Service_error of service_error ]) result;
-    (* request payload decodes to: resource_ref *)
-    list_shares_by_resource : bytes -> outcome;
+    list_shares_by_resource : resource_ref -> (share_items, [ `Service_error of service_error ]) result;
     check_access : share_access_request -> (share, [ `Service_error of service_error ]) result;
   }
 
@@ -993,6 +1076,11 @@ module Share_service = struct
     let variant, payload = Codec.encode_share_service_delete_share_reply (h.delete_share request) in
     reply ~variant ~payload
 
+  let dispatch_list_shares_by_resource h payload =
+    let request = Codec.decode_share_service_list_shares_by_resource_request payload in
+    let variant, payload = Codec.encode_share_service_list_shares_by_resource_reply (h.list_shares_by_resource request) in
+    reply ~variant ~payload
+
   let dispatch_check_access h payload =
     let request = Codec.decode_share_service_check_access_request payload in
     let variant, payload = Codec.encode_share_service_check_access_reply (h.check_access request) in
@@ -1004,22 +1092,26 @@ module Share_service = struct
     match op with
     | "create-share" -> dispatch_create_share h payload
     | "delete-share" -> dispatch_delete_share h payload
-    | "list-shares-by-resource" -> h.list_shares_by_resource payload
+    | "list-shares-by-resource" -> dispatch_list_shares_by_resource h payload
     | "check-access" -> dispatch_check_access h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 
 module Member_audit_service = struct
   type handler = {
-    (* request payload decodes to: member_scoped_list_request *)
-    list_audits_for_member : bytes -> outcome;
+    list_audits_for_member : member_scoped_list_request -> (member_audit_items, [ `Service_error of service_error ]) result;
   }
+
+  let dispatch_list_audits_for_member h payload =
+    let request = Codec.decode_member_audit_service_list_audits_for_member_request payload in
+    let variant, payload = Codec.encode_member_audit_service_list_audits_for_member_reply (h.list_audits_for_member request) in
+    reply ~variant ~payload
 
   (* Verbose router: dispatch one request by operation name to its handler
      field, which decodes the opaque payload with the generated [Types]. *)
   let route (h : handler) ~(op : string) ~(payload : bytes) =
     match op with
-    | "list-audits-for-member" -> h.list_audits_for_member payload
+    | "list-audits-for-member" -> dispatch_list_audits_for_member h payload
     | other -> transport_error ~status:2L ~message:("unknown op: " ^ other)
 end
 

@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the GroupService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -16,30 +14,37 @@ public final class GroupClient {
     }
 
     public Group createGroup(Group req) throws ClientException {
-        return CsilCbor.decodeGroup(transport.call("GroupService", "create-group", CsilCbor.encodeGroup(req)));
+        WireReply reply = transport.callReply("GroupService", "create-group", CsilCbor.encodeGroup(req));
+        return CsilCbor.decodeGroup(CsilCbor.resolveRpcReply("GroupService", "create-group", reply.variant(), reply.payload()));
     }
 
     public Group updateGroup(Group req) throws ClientException {
-        return CsilCbor.decodeGroup(transport.call("GroupService", "update-group", CsilCbor.encodeGroup(req)));
+        WireReply reply = transport.callReply("GroupService", "update-group", CsilCbor.encodeGroup(req));
+        return CsilCbor.decodeGroup(CsilCbor.resolveRpcReply("GroupService", "update-group", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deleteGroup(GroupId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("GroupService", "delete-group", CsilCbor.encodeGroupDeleteGroupRequest(req)));
+        WireReply reply = transport.callReply("GroupService", "delete-group", CsilCbor.encodeGroupDeleteGroupRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("GroupService", "delete-group", reply.variant(), reply.payload()));
     }
 
-    public List<Group> listGroups(HouseScopedListRequest req) throws ClientException {
-        return CsilCbor.decodeGroupListGroupsResponse(transport.call("GroupService", "list-groups", CsilCbor.encodeHouseScopedListRequest(req)));
+    public GroupItems listGroups(HouseScopedListRequest req) throws ClientException {
+        WireReply reply = transport.callReply("GroupService", "list-groups", CsilCbor.encodeHouseScopedListRequest(req));
+        return CsilCbor.decodeGroupListGroupsResponse(CsilCbor.resolveRpcReply("GroupService", "list-groups", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse addGroupMember(GroupMemberRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("GroupService", "add-group-member", CsilCbor.encodeGroupMemberRef(req)));
+        WireReply reply = transport.callReply("GroupService", "add-group-member", CsilCbor.encodeGroupMemberRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("GroupService", "add-group-member", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse removeGroupMember(GroupMemberRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("GroupService", "remove-group-member", CsilCbor.encodeGroupMemberRef(req)));
+        WireReply reply = transport.callReply("GroupService", "remove-group-member", CsilCbor.encodeGroupMemberRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("GroupService", "remove-group-member", reply.variant(), reply.payload()));
     }
 
-    public List<Member> listGroupMembers(MemberScopedListRequest req) throws ClientException {
-        return CsilCbor.decodeGroupListGroupMembersResponse(transport.call("GroupService", "list-group-members", CsilCbor.encodeMemberScopedListRequest(req)));
+    public MemberItems listGroupMembers(MemberScopedListRequest req) throws ClientException {
+        WireReply reply = transport.callReply("GroupService", "list-group-members", CsilCbor.encodeMemberScopedListRequest(req));
+        return CsilCbor.decodeGroupListGroupMembersResponse(CsilCbor.resolveRpcReply("GroupService", "list-group-members", reply.variant(), reply.payload()));
     }
 }

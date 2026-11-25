@@ -28,7 +28,7 @@ func (s *CalendarService) calendarLocked(ctx context.Context, house string, fn f
 		return fn(&clone)
 	})
 }
-func (s *CalendarService) ListEvents(ctx context.Context, in csil.EventListRequest) (out []csil.Event, err error) {
+func (s *CalendarService) ListEvents(ctx context.Context, in csil.EventListRequest) (out csil.EventItems, err error) {
 	if _, err = s.member(ctx, string(in.HouseId), false); err != nil {
 		return out, err
 	}
@@ -73,7 +73,7 @@ func (s *CalendarService) RestoreEvent(ctx context.Context, in csil.RestoreCalen
 	return
 }
 
-func (s *CalendarService) ListTrash(ctx context.Context, id csil.HouseID) (out []csil.CalendarTrashEntry, err error) {
+func (s *CalendarService) ListTrash(ctx context.Context, id csil.HouseID) (out csil.CalendarTrashEntryItems, err error) {
 	if _, err = s.member(ctx, string(id), false); err != nil {
 		return out, err
 	}

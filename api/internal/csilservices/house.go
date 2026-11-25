@@ -129,7 +129,7 @@ func (s *HouseService) DeleteHouse(ctx context.Context, id csil.HouseID) (csil.E
 // listHouses returns the houses the caller belongs to. The CSIL signature
 // takes HouseListRequest{limit, offset} but we ignore those here — the
 // identity's houses list is small (single-digit in practice).
-func (s *HouseService) ListHouses(ctx context.Context, _ csil.HouseListRequest) ([]csil.House, error) {
+func (s *HouseService) ListHouses(ctx context.Context, _ csil.HouseListRequest) (csil.HouseItems, error) {
 	id, err := requireIdentity(ctx)
 	if err != nil {
 		return nil, err

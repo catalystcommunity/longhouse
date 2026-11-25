@@ -2,7 +2,7 @@
 // Source: <csil spec>
 // Target: typescript-codec
 
-import type { AccessLevel, ActAsDelegation, ActAsScopeSetRequest, ActAsScopeSetResponse, ActAsTokenResponse, ApproveCliLoginRequest, AuditEntry, AuditID, AuditPage, AuditQuery, BeginBrowserLoginRequest, BeginBrowserLoginResponse, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarConnectResponse, CalendarMigrationRow, CalendarStatus, CalendarSubscription, CalendarTrashEntry, CalendarView, CliLoginRequestInfo, CliLoginStatus, CliSessionID, CliSessionSummary, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentListRequest, CompleteCalendarConnectRequest, CompleteRequest, ConfigureCalendarRequest, DenyCliLoginRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventDecision, EventID, EventListRequest, ExchangeActAsCredentialRequest, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, GranteeType, Group, GroupID, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberID, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneState, Notification, NotificationID, NotificationListRequest, NotificationUnreadCount, Project, ProjectDeadline, ProjectDeadlineList, ProjectDeadlineRequest, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, RefreshSessionRequest, ResourceRef, ResourceType, RestoreCalendarEventRequest, RestoreRequest, RevokeSessionRequest, Role, RoleID, ServiceError, SessionKind, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, Skill, SkillID, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskListRequest, TaskState, TaskStatus, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, UpdateSettingsRequest } from "./types.gen";
+import type { AccessLevel, ActAsDelegation, ActAsScopeSetRequest, ActAsScopeSetResponse, ActAsTokenResponse, ApproveCliLoginRequest, AuditEntry, AuditID, AuditPage, AuditQuery, BeginBrowserLoginRequest, BeginBrowserLoginResponse, BeginCliLoginRequest, BeginCliLoginResponse, BoolResponse, BugReportRequest, CalendarConnectResponse, CalendarMigrationRow, CalendarMigrationRowItems, CalendarStatus, CalendarSubscription, CalendarTrashEntry, CalendarTrashEntryItems, CalendarView, CliLoginRequestInfo, CliLoginStatus, CliSessionID, CliSessionSummary, CliSessionsResponse, CliTokenResponse, Comment, CommentID, CommentItems, CommentListRequest, CompleteCalendarConnectRequest, CompleteRequest, ConfigureCalendarRequest, DenyCliLoginRequest, DependencyGraph, DependencyNode, DependencyNodeType, DependencyRef, DependencyTarget, DevLoginRequest, DevUserEntry, DevUsersResponse, EffectiveSettings, EmptyRequest, EmptyResponse, Event, EventDecision, EventID, EventItems, EventListRequest, ExchangeActAsCredentialRequest, ExchangeCliLoginRequest, ExchangeCliLoginResponse, Grant, GrantItems, GranteeType, Group, GroupID, GroupItems, GroupMember, GroupMemberRef, GroupSkill, GroupSkillRef, House, HouseID, HouseItems, HouseListRequest, HouseRoles, HouseScopedListRequest, HouseSummary, Identity, LoginRequest, LoginResponse, MeResponse, Member, MemberAudit, MemberAuditID, MemberAuditItems, MemberID, MemberItems, MemberRole, MemberRoleRef, MemberScopedListRequest, MemberSkill, MemberSkillRef, Milestone, MilestoneID, MilestoneItems, MilestoneState, Notification, NotificationID, NotificationItems, NotificationListRequest, NotificationUnreadCount, Project, ProjectDeadline, ProjectDeadlineList, ProjectDeadlineRequest, ProjectGrantRef, ProjectID, ProjectList, ProjectMember, ProjectMemberRef, ProjectOwner, ProjectOwnerRef, ProjectScopedListRequest, ProjectStatus, ProjectTask, ProjectTaskOrderRequest, ProjectTaskRef, PurgeRequest, PutProjectGrantRequest, PutTaskGrantRequest, RecurrenceFreq, RefreshSessionRequest, ResourceRef, ResourceType, RestoreCalendarEventRequest, RestoreRequest, RevokeSessionRequest, Role, RoleID, RoleItems, ServiceError, SessionKind, SetProjectVisibilityRequest, SetTaskVisibilityRequest, Share, ShareAccessRequest, ShareID, ShareItems, Skill, SkillID, SkillItems, TargetType, Task, TaskGrantRef, TaskID, TaskList, TaskListRequest, TaskState, TaskStatus, TrashItem, TrashPage, TrustedDomain, TrustedDomainID, TrustedDomainItems, UpdateSettingsRequest } from "./types.gen";
 
 /** A CBOR semantic tag wrapping an inner value (e.g. tag 0 timestamp, tag 4 decimal). */
 export type CborTag = { readonly tag: number; readonly value: CborValue };
@@ -73,9 +73,13 @@ function encInto(v: CborValue, out: number[]): void {
     head(4, v.length, out);
     for (const x of v) encInto(x, out);
   } else if (v instanceof Map) {
-    head(5, v.size, out);
-    for (const [k, val] of v) {
-      encInto(k, out);
+    // RFC 8949 section 4.2.1: entries go in bytewise order of the encoded keys, so
+    // every peer emits the same bytes and a decoder can check the order in one pass.
+    const entries = Array.from(v, ([k, val]): [Uint8Array, CborValue] => [encodeValue(k), val]);
+    entries.sort(([a], [b]) => csilCompareBytes(a, b));
+    head(5, entries.length, out);
+    for (const [k, val] of entries) {
+      for (const b of k) out.push(b);
       encInto(val, out);
     }
   } else {
@@ -89,6 +93,34 @@ export function encodeValue(value: CborValue): Uint8Array {
   const out: number[] = [];
   encInto(value, out);
   return Uint8Array.from(out);
+}
+
+function csilCompareBytes(a: Uint8Array, b: Uint8Array): number {
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    if (a[i] !== b[i]) return a[i] - b[i];
+  }
+  return a.length - b.length;
+}
+
+// A record accepts its fields in any order, so the decoder only marks a map whose
+// keys are out of canonical order; a dynamic-map reader refuses a marked map.
+const csilUnorderedMaps = new WeakSet<Map<CborValue, CborValue>>();
+
+// A key with a longer head than needed is a second byte form of the same key, so
+// the order and duplicate checks on raw bytes would miss it.
+function csilShortestHead(b: Uint8Array, at: number): boolean {
+  const major = b[at] >> 5;
+  const low = b[at] & 0x1f;
+  if (major === 7 || low < 24) return true;
+  if (low === 24) return b[at + 1] >= 24;
+  if (low === 25) return b[at + 1] !== 0;
+  if (low === 26) return b[at + 1] !== 0 || b[at + 2] !== 0;
+  return b[at + 1] !== 0 || b[at + 2] !== 0 || b[at + 3] !== 0 || b[at + 4] !== 0;
+}
+
+function csilKeyLabel(key: CborValue): string {
+  return typeof key === "string" ? JSON.stringify(key) : String(key);
 }
 
 type Cursor = { b: Uint8Array; pos: number };
@@ -132,8 +164,24 @@ function smallInt(arg: bigint): number | bigint {
   return arg <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(arg) : arg;
 }
 
+/** Widen an IEEE 754 half-precision value (RFC 8949 Appendix D) exactly to binary64. */
+function csilHalfToFloat64(half: number): number {
+  const exp = (half >> 10) & 0x1f;
+  const mant = half & 0x3ff;
+  let magnitude: number;
+  if (exp === 0) magnitude = mant * 2 ** -24;
+  else if (exp === 31) magnitude = mant === 0 ? Infinity : NaN;
+  else magnitude = (mant + 1024) * 2 ** (exp - 25);
+  return half & 0x8000 ? -magnitude : magnitude;
+}
+
 function readFloat(st: Cursor, low: number): number {
   const bits = readArg(st, low);
+  if (low === 25) {
+    const view = new DataView(new ArrayBuffer(2));
+    view.setUint16(0, Number(bits), false);
+    return csilHalfToFloat64(view.getUint16(0, false));
+  }
   if (low === 26) {
     const view = new DataView(new ArrayBuffer(4));
     view.setUint32(0, Number(bits), false);
@@ -163,7 +211,7 @@ function decInto(st: Cursor, depth: number): CborValue {
       st.pos += 1;
       return null;
     }
-    if (low === 26 || low === 27) return readFloat(st, low);
+    if (low === 25 || low === 26 || low === 27) return readFloat(st, low);
     throw new Error("malformed CBOR simple value");
   }
   const arg = readArg(st, low);
@@ -199,8 +247,21 @@ function decInto(st: Cursor, depth: number): CborValue {
       if (arg > BigInt(st.b.length - st.pos)) throw new Error("CBOR map length exceeds remaining input");
       const n = Number(arg);
       const m = new Map<CborValue, CborValue>();
+      // Raw key bytes catch a repeated byte-string key and a key encoded twice in
+      // different widths, which a JS `Map` cannot tell apart from distinct keys.
+      const seen = new Set<string>();
+      let prev: Uint8Array | null = null;
       for (let i = 0; i < n; i++) {
+        const start = st.pos;
         const k = decInto(st, depth + 1);
+        if (!csilShortestHead(st.b, start)) throw new Error("csil cbor: map key is not in shortest form");
+        const raw = st.b.subarray(start, st.pos);
+        let id = "";
+        for (const b of raw) id += String.fromCharCode(b);
+        if (seen.has(id) || m.has(k)) throw new Error(`csil cbor: duplicate key ${csilKeyLabel(k)}`);
+        seen.add(id);
+        if (prev !== null && csilCompareBytes(prev, raw) > 0) csilUnorderedMaps.add(m);
+        prev = raw;
         const val = decInto(st, depth + 1);
         m.set(k, val);
       }
@@ -264,6 +325,13 @@ export function asArray(value: CborValue): CborValue[] {
 export function asMap(value: CborValue): Map<CborValue, CborValue> {
   if (value instanceof Map) return value;
   throw new Error("expected a map");
+}
+
+/** A `{ * K => V }` map: its keys must arrive in canonical order (RFC 8949 section 4.2.1). */
+export function asDynamicMap(value: CborValue): Map<CborValue, CborValue> {
+  const m = asMap(value);
+  if (csilUnorderedMaps.has(m)) throw new Error("csil cbor: map keys are not in canonical order");
+  return m;
 }
 
 /** A decoded integer may surface as `bigint` (see `decInto`'s large-value path), so a
@@ -348,7 +416,92 @@ function asTagged(value: CborValue, tag: number): CborValue {
 
 /** Decode a tag-0 (RFC 3339, UTC) timestamp into a `Date`. */
 export function asTimestamp(value: CborValue): Date {
-  return new Date(asString(asTagged(value, 0)));
+  return csilTsFromText(asString(asTagged(value, 0)));
+}
+
+// `Date` parsing accepts many shapes the wire contract forbids (a space for `T`, no
+// offset, leap seconds rolled over), so the grammar is checked by hand. `[0-9]` stays
+// ASCII-only, and `$` without the `m` flag matches only at the true end of input.
+const CSIL_TS_PATTERN =
+  /^([0-9]{4})-([0-9]{2})-([0-9]{2})[Tt]([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.([0-9]{1,9}))?(?:[Zz]|([+-])([0-9]{2}):([0-9]{2}))$/;
+
+/** Parse canonical tag-0 text strictly. `Date` holds milliseconds, so a nonzero digit
+ * past the third fraction digit is an error rather than a silent rounding. */
+export function csilTsFromText(text: string): Date {
+  const m = CSIL_TS_PATTERN.exec(text);
+  if (m === null) throw new Error(`invalid RFC 3339 timestamp ${JSON.stringify(text)}`);
+  const [year, month, day, hour, minute, second] = m.slice(1, 7).map(Number);
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const monthDays = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (year < 1 || month < 1 || month > 12 || day < 1 || day > monthDays[month - 1]) {
+    throw new Error(`invalid calendar date in timestamp ${JSON.stringify(text)}`);
+  }
+  if (hour > 23 || minute > 59 || second > 59) {
+    throw new Error(`invalid time of day in timestamp ${JSON.stringify(text)}`);
+  }
+  const fraction = m[7] ?? "";
+  if (/[1-9]/.test(fraction.slice(3))) {
+    throw new Error(`timestamp ${JSON.stringify(text)} is finer than milliseconds`);
+  }
+  let offsetMinutes = 0;
+  if (m[8] !== undefined) {
+    const offsetHour = Number(m[9]);
+    const offsetMinute = Number(m[10]);
+    if (offsetHour > 23 || offsetMinute > 59) {
+      throw new Error(`invalid offset in timestamp ${JSON.stringify(text)}`);
+    }
+    offsetMinutes = (m[8] === "-" ? -1 : 1) * (offsetHour * 60 + offsetMinute);
+  }
+  // `Date.UTC` maps years 0-99 to 1900-1999, so the year is set on its own.
+  const local = new Date(0);
+  local.setUTCFullYear(year, month - 1, day);
+  local.setUTCHours(hour, minute, second, Number(fraction.padEnd(3, "0").slice(0, 3)));
+  const instant = new Date(local.getTime() - offsetMinutes * 60000);
+  const utcYear = instant.getUTCFullYear();
+  if (utcYear < 1 || utcYear > 9999) {
+    throw new Error(`timestamp ${JSON.stringify(text)} is outside years 0001-9999 in UTC`);
+  }
+  return instant;
+}
+
+const CSIL_EPOCH_FIRST = -62135596800;
+const CSIL_EPOCH_LAST = 253402300799;
+
+/** Decode tag-1 epoch seconds (`cddl_time`) into a `Date`. A `Date` holds
+ * milliseconds, so a float fraction is rounded to three digits by the shared rule. */
+export function asCddlTime(value: CborValue): Date {
+  const inner = asTagged(value, 1);
+  // An integer past 2^53 decodes as a `bigint`; every one of those is out of range.
+  if (typeof inner === "bigint") throw new Error("cddl_time is outside years 0001-9999");
+  if (typeof inner !== "number") throw new Error("cddl_time content must be a number");
+  if (!Number.isFinite(inner)) throw new Error("cddl_time must be finite");
+  if (inner < CSIL_EPOCH_FIRST - 1 || inner > CSIL_EPOCH_LAST + 1) {
+    throw new Error("cddl_time is outside years 0001-9999");
+  }
+  // An integer and a float with the same value decode to the same `number`, and the
+  // rule gives an integer a zero fraction, so one path serves both.
+  let seconds = Math.floor(inner);
+  let units = Math.floor((inner - seconds) * 1000 + 0.5);
+  if (units === 1000) {
+    seconds += 1;
+    units = 0;
+  }
+  if (seconds < CSIL_EPOCH_FIRST || seconds > CSIL_EPOCH_LAST) {
+    throw new Error("cddl_time is outside years 0001-9999");
+  }
+  return new Date(seconds * 1000 + units);
+}
+
+/** A `Date` as tag-1 content: whole seconds as an integer, else a binary64 float. */
+export function csilEpochFromDate(d: Date): number {
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) throw new Error("expected a valid Date");
+  const millis = d.getTime();
+  const seconds = Math.floor(millis / 1000);
+  if (seconds < CSIL_EPOCH_FIRST || seconds > CSIL_EPOCH_LAST) {
+    throw new Error("cddl_time is outside years 0001-9999");
+  }
+  const units = millis - seconds * 1000;
+  return units === 0 ? seconds : seconds + units / 1000;
 }
 
 /** Decode a tag-4 decimal fraction into its `[exponent, mantissa]` payload. */
@@ -363,6 +516,11 @@ export function asDecimalPayload(value: CborValue): [number | bigint, number | b
 
 /** A `Date` rendered as the canonical tag-0 text: RFC 3339, UTC, `Z` offset. */
 export function csilTsToText(d: Date): string {
+  // An Invalid Date or a year outside 0001-9999 has no canonical text, and
+  // `toISOString` would write an expanded `+YYYYYY` year for the latter.
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) throw new Error("expected a valid Date");
+  const year = d.getUTCFullYear();
+  if (year < 1 || year > 9999) throw new Error("timestamp is outside years 0001-9999");
   return d.toISOString().replace(/\.000Z$/, "Z");
 }
 
@@ -377,6 +535,7 @@ export function toHouseCborValue(v: House): CborValue {
 }
 
 export function fromHouseCborValue(value: CborValue): House {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     name: asString(requireKey(value, "name")),
@@ -413,6 +572,7 @@ export function toMemberCborValue(v: Member): CborValue {
 }
 
 export function fromMemberCborValue(value: CborValue): Member {
+  asMap(value);
   return {
     memberId: asString(requireKey(value, "member_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -448,6 +608,7 @@ export function toTrustedDomainCborValue(v: TrustedDomain): CborValue {
 }
 
 export function fromTrustedDomainCborValue(value: CborValue): TrustedDomain {
+  asMap(value);
   return {
     trustedDomainId: asString(requireKey(value, "trusted_domain_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -476,6 +637,7 @@ export function toRoleCborValue(v: Role): CborValue {
 }
 
 export function fromRoleCborValue(value: CborValue): Role {
+  asMap(value);
   return {
     roleId: asString(requireKey(value, "role_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -503,6 +665,7 @@ export function toMemberRoleCborValue(v: MemberRole): CborValue {
 }
 
 export function fromMemberRoleCborValue(value: CborValue): MemberRole {
+  asMap(value);
   return {
     memberId: asString(requireKey(value, "member_id")),
     roleId: asString(requireKey(value, "role_id")),
@@ -533,6 +696,7 @@ export function toMemberAuditCborValue(v: MemberAudit): CborValue {
 }
 
 export function fromMemberAuditCborValue(value: CborValue): MemberAudit {
+  asMap(value);
   return {
     auditId: asString(requireKey(value, "audit_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -566,6 +730,7 @@ export function toSkillCborValue(v: Skill): CborValue {
 }
 
 export function fromSkillCborValue(value: CborValue): Skill {
+  asMap(value);
   return {
     skillId: asString(requireKey(value, "skill_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -593,6 +758,7 @@ export function toMemberSkillCborValue(v: MemberSkill): CborValue {
 }
 
 export function fromMemberSkillCborValue(value: CborValue): MemberSkill {
+  asMap(value);
   return {
     memberId: asString(requireKey(value, "member_id")),
     skillId: asString(requireKey(value, "skill_id")),
@@ -617,6 +783,7 @@ export function toGroupSkillCborValue(v: GroupSkill): CborValue {
 }
 
 export function fromGroupSkillCborValue(value: CborValue): GroupSkill {
+  asMap(value);
   return {
     groupId: asString(requireKey(value, "group_id")),
     skillId: asString(requireKey(value, "skill_id")),
@@ -644,6 +811,7 @@ export function toGroupCborValue(v: Group): CborValue {
 }
 
 export function fromGroupCborValue(value: CborValue): Group {
+  asMap(value);
   return {
     groupId: asString(requireKey(value, "group_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -671,6 +839,7 @@ export function toGroupMemberCborValue(v: GroupMember): CborValue {
 }
 
 export function fromGroupMemberCborValue(value: CborValue): GroupMember {
+  asMap(value);
   return {
     groupId: asString(requireKey(value, "group_id")),
     memberId: asString(requireKey(value, "member_id")),
@@ -703,6 +872,7 @@ export function toProjectCborValue(v: Project): CborValue {
 }
 
 export function fromProjectCborValue(value: CborValue): Project {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -736,6 +906,7 @@ export function toProjectTaskCborValue(v: ProjectTask): CborValue {
 }
 
 export function fromProjectTaskCborValue(value: CborValue): ProjectTask {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     taskId: asString(requireKey(value, "task_id")),
@@ -761,6 +932,7 @@ export function toProjectMemberCborValue(v: ProjectMember): CborValue {
 }
 
 export function fromProjectMemberCborValue(value: CborValue): ProjectMember {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     memberId: asString(requireKey(value, "member_id")),
@@ -785,6 +957,7 @@ export function toProjectOwnerCborValue(v: ProjectOwner): CborValue {
 }
 
 export function fromProjectOwnerCborValue(value: CborValue): ProjectOwner {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     memberId: asString(requireKey(value, "member_id")),
@@ -814,6 +987,7 @@ export function toMilestoneCborValue(v: Milestone): CborValue {
 }
 
 export function fromMilestoneCborValue(value: CborValue): Milestone {
+  asMap(value);
   return {
     milestoneId: asString(requireKey(value, "milestone_id")),
     projectId: asString(requireKey(value, "project_id")),
@@ -867,6 +1041,7 @@ export function toEventCborValue(v: Event): CborValue {
 }
 
 export function fromEventCborValue(value: CborValue): Event {
+  asMap(value);
   return {
     eventId: asString(requireKey(value, "event_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -935,6 +1110,7 @@ export function toTaskCborValue(v: Task): CborValue {
 }
 
 export function fromTaskCborValue(value: CborValue): Task {
+  asMap(value);
   return {
     taskId: asString(requireKey(value, "task_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -984,6 +1160,7 @@ export function toCommentCborValue(v: Comment): CborValue {
 }
 
 export function fromCommentCborValue(value: CborValue): Comment {
+  asMap(value);
   return {
     commentId: asString(requireKey(value, "comment_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -1020,6 +1197,7 @@ export function toShareCborValue(v: Share): CborValue {
 }
 
 export function fromShareCborValue(value: CborValue): Share {
+  asMap(value);
   return {
     shareId: asString(requireKey(value, "share_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -1052,6 +1230,7 @@ export function toHouseSummaryCborValue(v: HouseSummary): CborValue {
 }
 
 export function fromHouseSummaryCborValue(value: CborValue): HouseSummary {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     name: asString(requireKey(value, "name")),
@@ -1077,6 +1256,7 @@ export function toHouseRolesCborValue(v: HouseRoles): CborValue {
 }
 
 export function fromHouseRolesCborValue(value: CborValue): HouseRoles {
+  asMap(value);
   return {
     house: asString(requireKey(value, "house")),
     member: asString(requireKey(value, "member")),
@@ -1102,6 +1282,7 @@ export function toActAsDelegationCborValue(v: ActAsDelegation): CborValue {
 }
 
 export function fromActAsDelegationCborValue(value: CborValue): ActAsDelegation {
+  asMap(value);
   return {
     grantExpiresAt: asNumber(requireKey(value, "grant_expires_at")),
     grantId: asString(requireKey(value, "grant_id")),
@@ -1131,6 +1312,7 @@ export function toIdentityCborValue(v: Identity): CborValue {
 }
 
 export function fromIdentityCborValue(value: CborValue): Identity {
+  asMap(value);
   return {
     delegation: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromActAsDelegationCborValue(csilV))(mapGet(value, "delegation")),
     domain: asString(requireKey(value, "domain")),
@@ -1157,6 +1339,7 @@ export function toLoginRequestCborValue(v: LoginRequest): CborValue {
 }
 
 export function fromLoginRequestCborValue(value: CborValue): LoginRequest {
+  asMap(value);
   return {
     signedAssertion: asString(requireKey(value, "signed_assertion")),
   };
@@ -1177,6 +1360,7 @@ export function toBeginBrowserLoginRequestCborValue(v: BeginBrowserLoginRequest)
 }
 
 export function fromBeginBrowserLoginRequestCborValue(value: CborValue): BeginBrowserLoginRequest {
+  asMap(value);
   return {
     login: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "login")),
   };
@@ -1197,6 +1381,7 @@ export function toBeginBrowserLoginResponseCborValue(v: BeginBrowserLoginRespons
 }
 
 export function fromBeginBrowserLoginResponseCborValue(value: CborValue): BeginBrowserLoginResponse {
+  asMap(value);
   return {
     redirectUrl: asString(requireKey(value, "redirect_url")),
   };
@@ -1217,6 +1402,7 @@ export function toCompleteRequestCborValue(v: CompleteRequest): CborValue {
 }
 
 export function fromCompleteRequestCborValue(value: CborValue): CompleteRequest {
+  asMap(value);
   return {
     encryptedToken: asString(requireKey(value, "encrypted_token")),
   };
@@ -1241,6 +1427,7 @@ export function toLoginResponseCborValue(v: LoginResponse): CborValue {
 }
 
 export function fromLoginResponseCborValue(value: CborValue): LoginResponse {
+  asMap(value);
   return {
     token: asString(requireKey(value, "token")),
     domain: asString(requireKey(value, "domain")),
@@ -1272,6 +1459,7 @@ export function toCliTokenResponseCborValue(v: CliTokenResponse): CborValue {
 }
 
 export function fromCliTokenResponseCborValue(value: CborValue): CliTokenResponse {
+  asMap(value);
   return {
     token: asString(requireKey(value, "token")),
     domain: asString(requireKey(value, "domain")),
@@ -1299,6 +1487,7 @@ export function toBeginCliLoginRequestCborValue(v: BeginCliLoginRequest): CborVa
 }
 
 export function fromBeginCliLoginRequestCborValue(value: CborValue): BeginCliLoginRequest {
+  asMap(value);
   return {
     clientName: asString(requireKey(value, "client_name")),
   };
@@ -1323,6 +1512,7 @@ export function toBeginCliLoginResponseCborValue(v: BeginCliLoginResponse): Cbor
 }
 
 export function fromBeginCliLoginResponseCborValue(value: CborValue): BeginCliLoginResponse {
+  asMap(value);
   return {
     deviceCode: asString(requireKey(value, "device_code")),
     userCode: asString(requireKey(value, "user_code")),
@@ -1347,6 +1537,7 @@ export function toApproveCliLoginRequestCborValue(v: ApproveCliLoginRequest): Cb
 }
 
 export function fromApproveCliLoginRequestCborValue(value: CborValue): ApproveCliLoginRequest {
+  asMap(value);
   return {
     userCode: asString(requireKey(value, "user_code")),
   };
@@ -1369,6 +1560,7 @@ export function toCliLoginRequestInfoCborValue(v: CliLoginRequestInfo): CborValu
 }
 
 export function fromCliLoginRequestInfoCborValue(value: CborValue): CliLoginRequestInfo {
+  asMap(value);
   return {
     userCode: asString(requireKey(value, "user_code")),
     clientName: asString(requireKey(value, "client_name")),
@@ -1391,6 +1583,7 @@ export function toDenyCliLoginRequestCborValue(v: DenyCliLoginRequest): CborValu
 }
 
 export function fromDenyCliLoginRequestCborValue(value: CborValue): DenyCliLoginRequest {
+  asMap(value);
   return {
     userCode: asString(requireKey(value, "user_code")),
   };
@@ -1411,6 +1604,7 @@ export function toExchangeCliLoginRequestCborValue(v: ExchangeCliLoginRequest): 
 }
 
 export function fromExchangeCliLoginRequestCborValue(value: CborValue): ExchangeCliLoginRequest {
+  asMap(value);
   return {
     deviceCode: asString(requireKey(value, "device_code")),
   };
@@ -1432,6 +1626,7 @@ export function toExchangeCliLoginResponseCborValue(v: ExchangeCliLoginResponse)
 }
 
 export function fromExchangeCliLoginResponseCborValue(value: CborValue): ExchangeCliLoginResponse {
+  asMap(value);
   return {
     status: (asEnumMember(asString(requireKey(value, "status")), ["pending", "denied", "expired", "complete"]) as "pending" | "denied" | "expired" | "complete"),
     session: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : fromCliTokenResponseCborValue(csilV))(mapGet(value, "session")),
@@ -1453,6 +1648,7 @@ export function toRefreshSessionRequestCborValue(v: RefreshSessionRequest): Cbor
 }
 
 export function fromRefreshSessionRequestCborValue(value: CborValue): RefreshSessionRequest {
+  asMap(value);
   return {
     refreshToken: asString(requireKey(value, "refresh_token")),
   };
@@ -1480,6 +1676,7 @@ export function toCliSessionSummaryCborValue(v: CliSessionSummary): CborValue {
 }
 
 export function fromCliSessionSummaryCborValue(value: CborValue): CliSessionSummary {
+  asMap(value);
   return {
     sessionId: asString(requireKey(value, "session_id")),
     clientName: asString(requireKey(value, "client_name")),
@@ -1507,6 +1704,7 @@ export function toCliSessionsResponseCborValue(v: CliSessionsResponse): CborValu
 }
 
 export function fromCliSessionsResponseCborValue(value: CborValue): CliSessionsResponse {
+  asMap(value);
   return {
     sessions: asArray(requireKey(value, "sessions")).map((csilE) => fromCliSessionSummaryCborValue(csilE)),
   };
@@ -1527,6 +1725,7 @@ export function toRevokeSessionRequestCborValue(v: RevokeSessionRequest): CborVa
 }
 
 export function fromRevokeSessionRequestCborValue(value: CborValue): RevokeSessionRequest {
+  asMap(value);
   return {
     sessionId: asString(requireKey(value, "session_id")),
   };
@@ -1553,6 +1752,7 @@ export function toDevUserEntryCborValue(v: DevUserEntry): CborValue {
 }
 
 export function fromDevUserEntryCborValue(value: CborValue): DevUserEntry {
+  asMap(value);
   return {
     memberId: asString(requireKey(value, "member_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -1579,6 +1779,7 @@ export function toDevUsersResponseCborValue(v: DevUsersResponse): CborValue {
 }
 
 export function fromDevUsersResponseCborValue(value: CborValue): DevUsersResponse {
+  asMap(value);
   return {
     users: asArray(requireKey(value, "users")).map((csilE) => fromDevUserEntryCborValue(csilE)),
   };
@@ -1599,6 +1800,7 @@ export function toDevLoginRequestCborValue(v: DevLoginRequest): CborValue {
 }
 
 export function fromDevLoginRequestCborValue(value: CborValue): DevLoginRequest {
+  asMap(value);
   return {
     memberId: asString(requireKey(value, "member_id")),
   };
@@ -1623,6 +1825,7 @@ export function toMeResponseCborValue(v: MeResponse): CborValue {
 }
 
 export function fromMeResponseCborValue(value: CborValue): MeResponse {
+  asMap(value);
   return {
     domain: asString(requireKey(value, "domain")),
     userId: asString(requireKey(value, "user_id")),
@@ -1646,7 +1849,7 @@ export function toEmptyRequestCborValue(v: EmptyRequest): CborValue {
 }
 
 export function fromEmptyRequestCborValue(value: CborValue): EmptyRequest {
-  void value;
+  asMap(value);
   return {} as EmptyRequest;
 }
 
@@ -1664,7 +1867,7 @@ export function toEmptyResponseCborValue(v: EmptyResponse): CborValue {
 }
 
 export function fromEmptyResponseCborValue(value: CborValue): EmptyResponse {
-  void value;
+  asMap(value);
   return {} as EmptyResponse;
 }
 
@@ -1683,6 +1886,7 @@ export function toBoolResponseCborValue(v: BoolResponse): CborValue {
 }
 
 export function fromBoolResponseCborValue(value: CborValue): BoolResponse {
+  asMap(value);
   return {
     value: asBool(requireKey(value, "value")),
   };
@@ -1704,6 +1908,7 @@ export function toHouseListRequestCborValue(v: HouseListRequest): CborValue {
 }
 
 export function fromHouseListRequestCborValue(value: CborValue): HouseListRequest {
+  asMap(value);
   return {
     limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
     offset: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "offset")),
@@ -1727,6 +1932,7 @@ export function toHouseScopedListRequestCborValue(v: HouseScopedListRequest): Cb
 }
 
 export function fromHouseScopedListRequestCborValue(value: CborValue): HouseScopedListRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
@@ -1753,6 +1959,7 @@ export function toEventListRequestCborValue(v: EventListRequest): CborValue {
 }
 
 export function fromEventListRequestCborValue(value: CborValue): EventListRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     rangeStart: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asTimestamp(csilV))(mapGet(value, "range_start")),
@@ -1785,6 +1992,7 @@ export function toTaskListRequestCborValue(v: TaskListRequest): CborValue {
 }
 
 export function fromTaskListRequestCborValue(value: CborValue): TaskListRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     limit: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asNumber(csilV))(mapGet(value, "limit")),
@@ -1816,6 +2024,7 @@ export function toTaskListCborValue(v: TaskList): CborValue {
 }
 
 export function fromTaskListCborValue(value: CborValue): TaskList {
+  asMap(value);
   return {
     tasks: asArray(requireKey(value, "tasks")).map((csilE) => fromTaskCborValue(csilE)),
     hiddenCount: asNumber(requireKey(value, "hidden_count")),
@@ -1840,6 +2049,7 @@ export function toProjectListCborValue(v: ProjectList): CborValue {
 }
 
 export function fromProjectListCborValue(value: CborValue): ProjectList {
+  asMap(value);
   return {
     projects: asArray(requireKey(value, "projects")).map((csilE) => fromProjectCborValue(csilE)),
     hiddenCount: asNumber(requireKey(value, "hidden_count")),
@@ -1864,6 +2074,7 @@ export function toMemberScopedListRequestCborValue(v: MemberScopedListRequest): 
 }
 
 export function fromMemberScopedListRequestCborValue(value: CborValue): MemberScopedListRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     memberId: asString(requireKey(value, "member_id")),
@@ -1891,6 +2102,7 @@ export function toProjectScopedListRequestCborValue(v: ProjectScopedListRequest)
 }
 
 export function fromProjectScopedListRequestCborValue(value: CborValue): ProjectScopedListRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     projectId: asString(requireKey(value, "project_id")),
@@ -1918,6 +2130,7 @@ export function toCommentListRequestCborValue(v: CommentListRequest): CborValue 
 }
 
 export function fromCommentListRequestCborValue(value: CborValue): CommentListRequest {
+  asMap(value);
   return {
     targetType: (asEnumMember(asString(requireKey(value, "target_type")), ["event", "task", "project"]) as "event" | "task" | "project"),
     targetId: asString(requireKey(value, "target_id")),
@@ -1953,6 +2166,7 @@ export function toNotificationCborValue(v: Notification): CborValue {
 }
 
 export function fromNotificationCborValue(value: CborValue): Notification {
+  asMap(value);
   return {
     notificationId: asString(requireKey(value, "notification_id")),
     houseId: asString(requireKey(value, "house_id")),
@@ -1988,6 +2202,7 @@ export function toNotificationListRequestCborValue(v: NotificationListRequest): 
 }
 
 export function fromNotificationListRequestCborValue(value: CborValue): NotificationListRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     unreadOnly: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "unread_only")),
@@ -2011,6 +2226,7 @@ export function toNotificationUnreadCountCborValue(v: NotificationUnreadCount): 
 }
 
 export function fromNotificationUnreadCountCborValue(value: CborValue): NotificationUnreadCount {
+  asMap(value);
   return {
     count: asNumber(requireKey(value, "count")),
   };
@@ -2034,6 +2250,7 @@ export function toShareAccessRequestCborValue(v: ShareAccessRequest): CborValue 
 }
 
 export function fromShareAccessRequestCborValue(value: CborValue): ShareAccessRequest {
+  asMap(value);
   return {
     linkkeysDomain: asString(requireKey(value, "linkkeys_domain")),
     linkkeysUserId: asString(requireKey(value, "linkkeys_user_id")),
@@ -2058,6 +2275,7 @@ export function toResourceRefCborValue(v: ResourceRef): CborValue {
 }
 
 export function fromResourceRefCborValue(value: CborValue): ResourceRef {
+  asMap(value);
   return {
     resourceType: (asEnumMember(asString(requireKey(value, "resource_type")), ["event", "task", "house"]) as "event" | "task" | "house"),
     resourceId: asString(requireKey(value, "resource_id")),
@@ -2080,6 +2298,7 @@ export function toMemberRoleRefCborValue(v: MemberRoleRef): CborValue {
 }
 
 export function fromMemberRoleRefCborValue(value: CborValue): MemberRoleRef {
+  asMap(value);
   return {
     memberId: asString(requireKey(value, "member_id")),
     roleId: asString(requireKey(value, "role_id")),
@@ -2102,6 +2321,7 @@ export function toMemberSkillRefCborValue(v: MemberSkillRef): CborValue {
 }
 
 export function fromMemberSkillRefCborValue(value: CborValue): MemberSkillRef {
+  asMap(value);
   return {
     memberId: asString(requireKey(value, "member_id")),
     skillId: asString(requireKey(value, "skill_id")),
@@ -2124,6 +2344,7 @@ export function toGroupSkillRefCborValue(v: GroupSkillRef): CborValue {
 }
 
 export function fromGroupSkillRefCborValue(value: CborValue): GroupSkillRef {
+  asMap(value);
   return {
     groupId: asString(requireKey(value, "group_id")),
     skillId: asString(requireKey(value, "skill_id")),
@@ -2146,6 +2367,7 @@ export function toGroupMemberRefCborValue(v: GroupMemberRef): CborValue {
 }
 
 export function fromGroupMemberRefCborValue(value: CborValue): GroupMemberRef {
+  asMap(value);
   return {
     groupId: asString(requireKey(value, "group_id")),
     memberId: asString(requireKey(value, "member_id")),
@@ -2168,6 +2390,7 @@ export function toProjectTaskRefCborValue(v: ProjectTaskRef): CborValue {
 }
 
 export function fromProjectTaskRefCborValue(value: CborValue): ProjectTaskRef {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     taskId: asString(requireKey(value, "task_id")),
@@ -2191,6 +2414,7 @@ export function toProjectTaskOrderRequestCborValue(v: ProjectTaskOrderRequest): 
 }
 
 export function fromProjectTaskOrderRequestCborValue(value: CborValue): ProjectTaskOrderRequest {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     taskId: asString(requireKey(value, "task_id")),
@@ -2214,6 +2438,7 @@ export function toProjectMemberRefCborValue(v: ProjectMemberRef): CborValue {
 }
 
 export function fromProjectMemberRefCborValue(value: CborValue): ProjectMemberRef {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     memberId: asString(requireKey(value, "member_id")),
@@ -2236,6 +2461,7 @@ export function toProjectOwnerRefCborValue(v: ProjectOwnerRef): CborValue {
 }
 
 export function fromProjectOwnerRefCborValue(value: CborValue): ProjectOwnerRef {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     memberId: asString(requireKey(value, "member_id")),
@@ -2260,6 +2486,7 @@ export function toDependencyRefCborValue(v: DependencyRef): CborValue {
 }
 
 export function fromDependencyRefCborValue(value: CborValue): DependencyRef {
+  asMap(value);
   return {
     dependentType: (asEnumMember(asString(requireKey(value, "dependent_type")), ["task", "project"]) as "task" | "project"),
     dependentId: asString(requireKey(value, "dependent_id")),
@@ -2284,6 +2511,7 @@ export function toDependencyTargetCborValue(v: DependencyTarget): CborValue {
 }
 
 export function fromDependencyTargetCborValue(value: CborValue): DependencyTarget {
+  asMap(value);
   return {
     type: (asEnumMember(asString(requireKey(value, "type")), ["task", "project"]) as "task" | "project"),
     id: asString(requireKey(value, "id")),
@@ -2308,6 +2536,7 @@ export function toDependencyNodeCborValue(v: DependencyNode): CborValue {
 }
 
 export function fromDependencyNodeCborValue(value: CborValue): DependencyNode {
+  asMap(value);
   return {
     type: (asEnumMember(asString(requireKey(value, "type")), ["task", "project"]) as "task" | "project"),
     id: asString(requireKey(value, "id")),
@@ -2332,6 +2561,7 @@ export function toDependencyGraphCborValue(v: DependencyGraph): CborValue {
 }
 
 export function fromDependencyGraphCborValue(value: CborValue): DependencyGraph {
+  asMap(value);
   return {
     dependencies: asArray(requireKey(value, "dependencies")).map((csilE) => fromDependencyNodeCborValue(csilE)),
     dependents: asArray(requireKey(value, "dependents")).map((csilE) => fromDependencyNodeCborValue(csilE)),
@@ -2355,6 +2585,7 @@ export function toGrantCborValue(v: Grant): CborValue {
 }
 
 export function fromGrantCborValue(value: CborValue): Grant {
+  asMap(value);
   return {
     granteeType: (asEnumMember(asString(requireKey(value, "grantee_type")), ["member", "group"]) as "member" | "group"),
     granteeId: asString(requireKey(value, "grantee_id")),
@@ -2379,6 +2610,7 @@ export function toTaskGrantRefCborValue(v: TaskGrantRef): CborValue {
 }
 
 export function fromTaskGrantRefCborValue(value: CborValue): TaskGrantRef {
+  asMap(value);
   return {
     taskId: asString(requireKey(value, "task_id")),
     granteeType: (asEnumMember(asString(requireKey(value, "grantee_type")), ["member", "group"]) as "member" | "group"),
@@ -2404,6 +2636,7 @@ export function toPutTaskGrantRequestCborValue(v: PutTaskGrantRequest): CborValu
 }
 
 export function fromPutTaskGrantRequestCborValue(value: CborValue): PutTaskGrantRequest {
+  asMap(value);
   return {
     taskId: asString(requireKey(value, "task_id")),
     granteeType: (asEnumMember(asString(requireKey(value, "grantee_type")), ["member", "group"]) as "member" | "group"),
@@ -2428,6 +2661,7 @@ export function toSetTaskVisibilityRequestCborValue(v: SetTaskVisibilityRequest)
 }
 
 export function fromSetTaskVisibilityRequestCborValue(value: CborValue): SetTaskVisibilityRequest {
+  asMap(value);
   return {
     taskId: asString(requireKey(value, "task_id")),
     visibility: (asEnumMember(asString(requireKey(value, "visibility")), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"),
@@ -2451,6 +2685,7 @@ export function toProjectGrantRefCborValue(v: ProjectGrantRef): CborValue {
 }
 
 export function fromProjectGrantRefCborValue(value: CborValue): ProjectGrantRef {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     granteeType: (asEnumMember(asString(requireKey(value, "grantee_type")), ["member", "group"]) as "member" | "group"),
@@ -2476,6 +2711,7 @@ export function toPutProjectGrantRequestCborValue(v: PutProjectGrantRequest): Cb
 }
 
 export function fromPutProjectGrantRequestCborValue(value: CborValue): PutProjectGrantRequest {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     granteeType: (asEnumMember(asString(requireKey(value, "grantee_type")), ["member", "group"]) as "member" | "group"),
@@ -2500,6 +2736,7 @@ export function toSetProjectVisibilityRequestCborValue(v: SetProjectVisibilityRe
 }
 
 export function fromSetProjectVisibilityRequestCborValue(value: CborValue): SetProjectVisibilityRequest {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     visibility: (asEnumMember(asString(requireKey(value, "visibility")), ["none", "read", "edit", "full"]) as "none" | "read" | "edit" | "full"),
@@ -2524,6 +2761,7 @@ export function toEffectiveSettingsCborValue(v: EffectiveSettings): CborValue {
 }
 
 export function fromEffectiveSettingsCborValue(value: CborValue): EffectiveSettings {
+  asMap(value);
   return {
     bugReportsEnabled: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asBool(csilV))(mapGet(value, "bug_reports_enabled")),
     bugReportsProjectId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "bug_reports_project_id")),
@@ -2548,6 +2786,7 @@ export function toUpdateSettingsRequestCborValue(v: UpdateSettingsRequest): Cbor
 }
 
 export function fromUpdateSettingsRequestCborValue(value: CborValue): UpdateSettingsRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     settings: fromEffectiveSettingsCborValue(requireKey(value, "settings")),
@@ -2571,6 +2810,7 @@ export function toBugReportRequestCborValue(v: BugReportRequest): CborValue {
 }
 
 export function fromBugReportRequestCborValue(value: CborValue): BugReportRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     title: asString(requireKey(value, "title")),
@@ -2594,6 +2834,7 @@ export function toServiceErrorCborValue(v: ServiceError): CborValue {
 }
 
 export function fromServiceErrorCborValue(value: CborValue): ServiceError {
+  asMap(value);
   return {
     code: asNumber(requireKey(value, "code")),
     message: asString(requireKey(value, "message")),
@@ -2619,6 +2860,7 @@ export function toActAsScopeSetRequestCborValue(v: ActAsScopeSetRequest): CborVa
 }
 
 export function fromActAsScopeSetRequestCborValue(value: CborValue): ActAsScopeSetRequest {
+  asMap(value);
   return {
     granteeDomain: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "grantee_domain")),
     granteeUserId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "grantee_user_id")),
@@ -2643,6 +2885,7 @@ export function toActAsScopeSetResponseCborValue(v: ActAsScopeSetResponse): Cbor
 }
 
 export function fromActAsScopeSetResponseCborValue(value: CborValue): ActAsScopeSetResponse {
+  asMap(value);
   return {
     signedScopeSet: asBytes(requireKey(value, "signed_scope_set")),
   };
@@ -2663,6 +2906,7 @@ export function toExchangeActAsCredentialRequestCborValue(v: ExchangeActAsCreden
 }
 
 export function fromExchangeActAsCredentialRequestCborValue(value: CborValue): ExchangeActAsCredentialRequest {
+  asMap(value);
   return {
     credential: asBytes(requireKey(value, "credential")),
   };
@@ -2689,6 +2933,7 @@ export function toActAsTokenResponseCborValue(v: ActAsTokenResponse): CborValue 
 }
 
 export function fromActAsTokenResponseCborValue(value: CborValue): ActAsTokenResponse {
+  asMap(value);
   return {
     token: asString(requireKey(value, "token")),
     domain: asString(requireKey(value, "domain")),
@@ -2716,6 +2961,7 @@ export function toCalendarSubscriptionCborValue(v: CalendarSubscription): CborVa
 }
 
 export function fromCalendarSubscriptionCborValue(value: CborValue): CalendarSubscription {
+  asMap(value);
   return {
     subjectMemberId: asString(requireKey(value, "subject_member_id")),
     enabled: asBool(requireKey(value, "enabled")),
@@ -2739,6 +2985,7 @@ export function toCalendarViewCborValue(v: CalendarView): CborValue {
 }
 
 export function fromCalendarViewCborValue(value: CborValue): CalendarView {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     viewerMemberId: asString(requireKey(value, "viewer_member_id")),
@@ -2762,6 +3009,7 @@ export function toEventDecisionCborValue(v: EventDecision): CborValue {
 }
 
 export function fromEventDecisionCborValue(value: CborValue): EventDecision {
+  asMap(value);
   return {
     eventId: asString(requireKey(value, "event_id")),
     revision: asNumber(requireKey(value, "revision")),
@@ -2789,6 +3037,7 @@ export function toCalendarStatusCborValue(v: CalendarStatus): CborValue {
 }
 
 export function fromCalendarStatusCborValue(value: CborValue): CalendarStatus {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     available: asBool(requireKey(value, "available")),
@@ -2816,6 +3065,7 @@ export function toConfigureCalendarRequestCborValue(v: ConfigureCalendarRequest)
 }
 
 export function fromConfigureCalendarRequestCborValue(value: CborValue): ConfigureCalendarRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     enabled: asBool(requireKey(value, "enabled")),
@@ -2837,6 +3087,7 @@ export function toCalendarConnectResponseCborValue(v: CalendarConnectResponse): 
 }
 
 export function fromCalendarConnectResponseCborValue(value: CborValue): CalendarConnectResponse {
+  asMap(value);
   return {
     url: asString(requireKey(value, "url")),
   };
@@ -2859,6 +3110,7 @@ export function toCompleteCalendarConnectRequestCborValue(v: CompleteCalendarCon
 }
 
 export function fromCompleteCalendarConnectRequestCborValue(value: CborValue): CompleteCalendarConnectRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     grantId: asString(requireKey(value, "grant_id")),
@@ -2884,6 +3136,7 @@ export function toCalendarTrashEntryCborValue(v: CalendarTrashEntry): CborValue 
 }
 
 export function fromCalendarTrashEntryCborValue(value: CborValue): CalendarTrashEntry {
+  asMap(value);
   return {
     trashId: asString(requireKey(value, "trash_id")),
     event: fromEventCborValue(requireKey(value, "event")),
@@ -2908,6 +3161,7 @@ export function toRestoreCalendarEventRequestCborValue(v: RestoreCalendarEventRe
 }
 
 export function fromRestoreCalendarEventRequestCborValue(value: CborValue): RestoreCalendarEventRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     trashId: asString(requireKey(value, "trash_id")),
@@ -2932,6 +3186,7 @@ export function toCalendarMigrationRowCborValue(v: CalendarMigrationRow): CborVa
 }
 
 export function fromCalendarMigrationRowCborValue(value: CborValue): CalendarMigrationRow {
+  asMap(value);
   return {
     eventId: asString(requireKey(value, "event_id")),
     title: asString(requireKey(value, "title")),
@@ -2957,6 +3212,7 @@ export function toProjectDeadlineRequestCborValue(v: ProjectDeadlineRequest): Cb
 }
 
 export function fromProjectDeadlineRequestCborValue(value: CborValue): ProjectDeadlineRequest {
+  asMap(value);
   return {
     projectId: asString(requireKey(value, "project_id")),
     rangeStart: asTimestamp(requireKey(value, "range_start")),
@@ -2981,6 +3237,7 @@ export function toProjectDeadlineCborValue(v: ProjectDeadline): CborValue {
 }
 
 export function fromProjectDeadlineCborValue(value: CborValue): ProjectDeadline {
+  asMap(value);
   return {
     taskId: asString(requireKey(value, "task_id")),
     title: asString(requireKey(value, "title")),
@@ -3007,6 +3264,7 @@ export function toProjectDeadlineListCborValue(v: ProjectDeadlineList): CborValu
 }
 
 export function fromProjectDeadlineListCborValue(value: CborValue): ProjectDeadlineList {
+  asMap(value);
   return {
     enabled: asBool(requireKey(value, "enabled")),
     pending: asBool(requireKey(value, "pending")),
@@ -3045,6 +3303,7 @@ export function toAuditEntryCborValue(v: AuditEntry): CborValue {
 }
 
 export function fromAuditEntryCborValue(value: CborValue): AuditEntry {
+  asMap(value);
   return {
     auditId: asString(requireKey(value, "audit_id")),
     houseId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "house_id")),
@@ -3086,6 +3345,7 @@ export function toAuditQueryCborValue(v: AuditQuery): CborValue {
 }
 
 export function fromAuditQueryCborValue(value: CborValue): AuditQuery {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     actorMemberId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "actor_member_id")),
@@ -3114,6 +3374,7 @@ export function toAuditPageCborValue(v: AuditPage): CborValue {
 }
 
 export function fromAuditPageCborValue(value: CborValue): AuditPage {
+  asMap(value);
   return {
     entries: asArray(requireKey(value, "entries")).map((csilE) => fromAuditEntryCborValue(csilE)),
     nextCursor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "next_cursor")),
@@ -3141,6 +3402,7 @@ export function toTrashItemCborValue(v: TrashItem): CborValue {
 }
 
 export function fromTrashItemCborValue(value: CborValue): TrashItem {
+  asMap(value);
   return {
     resourceType: asString(requireKey(value, "resource_type")),
     resourceId: asString(requireKey(value, "resource_id")),
@@ -3168,6 +3430,7 @@ export function toTrashPageCborValue(v: TrashPage): CborValue {
 }
 
 export function fromTrashPageCborValue(value: CborValue): TrashPage {
+  asMap(value);
   return {
     items: asArray(requireKey(value, "items")).map((csilE) => fromTrashItemCborValue(csilE)),
     nextCursor: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "next_cursor")),
@@ -3192,6 +3455,7 @@ export function toRestoreRequestCborValue(v: RestoreRequest): CborValue {
 }
 
 export function fromRestoreRequestCborValue(value: CborValue): RestoreRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     deletedOpId: ((csilV: CborValue | undefined) => csilV === undefined ? undefined : asString(csilV))(mapGet(value, "deleted_op_id")),
@@ -3217,6 +3481,7 @@ export function toPurgeRequestCborValue(v: PurgeRequest): CborValue {
 }
 
 export function fromPurgeRequestCborValue(value: CborValue): PurgeRequest {
+  asMap(value);
   return {
     houseId: asString(requireKey(value, "house_id")),
     resourceType: asString(requireKey(value, "resource_type")),
@@ -3483,6 +3748,16 @@ export async function encodeHouseServiceDeleteHouseReply(handler: () => Promise<
   }
 }
 
+export async function encodeHouseServiceListHousesReply(handler: () => Promise<HouseItems> | HouseItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "HouseItems", payload: encodeValue(value.map((csilE): CborValue => toHouseCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
 export async function encodeMemberServiceCreateMemberReply(handler: () => Promise<Member> | Member): Promise<RpcReply> {
   try {
     const value = await handler();
@@ -3543,6 +3818,16 @@ export async function encodeMemberServiceReactivateMemberReply(handler: () => Pr
   }
 }
 
+export async function encodeMemberServiceListMembersReply(handler: () => Promise<MemberItems> | MemberItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "MemberItems", payload: encodeValue(value.map((csilE): CborValue => toMemberCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
 export async function encodeTrustedDomainServiceAddTrustedDomainReply(handler: () => Promise<TrustedDomain> | TrustedDomain): Promise<RpcReply> {
   try {
     const value = await handler();
@@ -3557,6 +3842,16 @@ export async function encodeTrustedDomainServiceRemoveTrustedDomainReply(handler
   try {
     const value = await handler();
     return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTrustedDomainServiceListTrustedDomainsReply(handler: () => Promise<TrustedDomainItems> | TrustedDomainItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "TrustedDomainItems", payload: encodeValue(value.map((csilE): CborValue => toTrustedDomainCborValue(csilE))) };
   } catch (error) {
     if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
     throw error;
@@ -3603,6 +3898,16 @@ export async function encodeRoleServiceDeleteRoleReply(handler: () => Promise<Em
   }
 }
 
+export async function encodeRoleServiceListRolesReply(handler: () => Promise<RoleItems> | RoleItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "RoleItems", payload: encodeValue(value.map((csilE): CborValue => toRoleCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
 export async function encodeRoleServiceGrantRoleReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
   try {
     const value = await handler();
@@ -3617,6 +3922,16 @@ export async function encodeRoleServiceRevokeRoleReply(handler: () => Promise<Em
   try {
     const value = await handler();
     return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeRoleServiceListMemberRolesReply(handler: () => Promise<RoleItems> | RoleItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "RoleItems", payload: encodeValue(value.map((csilE): CborValue => toRoleCborValue(csilE))) };
   } catch (error) {
     if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
     throw error;
@@ -3653,6 +3968,16 @@ export async function encodeSkillServiceDeleteSkillReply(handler: () => Promise<
   }
 }
 
+export async function encodeSkillServiceListSkillsReply(handler: () => Promise<SkillItems> | SkillItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "SkillItems", payload: encodeValue(value.map((csilE): CborValue => toSkillCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
 export async function encodeSkillServiceAddMemberSkillReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
   try {
     const value = await handler();
@@ -3673,6 +3998,16 @@ export async function encodeSkillServiceRemoveMemberSkillReply(handler: () => Pr
   }
 }
 
+export async function encodeSkillServiceListMemberSkillsReply(handler: () => Promise<SkillItems> | SkillItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "SkillItems", payload: encodeValue(value.map((csilE): CborValue => toSkillCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
 export async function encodeSkillServiceAddGroupSkillReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
   try {
     const value = await handler();
@@ -3687,6 +4022,16 @@ export async function encodeSkillServiceRemoveGroupSkillReply(handler: () => Pro
   try {
     const value = await handler();
     return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeSkillServiceListGroupSkillsReply(handler: () => Promise<SkillItems> | SkillItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "SkillItems", payload: encodeValue(value.map((csilE): CborValue => toSkillCborValue(csilE))) };
   } catch (error) {
     if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
     throw error;
@@ -3723,6 +4068,16 @@ export async function encodeGroupServiceDeleteGroupReply(handler: () => Promise<
   }
 }
 
+export async function encodeGroupServiceListGroupsReply(handler: () => Promise<GroupItems> | GroupItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "GroupItems", payload: encodeValue(value.map((csilE): CborValue => toGroupCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
 export async function encodeGroupServiceAddGroupMemberReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
   try {
     const value = await handler();
@@ -3737,6 +4092,16 @@ export async function encodeGroupServiceRemoveGroupMemberReply(handler: () => Pr
   try {
     const value = await handler();
     return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeGroupServiceListGroupMembersReply(handler: () => Promise<MemberItems> | MemberItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "MemberItems", payload: encodeValue(value.map((csilE): CborValue => toMemberCborValue(csilE))) };
   } catch (error) {
     if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
     throw error;
@@ -3833,6 +4198,16 @@ export async function encodeProjectServiceSetProjectTaskPositionReply(handler: (
   }
 }
 
+export async function encodeProjectServiceListProjectMembersReply(handler: () => Promise<MemberItems> | MemberItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "MemberItems", payload: encodeValue(value.map((csilE): CborValue => toMemberCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
 export async function encodeProjectServiceAddProjectMemberReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
   try {
     const value = await handler();
@@ -3853,6 +4228,16 @@ export async function encodeProjectServiceRemoveProjectMemberReply(handler: () =
   }
 }
 
+export async function encodeProjectServiceListProjectOwnersReply(handler: () => Promise<MemberItems> | MemberItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "MemberItems", payload: encodeValue(value.map((csilE): CborValue => toMemberCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
 export async function encodeProjectServiceAddProjectOwnerReply(handler: () => Promise<EmptyResponse> | EmptyResponse): Promise<RpcReply> {
   try {
     const value = await handler();
@@ -3867,6 +4252,16 @@ export async function encodeProjectServiceRemoveProjectOwnerReply(handler: () =>
   try {
     const value = await handler();
     return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceListMilestonesReply(handler: () => Promise<MilestoneItems> | MilestoneItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "MilestoneItems", payload: encodeValue(value.map((csilE): CborValue => toMilestoneCborValue(csilE))) };
   } catch (error) {
     if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
     throw error;
@@ -3907,6 +4302,16 @@ export async function encodeProjectServiceSetProjectVisibilityReply(handler: () 
   try {
     const value = await handler();
     return { variant: "Project", payload: encodeValue(toProjectCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeProjectServiceListProjectGrantsReply(handler: () => Promise<GrantItems> | GrantItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "GrantItems", payload: encodeValue(value.map((csilE): CborValue => toGrantCborValue(csilE))) };
   } catch (error) {
     if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
     throw error;
@@ -3983,6 +4388,16 @@ export async function encodeEventServiceDeleteEventAndFutureReply(handler: () =>
   }
 }
 
+export async function encodeEventServiceListEventsReply(handler: () => Promise<EventItems> | EventItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EventItems", payload: encodeValue(value.map((csilE): CborValue => toEventCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
 export async function encodeEventServiceGetCalendarViewReply(handler: () => Promise<CalendarView> | CalendarView): Promise<RpcReply> {
   try {
     const value = await handler();
@@ -4027,6 +4442,16 @@ export async function encodeEventServiceDeclineEventReply(handler: () => Promise
   try {
     const value = await handler();
     return { variant: "Event", payload: encodeValue(toEventCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeEventServiceListLocalEventsReply(handler: () => Promise<EventItems> | EventItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "EventItems", payload: encodeValue(value.map((csilE): CborValue => toEventCborValue(csilE))) };
   } catch (error) {
     if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
     throw error;
@@ -4087,6 +4512,26 @@ export async function encodeCalendarServiceDisconnectReply(handler: () => Promis
   try {
     const value = await handler();
     return { variant: "EmptyResponse", payload: encodeValue(toEmptyResponseCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCalendarServicePreviewMigrationReply(handler: () => Promise<CalendarMigrationRowItems> | CalendarMigrationRowItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CalendarMigrationRowItems", payload: encodeValue(value.map((csilE): CborValue => toCalendarMigrationRowCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeCalendarServiceListTrashReply(handler: () => Promise<CalendarTrashEntryItems> | CalendarTrashEntryItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CalendarTrashEntryItems", payload: encodeValue(value.map((csilE): CborValue => toCalendarTrashEntryCborValue(csilE))) };
   } catch (error) {
     if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
     throw error;
@@ -4167,6 +4612,16 @@ export async function encodeTaskServiceSetTaskVisibilityReply(handler: () => Pro
   try {
     const value = await handler();
     return { variant: "Task", payload: encodeValue(toTaskCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeTaskServiceListTaskGrantsReply(handler: () => Promise<GrantItems> | GrantItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "GrantItems", payload: encodeValue(value.map((csilE): CborValue => toGrantCborValue(csilE))) };
   } catch (error) {
     if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
     throw error;
@@ -4263,6 +4718,26 @@ export async function encodeCommentServiceDeleteCommentReply(handler: () => Prom
   }
 }
 
+export async function encodeCommentServiceListCommentsReply(handler: () => Promise<CommentItems> | CommentItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "CommentItems", payload: encodeValue(value.map((csilE): CborValue => toCommentCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeNotificationServiceListNotificationsReply(handler: () => Promise<NotificationItems> | NotificationItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "NotificationItems", payload: encodeValue(value.map((csilE): CborValue => toNotificationCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
 export async function encodeNotificationServiceUnreadCountReply(handler: () => Promise<NotificationUnreadCount> | NotificationUnreadCount): Promise<RpcReply> {
   try {
     const value = await handler();
@@ -4313,10 +4788,30 @@ export async function encodeShareServiceDeleteShareReply(handler: () => Promise<
   }
 }
 
+export async function encodeShareServiceListSharesByResourceReply(handler: () => Promise<ShareItems> | ShareItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "ShareItems", payload: encodeValue(value.map((csilE): CborValue => toShareCborValue(csilE))) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
 export async function encodeShareServiceCheckAccessReply(handler: () => Promise<Share> | Share): Promise<RpcReply> {
   try {
     const value = await handler();
     return { variant: "Share", payload: encodeValue(toShareCborValue(value)) };
+  } catch (error) {
+    if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
+    throw error;
+  }
+}
+
+export async function encodeMemberAuditServiceListAuditsForMemberReply(handler: () => Promise<MemberAuditItems> | MemberAuditItems): Promise<RpcReply> {
+  try {
+    const value = await handler();
+    return { variant: "MemberAuditItems", payload: encodeValue(value.map((csilE): CborValue => toMemberAuditCborValue(csilE))) };
   } catch (error) {
     if (error instanceof ServiceErrorRefusal) return { variant: "ServiceError", payload: encodeValue(toServiceErrorCborValue(error.value)) };
     throw error;
@@ -4562,6 +5057,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
   }
+  if (service === "HouseService" && op === "list-houses") {
+    switch (variant) {
+      case "HouseItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
   if (service === "MemberService" && op === "create-member") {
     switch (variant) {
       case "Member": return payload;
@@ -4604,6 +5106,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
   }
+  if (service === "MemberService" && op === "list-members") {
+    switch (variant) {
+      case "MemberItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
   if (service === "TrustedDomainService" && op === "add-trusted-domain") {
     switch (variant) {
       case "TrustedDomain": return payload;
@@ -4614,6 +5123,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
   if (service === "TrustedDomainService" && op === "remove-trusted-domain") {
     switch (variant) {
       case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TrustedDomainService" && op === "list-trusted-domains") {
+    switch (variant) {
+      case "TrustedDomainItems": return payload;
       case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
@@ -4646,6 +5162,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
   }
+  if (service === "RoleService" && op === "list-roles") {
+    switch (variant) {
+      case "RoleItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
   if (service === "RoleService" && op === "grant-role") {
     switch (variant) {
       case "EmptyResponse": return payload;
@@ -4656,6 +5179,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
   if (service === "RoleService" && op === "revoke-role") {
     switch (variant) {
       case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "RoleService" && op === "list-member-roles") {
+    switch (variant) {
+      case "RoleItems": return payload;
       case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
@@ -4681,6 +5211,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
   }
+  if (service === "SkillService" && op === "list-skills") {
+    switch (variant) {
+      case "SkillItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
   if (service === "SkillService" && op === "add-member-skill") {
     switch (variant) {
       case "EmptyResponse": return payload;
@@ -4695,6 +5232,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
   }
+  if (service === "SkillService" && op === "list-member-skills") {
+    switch (variant) {
+      case "SkillItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
   if (service === "SkillService" && op === "add-group-skill") {
     switch (variant) {
       case "EmptyResponse": return payload;
@@ -4705,6 +5249,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
   if (service === "SkillService" && op === "remove-group-skill") {
     switch (variant) {
       case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "SkillService" && op === "list-group-skills") {
+    switch (variant) {
+      case "SkillItems": return payload;
       case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
@@ -4730,6 +5281,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
   }
+  if (service === "GroupService" && op === "list-groups") {
+    switch (variant) {
+      case "GroupItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
   if (service === "GroupService" && op === "add-group-member") {
     switch (variant) {
       case "EmptyResponse": return payload;
@@ -4740,6 +5298,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
   if (service === "GroupService" && op === "remove-group-member") {
     switch (variant) {
       case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "GroupService" && op === "list-group-members") {
+    switch (variant) {
+      case "MemberItems": return payload;
       case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
@@ -4807,6 +5372,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
   }
+  if (service === "ProjectService" && op === "list-project-members") {
+    switch (variant) {
+      case "MemberItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
   if (service === "ProjectService" && op === "add-project-member") {
     switch (variant) {
       case "EmptyResponse": return payload;
@@ -4821,6 +5393,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
   }
+  if (service === "ProjectService" && op === "list-project-owners") {
+    switch (variant) {
+      case "MemberItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
   if (service === "ProjectService" && op === "add-project-owner") {
     switch (variant) {
       case "EmptyResponse": return payload;
@@ -4831,6 +5410,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
   if (service === "ProjectService" && op === "remove-project-owner") {
     switch (variant) {
       case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "list-milestones") {
+    switch (variant) {
+      case "MilestoneItems": return payload;
       case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
@@ -4859,6 +5445,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
   if (service === "ProjectService" && op === "set-project-visibility") {
     switch (variant) {
       case "Project": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "ProjectService" && op === "list-project-grants") {
+    switch (variant) {
+      case "GrantItems": return payload;
       case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
@@ -4912,6 +5505,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
   }
+  if (service === "EventService" && op === "list-events") {
+    switch (variant) {
+      case "EventItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
   if (service === "EventService" && op === "get-calendar-view") {
     switch (variant) {
       case "CalendarView": return payload;
@@ -4943,6 +5543,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
   if (service === "EventService" && op === "decline-event") {
     switch (variant) {
       case "Event": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "EventService" && op === "list-local-events") {
+    switch (variant) {
+      case "EventItems": return payload;
       case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
@@ -4985,6 +5592,20 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
   if (service === "CalendarService" && op === "disconnect") {
     switch (variant) {
       case "EmptyResponse": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CalendarService" && op === "preview-migration") {
+    switch (variant) {
+      case "CalendarMigrationRowItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "CalendarService" && op === "list-trash") {
+    switch (variant) {
+      case "CalendarTrashEntryItems": return payload;
       case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
@@ -5041,6 +5662,13 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
   if (service === "TaskService" && op === "set-task-visibility") {
     switch (variant) {
       case "Task": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "TaskService" && op === "list-task-grants") {
+    switch (variant) {
+      case "GrantItems": return payload;
       case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
@@ -5108,6 +5736,20 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
   }
+  if (service === "CommentService" && op === "list-comments") {
+    switch (variant) {
+      case "CommentItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "NotificationService" && op === "list-notifications") {
+    switch (variant) {
+      case "NotificationItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
   if (service === "NotificationService" && op === "unread-count") {
     switch (variant) {
       case "NotificationUnreadCount": return payload;
@@ -5143,9 +5785,23 @@ export function resolveRpcReply(service: string, op: string, variant: string | n
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }
   }
+  if (service === "ShareService" && op === "list-shares-by-resource") {
+    switch (variant) {
+      case "ShareItems": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
   if (service === "ShareService" && op === "check-access") {
     switch (variant) {
       case "Share": return payload;
+      case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
+      default: throw new Error(`invalid RPC reply variant ${variant}`);
+    }
+  }
+  if (service === "MemberAuditService" && op === "list-audits-for-member") {
+    switch (variant) {
+      case "MemberAuditItems": return payload;
       case "ServiceError": { const tree = decode(payload); throw new ServiceErrorRefusal(fromServiceErrorCborValue(tree)); }
       default: throw new Error(`invalid RPC reply variant ${variant}`);
     }

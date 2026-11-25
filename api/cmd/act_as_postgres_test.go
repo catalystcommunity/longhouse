@@ -5,11 +5,11 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"github.com/catalystcommunity/csilgen/transports/go"
 	"github.com/catalystcommunity/longhouse/api/internal/actas"
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
 	"github.com/catalystcommunity/longhouse/api/internal/csilrpc"
 	"github.com/catalystcommunity/longhouse/api/internal/csilservices"
-	"github.com/catalystcommunity/longhouse/api/internal/transport"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -115,13 +115,13 @@ func TestActAs_Postgres_DelegatedTasksProjectsAndRevocation(t *testing.T) {
 			t.Fatalf("RPC failed: %+v", r)
 		}
 	}
-	exchanged := call("AuthService", "exchange-act-as-credential", csil.EncodeExchangeActAsCredentialRequest(csil.ExchangeActAsCredentialRequest{Credential: []byte{1}}), "")
+	exchanged := call("AuthService", "exchange-act-as-credential", encodeTestPayload(t, csil.EncodeExchangeActAsCredentialRequest, csil.ExchangeActAsCredentialRequest{Credential: []byte{1}}), "")
 	requireOK(exchanged)
 	session, err := csil.DecodeActAsTokenResponse(exchanged.Payload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	projectResponse := call("ProjectService", "create-project", csil.EncodeProject(csil.Project{HouseId: csil.HouseID(house), Name: "Delegated project"}), session.Token)
+	projectResponse := call("ProjectService", "create-project", encodeTestPayload(t, csil.EncodeProject, csil.Project{HouseId: csil.HouseID(house), Name: "Delegated project"}), session.Token)
 	requireOK(projectResponse)
 	project, err := csil.DecodeProject(projectResponse.Payload)
 	if err != nil {
@@ -130,7 +130,7 @@ func TestActAs_Postgres_DelegatedTasksProjectsAndRevocation(t *testing.T) {
 	if project.ProjectId == "" {
 		t.Fatal("missing project")
 	}
-	taskResponse := call("TaskService", "create-personal-task", csil.EncodeTask(csil.Task{HouseId: csil.HouseID(house), Title: "Delegated task"}), session.Token)
+	taskResponse := call("TaskService", "create-personal-task", encodeTestPayload(t, csil.EncodeTask, csil.Task{HouseId: csil.HouseID(house), Title: "Delegated task"}), session.Token)
 	requireOK(taskResponse)
 	task, err := csil.DecodeTask(taskResponse.Payload)
 	if err != nil {
@@ -144,13 +144,13 @@ func TestActAs_Postgres_DelegatedTasksProjectsAndRevocation(t *testing.T) {
 		t.Fatalf("task not attributed to principal: %+v", saved)
 	}
 	// Full scope does not grant the user's missing administrator role.
-	denied := call("HouseService", "delete-house", csil.EncodeHouseDeleteHouseRequest(csil.HouseID(house)), session.Token)
+	denied := call("HouseService", "delete-house", encodeTestPayload(t, csil.EncodeHouseDeleteHouseRequest, csil.HouseID(house)), session.Token)
 	failure, err := csil.DecodeServiceError(denied.Payload)
 	if err != nil || failure.Code != 403 {
 		t.Fatalf("role escalation: %+v %v", failure, err)
 	}
 	provider.revoked = true
-	denied = call("ProjectService", "create-project", csil.EncodeProject(csil.Project{HouseId: csil.HouseID(house), Name: "Must not exist"}), session.Token)
+	denied = call("ProjectService", "create-project", encodeTestPayload(t, csil.EncodeProject, csil.Project{HouseId: csil.HouseID(house), Name: "Must not exist"}), session.Token)
 	failure, err = csil.DecodeServiceError(denied.Payload)
 	if err != nil || failure.Code != 401 {
 		t.Fatalf("revoked bearer accepted: %+v %v", failure, err)

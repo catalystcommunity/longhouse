@@ -136,7 +136,10 @@ func TestListEventsRejectsInvalidRange(t *testing.T) {
 func TestListEventsRangeAndLegacyPaging(t *testing.T) {
 	// Old clients send the same house_id, limit, and offset map fields.
 	limit, offset := uint64(1000), uint64(500)
-	raw := csil.EncodeHouseScopedListRequest(csil.HouseScopedListRequest{HouseId: "house-1", Limit: &limit, Offset: &offset})
+	raw, err := csil.EncodeHouseScopedListRequest(csil.HouseScopedListRequest{HouseId: "house-1", Limit: &limit, Offset: &offset})
+	if err != nil {
+		t.Fatal(err)
+	}
 	req, err := csil.DecodeEventListRequest(raw)
 	if err != nil {
 		t.Fatal(err)

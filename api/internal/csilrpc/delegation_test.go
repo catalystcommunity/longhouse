@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/catalystcommunity/csilgen/transports/go"
 	"github.com/catalystcommunity/longhouse/api/internal/auth"
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
-	"github.com/catalystcommunity/longhouse/api/internal/transport"
 )
 
 func TestDelegatedDispatcher(t *testing.T) {
@@ -46,7 +46,11 @@ func TestDelegatedDispatcher(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			req := transport.NewRpcRequest(tc.service, tc.op, csil.EncodeEmptyRequest(csil.EmptyRequest{}))
+			payload, err := csil.EncodeEmptyRequest(csil.EmptyRequest{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			req := transport.NewRpcRequest(tc.service, tc.op, payload)
 			// Exercise credentials in the envelope, too.
 			req.Auth = &token
 			resp := serveRPC(t, d, req, "")

@@ -14,10 +14,12 @@ public final class SettingsClient {
     }
 
     public EffectiveSettings getSettings(HouseId req) throws ClientException {
-        return CsilCbor.decodeEffectiveSettings(transport.call("SettingsService", "get-settings", CsilCbor.encodeSettingsGetSettingsRequest(req)));
+        WireReply reply = transport.callReply("SettingsService", "get-settings", CsilCbor.encodeSettingsGetSettingsRequest(req));
+        return CsilCbor.decodeEffectiveSettings(CsilCbor.resolveRpcReply("SettingsService", "get-settings", reply.variant(), reply.payload()));
     }
 
     public EffectiveSettings updateSettings(UpdateSettingsRequest req) throws ClientException {
-        return CsilCbor.decodeEffectiveSettings(transport.call("SettingsService", "update-settings", CsilCbor.encodeUpdateSettingsRequest(req)));
+        WireReply reply = transport.callReply("SettingsService", "update-settings", CsilCbor.encodeUpdateSettingsRequest(req));
+        return CsilCbor.decodeEffectiveSettings(CsilCbor.resolveRpcReply("SettingsService", "update-settings", reply.variant(), reply.payload()));
     }
 }

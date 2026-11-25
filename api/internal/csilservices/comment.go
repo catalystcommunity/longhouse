@@ -39,7 +39,7 @@ func (s *CommentService) Register(d *csilrpc.Dispatcher) {
 	d.RegisterTyped("comment", "DeleteComment", csilrpc.Route(s.DeleteComment, csil.DecodeCommentDeleteCommentRequest, csil.EncodeEmptyResponse))
 }
 
-func (s *CommentService) ListComments(ctx context.Context, req csil.CommentListRequest) ([]csil.Comment, error) {
+func (s *CommentService) ListComments(ctx context.Context, req csil.CommentListRequest) (csil.CommentItems, error) {
 	targetType, err := targetTypeStr(req.TargetType)
 	if err != nil {
 		return nil, err

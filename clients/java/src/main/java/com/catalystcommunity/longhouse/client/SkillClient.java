@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the SkillService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -16,42 +14,52 @@ public final class SkillClient {
     }
 
     public Skill createSkill(Skill req) throws ClientException {
-        return CsilCbor.decodeSkill(transport.call("SkillService", "create-skill", CsilCbor.encodeSkill(req)));
+        WireReply reply = transport.callReply("SkillService", "create-skill", CsilCbor.encodeSkill(req));
+        return CsilCbor.decodeSkill(CsilCbor.resolveRpcReply("SkillService", "create-skill", reply.variant(), reply.payload()));
     }
 
     public Skill updateSkill(Skill req) throws ClientException {
-        return CsilCbor.decodeSkill(transport.call("SkillService", "update-skill", CsilCbor.encodeSkill(req)));
+        WireReply reply = transport.callReply("SkillService", "update-skill", CsilCbor.encodeSkill(req));
+        return CsilCbor.decodeSkill(CsilCbor.resolveRpcReply("SkillService", "update-skill", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deleteSkill(SkillId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("SkillService", "delete-skill", CsilCbor.encodeSkillDeleteSkillRequest(req)));
+        WireReply reply = transport.callReply("SkillService", "delete-skill", CsilCbor.encodeSkillDeleteSkillRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("SkillService", "delete-skill", reply.variant(), reply.payload()));
     }
 
-    public List<Skill> listSkills(HouseScopedListRequest req) throws ClientException {
-        return CsilCbor.decodeSkillListSkillsResponse(transport.call("SkillService", "list-skills", CsilCbor.encodeHouseScopedListRequest(req)));
+    public SkillItems listSkills(HouseScopedListRequest req) throws ClientException {
+        WireReply reply = transport.callReply("SkillService", "list-skills", CsilCbor.encodeHouseScopedListRequest(req));
+        return CsilCbor.decodeSkillListSkillsResponse(CsilCbor.resolveRpcReply("SkillService", "list-skills", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse addMemberSkill(MemberSkillRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("SkillService", "add-member-skill", CsilCbor.encodeMemberSkillRef(req)));
+        WireReply reply = transport.callReply("SkillService", "add-member-skill", CsilCbor.encodeMemberSkillRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("SkillService", "add-member-skill", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse removeMemberSkill(MemberSkillRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("SkillService", "remove-member-skill", CsilCbor.encodeMemberSkillRef(req)));
+        WireReply reply = transport.callReply("SkillService", "remove-member-skill", CsilCbor.encodeMemberSkillRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("SkillService", "remove-member-skill", reply.variant(), reply.payload()));
     }
 
-    public List<Skill> listMemberSkills(MemberScopedListRequest req) throws ClientException {
-        return CsilCbor.decodeSkillListMemberSkillsResponse(transport.call("SkillService", "list-member-skills", CsilCbor.encodeMemberScopedListRequest(req)));
+    public SkillItems listMemberSkills(MemberScopedListRequest req) throws ClientException {
+        WireReply reply = transport.callReply("SkillService", "list-member-skills", CsilCbor.encodeMemberScopedListRequest(req));
+        return CsilCbor.decodeSkillListMemberSkillsResponse(CsilCbor.resolveRpcReply("SkillService", "list-member-skills", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse addGroupSkill(GroupSkillRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("SkillService", "add-group-skill", CsilCbor.encodeGroupSkillRef(req)));
+        WireReply reply = transport.callReply("SkillService", "add-group-skill", CsilCbor.encodeGroupSkillRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("SkillService", "add-group-skill", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse removeGroupSkill(GroupSkillRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("SkillService", "remove-group-skill", CsilCbor.encodeGroupSkillRef(req)));
+        WireReply reply = transport.callReply("SkillService", "remove-group-skill", CsilCbor.encodeGroupSkillRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("SkillService", "remove-group-skill", reply.variant(), reply.payload()));
     }
 
-    public List<Skill> listGroupSkills(GroupId req) throws ClientException {
-        return CsilCbor.decodeSkillListGroupSkillsResponse(transport.call("SkillService", "list-group-skills", CsilCbor.encodeSkillListGroupSkillsRequest(req)));
+    public SkillItems listGroupSkills(GroupId req) throws ClientException {
+        WireReply reply = transport.callReply("SkillService", "list-group-skills", CsilCbor.encodeSkillListGroupSkillsRequest(req));
+        return CsilCbor.decodeSkillListGroupSkillsResponse(CsilCbor.resolveRpcReply("SkillService", "list-group-skills", reply.variant(), reply.payload()));
     }
 }

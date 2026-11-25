@@ -26,7 +26,7 @@ func (s *MemberService) Register(d *csilrpc.Dispatcher) {
 	d.RegisterTyped("member", "ReactivateMember", csilrpc.Route(s.ReactivateMember, csil.DecodeMemberReactivateMemberRequest, csil.EncodeEmptyResponse))
 }
 
-func (s *MemberService) ListMembers(ctx context.Context, req csil.HouseScopedListRequest) ([]csil.Member, error) {
+func (s *MemberService) ListMembers(ctx context.Context, req csil.HouseScopedListRequest) (csil.MemberItems, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}

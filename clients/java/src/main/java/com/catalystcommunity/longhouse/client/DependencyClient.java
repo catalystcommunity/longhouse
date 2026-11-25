@@ -14,14 +14,17 @@ public final class DependencyClient {
     }
 
     public EmptyResponse addDependency(DependencyRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("DependencyService", "add-dependency", CsilCbor.encodeDependencyRef(req)));
+        WireReply reply = transport.callReply("DependencyService", "add-dependency", CsilCbor.encodeDependencyRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("DependencyService", "add-dependency", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse removeDependency(DependencyRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("DependencyService", "remove-dependency", CsilCbor.encodeDependencyRef(req)));
+        WireReply reply = transport.callReply("DependencyService", "remove-dependency", CsilCbor.encodeDependencyRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("DependencyService", "remove-dependency", reply.variant(), reply.payload()));
     }
 
     public DependencyGraph getDependencies(DependencyTarget req) throws ClientException {
-        return CsilCbor.decodeDependencyGraph(transport.call("DependencyService", "get-dependencies", CsilCbor.encodeDependencyTarget(req)));
+        WireReply reply = transport.callReply("DependencyService", "get-dependencies", CsilCbor.encodeDependencyTarget(req));
+        return CsilCbor.decodeDependencyGraph(CsilCbor.resolveRpcReply("DependencyService", "get-dependencies", reply.variant(), reply.payload()));
     }
 }

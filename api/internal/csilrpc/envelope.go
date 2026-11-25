@@ -24,10 +24,10 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/catalystcommunity/csilgen/transports/go"
 	"github.com/catalystcommunity/longhouse/api/internal/audit"
 	"github.com/catalystcommunity/longhouse/api/internal/auth"
 	"github.com/catalystcommunity/longhouse/api/internal/csil"
-	"github.com/catalystcommunity/longhouse/api/internal/transport"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -116,12 +116,15 @@ func (d *Dispatcher) ServeRPC(w http.ResponseWriter, r *http.Request) {
 		if errors.As(callErr, &serr) {
 			// Application error → the declared ServiceError output arm at status 0.
 			// Preserves the {code, message} contract the client already consumes.
-			d.writeRPC(w, id, transport.NewRpcResponseOk("ServiceError",
-				csil.EncodeServiceError(csil.ServiceError{
-					Code:    uint64(serr.Code),
-					Message: serr.Message,
-				})))
-			return
+			payload, err := csil.EncodeServiceError(csil.ServiceError{
+				Code:    uint64(serr.Code),
+				Message: serr.Message,
+			})
+			if err == nil {
+				d.writeRPC(w, id, transport.NewRpcResponseOk("ServiceError", payload))
+				return
+			}
+			callErr = err
 		}
 		// Unstructured error → a real transport-level internal failure. Log the
 		// detail; never leak it to the caller.
@@ -210,9 +213,7 @@ func methodFromOp(op string) string {
 
 // successVariant returns the CSIL output-arm name to put in a status-0 reply's
 // `variant`. Every longhouse op is `Req -> Res / ServiceError`, so a status-0
-// reply has multiple arms and MUST name the chosen one; the client only needs it
-// to tell the success arm from the "ServiceError" arm. Slices (the `[* T]` arms)
-// report their element type name; named structs report their own.
+// reply must name its selected arm. Named list types use the CSIL alias.
 func successVariant(resp any) string {
 	t := reflect.TypeOf(resp)
 	for t != nil && t.Kind() == reflect.Pointer {
@@ -221,13 +222,13 @@ func successVariant(resp any) string {
 	if t == nil {
 		return "EmptyResponse"
 	}
+	if name := t.Name(); name != "" {
+		return name
+	}
 	if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
 		if name := t.Elem().Name(); name != "" {
 			return name
 		}
-	}
-	if name := t.Name(); name != "" {
-		return name
 	}
 	return "Response"
 }

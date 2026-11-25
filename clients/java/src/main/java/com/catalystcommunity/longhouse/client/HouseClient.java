@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the HouseService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -16,22 +14,27 @@ public final class HouseClient {
     }
 
     public House createHouse(House req) throws ClientException {
-        return CsilCbor.decodeHouse(transport.call("HouseService", "create-house", CsilCbor.encodeHouse(req)));
+        WireReply reply = transport.callReply("HouseService", "create-house", CsilCbor.encodeHouse(req));
+        return CsilCbor.decodeHouse(CsilCbor.resolveRpcReply("HouseService", "create-house", reply.variant(), reply.payload()));
     }
 
     public House getHouse(HouseId req) throws ClientException {
-        return CsilCbor.decodeHouse(transport.call("HouseService", "get-house", CsilCbor.encodeHouseGetHouseRequest(req)));
+        WireReply reply = transport.callReply("HouseService", "get-house", CsilCbor.encodeHouseGetHouseRequest(req));
+        return CsilCbor.decodeHouse(CsilCbor.resolveRpcReply("HouseService", "get-house", reply.variant(), reply.payload()));
     }
 
     public House updateHouse(House req) throws ClientException {
-        return CsilCbor.decodeHouse(transport.call("HouseService", "update-house", CsilCbor.encodeHouse(req)));
+        WireReply reply = transport.callReply("HouseService", "update-house", CsilCbor.encodeHouse(req));
+        return CsilCbor.decodeHouse(CsilCbor.resolveRpcReply("HouseService", "update-house", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deleteHouse(HouseId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("HouseService", "delete-house", CsilCbor.encodeHouseDeleteHouseRequest(req)));
+        WireReply reply = transport.callReply("HouseService", "delete-house", CsilCbor.encodeHouseDeleteHouseRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("HouseService", "delete-house", reply.variant(), reply.payload()));
     }
 
-    public List<House> listHouses(HouseListRequest req) throws ClientException {
-        return CsilCbor.decodeHouseListHousesResponse(transport.call("HouseService", "list-houses", CsilCbor.encodeHouseListRequest(req)));
+    public HouseItems listHouses(HouseListRequest req) throws ClientException {
+        WireReply reply = transport.callReply("HouseService", "list-houses", CsilCbor.encodeHouseListRequest(req));
+        return CsilCbor.decodeHouseListHousesResponse(CsilCbor.resolveRpcReply("HouseService", "list-houses", reply.variant(), reply.payload()));
     }
 }

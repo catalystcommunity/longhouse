@@ -5,7 +5,8 @@ go 1.26.4
 require (
 	charm.land/huh/v2 v2.0.3
 	github.com/catalystcommunity/catalystcal/clients/go v0.3.2
-	github.com/catalystcommunity/linkkeys/sdks/regular-rp/go v0.0.0-20261111162043-3227a58c78a7
+	github.com/catalystcommunity/csilgen/transports/go v0.0.0-20261125171933-73ba5ac55f74 // csilgen/v0.3.3
+	github.com/catalystcommunity/linkkeys/sdks/regular-rp/go v0.0.0-20261125192355-e7cfb3d61d89 // linkkeys/v0.16.11
 	github.com/catalystcommunity/longhouse/clients/go v0.0.0-00010101000000-000000000000
 	github.com/catalystcommunity/longhouse/coredb v0.0.0-00010101000000-000000000000
 	github.com/fxamacker/cbor/v2 v2.9.2
@@ -22,7 +23,6 @@ require (
 	charm.land/bubbletea/v2 v2.0.2 // indirect
 	charm.land/lipgloss/v2 v2.0.1 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
-	github.com/catalystcommunity/csilgen/transports/go v0.0.0-20260713013116-a661c8727022 // indirect
 	github.com/catppuccin/go v0.2.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.2 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260205113103-524a6607adb8 // indirect

@@ -188,6 +188,21 @@ typedef struct ActAsScopeSetRequest ActAsScopeSetRequest;
 typedef struct ActAsScopeSetResponse ActAsScopeSetResponse;
 typedef struct ExchangeActAsCredentialRequest ExchangeActAsCredentialRequest;
 typedef struct ActAsTokenResponse ActAsTokenResponse;
+typedef struct CalendarMigrationRowItems CalendarMigrationRowItems;
+typedef struct CalendarTrashEntryItems CalendarTrashEntryItems;
+typedef struct CommentItems CommentItems;
+typedef struct EventItems EventItems;
+typedef struct GrantItems GrantItems;
+typedef struct GroupItems GroupItems;
+typedef struct HouseItems HouseItems;
+typedef struct MemberItems MemberItems;
+typedef struct MemberAuditItems MemberAuditItems;
+typedef struct MilestoneItems MilestoneItems;
+typedef struct NotificationItems NotificationItems;
+typedef struct RoleItems RoleItems;
+typedef struct ShareItems ShareItems;
+typedef struct SkillItems SkillItems;
+typedef struct TrustedDomainItems TrustedDomainItems;
 typedef struct CalendarSubscription CalendarSubscription;
 typedef struct CalendarView CalendarView;
 typedef struct EventDecision EventDecision;
@@ -1005,6 +1020,96 @@ typedef struct ActAsTokenResponse {
     size_t scopes_count;
 } ActAsTokenResponse;
 
+/* CalendarMigrationRowItems is a named list alias. */
+typedef struct CalendarMigrationRowItems {
+    CalendarMigrationRow *items;
+    size_t count;
+} CalendarMigrationRowItems;
+
+/* CalendarTrashEntryItems is a named list alias. */
+typedef struct CalendarTrashEntryItems {
+    CalendarTrashEntry *items;
+    size_t count;
+} CalendarTrashEntryItems;
+
+/* CommentItems is a named list alias. */
+typedef struct CommentItems {
+    Comment *items;
+    size_t count;
+} CommentItems;
+
+/* EventItems is a named list alias. */
+typedef struct EventItems {
+    Event *items;
+    size_t count;
+} EventItems;
+
+/* GrantItems is a named list alias. */
+typedef struct GrantItems {
+    Grant *items;
+    size_t count;
+} GrantItems;
+
+/* GroupItems is a named list alias. */
+typedef struct GroupItems {
+    Group *items;
+    size_t count;
+} GroupItems;
+
+/* HouseItems is a named list alias. */
+typedef struct HouseItems {
+    House *items;
+    size_t count;
+} HouseItems;
+
+/* MemberItems is a named list alias. */
+typedef struct MemberItems {
+    Member *items;
+    size_t count;
+} MemberItems;
+
+/* MemberAuditItems is a named list alias. */
+typedef struct MemberAuditItems {
+    MemberAudit *items;
+    size_t count;
+} MemberAuditItems;
+
+/* MilestoneItems is a named list alias. */
+typedef struct MilestoneItems {
+    Milestone *items;
+    size_t count;
+} MilestoneItems;
+
+/* NotificationItems is a named list alias. */
+typedef struct NotificationItems {
+    Notification *items;
+    size_t count;
+} NotificationItems;
+
+/* RoleItems is a named list alias. */
+typedef struct RoleItems {
+    Role *items;
+    size_t count;
+} RoleItems;
+
+/* ShareItems is a named list alias. */
+typedef struct ShareItems {
+    Share *items;
+    size_t count;
+} ShareItems;
+
+/* SkillItems is a named list alias. */
+typedef struct SkillItems {
+    Skill *items;
+    size_t count;
+} SkillItems;
+
+/* TrustedDomainItems is a named list alias. */
+typedef struct TrustedDomainItems {
+    TrustedDomain *items;
+    size_t count;
+} TrustedDomainItems;
+
 /* CalendarSubscription is a structured data type. */
 typedef struct CalendarSubscription {
     MemberID subject_member_id;
@@ -1435,6 +1540,17 @@ typedef struct HouseServiceDeleteHouseReply {
     } value;
 } HouseServiceDeleteHouseReply;
 
+typedef struct HouseServiceListHousesReply {
+    enum {
+        HouseServiceListHousesReply_as_house_items,
+        HouseServiceListHousesReply_as_service_error,
+    } kind;
+    union {
+        HouseItems as_house_items;
+        ServiceError as_service_error;
+    } value;
+} HouseServiceListHousesReply;
+
 typedef struct MemberServiceCreateMemberReply {
     enum {
         MemberServiceCreateMemberReply_as_member,
@@ -1501,6 +1617,17 @@ typedef struct MemberServiceReactivateMemberReply {
     } value;
 } MemberServiceReactivateMemberReply;
 
+typedef struct MemberServiceListMembersReply {
+    enum {
+        MemberServiceListMembersReply_as_member_items,
+        MemberServiceListMembersReply_as_service_error,
+    } kind;
+    union {
+        MemberItems as_member_items;
+        ServiceError as_service_error;
+    } value;
+} MemberServiceListMembersReply;
+
 typedef struct TrustedDomainServiceAddTrustedDomainReply {
     enum {
         TrustedDomainServiceAddTrustedDomainReply_as_trusted_domain,
@@ -1522,6 +1649,17 @@ typedef struct TrustedDomainServiceRemoveTrustedDomainReply {
         ServiceError as_service_error;
     } value;
 } TrustedDomainServiceRemoveTrustedDomainReply;
+
+typedef struct TrustedDomainServiceListTrustedDomainsReply {
+    enum {
+        TrustedDomainServiceListTrustedDomainsReply_as_trusted_domain_items,
+        TrustedDomainServiceListTrustedDomainsReply_as_service_error,
+    } kind;
+    union {
+        TrustedDomainItems as_trusted_domain_items;
+        ServiceError as_service_error;
+    } value;
+} TrustedDomainServiceListTrustedDomainsReply;
 
 typedef struct TrustedDomainServiceIsDomainTrustedReply {
     enum {
@@ -1567,6 +1705,17 @@ typedef struct RoleServiceDeleteRoleReply {
     } value;
 } RoleServiceDeleteRoleReply;
 
+typedef struct RoleServiceListRolesReply {
+    enum {
+        RoleServiceListRolesReply_as_role_items,
+        RoleServiceListRolesReply_as_service_error,
+    } kind;
+    union {
+        RoleItems as_role_items;
+        ServiceError as_service_error;
+    } value;
+} RoleServiceListRolesReply;
+
 typedef struct RoleServiceGrantRoleReply {
     enum {
         RoleServiceGrantRoleReply_as_empty_response,
@@ -1588,6 +1737,17 @@ typedef struct RoleServiceRevokeRoleReply {
         ServiceError as_service_error;
     } value;
 } RoleServiceRevokeRoleReply;
+
+typedef struct RoleServiceListMemberRolesReply {
+    enum {
+        RoleServiceListMemberRolesReply_as_role_items,
+        RoleServiceListMemberRolesReply_as_service_error,
+    } kind;
+    union {
+        RoleItems as_role_items;
+        ServiceError as_service_error;
+    } value;
+} RoleServiceListMemberRolesReply;
 
 typedef struct SkillServiceCreateSkillReply {
     enum {
@@ -1622,6 +1782,17 @@ typedef struct SkillServiceDeleteSkillReply {
     } value;
 } SkillServiceDeleteSkillReply;
 
+typedef struct SkillServiceListSkillsReply {
+    enum {
+        SkillServiceListSkillsReply_as_skill_items,
+        SkillServiceListSkillsReply_as_service_error,
+    } kind;
+    union {
+        SkillItems as_skill_items;
+        ServiceError as_service_error;
+    } value;
+} SkillServiceListSkillsReply;
+
 typedef struct SkillServiceAddMemberSkillReply {
     enum {
         SkillServiceAddMemberSkillReply_as_empty_response,
@@ -1644,6 +1815,17 @@ typedef struct SkillServiceRemoveMemberSkillReply {
     } value;
 } SkillServiceRemoveMemberSkillReply;
 
+typedef struct SkillServiceListMemberSkillsReply {
+    enum {
+        SkillServiceListMemberSkillsReply_as_skill_items,
+        SkillServiceListMemberSkillsReply_as_service_error,
+    } kind;
+    union {
+        SkillItems as_skill_items;
+        ServiceError as_service_error;
+    } value;
+} SkillServiceListMemberSkillsReply;
+
 typedef struct SkillServiceAddGroupSkillReply {
     enum {
         SkillServiceAddGroupSkillReply_as_empty_response,
@@ -1665,6 +1847,17 @@ typedef struct SkillServiceRemoveGroupSkillReply {
         ServiceError as_service_error;
     } value;
 } SkillServiceRemoveGroupSkillReply;
+
+typedef struct SkillServiceListGroupSkillsReply {
+    enum {
+        SkillServiceListGroupSkillsReply_as_skill_items,
+        SkillServiceListGroupSkillsReply_as_service_error,
+    } kind;
+    union {
+        SkillItems as_skill_items;
+        ServiceError as_service_error;
+    } value;
+} SkillServiceListGroupSkillsReply;
 
 typedef struct GroupServiceCreateGroupReply {
     enum {
@@ -1699,6 +1892,17 @@ typedef struct GroupServiceDeleteGroupReply {
     } value;
 } GroupServiceDeleteGroupReply;
 
+typedef struct GroupServiceListGroupsReply {
+    enum {
+        GroupServiceListGroupsReply_as_group_items,
+        GroupServiceListGroupsReply_as_service_error,
+    } kind;
+    union {
+        GroupItems as_group_items;
+        ServiceError as_service_error;
+    } value;
+} GroupServiceListGroupsReply;
+
 typedef struct GroupServiceAddGroupMemberReply {
     enum {
         GroupServiceAddGroupMemberReply_as_empty_response,
@@ -1720,6 +1924,17 @@ typedef struct GroupServiceRemoveGroupMemberReply {
         ServiceError as_service_error;
     } value;
 } GroupServiceRemoveGroupMemberReply;
+
+typedef struct GroupServiceListGroupMembersReply {
+    enum {
+        GroupServiceListGroupMembersReply_as_member_items,
+        GroupServiceListGroupMembersReply_as_service_error,
+    } kind;
+    union {
+        MemberItems as_member_items;
+        ServiceError as_service_error;
+    } value;
+} GroupServiceListGroupMembersReply;
 
 typedef struct ProjectServiceCreateProjectReply {
     enum {
@@ -1820,6 +2035,17 @@ typedef struct ProjectServiceSetProjectTaskPositionReply {
     } value;
 } ProjectServiceSetProjectTaskPositionReply;
 
+typedef struct ProjectServiceListProjectMembersReply {
+    enum {
+        ProjectServiceListProjectMembersReply_as_member_items,
+        ProjectServiceListProjectMembersReply_as_service_error,
+    } kind;
+    union {
+        MemberItems as_member_items;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceListProjectMembersReply;
+
 typedef struct ProjectServiceAddProjectMemberReply {
     enum {
         ProjectServiceAddProjectMemberReply_as_empty_response,
@@ -1842,6 +2068,17 @@ typedef struct ProjectServiceRemoveProjectMemberReply {
     } value;
 } ProjectServiceRemoveProjectMemberReply;
 
+typedef struct ProjectServiceListProjectOwnersReply {
+    enum {
+        ProjectServiceListProjectOwnersReply_as_member_items,
+        ProjectServiceListProjectOwnersReply_as_service_error,
+    } kind;
+    union {
+        MemberItems as_member_items;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceListProjectOwnersReply;
+
 typedef struct ProjectServiceAddProjectOwnerReply {
     enum {
         ProjectServiceAddProjectOwnerReply_as_empty_response,
@@ -1863,6 +2100,17 @@ typedef struct ProjectServiceRemoveProjectOwnerReply {
         ServiceError as_service_error;
     } value;
 } ProjectServiceRemoveProjectOwnerReply;
+
+typedef struct ProjectServiceListMilestonesReply {
+    enum {
+        ProjectServiceListMilestonesReply_as_milestone_items,
+        ProjectServiceListMilestonesReply_as_service_error,
+    } kind;
+    union {
+        MilestoneItems as_milestone_items;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceListMilestonesReply;
 
 typedef struct ProjectServiceCreateMilestoneReply {
     enum {
@@ -1907,6 +2155,17 @@ typedef struct ProjectServiceSetProjectVisibilityReply {
         ServiceError as_service_error;
     } value;
 } ProjectServiceSetProjectVisibilityReply;
+
+typedef struct ProjectServiceListProjectGrantsReply {
+    enum {
+        ProjectServiceListProjectGrantsReply_as_grant_items,
+        ProjectServiceListProjectGrantsReply_as_service_error,
+    } kind;
+    union {
+        GrantItems as_grant_items;
+        ServiceError as_service_error;
+    } value;
+} ProjectServiceListProjectGrantsReply;
 
 typedef struct ProjectServicePutProjectGrantReply {
     enum {
@@ -1985,6 +2244,17 @@ typedef struct EventServiceDeleteEventAndFutureReply {
     } value;
 } EventServiceDeleteEventAndFutureReply;
 
+typedef struct EventServiceListEventsReply {
+    enum {
+        EventServiceListEventsReply_as_event_items,
+        EventServiceListEventsReply_as_service_error,
+    } kind;
+    union {
+        EventItems as_event_items;
+        ServiceError as_service_error;
+    } value;
+} EventServiceListEventsReply;
+
 typedef struct EventServiceGetCalendarViewReply {
     enum {
         EventServiceGetCalendarViewReply_as_calendar_view,
@@ -2039,6 +2309,17 @@ typedef struct EventServiceDeclineEventReply {
         ServiceError as_service_error;
     } value;
 } EventServiceDeclineEventReply;
+
+typedef struct EventServiceListLocalEventsReply {
+    enum {
+        EventServiceListLocalEventsReply_as_event_items,
+        EventServiceListLocalEventsReply_as_service_error,
+    } kind;
+    union {
+        EventItems as_event_items;
+        ServiceError as_service_error;
+    } value;
+} EventServiceListLocalEventsReply;
 
 typedef struct CalendarServiceListProjectDeadlinesReply {
     enum {
@@ -2105,6 +2386,28 @@ typedef struct CalendarServiceDisconnectReply {
         ServiceError as_service_error;
     } value;
 } CalendarServiceDisconnectReply;
+
+typedef struct CalendarServicePreviewMigrationReply {
+    enum {
+        CalendarServicePreviewMigrationReply_as_calendar_migration_row_items,
+        CalendarServicePreviewMigrationReply_as_service_error,
+    } kind;
+    union {
+        CalendarMigrationRowItems as_calendar_migration_row_items;
+        ServiceError as_service_error;
+    } value;
+} CalendarServicePreviewMigrationReply;
+
+typedef struct CalendarServiceListTrashReply {
+    enum {
+        CalendarServiceListTrashReply_as_calendar_trash_entry_items,
+        CalendarServiceListTrashReply_as_service_error,
+    } kind;
+    union {
+        CalendarTrashEntryItems as_calendar_trash_entry_items;
+        ServiceError as_service_error;
+    } value;
+} CalendarServiceListTrashReply;
 
 typedef struct CalendarServiceRestoreEventReply {
     enum {
@@ -2193,6 +2496,17 @@ typedef struct TaskServiceSetTaskVisibilityReply {
         ServiceError as_service_error;
     } value;
 } TaskServiceSetTaskVisibilityReply;
+
+typedef struct TaskServiceListTaskGrantsReply {
+    enum {
+        TaskServiceListTaskGrantsReply_as_grant_items,
+        TaskServiceListTaskGrantsReply_as_service_error,
+    } kind;
+    union {
+        GrantItems as_grant_items;
+        ServiceError as_service_error;
+    } value;
+} TaskServiceListTaskGrantsReply;
 
 typedef struct TaskServicePutTaskGrantReply {
     enum {
@@ -2293,6 +2607,28 @@ typedef struct CommentServiceDeleteCommentReply {
     } value;
 } CommentServiceDeleteCommentReply;
 
+typedef struct CommentServiceListCommentsReply {
+    enum {
+        CommentServiceListCommentsReply_as_comment_items,
+        CommentServiceListCommentsReply_as_service_error,
+    } kind;
+    union {
+        CommentItems as_comment_items;
+        ServiceError as_service_error;
+    } value;
+} CommentServiceListCommentsReply;
+
+typedef struct NotificationServiceListNotificationsReply {
+    enum {
+        NotificationServiceListNotificationsReply_as_notification_items,
+        NotificationServiceListNotificationsReply_as_service_error,
+    } kind;
+    union {
+        NotificationItems as_notification_items;
+        ServiceError as_service_error;
+    } value;
+} NotificationServiceListNotificationsReply;
+
 typedef struct NotificationServiceUnreadCountReply {
     enum {
         NotificationServiceUnreadCountReply_as_notification_unread_count,
@@ -2348,6 +2684,17 @@ typedef struct ShareServiceDeleteShareReply {
     } value;
 } ShareServiceDeleteShareReply;
 
+typedef struct ShareServiceListSharesByResourceReply {
+    enum {
+        ShareServiceListSharesByResourceReply_as_share_items,
+        ShareServiceListSharesByResourceReply_as_service_error,
+    } kind;
+    union {
+        ShareItems as_share_items;
+        ServiceError as_service_error;
+    } value;
+} ShareServiceListSharesByResourceReply;
+
 typedef struct ShareServiceCheckAccessReply {
     enum {
         ShareServiceCheckAccessReply_as_share,
@@ -2358,6 +2705,17 @@ typedef struct ShareServiceCheckAccessReply {
         ServiceError as_service_error;
     } value;
 } ShareServiceCheckAccessReply;
+
+typedef struct MemberAuditServiceListAuditsForMemberReply {
+    enum {
+        MemberAuditServiceListAuditsForMemberReply_as_member_audit_items,
+        MemberAuditServiceListAuditsForMemberReply_as_service_error,
+    } kind;
+    union {
+        MemberAuditItems as_member_audit_items;
+        ServiceError as_service_error;
+    } value;
+} MemberAuditServiceListAuditsForMemberReply;
 
 typedef struct SettingsServiceGetSettingsReply {
     enum {

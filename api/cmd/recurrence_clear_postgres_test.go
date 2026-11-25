@@ -21,7 +21,7 @@ func TestRecurrenceClear_Postgres_EventWire(t *testing.T) {
 	yes := true
 	event.ClearRecurrence = &yes
 	// Keep the previous schedule fields: the explicit clear must take priority.
-	request, err := csil.DecodeEvent(csil.EncodeEvent(event))
+	request, err := csil.DecodeEvent(encodeTestPayload(t, csil.EncodeEvent, event))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestRecurrenceClear_Postgres_TaskWire(t *testing.T) {
 	}
 	yes := true
 	task.ClearRecurrence = &yes
-	request, err := csil.DecodeTask(csil.EncodeTask(task))
+	request, err := csil.DecodeTask(encodeTestPayload(t, csil.EncodeTask, task))
 	if err != nil {
 		t.Fatal(err)
 	}

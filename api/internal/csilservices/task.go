@@ -488,7 +488,7 @@ func (s *TaskService) SetTaskVisibility(ctx context.Context, in csil.SetTaskVisi
 
 // listTaskGrants returns the task's explicit grants. Viewing the access list
 // is governance — requires full.
-func (s *TaskService) ListTaskGrants(ctx context.Context, id csil.TaskID) ([]csil.Grant, error) {
+func (s *TaskService) ListTaskGrants(ctx context.Context, id csil.TaskID) (csil.GrantItems, error) {
 	t, _, err := s.requireTaskFull(ctx, string(id))
 	if err != nil {
 		return nil, err

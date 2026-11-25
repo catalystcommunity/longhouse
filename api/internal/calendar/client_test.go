@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"errors"
-	wire "github.com/catalystcommunity/longhouse/api/internal/transport"
+	wire "github.com/catalystcommunity/csilgen/transports/go"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +20,9 @@ import (
 
 type callFunc func(context.Context, string, string, []byte) ([]byte, error)
 
+func (f callFunc) CallReply(ctx context.Context, s, o string, b []byte) (lk.WireReply, error) {
+	panic("unexpected multi-arm RPC: " + s + "/" + o)
+}
 func (f callFunc) Call(ctx context.Context, s, o string, b []byte) ([]byte, error) {
 	return f(ctx, s, o, b)
 }
@@ -112,12 +115,12 @@ func TestKeysArePrivateAndEnrollmentProvesEachKey(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if req.SubjectUserId != "owner" || req.Purpose != "add" || req.KeyUsage != "sign" || req.Algorithm != "ed25519" {
+			if req.SubjectUserId != "owner" || req.Purpose != lk.ApplicationKeyChallengePurposeAdd || req.KeyUsage != lk.KeyUsageSign || req.Algorithm != lk.KeyAlgorithmEd25519 {
 				t.Fatalf("wrong challenge %+v", req)
 			}
 			challenges++
 			challenge := []byte("unique challenge for key " + string(req.PublicKey))
-			return lk.EncodeStartApplicationKeyChallengeResponse(lk.StartApplicationKeyChallengeResponse{ChallengeId: "challenge", Challenge: &challenge, ExpiresAt: time.Now().Add(5 * time.Minute).UTC().Format(time.RFC3339)}), nil
+			return lk.EncodeStartApplicationKeyChallengeResponse(lk.StartApplicationKeyChallengeResponse{ChallengeId: "challenge", Challenge: &challenge, ExpiresAt: time.Now().Add(5 * time.Minute).UTC().Truncate(time.Second)})
 		case "enroll-application-instance":
 			if s != "Account" {
 				t.Fatal("enrollment is not account-authenticated")
@@ -145,7 +148,7 @@ func TestKeysArePrivateAndEnrollmentProvesEachKey(t *testing.T) {
 					t.Fatal("invalid possession proof")
 				}
 			}
-			return lk.EncodeEnrollApplicationInstanceResponse(lk.EnrollApplicationInstanceResponse{SubjectDomain: "example.test", SubjectUserId: "owner", ApplicationId: "longhouse", InstanceId: "test", Attestations: make([]lk.SignedApplicationKeyAttestation, 3)}), nil
+			return lk.EncodeEnrollApplicationInstanceResponse(lk.EnrollApplicationInstanceResponse{SubjectDomain: "example.test", SubjectUserId: "owner", ApplicationId: "longhouse", InstanceId: "test", Attestations: make([]lk.SignedApplicationKeyAttestation, 3)})
 		default:
 			t.Fatalf("unexpected op %s", o)
 			return nil, nil
@@ -209,7 +212,7 @@ func TestMemberReusesBearerButChecksGrantBeforeEveryWrite(t *testing.T) {
 	var refusal error
 	seed := make([]byte, ed25519.SeedSize)
 	c := &Client{Config: Config{URL: server.URL, SubjectDomain: "example.test"}, Keys: Keys{Application: app},
-		signer: rp.NewApplicationGranteeSigner("instance", rp.ApplicationSigner{KeyID: "key", Algorithm: "ed25519", PrivateKeyBytes: seed}),
+		signer: rp.NewApplicationGranteeSigner("instance", rp.ApplicationSigner{KeyID: "key", Algorithm: lk.KeyAlgorithmEd25519, PrivateKeyBytes: seed}),
 		App: callFunc(func(_ context.Context, s, o string, b []byte) ([]byte, error) {
 			return cal.EncodeApplicationIdentityResponse(cal.ApplicationIdentityResponse{Audience: cal.ApplicationRef{SubjectDomain: audience.SubjectDomain, SubjectUserId: audience.SubjectUserId, ApplicationId: audience.ApplicationId}}), nil
 		}),
@@ -227,8 +230,12 @@ func TestMemberReusesBearerButChecksGrantBeforeEveryWrite(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		grant := lk.ActAsGrant{GrantId: refresh.GrantId, UserId: "member", SubjectDomain: "example.test", Grantee: c.grantee(), Audience: audience, ApprovedScope: []string{"calendars.read", "events.write"}, IssuedAt: time.Now().UTC().Format(time.RFC3339), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
-		return lk.EncodeRefreshActAsGrantResponse(lk.RefreshActAsGrantResponse{Grant: lk.SignedActAsGrant{Grant: lk.EncodeActAsGrant(grant)}}), nil
+		grant := lk.ActAsGrant{GrantId: refresh.GrantId, UserId: "member", SubjectDomain: "example.test", Grantee: c.grantee(), Audience: audience, ApprovedScope: []string{"calendars.read", "events.write"}, IssuedAt: time.Now().UTC().Truncate(time.Second), ExpiresAt: time.Now().Add(time.Hour).UTC().Truncate(time.Second)}
+		encoded, err := lk.EncodeActAsGrant(grant)
+		if err != nil {
+			return nil, err
+		}
+		return lk.EncodeRefreshActAsGrantResponse(lk.RefreshActAsGrantResponse{Grant: lk.SignedActAsGrant{Grant: encoded}})
 	})
 	for i := 0; i < 3; i++ {
 		if _, err := c.Member(context.Background(), "example.test", "member", "grant"); err != nil {
@@ -249,8 +256,10 @@ func TestMemberReusesBearerButChecksGrantBeforeEveryWrite(t *testing.T) {
 	if exchanges != 1 {
 		t.Fatal("rate limit discarded a valid bearer")
 	}
-	refusal = &rp.ServerError{Status: 4, Message: "the grant is revoked"}
-	if _, err := c.Member(context.Background(), "example.test", "member", "grant"); !errors.Is(err, ErrGrantUnavailable) {
-		t.Fatalf("revoked grant used cached bearer: %v", err)
+	for _, message := range []string{"the grant is revoked", "no such grant for this grantee"} {
+		refusal = &rp.ServerError{Status: 4, Message: message}
+		if _, err := c.Member(context.Background(), "example.test", "member", "grant"); !errors.Is(err, ErrGrantUnavailable) {
+			t.Fatalf("grant refusal %q: got %v", message, err)
+		}
 	}
 }

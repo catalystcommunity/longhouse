@@ -633,6 +633,21 @@ and act_as_token_response = {
   scopes : string list;
 }
 
+and calendar_migration_row_items = calendar_migration_row list
+and calendar_trash_entry_items = calendar_trash_entry list
+and comment_items = comment list
+and event_items = event list
+and grant_items = grant list
+and group_items = group list
+and house_items = house list
+and member_items = member list
+and member_audit_items = member_audit list
+and milestone_items = milestone list
+and notification_items = notification list
+and role_items = role list
+and share_items = share list
+and skill_items = skill list
+and trusted_domain_items = trusted_domain list
 and calendar_subscription = { subject_member_id : member_id; enabled : bool }
 
 and calendar_view = {

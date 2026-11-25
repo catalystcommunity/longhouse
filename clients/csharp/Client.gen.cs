@@ -12,6 +12,11 @@ namespace Longhouse.Client;
 public interface ICsilTransport
 {
     byte[] Call(string service, string op, byte[] request);
+
+    /// <summary>Performs a call to an op with several reply arms and returns the reply
+    /// variant with the payload bytes. The client selects the arm from the variant, so
+    /// the carrier must not drop it.</summary>
+    CsilWireReply CallReply(string service, string op, byte[] request);
 }
 
 /// <summary>Raised by a generated client when the transport reports a failure.</summary>
@@ -25,405 +30,823 @@ public sealed class CsilClientException : System.Exception
     }
 }
 
+/// <summary>One RPC reply as the client transport received it. <c>Variant</c> is null when
+/// the reply carried none.</summary>
+public sealed record CsilWireReply(string? Variant, byte[] Payload);
+
 /// <summary>Typed RPC client for the AuthService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class AuthClient(ICsilTransport transport)
 {
-    public BeginBrowserLoginResponse BeginBrowserLogin(BeginBrowserLoginRequest beginBrowserLoginRequest) =>
-        Codec.Decode<BeginBrowserLoginResponse>(transport.Call("AuthService", "begin-browser-login", Codec.Encode(beginBrowserLoginRequest)));
-    public ActAsScopeSetResponse GetActAsScopeSet(ActAsScopeSetRequest actAsScopeSetRequest) =>
-        Codec.Decode<ActAsScopeSetResponse>(transport.Call("AuthService", "get-act-as-scope-set", Codec.Encode(actAsScopeSetRequest)));
-    public ActAsTokenResponse ExchangeActAsCredential(ExchangeActAsCredentialRequest exchangeActAsCredentialRequest) =>
-        Codec.Decode<ActAsTokenResponse>(transport.Call("AuthService", "exchange-act-as-credential", Codec.Encode(exchangeActAsCredentialRequest)));
-    public LoginResponse Login(LoginRequest loginRequest) =>
-        Codec.Decode<LoginResponse>(transport.Call("AuthService", "login", Codec.Encode(loginRequest)));
-    public LoginResponse Complete(CompleteRequest completeRequest) =>
-        Codec.Decode<LoginResponse>(transport.Call("AuthService", "complete", Codec.Encode(completeRequest)));
-    public LoginResponse Refresh(EmptyRequest emptyRequest) =>
-        Codec.Decode<LoginResponse>(transport.Call("AuthService", "refresh", Codec.Encode(emptyRequest)));
-    public EmptyResponse Logout(EmptyRequest emptyRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("AuthService", "logout", Codec.Encode(emptyRequest)));
-    public LoginResponse ResumeSession(EmptyRequest emptyRequest) =>
-        Codec.Decode<LoginResponse>(transport.Call("AuthService", "resume-session", Codec.Encode(emptyRequest)));
-    public EmptyResponse EndSession(EmptyRequest emptyRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("AuthService", "end-session", Codec.Encode(emptyRequest)));
-    public MeResponse Me(EmptyRequest emptyRequest) =>
-        Codec.Decode<MeResponse>(transport.Call("AuthService", "me", Codec.Encode(emptyRequest)));
-    public BeginCliLoginResponse BeginCliLogin(BeginCliLoginRequest beginCliLoginRequest) =>
-        Codec.Decode<BeginCliLoginResponse>(transport.Call("AuthService", "begin-cli-login", Codec.Encode(beginCliLoginRequest)));
-    public CliLoginRequestInfo InspectCliLogin(ApproveCliLoginRequest approveCliLoginRequest) =>
-        Codec.Decode<CliLoginRequestInfo>(transport.Call("AuthService", "inspect-cli-login", Codec.Encode(approveCliLoginRequest)));
-    public EmptyResponse ApproveCliLogin(ApproveCliLoginRequest approveCliLoginRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("AuthService", "approve-cli-login", Codec.Encode(approveCliLoginRequest)));
-    public EmptyResponse DenyCliLogin(DenyCliLoginRequest denyCliLoginRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("AuthService", "deny-cli-login", Codec.Encode(denyCliLoginRequest)));
-    public ExchangeCliLoginResponse ExchangeCliLogin(ExchangeCliLoginRequest exchangeCliLoginRequest) =>
-        Codec.Decode<ExchangeCliLoginResponse>(transport.Call("AuthService", "exchange-cli-login", Codec.Encode(exchangeCliLoginRequest)));
-    public CliTokenResponse RefreshSession(RefreshSessionRequest refreshSessionRequest) =>
-        Codec.Decode<CliTokenResponse>(transport.Call("AuthService", "refresh-session", Codec.Encode(refreshSessionRequest)));
-    public CliSessionsResponse ListSessions(EmptyRequest emptyRequest) =>
-        Codec.Decode<CliSessionsResponse>(transport.Call("AuthService", "list-sessions", Codec.Encode(emptyRequest)));
-    public EmptyResponse RevokeSession(RevokeSessionRequest revokeSessionRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("AuthService", "revoke-session", Codec.Encode(revokeSessionRequest)));
+    public BeginBrowserLoginResponse BeginBrowserLogin(BeginBrowserLoginRequest beginBrowserLoginRequest)
+    {
+        var reply = transport.CallReply("AuthService", "begin-browser-login", Codec.Encode(beginBrowserLoginRequest));
+        return Codec.Decode<BeginBrowserLoginResponse>(Codec.ResolveRpcReply("AuthService", "begin-browser-login", reply.Variant, reply.Payload));
+    }
+    public ActAsScopeSetResponse GetActAsScopeSet(ActAsScopeSetRequest actAsScopeSetRequest)
+    {
+        var reply = transport.CallReply("AuthService", "get-act-as-scope-set", Codec.Encode(actAsScopeSetRequest));
+        return Codec.Decode<ActAsScopeSetResponse>(Codec.ResolveRpcReply("AuthService", "get-act-as-scope-set", reply.Variant, reply.Payload));
+    }
+    public ActAsTokenResponse ExchangeActAsCredential(ExchangeActAsCredentialRequest exchangeActAsCredentialRequest)
+    {
+        var reply = transport.CallReply("AuthService", "exchange-act-as-credential", Codec.Encode(exchangeActAsCredentialRequest));
+        return Codec.Decode<ActAsTokenResponse>(Codec.ResolveRpcReply("AuthService", "exchange-act-as-credential", reply.Variant, reply.Payload));
+    }
+    public LoginResponse Login(LoginRequest loginRequest)
+    {
+        var reply = transport.CallReply("AuthService", "login", Codec.Encode(loginRequest));
+        return Codec.Decode<LoginResponse>(Codec.ResolveRpcReply("AuthService", "login", reply.Variant, reply.Payload));
+    }
+    public LoginResponse Complete(CompleteRequest completeRequest)
+    {
+        var reply = transport.CallReply("AuthService", "complete", Codec.Encode(completeRequest));
+        return Codec.Decode<LoginResponse>(Codec.ResolveRpcReply("AuthService", "complete", reply.Variant, reply.Payload));
+    }
+    public LoginResponse Refresh(EmptyRequest emptyRequest)
+    {
+        var reply = transport.CallReply("AuthService", "refresh", Codec.Encode(emptyRequest));
+        return Codec.Decode<LoginResponse>(Codec.ResolveRpcReply("AuthService", "refresh", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse Logout(EmptyRequest emptyRequest)
+    {
+        var reply = transport.CallReply("AuthService", "logout", Codec.Encode(emptyRequest));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("AuthService", "logout", reply.Variant, reply.Payload));
+    }
+    public LoginResponse ResumeSession(EmptyRequest emptyRequest)
+    {
+        var reply = transport.CallReply("AuthService", "resume-session", Codec.Encode(emptyRequest));
+        return Codec.Decode<LoginResponse>(Codec.ResolveRpcReply("AuthService", "resume-session", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse EndSession(EmptyRequest emptyRequest)
+    {
+        var reply = transport.CallReply("AuthService", "end-session", Codec.Encode(emptyRequest));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("AuthService", "end-session", reply.Variant, reply.Payload));
+    }
+    public MeResponse Me(EmptyRequest emptyRequest)
+    {
+        var reply = transport.CallReply("AuthService", "me", Codec.Encode(emptyRequest));
+        return Codec.Decode<MeResponse>(Codec.ResolveRpcReply("AuthService", "me", reply.Variant, reply.Payload));
+    }
+    public BeginCliLoginResponse BeginCliLogin(BeginCliLoginRequest beginCliLoginRequest)
+    {
+        var reply = transport.CallReply("AuthService", "begin-cli-login", Codec.Encode(beginCliLoginRequest));
+        return Codec.Decode<BeginCliLoginResponse>(Codec.ResolveRpcReply("AuthService", "begin-cli-login", reply.Variant, reply.Payload));
+    }
+    public CliLoginRequestInfo InspectCliLogin(ApproveCliLoginRequest approveCliLoginRequest)
+    {
+        var reply = transport.CallReply("AuthService", "inspect-cli-login", Codec.Encode(approveCliLoginRequest));
+        return Codec.Decode<CliLoginRequestInfo>(Codec.ResolveRpcReply("AuthService", "inspect-cli-login", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse ApproveCliLogin(ApproveCliLoginRequest approveCliLoginRequest)
+    {
+        var reply = transport.CallReply("AuthService", "approve-cli-login", Codec.Encode(approveCliLoginRequest));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("AuthService", "approve-cli-login", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DenyCliLogin(DenyCliLoginRequest denyCliLoginRequest)
+    {
+        var reply = transport.CallReply("AuthService", "deny-cli-login", Codec.Encode(denyCliLoginRequest));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("AuthService", "deny-cli-login", reply.Variant, reply.Payload));
+    }
+    public ExchangeCliLoginResponse ExchangeCliLogin(ExchangeCliLoginRequest exchangeCliLoginRequest)
+    {
+        var reply = transport.CallReply("AuthService", "exchange-cli-login", Codec.Encode(exchangeCliLoginRequest));
+        return Codec.Decode<ExchangeCliLoginResponse>(Codec.ResolveRpcReply("AuthService", "exchange-cli-login", reply.Variant, reply.Payload));
+    }
+    public CliTokenResponse RefreshSession(RefreshSessionRequest refreshSessionRequest)
+    {
+        var reply = transport.CallReply("AuthService", "refresh-session", Codec.Encode(refreshSessionRequest));
+        return Codec.Decode<CliTokenResponse>(Codec.ResolveRpcReply("AuthService", "refresh-session", reply.Variant, reply.Payload));
+    }
+    public CliSessionsResponse ListSessions(EmptyRequest emptyRequest)
+    {
+        var reply = transport.CallReply("AuthService", "list-sessions", Codec.Encode(emptyRequest));
+        return Codec.Decode<CliSessionsResponse>(Codec.ResolveRpcReply("AuthService", "list-sessions", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse RevokeSession(RevokeSessionRequest revokeSessionRequest)
+    {
+        var reply = transport.CallReply("AuthService", "revoke-session", Codec.Encode(revokeSessionRequest));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("AuthService", "revoke-session", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the DevAuthService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class DevAuthClient(ICsilTransport transport)
 {
-    public DevUsersResponse ListDevUsers(EmptyRequest emptyRequest) =>
-        Codec.Decode<DevUsersResponse>(transport.Call("DevAuthService", "list-dev-users", Codec.Encode(emptyRequest)));
-    public LoginResponse DevLogin(DevLoginRequest devLoginRequest) =>
-        Codec.Decode<LoginResponse>(transport.Call("DevAuthService", "dev-login", Codec.Encode(devLoginRequest)));
+    public DevUsersResponse ListDevUsers(EmptyRequest emptyRequest)
+    {
+        var reply = transport.CallReply("DevAuthService", "list-dev-users", Codec.Encode(emptyRequest));
+        return Codec.Decode<DevUsersResponse>(Codec.ResolveRpcReply("DevAuthService", "list-dev-users", reply.Variant, reply.Payload));
+    }
+    public LoginResponse DevLogin(DevLoginRequest devLoginRequest)
+    {
+        var reply = transport.CallReply("DevAuthService", "dev-login", Codec.Encode(devLoginRequest));
+        return Codec.Decode<LoginResponse>(Codec.ResolveRpcReply("DevAuthService", "dev-login", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the HouseService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class HouseClient(ICsilTransport transport)
 {
-    public House CreateHouse(House house) =>
-        Codec.Decode<House>(transport.Call("HouseService", "create-house", Codec.Encode(house)));
-    public House GetHouse(HouseID houseID) =>
-        Codec.Decode<House>(transport.Call("HouseService", "get-house", Codec.EncodeHouseGetHouseRequest(houseID)));
-    public House UpdateHouse(House house) =>
-        Codec.Decode<House>(transport.Call("HouseService", "update-house", Codec.Encode(house)));
-    public EmptyResponse DeleteHouse(HouseID houseID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("HouseService", "delete-house", Codec.EncodeHouseDeleteHouseRequest(houseID)));
-    public System.Collections.Generic.List<House> ListHouses(HouseListRequest houseListRequest) =>
-        Codec.DecodeHouseListHousesResponse(transport.Call("HouseService", "list-houses", Codec.Encode(houseListRequest)));
+    public House CreateHouse(House house)
+    {
+        var reply = transport.CallReply("HouseService", "create-house", Codec.Encode(house));
+        return Codec.Decode<House>(Codec.ResolveRpcReply("HouseService", "create-house", reply.Variant, reply.Payload));
+    }
+    public House GetHouse(HouseID houseID)
+    {
+        var reply = transport.CallReply("HouseService", "get-house", Codec.EncodeHouseGetHouseRequest(houseID));
+        return Codec.Decode<House>(Codec.ResolveRpcReply("HouseService", "get-house", reply.Variant, reply.Payload));
+    }
+    public House UpdateHouse(House house)
+    {
+        var reply = transport.CallReply("HouseService", "update-house", Codec.Encode(house));
+        return Codec.Decode<House>(Codec.ResolveRpcReply("HouseService", "update-house", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteHouse(HouseID houseID)
+    {
+        var reply = transport.CallReply("HouseService", "delete-house", Codec.EncodeHouseDeleteHouseRequest(houseID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("HouseService", "delete-house", reply.Variant, reply.Payload));
+    }
+    public HouseItems ListHouses(HouseListRequest houseListRequest)
+    {
+        var reply = transport.CallReply("HouseService", "list-houses", Codec.Encode(houseListRequest));
+        return Codec.DecodeHouseListHousesResponse(Codec.ResolveRpcReply("HouseService", "list-houses", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the MemberService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class MemberClient(ICsilTransport transport)
 {
-    public Member CreateMember(Member member) =>
-        Codec.Decode<Member>(transport.Call("MemberService", "create-member", Codec.Encode(member)));
-    public Member GetMember(MemberID memberID) =>
-        Codec.Decode<Member>(transport.Call("MemberService", "get-member", Codec.EncodeMemberGetMemberRequest(memberID)));
-    public Member GetMemberByIdentity(Member member) =>
-        Codec.Decode<Member>(transport.Call("MemberService", "get-member-by-identity", Codec.Encode(member)));
-    public Member UpdateMember(Member member) =>
-        Codec.Decode<Member>(transport.Call("MemberService", "update-member", Codec.Encode(member)));
-    public EmptyResponse DeactivateMember(MemberID memberID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("MemberService", "deactivate-member", Codec.EncodeMemberDeactivateMemberRequest(memberID)));
-    public EmptyResponse ReactivateMember(MemberID memberID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("MemberService", "reactivate-member", Codec.EncodeMemberReactivateMemberRequest(memberID)));
-    public System.Collections.Generic.List<Member> ListMembers(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeMemberListMembersResponse(transport.Call("MemberService", "list-members", Codec.Encode(houseScopedListRequest)));
+    public Member CreateMember(Member member)
+    {
+        var reply = transport.CallReply("MemberService", "create-member", Codec.Encode(member));
+        return Codec.Decode<Member>(Codec.ResolveRpcReply("MemberService", "create-member", reply.Variant, reply.Payload));
+    }
+    public Member GetMember(MemberID memberID)
+    {
+        var reply = transport.CallReply("MemberService", "get-member", Codec.EncodeMemberGetMemberRequest(memberID));
+        return Codec.Decode<Member>(Codec.ResolveRpcReply("MemberService", "get-member", reply.Variant, reply.Payload));
+    }
+    public Member GetMemberByIdentity(Member member)
+    {
+        var reply = transport.CallReply("MemberService", "get-member-by-identity", Codec.Encode(member));
+        return Codec.Decode<Member>(Codec.ResolveRpcReply("MemberService", "get-member-by-identity", reply.Variant, reply.Payload));
+    }
+    public Member UpdateMember(Member member)
+    {
+        var reply = transport.CallReply("MemberService", "update-member", Codec.Encode(member));
+        return Codec.Decode<Member>(Codec.ResolveRpcReply("MemberService", "update-member", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeactivateMember(MemberID memberID)
+    {
+        var reply = transport.CallReply("MemberService", "deactivate-member", Codec.EncodeMemberDeactivateMemberRequest(memberID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("MemberService", "deactivate-member", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse ReactivateMember(MemberID memberID)
+    {
+        var reply = transport.CallReply("MemberService", "reactivate-member", Codec.EncodeMemberReactivateMemberRequest(memberID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("MemberService", "reactivate-member", reply.Variant, reply.Payload));
+    }
+    public MemberItems ListMembers(HouseScopedListRequest houseScopedListRequest)
+    {
+        var reply = transport.CallReply("MemberService", "list-members", Codec.Encode(houseScopedListRequest));
+        return Codec.DecodeMemberListMembersResponse(Codec.ResolveRpcReply("MemberService", "list-members", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the TrustedDomainService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class TrustedDomainClient(ICsilTransport transport)
 {
-    public TrustedDomain AddTrustedDomain(TrustedDomain trustedDomain) =>
-        Codec.Decode<TrustedDomain>(transport.Call("TrustedDomainService", "add-trusted-domain", Codec.Encode(trustedDomain)));
-    public EmptyResponse RemoveTrustedDomain(TrustedDomainID trustedDomainID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("TrustedDomainService", "remove-trusted-domain", Codec.EncodeTrustedDomainRemoveTrustedDomainRequest(trustedDomainID)));
-    public System.Collections.Generic.List<TrustedDomain> ListTrustedDomains(HouseID houseID) =>
-        Codec.DecodeTrustedDomainListTrustedDomainsResponse(transport.Call("TrustedDomainService", "list-trusted-domains", Codec.EncodeTrustedDomainListTrustedDomainsRequest(houseID)));
-    public BoolResponse IsDomainTrusted(TrustedDomain trustedDomain) =>
-        Codec.Decode<BoolResponse>(transport.Call("TrustedDomainService", "is-domain-trusted", Codec.Encode(trustedDomain)));
+    public TrustedDomain AddTrustedDomain(TrustedDomain trustedDomain)
+    {
+        var reply = transport.CallReply("TrustedDomainService", "add-trusted-domain", Codec.Encode(trustedDomain));
+        return Codec.Decode<TrustedDomain>(Codec.ResolveRpcReply("TrustedDomainService", "add-trusted-domain", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse RemoveTrustedDomain(TrustedDomainID trustedDomainID)
+    {
+        var reply = transport.CallReply("TrustedDomainService", "remove-trusted-domain", Codec.EncodeTrustedDomainRemoveTrustedDomainRequest(trustedDomainID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("TrustedDomainService", "remove-trusted-domain", reply.Variant, reply.Payload));
+    }
+    public TrustedDomainItems ListTrustedDomains(HouseID houseID)
+    {
+        var reply = transport.CallReply("TrustedDomainService", "list-trusted-domains", Codec.EncodeTrustedDomainListTrustedDomainsRequest(houseID));
+        return Codec.DecodeTrustedDomainListTrustedDomainsResponse(Codec.ResolveRpcReply("TrustedDomainService", "list-trusted-domains", reply.Variant, reply.Payload));
+    }
+    public BoolResponse IsDomainTrusted(TrustedDomain trustedDomain)
+    {
+        var reply = transport.CallReply("TrustedDomainService", "is-domain-trusted", Codec.Encode(trustedDomain));
+        return Codec.Decode<BoolResponse>(Codec.ResolveRpcReply("TrustedDomainService", "is-domain-trusted", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the RoleService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class RoleClient(ICsilTransport transport)
 {
-    public Role CreateRole(Role role) =>
-        Codec.Decode<Role>(transport.Call("RoleService", "create-role", Codec.Encode(role)));
-    public Role UpdateRole(Role role) =>
-        Codec.Decode<Role>(transport.Call("RoleService", "update-role", Codec.Encode(role)));
-    public EmptyResponse DeleteRole(RoleID roleID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("RoleService", "delete-role", Codec.EncodeRoleDeleteRoleRequest(roleID)));
-    public System.Collections.Generic.List<Role> ListRoles(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeRoleListRolesResponse(transport.Call("RoleService", "list-roles", Codec.Encode(houseScopedListRequest)));
-    public EmptyResponse GrantRole(MemberRoleRef memberRoleRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("RoleService", "grant-role", Codec.Encode(memberRoleRef)));
-    public EmptyResponse RevokeRole(MemberRoleRef memberRoleRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("RoleService", "revoke-role", Codec.Encode(memberRoleRef)));
-    public System.Collections.Generic.List<Role> ListMemberRoles(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeRoleListMemberRolesResponse(transport.Call("RoleService", "list-member-roles", Codec.Encode(memberScopedListRequest)));
+    public Role CreateRole(Role role)
+    {
+        var reply = transport.CallReply("RoleService", "create-role", Codec.Encode(role));
+        return Codec.Decode<Role>(Codec.ResolveRpcReply("RoleService", "create-role", reply.Variant, reply.Payload));
+    }
+    public Role UpdateRole(Role role)
+    {
+        var reply = transport.CallReply("RoleService", "update-role", Codec.Encode(role));
+        return Codec.Decode<Role>(Codec.ResolveRpcReply("RoleService", "update-role", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteRole(RoleID roleID)
+    {
+        var reply = transport.CallReply("RoleService", "delete-role", Codec.EncodeRoleDeleteRoleRequest(roleID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("RoleService", "delete-role", reply.Variant, reply.Payload));
+    }
+    public RoleItems ListRoles(HouseScopedListRequest houseScopedListRequest)
+    {
+        var reply = transport.CallReply("RoleService", "list-roles", Codec.Encode(houseScopedListRequest));
+        return Codec.DecodeRoleListRolesResponse(Codec.ResolveRpcReply("RoleService", "list-roles", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse GrantRole(MemberRoleRef memberRoleRef)
+    {
+        var reply = transport.CallReply("RoleService", "grant-role", Codec.Encode(memberRoleRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("RoleService", "grant-role", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse RevokeRole(MemberRoleRef memberRoleRef)
+    {
+        var reply = transport.CallReply("RoleService", "revoke-role", Codec.Encode(memberRoleRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("RoleService", "revoke-role", reply.Variant, reply.Payload));
+    }
+    public RoleItems ListMemberRoles(MemberScopedListRequest memberScopedListRequest)
+    {
+        var reply = transport.CallReply("RoleService", "list-member-roles", Codec.Encode(memberScopedListRequest));
+        return Codec.DecodeRoleListMemberRolesResponse(Codec.ResolveRpcReply("RoleService", "list-member-roles", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the SkillService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class SkillClient(ICsilTransport transport)
 {
-    public Skill CreateSkill(Skill skill) =>
-        Codec.Decode<Skill>(transport.Call("SkillService", "create-skill", Codec.Encode(skill)));
-    public Skill UpdateSkill(Skill skill) =>
-        Codec.Decode<Skill>(transport.Call("SkillService", "update-skill", Codec.Encode(skill)));
-    public EmptyResponse DeleteSkill(SkillID skillID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("SkillService", "delete-skill", Codec.EncodeSkillDeleteSkillRequest(skillID)));
-    public System.Collections.Generic.List<Skill> ListSkills(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeSkillListSkillsResponse(transport.Call("SkillService", "list-skills", Codec.Encode(houseScopedListRequest)));
-    public EmptyResponse AddMemberSkill(MemberSkillRef memberSkillRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("SkillService", "add-member-skill", Codec.Encode(memberSkillRef)));
-    public EmptyResponse RemoveMemberSkill(MemberSkillRef memberSkillRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("SkillService", "remove-member-skill", Codec.Encode(memberSkillRef)));
-    public System.Collections.Generic.List<Skill> ListMemberSkills(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeSkillListMemberSkillsResponse(transport.Call("SkillService", "list-member-skills", Codec.Encode(memberScopedListRequest)));
-    public EmptyResponse AddGroupSkill(GroupSkillRef groupSkillRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("SkillService", "add-group-skill", Codec.Encode(groupSkillRef)));
-    public EmptyResponse RemoveGroupSkill(GroupSkillRef groupSkillRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("SkillService", "remove-group-skill", Codec.Encode(groupSkillRef)));
-    public System.Collections.Generic.List<Skill> ListGroupSkills(GroupID groupID) =>
-        Codec.DecodeSkillListGroupSkillsResponse(transport.Call("SkillService", "list-group-skills", Codec.EncodeSkillListGroupSkillsRequest(groupID)));
+    public Skill CreateSkill(Skill skill)
+    {
+        var reply = transport.CallReply("SkillService", "create-skill", Codec.Encode(skill));
+        return Codec.Decode<Skill>(Codec.ResolveRpcReply("SkillService", "create-skill", reply.Variant, reply.Payload));
+    }
+    public Skill UpdateSkill(Skill skill)
+    {
+        var reply = transport.CallReply("SkillService", "update-skill", Codec.Encode(skill));
+        return Codec.Decode<Skill>(Codec.ResolveRpcReply("SkillService", "update-skill", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteSkill(SkillID skillID)
+    {
+        var reply = transport.CallReply("SkillService", "delete-skill", Codec.EncodeSkillDeleteSkillRequest(skillID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("SkillService", "delete-skill", reply.Variant, reply.Payload));
+    }
+    public SkillItems ListSkills(HouseScopedListRequest houseScopedListRequest)
+    {
+        var reply = transport.CallReply("SkillService", "list-skills", Codec.Encode(houseScopedListRequest));
+        return Codec.DecodeSkillListSkillsResponse(Codec.ResolveRpcReply("SkillService", "list-skills", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse AddMemberSkill(MemberSkillRef memberSkillRef)
+    {
+        var reply = transport.CallReply("SkillService", "add-member-skill", Codec.Encode(memberSkillRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("SkillService", "add-member-skill", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse RemoveMemberSkill(MemberSkillRef memberSkillRef)
+    {
+        var reply = transport.CallReply("SkillService", "remove-member-skill", Codec.Encode(memberSkillRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("SkillService", "remove-member-skill", reply.Variant, reply.Payload));
+    }
+    public SkillItems ListMemberSkills(MemberScopedListRequest memberScopedListRequest)
+    {
+        var reply = transport.CallReply("SkillService", "list-member-skills", Codec.Encode(memberScopedListRequest));
+        return Codec.DecodeSkillListMemberSkillsResponse(Codec.ResolveRpcReply("SkillService", "list-member-skills", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse AddGroupSkill(GroupSkillRef groupSkillRef)
+    {
+        var reply = transport.CallReply("SkillService", "add-group-skill", Codec.Encode(groupSkillRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("SkillService", "add-group-skill", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse RemoveGroupSkill(GroupSkillRef groupSkillRef)
+    {
+        var reply = transport.CallReply("SkillService", "remove-group-skill", Codec.Encode(groupSkillRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("SkillService", "remove-group-skill", reply.Variant, reply.Payload));
+    }
+    public SkillItems ListGroupSkills(GroupID groupID)
+    {
+        var reply = transport.CallReply("SkillService", "list-group-skills", Codec.EncodeSkillListGroupSkillsRequest(groupID));
+        return Codec.DecodeSkillListGroupSkillsResponse(Codec.ResolveRpcReply("SkillService", "list-group-skills", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the GroupService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class GroupClient(ICsilTransport transport)
 {
-    public Group CreateGroup(Group group) =>
-        Codec.Decode<Group>(transport.Call("GroupService", "create-group", Codec.Encode(group)));
-    public Group UpdateGroup(Group group) =>
-        Codec.Decode<Group>(transport.Call("GroupService", "update-group", Codec.Encode(group)));
-    public EmptyResponse DeleteGroup(GroupID groupID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("GroupService", "delete-group", Codec.EncodeGroupDeleteGroupRequest(groupID)));
-    public System.Collections.Generic.List<Group> ListGroups(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.DecodeGroupListGroupsResponse(transport.Call("GroupService", "list-groups", Codec.Encode(houseScopedListRequest)));
-    public EmptyResponse AddGroupMember(GroupMemberRef groupMemberRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("GroupService", "add-group-member", Codec.Encode(groupMemberRef)));
-    public EmptyResponse RemoveGroupMember(GroupMemberRef groupMemberRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("GroupService", "remove-group-member", Codec.Encode(groupMemberRef)));
-    public System.Collections.Generic.List<Member> ListGroupMembers(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeGroupListGroupMembersResponse(transport.Call("GroupService", "list-group-members", Codec.Encode(memberScopedListRequest)));
+    public Group CreateGroup(Group group)
+    {
+        var reply = transport.CallReply("GroupService", "create-group", Codec.Encode(group));
+        return Codec.Decode<Group>(Codec.ResolveRpcReply("GroupService", "create-group", reply.Variant, reply.Payload));
+    }
+    public Group UpdateGroup(Group group)
+    {
+        var reply = transport.CallReply("GroupService", "update-group", Codec.Encode(group));
+        return Codec.Decode<Group>(Codec.ResolveRpcReply("GroupService", "update-group", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteGroup(GroupID groupID)
+    {
+        var reply = transport.CallReply("GroupService", "delete-group", Codec.EncodeGroupDeleteGroupRequest(groupID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("GroupService", "delete-group", reply.Variant, reply.Payload));
+    }
+    public GroupItems ListGroups(HouseScopedListRequest houseScopedListRequest)
+    {
+        var reply = transport.CallReply("GroupService", "list-groups", Codec.Encode(houseScopedListRequest));
+        return Codec.DecodeGroupListGroupsResponse(Codec.ResolveRpcReply("GroupService", "list-groups", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse AddGroupMember(GroupMemberRef groupMemberRef)
+    {
+        var reply = transport.CallReply("GroupService", "add-group-member", Codec.Encode(groupMemberRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("GroupService", "add-group-member", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse RemoveGroupMember(GroupMemberRef groupMemberRef)
+    {
+        var reply = transport.CallReply("GroupService", "remove-group-member", Codec.Encode(groupMemberRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("GroupService", "remove-group-member", reply.Variant, reply.Payload));
+    }
+    public MemberItems ListGroupMembers(MemberScopedListRequest memberScopedListRequest)
+    {
+        var reply = transport.CallReply("GroupService", "list-group-members", Codec.Encode(memberScopedListRequest));
+        return Codec.DecodeGroupListGroupMembersResponse(Codec.ResolveRpcReply("GroupService", "list-group-members", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the ProjectService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class ProjectClient(ICsilTransport transport)
 {
-    public Project CreateProject(Project project) =>
-        Codec.Decode<Project>(transport.Call("ProjectService", "create-project", Codec.Encode(project)));
-    public Project GetProject(ProjectID projectID) =>
-        Codec.Decode<Project>(transport.Call("ProjectService", "get-project", Codec.EncodeProjectGetProjectRequest(projectID)));
-    public Project UpdateProject(Project project) =>
-        Codec.Decode<Project>(transport.Call("ProjectService", "update-project", Codec.Encode(project)));
-    public EmptyResponse DeleteProject(ProjectID projectID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "delete-project", Codec.EncodeProjectDeleteProjectRequest(projectID)));
-    public ProjectList ListProjects(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.Decode<ProjectList>(transport.Call("ProjectService", "list-projects", Codec.Encode(houseScopedListRequest)));
-    public TaskList ListProjectTasks(ProjectScopedListRequest projectScopedListRequest) =>
-        Codec.Decode<TaskList>(transport.Call("ProjectService", "list-project-tasks", Codec.Encode(projectScopedListRequest)));
-    public EmptyResponse AddProjectTask(ProjectTaskOrderRequest projectTaskOrderRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "add-project-task", Codec.Encode(projectTaskOrderRequest)));
-    public EmptyResponse RemoveProjectTask(ProjectTaskRef projectTaskRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "remove-project-task", Codec.Encode(projectTaskRef)));
-    public EmptyResponse SetProjectTaskPosition(ProjectTaskOrderRequest projectTaskOrderRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "set-project-task-position", Codec.Encode(projectTaskOrderRequest)));
-    public System.Collections.Generic.List<Member> ListProjectMembers(ProjectID projectID) =>
-        Codec.DecodeProjectListProjectMembersResponse(transport.Call("ProjectService", "list-project-members", Codec.EncodeProjectListProjectMembersRequest(projectID)));
-    public EmptyResponse AddProjectMember(ProjectMemberRef projectMemberRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "add-project-member", Codec.Encode(projectMemberRef)));
-    public EmptyResponse RemoveProjectMember(ProjectMemberRef projectMemberRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "remove-project-member", Codec.Encode(projectMemberRef)));
-    public System.Collections.Generic.List<Member> ListProjectOwners(ProjectID projectID) =>
-        Codec.DecodeProjectListProjectOwnersResponse(transport.Call("ProjectService", "list-project-owners", Codec.EncodeProjectListProjectOwnersRequest(projectID)));
-    public EmptyResponse AddProjectOwner(ProjectOwnerRef projectOwnerRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "add-project-owner", Codec.Encode(projectOwnerRef)));
-    public EmptyResponse RemoveProjectOwner(ProjectOwnerRef projectOwnerRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "remove-project-owner", Codec.Encode(projectOwnerRef)));
-    public System.Collections.Generic.List<Milestone> ListMilestones(ProjectID projectID) =>
-        Codec.DecodeProjectListMilestonesResponse(transport.Call("ProjectService", "list-milestones", Codec.EncodeProjectListMilestonesRequest(projectID)));
-    public Milestone CreateMilestone(Milestone milestone) =>
-        Codec.Decode<Milestone>(transport.Call("ProjectService", "create-milestone", Codec.Encode(milestone)));
-    public Milestone UpdateMilestone(Milestone milestone) =>
-        Codec.Decode<Milestone>(transport.Call("ProjectService", "update-milestone", Codec.Encode(milestone)));
-    public EmptyResponse DeleteMilestone(MilestoneID milestoneID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "delete-milestone", Codec.EncodeProjectDeleteMilestoneRequest(milestoneID)));
-    public Project SetProjectVisibility(SetProjectVisibilityRequest setProjectVisibilityRequest) =>
-        Codec.Decode<Project>(transport.Call("ProjectService", "set-project-visibility", Codec.Encode(setProjectVisibilityRequest)));
-    public System.Collections.Generic.List<Grant> ListProjectGrants(ProjectID projectID) =>
-        Codec.DecodeProjectListProjectGrantsResponse(transport.Call("ProjectService", "list-project-grants", Codec.EncodeProjectListProjectGrantsRequest(projectID)));
-    public EmptyResponse PutProjectGrant(PutProjectGrantRequest putProjectGrantRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "put-project-grant", Codec.Encode(putProjectGrantRequest)));
-    public EmptyResponse DeleteProjectGrant(ProjectGrantRef projectGrantRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ProjectService", "delete-project-grant", Codec.Encode(projectGrantRef)));
+    public Project CreateProject(Project project)
+    {
+        var reply = transport.CallReply("ProjectService", "create-project", Codec.Encode(project));
+        return Codec.Decode<Project>(Codec.ResolveRpcReply("ProjectService", "create-project", reply.Variant, reply.Payload));
+    }
+    public Project GetProject(ProjectID projectID)
+    {
+        var reply = transport.CallReply("ProjectService", "get-project", Codec.EncodeProjectGetProjectRequest(projectID));
+        return Codec.Decode<Project>(Codec.ResolveRpcReply("ProjectService", "get-project", reply.Variant, reply.Payload));
+    }
+    public Project UpdateProject(Project project)
+    {
+        var reply = transport.CallReply("ProjectService", "update-project", Codec.Encode(project));
+        return Codec.Decode<Project>(Codec.ResolveRpcReply("ProjectService", "update-project", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteProject(ProjectID projectID)
+    {
+        var reply = transport.CallReply("ProjectService", "delete-project", Codec.EncodeProjectDeleteProjectRequest(projectID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ProjectService", "delete-project", reply.Variant, reply.Payload));
+    }
+    public ProjectList ListProjects(HouseScopedListRequest houseScopedListRequest)
+    {
+        var reply = transport.CallReply("ProjectService", "list-projects", Codec.Encode(houseScopedListRequest));
+        return Codec.Decode<ProjectList>(Codec.ResolveRpcReply("ProjectService", "list-projects", reply.Variant, reply.Payload));
+    }
+    public TaskList ListProjectTasks(ProjectScopedListRequest projectScopedListRequest)
+    {
+        var reply = transport.CallReply("ProjectService", "list-project-tasks", Codec.Encode(projectScopedListRequest));
+        return Codec.Decode<TaskList>(Codec.ResolveRpcReply("ProjectService", "list-project-tasks", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse AddProjectTask(ProjectTaskOrderRequest projectTaskOrderRequest)
+    {
+        var reply = transport.CallReply("ProjectService", "add-project-task", Codec.Encode(projectTaskOrderRequest));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ProjectService", "add-project-task", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse RemoveProjectTask(ProjectTaskRef projectTaskRef)
+    {
+        var reply = transport.CallReply("ProjectService", "remove-project-task", Codec.Encode(projectTaskRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ProjectService", "remove-project-task", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse SetProjectTaskPosition(ProjectTaskOrderRequest projectTaskOrderRequest)
+    {
+        var reply = transport.CallReply("ProjectService", "set-project-task-position", Codec.Encode(projectTaskOrderRequest));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ProjectService", "set-project-task-position", reply.Variant, reply.Payload));
+    }
+    public MemberItems ListProjectMembers(ProjectID projectID)
+    {
+        var reply = transport.CallReply("ProjectService", "list-project-members", Codec.EncodeProjectListProjectMembersRequest(projectID));
+        return Codec.DecodeProjectListProjectMembersResponse(Codec.ResolveRpcReply("ProjectService", "list-project-members", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse AddProjectMember(ProjectMemberRef projectMemberRef)
+    {
+        var reply = transport.CallReply("ProjectService", "add-project-member", Codec.Encode(projectMemberRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ProjectService", "add-project-member", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse RemoveProjectMember(ProjectMemberRef projectMemberRef)
+    {
+        var reply = transport.CallReply("ProjectService", "remove-project-member", Codec.Encode(projectMemberRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ProjectService", "remove-project-member", reply.Variant, reply.Payload));
+    }
+    public MemberItems ListProjectOwners(ProjectID projectID)
+    {
+        var reply = transport.CallReply("ProjectService", "list-project-owners", Codec.EncodeProjectListProjectOwnersRequest(projectID));
+        return Codec.DecodeProjectListProjectOwnersResponse(Codec.ResolveRpcReply("ProjectService", "list-project-owners", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse AddProjectOwner(ProjectOwnerRef projectOwnerRef)
+    {
+        var reply = transport.CallReply("ProjectService", "add-project-owner", Codec.Encode(projectOwnerRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ProjectService", "add-project-owner", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse RemoveProjectOwner(ProjectOwnerRef projectOwnerRef)
+    {
+        var reply = transport.CallReply("ProjectService", "remove-project-owner", Codec.Encode(projectOwnerRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ProjectService", "remove-project-owner", reply.Variant, reply.Payload));
+    }
+    public MilestoneItems ListMilestones(ProjectID projectID)
+    {
+        var reply = transport.CallReply("ProjectService", "list-milestones", Codec.EncodeProjectListMilestonesRequest(projectID));
+        return Codec.DecodeProjectListMilestonesResponse(Codec.ResolveRpcReply("ProjectService", "list-milestones", reply.Variant, reply.Payload));
+    }
+    public Milestone CreateMilestone(Milestone milestone)
+    {
+        var reply = transport.CallReply("ProjectService", "create-milestone", Codec.Encode(milestone));
+        return Codec.Decode<Milestone>(Codec.ResolveRpcReply("ProjectService", "create-milestone", reply.Variant, reply.Payload));
+    }
+    public Milestone UpdateMilestone(Milestone milestone)
+    {
+        var reply = transport.CallReply("ProjectService", "update-milestone", Codec.Encode(milestone));
+        return Codec.Decode<Milestone>(Codec.ResolveRpcReply("ProjectService", "update-milestone", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteMilestone(MilestoneID milestoneID)
+    {
+        var reply = transport.CallReply("ProjectService", "delete-milestone", Codec.EncodeProjectDeleteMilestoneRequest(milestoneID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ProjectService", "delete-milestone", reply.Variant, reply.Payload));
+    }
+    public Project SetProjectVisibility(SetProjectVisibilityRequest setProjectVisibilityRequest)
+    {
+        var reply = transport.CallReply("ProjectService", "set-project-visibility", Codec.Encode(setProjectVisibilityRequest));
+        return Codec.Decode<Project>(Codec.ResolveRpcReply("ProjectService", "set-project-visibility", reply.Variant, reply.Payload));
+    }
+    public GrantItems ListProjectGrants(ProjectID projectID)
+    {
+        var reply = transport.CallReply("ProjectService", "list-project-grants", Codec.EncodeProjectListProjectGrantsRequest(projectID));
+        return Codec.DecodeProjectListProjectGrantsResponse(Codec.ResolveRpcReply("ProjectService", "list-project-grants", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse PutProjectGrant(PutProjectGrantRequest putProjectGrantRequest)
+    {
+        var reply = transport.CallReply("ProjectService", "put-project-grant", Codec.Encode(putProjectGrantRequest));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ProjectService", "put-project-grant", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteProjectGrant(ProjectGrantRef projectGrantRef)
+    {
+        var reply = transport.CallReply("ProjectService", "delete-project-grant", Codec.Encode(projectGrantRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ProjectService", "delete-project-grant", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the EventService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class EventClient(ICsilTransport transport)
 {
-    public Event CreateEvent(Event @event) =>
-        Codec.Decode<Event>(transport.Call("EventService", "create-event", Codec.Encode(@event)));
-    public Event GetEvent(EventID eventID) =>
-        Codec.Decode<Event>(transport.Call("EventService", "get-event", Codec.EncodeEventGetEventRequest(eventID)));
-    public Event UpdateEvent(Event @event) =>
-        Codec.Decode<Event>(transport.Call("EventService", "update-event", Codec.Encode(@event)));
-    public EmptyResponse DeleteEvent(EventID eventID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("EventService", "delete-event", Codec.EncodeEventDeleteEventRequest(eventID)));
-    public EmptyResponse DeleteEventAndFuture(EventID eventID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("EventService", "delete-event-and-future", Codec.EncodeEventDeleteEventAndFutureRequest(eventID)));
-    public System.Collections.Generic.List<Event> ListEvents(EventListRequest eventListRequest) =>
-        Codec.DecodeEventListEventsResponse(transport.Call("EventService", "list-events", Codec.Encode(eventListRequest)));
-    public CalendarView GetCalendarView(HouseID houseID) =>
-        Codec.Decode<CalendarView>(transport.Call("EventService", "get-calendar-view", Codec.EncodeEventGetCalendarViewRequest(houseID)));
-    public CalendarView SetCalendarView(CalendarView calendarView) =>
-        Codec.Decode<CalendarView>(transport.Call("EventService", "set-calendar-view", Codec.Encode(calendarView)));
-    public Event AcceptEvent(EventDecision eventDecision) =>
-        Codec.Decode<Event>(transport.Call("EventService", "accept-event", Codec.Encode(eventDecision)));
-    public Event RecoverEdit(EventID eventID) =>
-        Codec.Decode<Event>(transport.Call("EventService", "recover-edit", Codec.EncodeEventRecoverEditRequest(eventID)));
-    public Event DeclineEvent(EventDecision eventDecision) =>
-        Codec.Decode<Event>(transport.Call("EventService", "decline-event", Codec.Encode(eventDecision)));
-    public System.Collections.Generic.List<Event> ListLocalEvents(HouseID houseID) =>
-        Codec.DecodeEventListLocalEventsResponse(transport.Call("EventService", "list-local-events", Codec.EncodeEventListLocalEventsRequest(houseID)));
+    public Event CreateEvent(Event @event)
+    {
+        var reply = transport.CallReply("EventService", "create-event", Codec.Encode(@event));
+        return Codec.Decode<Event>(Codec.ResolveRpcReply("EventService", "create-event", reply.Variant, reply.Payload));
+    }
+    public Event GetEvent(EventID eventID)
+    {
+        var reply = transport.CallReply("EventService", "get-event", Codec.EncodeEventGetEventRequest(eventID));
+        return Codec.Decode<Event>(Codec.ResolveRpcReply("EventService", "get-event", reply.Variant, reply.Payload));
+    }
+    public Event UpdateEvent(Event @event)
+    {
+        var reply = transport.CallReply("EventService", "update-event", Codec.Encode(@event));
+        return Codec.Decode<Event>(Codec.ResolveRpcReply("EventService", "update-event", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteEvent(EventID eventID)
+    {
+        var reply = transport.CallReply("EventService", "delete-event", Codec.EncodeEventDeleteEventRequest(eventID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("EventService", "delete-event", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteEventAndFuture(EventID eventID)
+    {
+        var reply = transport.CallReply("EventService", "delete-event-and-future", Codec.EncodeEventDeleteEventAndFutureRequest(eventID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("EventService", "delete-event-and-future", reply.Variant, reply.Payload));
+    }
+    public EventItems ListEvents(EventListRequest eventListRequest)
+    {
+        var reply = transport.CallReply("EventService", "list-events", Codec.Encode(eventListRequest));
+        return Codec.DecodeEventListEventsResponse(Codec.ResolveRpcReply("EventService", "list-events", reply.Variant, reply.Payload));
+    }
+    public CalendarView GetCalendarView(HouseID houseID)
+    {
+        var reply = transport.CallReply("EventService", "get-calendar-view", Codec.EncodeEventGetCalendarViewRequest(houseID));
+        return Codec.Decode<CalendarView>(Codec.ResolveRpcReply("EventService", "get-calendar-view", reply.Variant, reply.Payload));
+    }
+    public CalendarView SetCalendarView(CalendarView calendarView)
+    {
+        var reply = transport.CallReply("EventService", "set-calendar-view", Codec.Encode(calendarView));
+        return Codec.Decode<CalendarView>(Codec.ResolveRpcReply("EventService", "set-calendar-view", reply.Variant, reply.Payload));
+    }
+    public Event AcceptEvent(EventDecision eventDecision)
+    {
+        var reply = transport.CallReply("EventService", "accept-event", Codec.Encode(eventDecision));
+        return Codec.Decode<Event>(Codec.ResolveRpcReply("EventService", "accept-event", reply.Variant, reply.Payload));
+    }
+    public Event RecoverEdit(EventID eventID)
+    {
+        var reply = transport.CallReply("EventService", "recover-edit", Codec.EncodeEventRecoverEditRequest(eventID));
+        return Codec.Decode<Event>(Codec.ResolveRpcReply("EventService", "recover-edit", reply.Variant, reply.Payload));
+    }
+    public Event DeclineEvent(EventDecision eventDecision)
+    {
+        var reply = transport.CallReply("EventService", "decline-event", Codec.Encode(eventDecision));
+        return Codec.Decode<Event>(Codec.ResolveRpcReply("EventService", "decline-event", reply.Variant, reply.Payload));
+    }
+    public EventItems ListLocalEvents(HouseID houseID)
+    {
+        var reply = transport.CallReply("EventService", "list-local-events", Codec.EncodeEventListLocalEventsRequest(houseID));
+        return Codec.DecodeEventListLocalEventsResponse(Codec.ResolveRpcReply("EventService", "list-local-events", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the CalendarService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class CalendarClient(ICsilTransport transport)
 {
-    public ProjectDeadlineList ListProjectDeadlines(ProjectDeadlineRequest projectDeadlineRequest) =>
-        Codec.Decode<ProjectDeadlineList>(transport.Call("CalendarService", "list-project-deadlines", Codec.Encode(projectDeadlineRequest)));
-    public CalendarStatus GetStatus(HouseID houseID) =>
-        Codec.Decode<CalendarStatus>(transport.Call("CalendarService", "get-status", Codec.EncodeCalendarGetStatusRequest(houseID)));
-    public CalendarStatus ConfigureCalendar(ConfigureCalendarRequest configureCalendarRequest) =>
-        Codec.Decode<CalendarStatus>(transport.Call("CalendarService", "configure-calendar", Codec.Encode(configureCalendarRequest)));
-    public CalendarConnectResponse BeginConnect(HouseID houseID) =>
-        Codec.Decode<CalendarConnectResponse>(transport.Call("CalendarService", "begin-connect", Codec.EncodeCalendarBeginConnectRequest(houseID)));
-    public CalendarStatus CompleteConnect(CompleteCalendarConnectRequest completeCalendarConnectRequest) =>
-        Codec.Decode<CalendarStatus>(transport.Call("CalendarService", "complete-connect", Codec.Encode(completeCalendarConnectRequest)));
-    public EmptyResponse Disconnect(HouseID houseID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("CalendarService", "disconnect", Codec.EncodeCalendarDisconnectRequest(houseID)));
-    public System.Collections.Generic.List<CalendarMigrationRow> PreviewMigration(HouseID houseID) =>
-        Codec.DecodeCalendarPreviewMigrationResponse(transport.Call("CalendarService", "preview-migration", Codec.EncodeCalendarPreviewMigrationRequest(houseID)));
-    public System.Collections.Generic.List<CalendarTrashEntry> ListTrash(HouseID houseID) =>
-        Codec.DecodeCalendarListTrashResponse(transport.Call("CalendarService", "list-trash", Codec.EncodeCalendarListTrashRequest(houseID)));
-    public Event RestoreEvent(RestoreCalendarEventRequest restoreCalendarEventRequest) =>
-        Codec.Decode<Event>(transport.Call("CalendarService", "restore-event", Codec.Encode(restoreCalendarEventRequest)));
+    public ProjectDeadlineList ListProjectDeadlines(ProjectDeadlineRequest projectDeadlineRequest)
+    {
+        var reply = transport.CallReply("CalendarService", "list-project-deadlines", Codec.Encode(projectDeadlineRequest));
+        return Codec.Decode<ProjectDeadlineList>(Codec.ResolveRpcReply("CalendarService", "list-project-deadlines", reply.Variant, reply.Payload));
+    }
+    public CalendarStatus GetStatus(HouseID houseID)
+    {
+        var reply = transport.CallReply("CalendarService", "get-status", Codec.EncodeCalendarGetStatusRequest(houseID));
+        return Codec.Decode<CalendarStatus>(Codec.ResolveRpcReply("CalendarService", "get-status", reply.Variant, reply.Payload));
+    }
+    public CalendarStatus ConfigureCalendar(ConfigureCalendarRequest configureCalendarRequest)
+    {
+        var reply = transport.CallReply("CalendarService", "configure-calendar", Codec.Encode(configureCalendarRequest));
+        return Codec.Decode<CalendarStatus>(Codec.ResolveRpcReply("CalendarService", "configure-calendar", reply.Variant, reply.Payload));
+    }
+    public CalendarConnectResponse BeginConnect(HouseID houseID)
+    {
+        var reply = transport.CallReply("CalendarService", "begin-connect", Codec.EncodeCalendarBeginConnectRequest(houseID));
+        return Codec.Decode<CalendarConnectResponse>(Codec.ResolveRpcReply("CalendarService", "begin-connect", reply.Variant, reply.Payload));
+    }
+    public CalendarStatus CompleteConnect(CompleteCalendarConnectRequest completeCalendarConnectRequest)
+    {
+        var reply = transport.CallReply("CalendarService", "complete-connect", Codec.Encode(completeCalendarConnectRequest));
+        return Codec.Decode<CalendarStatus>(Codec.ResolveRpcReply("CalendarService", "complete-connect", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse Disconnect(HouseID houseID)
+    {
+        var reply = transport.CallReply("CalendarService", "disconnect", Codec.EncodeCalendarDisconnectRequest(houseID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("CalendarService", "disconnect", reply.Variant, reply.Payload));
+    }
+    public CalendarMigrationRowItems PreviewMigration(HouseID houseID)
+    {
+        var reply = transport.CallReply("CalendarService", "preview-migration", Codec.EncodeCalendarPreviewMigrationRequest(houseID));
+        return Codec.DecodeCalendarPreviewMigrationResponse(Codec.ResolveRpcReply("CalendarService", "preview-migration", reply.Variant, reply.Payload));
+    }
+    public CalendarTrashEntryItems ListTrash(HouseID houseID)
+    {
+        var reply = transport.CallReply("CalendarService", "list-trash", Codec.EncodeCalendarListTrashRequest(houseID));
+        return Codec.DecodeCalendarListTrashResponse(Codec.ResolveRpcReply("CalendarService", "list-trash", reply.Variant, reply.Payload));
+    }
+    public Event RestoreEvent(RestoreCalendarEventRequest restoreCalendarEventRequest)
+    {
+        var reply = transport.CallReply("CalendarService", "restore-event", Codec.Encode(restoreCalendarEventRequest));
+        return Codec.Decode<Event>(Codec.ResolveRpcReply("CalendarService", "restore-event", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the TaskService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class TaskClient(ICsilTransport transport)
 {
-    public Task CreateTask(Task task) =>
-        Codec.Decode<Task>(transport.Call("TaskService", "create-task", Codec.Encode(task)));
-    public Task GetTask(TaskID taskID) =>
-        Codec.Decode<Task>(transport.Call("TaskService", "get-task", Codec.EncodeTaskGetTaskRequest(taskID)));
-    public Task UpdateTask(Task task) =>
-        Codec.Decode<Task>(transport.Call("TaskService", "update-task", Codec.Encode(task)));
-    public EmptyResponse DeleteTask(TaskID taskID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("TaskService", "delete-task", Codec.EncodeTaskDeleteTaskRequest(taskID)));
-    public TaskList ListTasks(TaskListRequest taskListRequest) =>
-        Codec.Decode<TaskList>(transport.Call("TaskService", "list-tasks", Codec.Encode(taskListRequest)));
-    public Task CreatePersonalTask(Task task) =>
-        Codec.Decode<Task>(transport.Call("TaskService", "create-personal-task", Codec.Encode(task)));
-    public Task SetTaskVisibility(SetTaskVisibilityRequest setTaskVisibilityRequest) =>
-        Codec.Decode<Task>(transport.Call("TaskService", "set-task-visibility", Codec.Encode(setTaskVisibilityRequest)));
-    public System.Collections.Generic.List<Grant> ListTaskGrants(TaskID taskID) =>
-        Codec.DecodeTaskListTaskGrantsResponse(transport.Call("TaskService", "list-task-grants", Codec.EncodeTaskListTaskGrantsRequest(taskID)));
-    public EmptyResponse PutTaskGrant(PutTaskGrantRequest putTaskGrantRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("TaskService", "put-task-grant", Codec.Encode(putTaskGrantRequest)));
-    public EmptyResponse DeleteTaskGrant(TaskGrantRef taskGrantRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("TaskService", "delete-task-grant", Codec.Encode(taskGrantRef)));
+    public Task CreateTask(Task task)
+    {
+        var reply = transport.CallReply("TaskService", "create-task", Codec.Encode(task));
+        return Codec.Decode<Task>(Codec.ResolveRpcReply("TaskService", "create-task", reply.Variant, reply.Payload));
+    }
+    public Task GetTask(TaskID taskID)
+    {
+        var reply = transport.CallReply("TaskService", "get-task", Codec.EncodeTaskGetTaskRequest(taskID));
+        return Codec.Decode<Task>(Codec.ResolveRpcReply("TaskService", "get-task", reply.Variant, reply.Payload));
+    }
+    public Task UpdateTask(Task task)
+    {
+        var reply = transport.CallReply("TaskService", "update-task", Codec.Encode(task));
+        return Codec.Decode<Task>(Codec.ResolveRpcReply("TaskService", "update-task", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteTask(TaskID taskID)
+    {
+        var reply = transport.CallReply("TaskService", "delete-task", Codec.EncodeTaskDeleteTaskRequest(taskID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("TaskService", "delete-task", reply.Variant, reply.Payload));
+    }
+    public TaskList ListTasks(TaskListRequest taskListRequest)
+    {
+        var reply = transport.CallReply("TaskService", "list-tasks", Codec.Encode(taskListRequest));
+        return Codec.Decode<TaskList>(Codec.ResolveRpcReply("TaskService", "list-tasks", reply.Variant, reply.Payload));
+    }
+    public Task CreatePersonalTask(Task task)
+    {
+        var reply = transport.CallReply("TaskService", "create-personal-task", Codec.Encode(task));
+        return Codec.Decode<Task>(Codec.ResolveRpcReply("TaskService", "create-personal-task", reply.Variant, reply.Payload));
+    }
+    public Task SetTaskVisibility(SetTaskVisibilityRequest setTaskVisibilityRequest)
+    {
+        var reply = transport.CallReply("TaskService", "set-task-visibility", Codec.Encode(setTaskVisibilityRequest));
+        return Codec.Decode<Task>(Codec.ResolveRpcReply("TaskService", "set-task-visibility", reply.Variant, reply.Payload));
+    }
+    public GrantItems ListTaskGrants(TaskID taskID)
+    {
+        var reply = transport.CallReply("TaskService", "list-task-grants", Codec.EncodeTaskListTaskGrantsRequest(taskID));
+        return Codec.DecodeTaskListTaskGrantsResponse(Codec.ResolveRpcReply("TaskService", "list-task-grants", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse PutTaskGrant(PutTaskGrantRequest putTaskGrantRequest)
+    {
+        var reply = transport.CallReply("TaskService", "put-task-grant", Codec.Encode(putTaskGrantRequest));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("TaskService", "put-task-grant", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteTaskGrant(TaskGrantRef taskGrantRef)
+    {
+        var reply = transport.CallReply("TaskService", "delete-task-grant", Codec.Encode(taskGrantRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("TaskService", "delete-task-grant", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the DependencyService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class DependencyClient(ICsilTransport transport)
 {
-    public EmptyResponse AddDependency(DependencyRef dependencyRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("DependencyService", "add-dependency", Codec.Encode(dependencyRef)));
-    public EmptyResponse RemoveDependency(DependencyRef dependencyRef) =>
-        Codec.Decode<EmptyResponse>(transport.Call("DependencyService", "remove-dependency", Codec.Encode(dependencyRef)));
-    public DependencyGraph GetDependencies(DependencyTarget dependencyTarget) =>
-        Codec.Decode<DependencyGraph>(transport.Call("DependencyService", "get-dependencies", Codec.Encode(dependencyTarget)));
+    public EmptyResponse AddDependency(DependencyRef dependencyRef)
+    {
+        var reply = transport.CallReply("DependencyService", "add-dependency", Codec.Encode(dependencyRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("DependencyService", "add-dependency", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse RemoveDependency(DependencyRef dependencyRef)
+    {
+        var reply = transport.CallReply("DependencyService", "remove-dependency", Codec.Encode(dependencyRef));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("DependencyService", "remove-dependency", reply.Variant, reply.Payload));
+    }
+    public DependencyGraph GetDependencies(DependencyTarget dependencyTarget)
+    {
+        var reply = transport.CallReply("DependencyService", "get-dependencies", Codec.Encode(dependencyTarget));
+        return Codec.Decode<DependencyGraph>(Codec.ResolveRpcReply("DependencyService", "get-dependencies", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the CommentService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class CommentClient(ICsilTransport transport)
 {
-    public Comment CreateComment(Comment comment) =>
-        Codec.Decode<Comment>(transport.Call("CommentService", "create-comment", Codec.Encode(comment)));
-    public Comment GetComment(CommentID commentID) =>
-        Codec.Decode<Comment>(transport.Call("CommentService", "get-comment", Codec.EncodeCommentGetCommentRequest(commentID)));
-    public Comment UpdateComment(Comment comment) =>
-        Codec.Decode<Comment>(transport.Call("CommentService", "update-comment", Codec.Encode(comment)));
-    public EmptyResponse DeleteComment(CommentID commentID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("CommentService", "delete-comment", Codec.EncodeCommentDeleteCommentRequest(commentID)));
-    public System.Collections.Generic.List<Comment> ListComments(CommentListRequest commentListRequest) =>
-        Codec.DecodeCommentListCommentsResponse(transport.Call("CommentService", "list-comments", Codec.Encode(commentListRequest)));
+    public Comment CreateComment(Comment comment)
+    {
+        var reply = transport.CallReply("CommentService", "create-comment", Codec.Encode(comment));
+        return Codec.Decode<Comment>(Codec.ResolveRpcReply("CommentService", "create-comment", reply.Variant, reply.Payload));
+    }
+    public Comment GetComment(CommentID commentID)
+    {
+        var reply = transport.CallReply("CommentService", "get-comment", Codec.EncodeCommentGetCommentRequest(commentID));
+        return Codec.Decode<Comment>(Codec.ResolveRpcReply("CommentService", "get-comment", reply.Variant, reply.Payload));
+    }
+    public Comment UpdateComment(Comment comment)
+    {
+        var reply = transport.CallReply("CommentService", "update-comment", Codec.Encode(comment));
+        return Codec.Decode<Comment>(Codec.ResolveRpcReply("CommentService", "update-comment", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteComment(CommentID commentID)
+    {
+        var reply = transport.CallReply("CommentService", "delete-comment", Codec.EncodeCommentDeleteCommentRequest(commentID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("CommentService", "delete-comment", reply.Variant, reply.Payload));
+    }
+    public CommentItems ListComments(CommentListRequest commentListRequest)
+    {
+        var reply = transport.CallReply("CommentService", "list-comments", Codec.Encode(commentListRequest));
+        return Codec.DecodeCommentListCommentsResponse(Codec.ResolveRpcReply("CommentService", "list-comments", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the NotificationService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class NotificationClient(ICsilTransport transport)
 {
-    public System.Collections.Generic.List<Notification> ListNotifications(NotificationListRequest notificationListRequest) =>
-        Codec.DecodeNotificationListNotificationsResponse(transport.Call("NotificationService", "list-notifications", Codec.Encode(notificationListRequest)));
-    public NotificationUnreadCount UnreadCount(HouseID houseID) =>
-        Codec.Decode<NotificationUnreadCount>(transport.Call("NotificationService", "unread-count", Codec.EncodeNotificationUnreadCountRequest(houseID)));
-    public Notification MarkRead(NotificationID notificationID) =>
-        Codec.Decode<Notification>(transport.Call("NotificationService", "mark-read", Codec.EncodeNotificationMarkReadRequest(notificationID)));
-    public EmptyResponse MarkAllRead(HouseID houseID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("NotificationService", "mark-all-read", Codec.EncodeNotificationMarkAllReadRequest(houseID)));
+    public NotificationItems ListNotifications(NotificationListRequest notificationListRequest)
+    {
+        var reply = transport.CallReply("NotificationService", "list-notifications", Codec.Encode(notificationListRequest));
+        return Codec.DecodeNotificationListNotificationsResponse(Codec.ResolveRpcReply("NotificationService", "list-notifications", reply.Variant, reply.Payload));
+    }
+    public NotificationUnreadCount UnreadCount(HouseID houseID)
+    {
+        var reply = transport.CallReply("NotificationService", "unread-count", Codec.EncodeNotificationUnreadCountRequest(houseID));
+        return Codec.Decode<NotificationUnreadCount>(Codec.ResolveRpcReply("NotificationService", "unread-count", reply.Variant, reply.Payload));
+    }
+    public Notification MarkRead(NotificationID notificationID)
+    {
+        var reply = transport.CallReply("NotificationService", "mark-read", Codec.EncodeNotificationMarkReadRequest(notificationID));
+        return Codec.Decode<Notification>(Codec.ResolveRpcReply("NotificationService", "mark-read", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse MarkAllRead(HouseID houseID)
+    {
+        var reply = transport.CallReply("NotificationService", "mark-all-read", Codec.EncodeNotificationMarkAllReadRequest(houseID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("NotificationService", "mark-all-read", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the ShareService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class ShareClient(ICsilTransport transport)
 {
-    public Share CreateShare(Share share) =>
-        Codec.Decode<Share>(transport.Call("ShareService", "create-share", Codec.Encode(share)));
-    public EmptyResponse DeleteShare(ShareID shareID) =>
-        Codec.Decode<EmptyResponse>(transport.Call("ShareService", "delete-share", Codec.EncodeShareDeleteShareRequest(shareID)));
-    public System.Collections.Generic.List<Share> ListSharesByResource(ResourceRef resourceRef) =>
-        Codec.DecodeShareListSharesByResourceResponse(transport.Call("ShareService", "list-shares-by-resource", Codec.Encode(resourceRef)));
-    public Share CheckAccess(ShareAccessRequest shareAccessRequest) =>
-        Codec.Decode<Share>(transport.Call("ShareService", "check-access", Codec.Encode(shareAccessRequest)));
+    public Share CreateShare(Share share)
+    {
+        var reply = transport.CallReply("ShareService", "create-share", Codec.Encode(share));
+        return Codec.Decode<Share>(Codec.ResolveRpcReply("ShareService", "create-share", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse DeleteShare(ShareID shareID)
+    {
+        var reply = transport.CallReply("ShareService", "delete-share", Codec.EncodeShareDeleteShareRequest(shareID));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("ShareService", "delete-share", reply.Variant, reply.Payload));
+    }
+    public ShareItems ListSharesByResource(ResourceRef resourceRef)
+    {
+        var reply = transport.CallReply("ShareService", "list-shares-by-resource", Codec.Encode(resourceRef));
+        return Codec.DecodeShareListSharesByResourceResponse(Codec.ResolveRpcReply("ShareService", "list-shares-by-resource", reply.Variant, reply.Payload));
+    }
+    public Share CheckAccess(ShareAccessRequest shareAccessRequest)
+    {
+        var reply = transport.CallReply("ShareService", "check-access", Codec.Encode(shareAccessRequest));
+        return Codec.Decode<Share>(Codec.ResolveRpcReply("ShareService", "check-access", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the MemberAuditService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class MemberAuditClient(ICsilTransport transport)
 {
-    public System.Collections.Generic.List<MemberAudit> ListAuditsForMember(MemberScopedListRequest memberScopedListRequest) =>
-        Codec.DecodeMemberAuditListAuditsForMemberResponse(transport.Call("MemberAuditService", "list-audits-for-member", Codec.Encode(memberScopedListRequest)));
+    public MemberAuditItems ListAuditsForMember(MemberScopedListRequest memberScopedListRequest)
+    {
+        var reply = transport.CallReply("MemberAuditService", "list-audits-for-member", Codec.Encode(memberScopedListRequest));
+        return Codec.DecodeMemberAuditListAuditsForMemberResponse(Codec.ResolveRpcReply("MemberAuditService", "list-audits-for-member", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the SettingsService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class SettingsClient(ICsilTransport transport)
 {
-    public EffectiveSettings GetSettings(HouseID houseID) =>
-        Codec.Decode<EffectiveSettings>(transport.Call("SettingsService", "get-settings", Codec.EncodeSettingsGetSettingsRequest(houseID)));
-    public EffectiveSettings UpdateSettings(UpdateSettingsRequest updateSettingsRequest) =>
-        Codec.Decode<EffectiveSettings>(transport.Call("SettingsService", "update-settings", Codec.Encode(updateSettingsRequest)));
+    public EffectiveSettings GetSettings(HouseID houseID)
+    {
+        var reply = transport.CallReply("SettingsService", "get-settings", Codec.EncodeSettingsGetSettingsRequest(houseID));
+        return Codec.Decode<EffectiveSettings>(Codec.ResolveRpcReply("SettingsService", "get-settings", reply.Variant, reply.Payload));
+    }
+    public EffectiveSettings UpdateSettings(UpdateSettingsRequest updateSettingsRequest)
+    {
+        var reply = transport.CallReply("SettingsService", "update-settings", Codec.Encode(updateSettingsRequest));
+        return Codec.Decode<EffectiveSettings>(Codec.ResolveRpcReply("SettingsService", "update-settings", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the BugService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class BugClient(ICsilTransport transport)
 {
-    public Task ReportBug(BugReportRequest bugReportRequest) =>
-        Codec.Decode<Task>(transport.Call("BugService", "report-bug", Codec.Encode(bugReportRequest)));
+    public Task ReportBug(BugReportRequest bugReportRequest)
+    {
+        var reply = transport.CallReply("BugService", "report-bug", Codec.Encode(bugReportRequest));
+        return Codec.Decode<Task>(Codec.ResolveRpcReply("BugService", "report-bug", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the AuditService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class AuditClient(ICsilTransport transport)
 {
-    public AuditPage QueryAudit(AuditQuery auditQuery) =>
-        Codec.Decode<AuditPage>(transport.Call("AuditService", "query-audit", Codec.Encode(auditQuery)));
+    public AuditPage QueryAudit(AuditQuery auditQuery)
+    {
+        var reply = transport.CallReply("AuditService", "query-audit", Codec.Encode(auditQuery));
+        return Codec.Decode<AuditPage>(Codec.ResolveRpcReply("AuditService", "query-audit", reply.Variant, reply.Payload));
+    }
 }
 
 /// <summary>Typed RPC client for the TrashService service. The client owns
 /// (de)serialization via the generated codec; the transport only moves bytes.</summary>
 public sealed class TrashClient(ICsilTransport transport)
 {
-    public TrashPage ListTrash(HouseScopedListRequest houseScopedListRequest) =>
-        Codec.Decode<TrashPage>(transport.Call("TrashService", "list-trash", Codec.Encode(houseScopedListRequest)));
-    public EmptyResponse Restore(RestoreRequest restoreRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("TrashService", "restore", Codec.Encode(restoreRequest)));
-    public EmptyResponse Purge(PurgeRequest purgeRequest) =>
-        Codec.Decode<EmptyResponse>(transport.Call("TrashService", "purge", Codec.Encode(purgeRequest)));
+    public TrashPage ListTrash(HouseScopedListRequest houseScopedListRequest)
+    {
+        var reply = transport.CallReply("TrashService", "list-trash", Codec.Encode(houseScopedListRequest));
+        return Codec.Decode<TrashPage>(Codec.ResolveRpcReply("TrashService", "list-trash", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse Restore(RestoreRequest restoreRequest)
+    {
+        var reply = transport.CallReply("TrashService", "restore", Codec.Encode(restoreRequest));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("TrashService", "restore", reply.Variant, reply.Payload));
+    }
+    public EmptyResponse Purge(PurgeRequest purgeRequest)
+    {
+        var reply = transport.CallReply("TrashService", "purge", Codec.Encode(purgeRequest));
+        return Codec.Decode<EmptyResponse>(Codec.ResolveRpcReply("TrashService", "purge", reply.Variant, reply.Payload));
+    }
 }
 

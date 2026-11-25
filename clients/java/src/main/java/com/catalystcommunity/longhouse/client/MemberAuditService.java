@@ -2,11 +2,9 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The MemberAuditService server handler interface; the host implements it.
  */
 public interface MemberAuditService {
-    List<MemberAudit> listAuditsForMember(MemberScopedListRequest req);
+    MemberAuditItems listAuditsForMember(MemberScopedListRequest req);
 }

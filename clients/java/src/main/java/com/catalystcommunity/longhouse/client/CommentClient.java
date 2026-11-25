@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the CommentService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -16,22 +14,27 @@ public final class CommentClient {
     }
 
     public Comment createComment(Comment req) throws ClientException {
-        return CsilCbor.decodeComment(transport.call("CommentService", "create-comment", CsilCbor.encodeComment(req)));
+        WireReply reply = transport.callReply("CommentService", "create-comment", CsilCbor.encodeComment(req));
+        return CsilCbor.decodeComment(CsilCbor.resolveRpcReply("CommentService", "create-comment", reply.variant(), reply.payload()));
     }
 
     public Comment getComment(CommentId req) throws ClientException {
-        return CsilCbor.decodeComment(transport.call("CommentService", "get-comment", CsilCbor.encodeCommentGetCommentRequest(req)));
+        WireReply reply = transport.callReply("CommentService", "get-comment", CsilCbor.encodeCommentGetCommentRequest(req));
+        return CsilCbor.decodeComment(CsilCbor.resolveRpcReply("CommentService", "get-comment", reply.variant(), reply.payload()));
     }
 
     public Comment updateComment(Comment req) throws ClientException {
-        return CsilCbor.decodeComment(transport.call("CommentService", "update-comment", CsilCbor.encodeComment(req)));
+        WireReply reply = transport.callReply("CommentService", "update-comment", CsilCbor.encodeComment(req));
+        return CsilCbor.decodeComment(CsilCbor.resolveRpcReply("CommentService", "update-comment", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deleteComment(CommentId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("CommentService", "delete-comment", CsilCbor.encodeCommentDeleteCommentRequest(req)));
+        WireReply reply = transport.callReply("CommentService", "delete-comment", CsilCbor.encodeCommentDeleteCommentRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("CommentService", "delete-comment", reply.variant(), reply.payload()));
     }
 
-    public List<Comment> listComments(CommentListRequest req) throws ClientException {
-        return CsilCbor.decodeCommentListCommentsResponse(transport.call("CommentService", "list-comments", CsilCbor.encodeCommentListRequest(req)));
+    public CommentItems listComments(CommentListRequest req) throws ClientException {
+        WireReply reply = transport.callReply("CommentService", "list-comments", CsilCbor.encodeCommentListRequest(req));
+        return CsilCbor.decodeCommentListCommentsResponse(CsilCbor.resolveRpcReply("CommentService", "list-comments", reply.variant(), reply.payload()));
     }
 }

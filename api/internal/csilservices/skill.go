@@ -89,7 +89,7 @@ func (s *SkillService) DeleteSkill(ctx context.Context, id csil.SkillID) (csil.E
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *SkillService) ListSkills(ctx context.Context, req csil.HouseScopedListRequest) ([]csil.Skill, error) {
+func (s *SkillService) ListSkills(ctx context.Context, req csil.HouseScopedListRequest) (csil.SkillItems, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (s *SkillService) RemoveMemberSkill(ctx context.Context, ref csil.MemberSki
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *SkillService) ListMemberSkills(ctx context.Context, req csil.MemberScopedListRequest) ([]csil.Skill, error) {
+func (s *SkillService) ListMemberSkills(ctx context.Context, req csil.MemberScopedListRequest) (csil.SkillItems, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (s *SkillService) RemoveGroupSkill(ctx context.Context, ref csil.GroupSkill
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *SkillService) ListGroupSkills(ctx context.Context, id csil.GroupID) ([]csil.Skill, error) {
+func (s *SkillService) ListGroupSkills(ctx context.Context, id csil.GroupID) (csil.SkillItems, error) {
 	g, err := s.Store.GetGroupByID(ctx, string(id))
 	if err != nil {
 		return nil, csilrpc.NotFound("group not found")

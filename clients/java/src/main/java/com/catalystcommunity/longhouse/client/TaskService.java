@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The TaskService server handler interface; the host implements it.
  */
@@ -15,7 +13,7 @@ public interface TaskService {
     TaskList listTasks(TaskListRequest req);
     Task createPersonalTask(Task req);
     Task setTaskVisibility(SetTaskVisibilityRequest req);
-    List<Grant> listTaskGrants(TaskId req);
+    GrantItems listTaskGrants(TaskId req);
     EmptyResponse putTaskGrant(PutTaskGrantRequest req);
     EmptyResponse deleteTaskGrant(TaskGrantRef req);
 }

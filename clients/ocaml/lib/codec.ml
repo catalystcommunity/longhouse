@@ -50,8 +50,8 @@ and encode_house (v : house) : Cbor.t =
        [
          Some (Cbor.Text "name", (Cbor.Text v.name));
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
-         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text v.updated_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
+         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.updated_at))));
          (match v.description with Some csil_x -> Some (Cbor.Text "description", (Cbor.Text csil_x)) | None -> None);
        ])
 
@@ -65,11 +65,11 @@ and encode_member (v : member) : Cbor.t =
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
          Some (Cbor.Text "member_id", (Cbor.Text v.member_id));
          (match v.avatar_url with Some csil_x -> Some (Cbor.Text "avatar_url", (Cbor.Text csil_x)) | None -> None);
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
-         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text v.updated_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
+         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.updated_at))));
          (match v.display_name with Some csil_x -> Some (Cbor.Text "display_name", (Cbor.Text csil_x)) | None -> None);
-         (match v.last_seen_at with Some csil_x -> Some (Cbor.Text "last_seen_at", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
-         (match v.deactivated_at with Some csil_x -> Some (Cbor.Text "deactivated_at", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         (match v.last_seen_at with Some csil_x -> Some (Cbor.Text "last_seen_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
+         (match v.deactivated_at with Some csil_x -> Some (Cbor.Text "deactivated_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
          Some (Cbor.Text "linkkeys_domain", (Cbor.Text v.linkkeys_domain));
          Some (Cbor.Text "linkkeys_user_id", (Cbor.Text v.linkkeys_user_id));
          (match v.cached_public_key with Some csil_x -> Some (Cbor.Text "cached_public_key", (Cbor.Bytes csil_x)) | None -> None);
@@ -82,7 +82,7 @@ and encode_trusted_domain (v : trusted_domain) : Cbor.t =
        [
          Some (Cbor.Text "domain", (Cbor.Text v.domain));
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
          Some (Cbor.Text "trusted_domain_id", (Cbor.Text v.trusted_domain_id));
        ])
 
@@ -94,8 +94,8 @@ and encode_role (v : role) : Cbor.t =
          Some (Cbor.Text "name", (Cbor.Text v.name));
          Some (Cbor.Text "role_id", (Cbor.Text v.role_id));
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
-         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text v.updated_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
+         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.updated_at))));
          (match v.description with Some csil_x -> Some (Cbor.Text "description", (Cbor.Text csil_x)) | None -> None);
        ])
 
@@ -106,7 +106,7 @@ and encode_member_role (v : member_role) : Cbor.t =
        [
          Some (Cbor.Text "role_id", (Cbor.Text v.role_id));
          Some (Cbor.Text "member_id", (Cbor.Text v.member_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
        ])
 
 and encode_member_audit (v : member_audit) : Cbor.t =
@@ -119,7 +119,7 @@ and encode_member_audit (v : member_audit) : Cbor.t =
          Some (Cbor.Text "audit_id", (Cbor.Text v.audit_id));
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
          (match v.target_id with Some csil_x -> Some (Cbor.Text "target_id", (Cbor.Text csil_x)) | None -> None);
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
          (match v.target_type with Some csil_x -> Some (Cbor.Text "target_type", (Cbor.Text csil_x)) | None -> None);
          (match v.actor_member_id with Some csil_x -> Some (Cbor.Text "actor_member_id", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "subject_member_id", (Cbor.Text v.subject_member_id));
@@ -133,8 +133,8 @@ and encode_skill (v : skill) : Cbor.t =
          Some (Cbor.Text "name", (Cbor.Text v.name));
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
          Some (Cbor.Text "skill_id", (Cbor.Text v.skill_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
-         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text v.updated_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
+         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.updated_at))));
          (match v.description with Some csil_x -> Some (Cbor.Text "description", (Cbor.Text csil_x)) | None -> None);
        ])
 
@@ -145,7 +145,7 @@ and encode_member_skill (v : member_skill) : Cbor.t =
        [
          Some (Cbor.Text "skill_id", (Cbor.Text v.skill_id));
          Some (Cbor.Text "member_id", (Cbor.Text v.member_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
        ])
 
 and encode_group_skill (v : group_skill) : Cbor.t =
@@ -155,7 +155,7 @@ and encode_group_skill (v : group_skill) : Cbor.t =
        [
          Some (Cbor.Text "group_id", (Cbor.Text v.group_id));
          Some (Cbor.Text "skill_id", (Cbor.Text v.skill_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
        ])
 
 and encode_group (v : group) : Cbor.t =
@@ -166,8 +166,8 @@ and encode_group (v : group) : Cbor.t =
          Some (Cbor.Text "name", (Cbor.Text v.name));
          Some (Cbor.Text "group_id", (Cbor.Text v.group_id));
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
-         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text v.updated_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
+         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.updated_at))));
          (match v.description with Some csil_x -> Some (Cbor.Text "description", (Cbor.Text csil_x)) | None -> None);
        ])
 
@@ -178,7 +178,7 @@ and encode_group_member (v : group_member) : Cbor.t =
        [
          Some (Cbor.Text "group_id", (Cbor.Text v.group_id));
          Some (Cbor.Text "member_id", (Cbor.Text v.member_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
        ])
 
 and encode_project (v : project) : Cbor.t =
@@ -191,9 +191,9 @@ and encode_project (v : project) : Cbor.t =
          (match v.category with Some csil_x -> Some (Cbor.Text "category", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
          (match v.personal with Some csil_x -> Some (Cbor.Text "personal", (Cbor.Bool csil_x)) | None -> None);
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
          Some (Cbor.Text "project_id", (Cbor.Text v.project_id));
-         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text v.updated_at)));
+         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.updated_at))));
          (match v.visibility with Some csil_x -> Some (Cbor.Text "visibility", (encode_access_level csil_x)) | None -> None);
          (match v.description with Some csil_x -> Some (Cbor.Text "description", (Cbor.Text csil_x)) | None -> None);
          (match v.created_by_member_id with Some csil_x -> Some (Cbor.Text "created_by_member_id", (Cbor.Text csil_x)) | None -> None);
@@ -206,7 +206,7 @@ and encode_project_task (v : project_task) : Cbor.t =
        [
          Some (Cbor.Text "task_id", (Cbor.Text v.task_id));
          Some (Cbor.Text "position", (Cbor.int64 v.position));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
          Some (Cbor.Text "project_id", (Cbor.Text v.project_id));
        ])
 
@@ -216,7 +216,7 @@ and encode_project_member (v : project_member) : Cbor.t =
        (fun x -> x)
        [
          Some (Cbor.Text "member_id", (Cbor.Text v.member_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
          Some (Cbor.Text "project_id", (Cbor.Text v.project_id));
        ])
 
@@ -226,7 +226,7 @@ and encode_project_owner (v : project_owner) : Cbor.t =
        (fun x -> x)
        [
          Some (Cbor.Text "member_id", (Cbor.Text v.member_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
          Some (Cbor.Text "project_id", (Cbor.Text v.project_id));
        ])
 
@@ -238,9 +238,9 @@ and encode_milestone (v : milestone) : Cbor.t =
          Some (Cbor.Text "label", (Cbor.Text v.label));
          Some (Cbor.Text "state", (encode_milestone_state v.state));
          Some (Cbor.Text "position", (Cbor.int64 v.position));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
          Some (Cbor.Text "project_id", (Cbor.Text v.project_id));
-         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text v.updated_at)));
+         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.updated_at))));
          Some (Cbor.Text "when_label", (Cbor.Text v.when_label));
          Some (Cbor.Text "milestone_id", (Cbor.Text v.milestone_id));
        ])
@@ -252,16 +252,16 @@ and encode_event (v : event) : Cbor.t =
        [
          Some (Cbor.Text "title", (Cbor.Text v.title));
          (match v.all_day with Some csil_x -> Some (Cbor.Text "all_day", (Cbor.Bool csil_x)) | None -> None);
-         (match v.ends_at with Some csil_x -> Some (Cbor.Text "ends_at", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         (match v.ends_at with Some csil_x -> Some (Cbor.Text "ends_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
          Some (Cbor.Text "event_id", (Cbor.Text v.event_id));
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
          (match v.location with Some csil_x -> Some (Cbor.Text "location", (Cbor.Text csil_x)) | None -> None);
          (match v.revision with Some csil_x -> Some (Cbor.Text "revision", (Cbor.int64 csil_x)) | None -> None);
          (match v.timezone with Some csil_x -> Some (Cbor.Text "timezone", (Cbor.Text csil_x)) | None -> None);
-         (match v.starts_at with Some csil_x -> Some (Cbor.Text "starts_at", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         (match v.starts_at with Some csil_x -> Some (Cbor.Text "starts_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
          (match v.edit_scope with Some csil_x -> Some (Cbor.Text "edit_scope", (Cbor.Text csil_x)) | None -> None);
-         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text v.updated_at)));
+         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.updated_at))));
          (match v.description with Some csil_x -> Some (Cbor.Text "description", (Cbor.Text csil_x)) | None -> None);
          (match v.calendar_state with Some csil_x -> Some (Cbor.Text "calendar_state", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "owner_member_id", (Cbor.Text v.owner_member_id));
@@ -270,7 +270,7 @@ and encode_event (v : event) : Cbor.t =
          (match v.calendar_unbound with Some csil_x -> Some (Cbor.Text "calendar_unbound", (Cbor.Bool csil_x)) | None -> None);
          (match v.clear_recurrence with Some csil_x -> Some (Cbor.Text "clear_recurrence", (Cbor.Bool csil_x)) | None -> None);
          (match v.publication_error with Some csil_x -> Some (Cbor.Text "publication_error", (Cbor.Text csil_x)) | None -> None);
-         (match v.next_recurrence_at with Some csil_x -> Some (Cbor.Text "next_recurrence_at", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         (match v.next_recurrence_at with Some csil_x -> Some (Cbor.Text "next_recurrence_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
          (match v.recurrence_interval with Some csil_x -> Some (Cbor.Text "recurrence_interval", (Cbor.int64 csil_x)) | None -> None);
          (match v.recurrence_by_setpos with Some csil_x -> Some (Cbor.Text "recurrence_by_setpos", (Cbor.int64 csil_x)) | None -> None);
          (match v.proposed_by_member_id with Some csil_x -> Some (Cbor.Text "proposed_by_member_id", (Cbor.Text csil_x)) | None -> None);
@@ -286,14 +286,14 @@ and encode_task (v : task) : Cbor.t =
        [
          (match v.tag with Some csil_x -> Some (Cbor.Text "tag", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "title", (Cbor.Text v.title));
-         (match v.due_at with Some csil_x -> Some (Cbor.Text "due_at", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         (match v.due_at with Some csil_x -> Some (Cbor.Text "due_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
          (match v.status with Some csil_x -> Some (Cbor.Text "status", (encode_task_status csil_x)) | None -> None);
          Some (Cbor.Text "task_id", (Cbor.Text v.task_id));
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
          (match v.assignees with Some csil_x -> Some (Cbor.Text "assignees", (Cbor.Array (List.map (fun csil_e -> (Cbor.Text csil_e)) csil_x))) | None -> None);
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
-         (match v.deleted_at with Some csil_x -> Some (Cbor.Text "deleted_at", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
-         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text v.updated_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
+         (match v.deleted_at with Some csil_x -> Some (Cbor.Text "deleted_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
+         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.updated_at))));
          (match v.visibility with Some csil_x -> Some (Cbor.Text "visibility", (encode_access_level csil_x)) | None -> None);
          (match v.description with Some csil_x -> Some (Cbor.Text "description", (Cbor.Text csil_x)) | None -> None);
          (match v.parent_task_id with Some csil_x -> Some (Cbor.Text "parent_task_id", (Cbor.Text csil_x)) | None -> None);
@@ -301,7 +301,7 @@ and encode_task (v : task) : Cbor.t =
          (match v.recurrence_freq with Some csil_x -> Some (Cbor.Text "recurrence_freq", (encode_recurrence_freq csil_x)) | None -> None);
          (match v.clear_recurrence with Some csil_x -> Some (Cbor.Text "clear_recurrence", (Cbor.Bool csil_x)) | None -> None);
          (match v.estimate_minutes with Some csil_x -> Some (Cbor.Text "estimate_minutes", (Cbor.int64 csil_x)) | None -> None);
-         (match v.next_recurrence_at with Some csil_x -> Some (Cbor.Text "next_recurrence_at", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         (match v.next_recurrence_at with Some csil_x -> Some (Cbor.Text "next_recurrence_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
          (match v.recurrence_interval with Some csil_x -> Some (Cbor.Text "recurrence_interval", (Cbor.int64 csil_x)) | None -> None);
          (match v.assigned_to_skill_id with Some csil_x -> Some (Cbor.Text "assigned_to_skill_id", (Cbor.Text csil_x)) | None -> None);
          (match v.recurrence_by_setpos with Some csil_x -> Some (Cbor.Text "recurrence_by_setpos", (Cbor.int64 csil_x)) | None -> None);
@@ -319,8 +319,8 @@ and encode_comment (v : comment) : Cbor.t =
          Some (Cbor.Text "member_id", (Cbor.Text v.member_id));
          Some (Cbor.Text "target_id", (Cbor.Text v.target_id));
          Some (Cbor.Text "comment_id", (Cbor.Text v.comment_id));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
-         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text v.updated_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
+         Some (Cbor.Text "updated_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.updated_at))));
          Some (Cbor.Text "target_type", (encode_target_type v.target_type));
        ])
 
@@ -332,8 +332,8 @@ and encode_share (v : share) : Cbor.t =
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
          Some (Cbor.Text "share_id", (Cbor.Text v.share_id));
          Some (Cbor.Text "shared_by", (Cbor.Text v.shared_by));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
-         (match v.expires_at with Some csil_x -> Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
+         (match v.expires_at with Some csil_x -> Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
          Some (Cbor.Text "resource_id", (Cbor.Text v.resource_id));
          (match v.access_level with Some csil_x -> Some (Cbor.Text "access_level", (encode_access_level csil_x)) | None -> None);
          Some (Cbor.Text "resource_type", (encode_resource_type v.resource_type));
@@ -427,7 +427,7 @@ and encode_login_response (v : login_response) : Cbor.t =
          Some (Cbor.Text "token", (Cbor.Text v.token));
          Some (Cbor.Text "domain", (Cbor.Text v.domain));
          Some (Cbor.Text "user_id", (Cbor.Text v.user_id));
-         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text v.expires_at)));
+         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.expires_at))));
          (match v.display_name with Some csil_x -> Some (Cbor.Text "display_name", (Cbor.Text csil_x)) | None -> None);
        ])
 
@@ -439,11 +439,11 @@ and encode_cli_token_response (v : cli_token_response) : Cbor.t =
          Some (Cbor.Text "token", (Cbor.Text v.token));
          Some (Cbor.Text "domain", (Cbor.Text v.domain));
          Some (Cbor.Text "user_id", (Cbor.Text v.user_id));
-         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text v.expires_at)));
+         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.expires_at))));
          Some (Cbor.Text "session_id", (Cbor.Text v.session_id));
          (match v.display_name with Some csil_x -> Some (Cbor.Text "display_name", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "refresh_token", (Cbor.Text v.refresh_token));
-         Some (Cbor.Text "refresh_expires_at", (Cbor.Tag (0, Cbor.Text v.refresh_expires_at)));
+         Some (Cbor.Text "refresh_expires_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.refresh_expires_at))));
        ])
 
 and encode_begin_cli_login_request (v : begin_cli_login_request) : Cbor.t =
@@ -460,7 +460,7 @@ and encode_begin_cli_login_response (v : begin_cli_login_response) : Cbor.t =
        (fun x -> x)
        [
          Some (Cbor.Text "user_code", (Cbor.Text v.user_code));
-         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text v.expires_at)));
+         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.expires_at))));
          Some (Cbor.Text "device_code", (Cbor.Text v.device_code));
          Some (Cbor.Text "interval_seconds", (Cbor.int64 v.interval_seconds));
          Some (Cbor.Text "verification_url", (Cbor.Text v.verification_url));
@@ -480,7 +480,7 @@ and encode_cli_login_request_info (v : cli_login_request_info) : Cbor.t =
        (fun x -> x)
        [
          Some (Cbor.Text "user_code", (Cbor.Text v.user_code));
-         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text v.expires_at)));
+         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.expires_at))));
          Some (Cbor.Text "client_name", (Cbor.Text v.client_name));
        ])
 
@@ -524,12 +524,12 @@ and encode_cli_session_summary (v : cli_session_summary) : Cbor.t =
        [
          (match v.kind with Some csil_x -> Some (Cbor.Text "kind", (encode_session_kind csil_x)) | None -> None);
          (match v.current with Some csil_x -> Some (Cbor.Text "current", (Cbor.Bool csil_x)) | None -> None);
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
-         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text v.expires_at)));
-         (match v.revoked_at with Some csil_x -> Some (Cbor.Text "revoked_at", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
+         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.expires_at))));
+         (match v.revoked_at with Some csil_x -> Some (Cbor.Text "revoked_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
          Some (Cbor.Text "session_id", (Cbor.Text v.session_id));
          Some (Cbor.Text "client_name", (Cbor.Text v.client_name));
-         Some (Cbor.Text "last_used_at", (Cbor.Tag (0, Cbor.Text v.last_used_at)));
+         Some (Cbor.Text "last_used_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.last_used_at))));
        ])
 
 and encode_cli_sessions_response (v : cli_sessions_response) : Cbor.t =
@@ -586,7 +586,7 @@ and encode_me_response (v : me_response) : Cbor.t =
          Some (Cbor.Text "domain", (Cbor.Text v.domain));
          Some (Cbor.Text "houses", (Cbor.Array (List.map (fun csil_e -> (encode_house_summary csil_e)) v.houses)));
          Some (Cbor.Text "user_id", (Cbor.Text v.user_id));
-         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text v.expires_at)));
+         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.expires_at))));
          (match v.display_name with Some csil_x -> Some (Cbor.Text "display_name", (Cbor.Text csil_x)) | None -> None);
        ])
 
@@ -629,8 +629,8 @@ and encode_event_list_request (v : event_list_request) : Cbor.t =
          (match v.limit with Some csil_x -> Some (Cbor.Text "limit", (Cbor.int64 csil_x)) | None -> None);
          (match v.offset with Some csil_x -> Some (Cbor.Text "offset", (Cbor.int64 csil_x)) | None -> None);
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
-         (match v.range_end with Some csil_x -> Some (Cbor.Text "range_end", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
-         (match v.range_start with Some csil_x -> Some (Cbor.Text "range_start", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         (match v.range_end with Some csil_x -> Some (Cbor.Text "range_end", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
+         (match v.range_start with Some csil_x -> Some (Cbor.Text "range_start", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
        ])
 
 and encode_task_list_request (v : task_list_request) : Cbor.t =
@@ -642,11 +642,11 @@ and encode_task_list_request (v : task_list_request) : Cbor.t =
          (match v.limit with Some csil_x -> Some (Cbor.Text "limit", (Cbor.int64 csil_x)) | None -> None);
          (match v.loose with Some csil_x -> Some (Cbor.Text "loose", (Cbor.Bool csil_x)) | None -> None);
          (match v.state with Some csil_x -> Some (Cbor.Text "state", (encode_task_state csil_x)) | None -> None);
-         (match v.due_to with Some csil_x -> Some (Cbor.Text "due_to", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         (match v.due_to with Some csil_x -> Some (Cbor.Text "due_to", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
          (match v.offset with Some csil_x -> Some (Cbor.Text "offset", (Cbor.int64 csil_x)) | None -> None);
-         (match v.due_from with Some csil_x -> Some (Cbor.Text "due_from", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         (match v.due_from with Some csil_x -> Some (Cbor.Text "due_from", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
-         (match v.due_before with Some csil_x -> Some (Cbor.Text "due_before", (Cbor.Array (List.map (fun csil_e -> (Cbor.Tag (0, Cbor.Text csil_e))) csil_x))) | None -> None);
+         (match v.due_before with Some csil_x -> Some (Cbor.Text "due_before", (Cbor.Array (List.map (fun csil_e -> (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_e)))) csil_x))) | None -> None);
        ])
 
 and encode_task_list (v : task_list) : Cbor.t =
@@ -711,12 +711,12 @@ and encode_notification (v : notification) : Cbor.t =
          Some (Cbor.Text "body", (Cbor.Text v.body));
          Some (Cbor.Text "kind", (Cbor.Text v.kind));
          Some (Cbor.Text "read", (Cbor.Bool v.read));
-         (match v.read_at with Some csil_x -> Some (Cbor.Text "read_at", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         (match v.read_at with Some csil_x -> Some (Cbor.Text "read_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
          Some (Cbor.Text "member_id", (Cbor.Text v.member_id));
          (match v.target_id with Some csil_x -> Some (Cbor.Text "target_id", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "actor_name", (Cbor.Text v.actor_name));
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
          (match v.target_type with Some csil_x -> Some (Cbor.Text "target_type", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "target_title", (Cbor.Text v.target_title));
          (match v.actor_member_id with Some csil_x -> Some (Cbor.Text "actor_member_id", (Cbor.Text csil_x)) | None -> None);
@@ -1023,7 +1023,7 @@ and encode_act_as_token_response (v : act_as_token_response) : Cbor.t =
          Some (Cbor.Text "grantee", (Cbor.Text v.grantee));
          Some (Cbor.Text "user_id", (Cbor.Text v.user_id));
          Some (Cbor.Text "grant_id", (Cbor.Text v.grant_id));
-         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text v.expires_at)));
+         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.expires_at))));
        ])
 
 and encode_calendar_subscription (v : calendar_subscription) : Cbor.t =
@@ -1065,7 +1065,7 @@ and encode_calendar_status (v : calendar_status) : Cbor.t =
          Some (Cbor.Text "available", (Cbor.Bool v.available));
          Some (Cbor.Text "connected", (Cbor.Bool v.connected));
          (match v.last_error with Some csil_x -> Some (Cbor.Text "last_error", (Cbor.Text csil_x)) | None -> None);
-         (match v.sync_pending_since with Some csil_x -> Some (Cbor.Text "sync_pending_since", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         (match v.sync_pending_since with Some csil_x -> Some (Cbor.Text "sync_pending_since", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
        ])
 
 and encode_configure_calendar_request (v : configure_calendar_request) : Cbor.t =
@@ -1102,8 +1102,8 @@ and encode_calendar_trash_entry (v : calendar_trash_entry) : Cbor.t =
        [
          Some (Cbor.Text "event", (encode_event v.event));
          Some (Cbor.Text "trash_id", (Cbor.Text v.trash_id));
-         Some (Cbor.Text "deleted_at", (Cbor.Tag (0, Cbor.Text v.deleted_at)));
-         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text v.expires_at)));
+         Some (Cbor.Text "deleted_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.deleted_at))));
+         Some (Cbor.Text "expires_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.expires_at))));
        ])
 
 and encode_restore_calendar_event_request (v : restore_calendar_event_request) : Cbor.t =
@@ -1131,9 +1131,9 @@ and encode_project_deadline_request (v : project_deadline_request) : Cbor.t =
     (List.filter_map
        (fun x -> x)
        [
-         Some (Cbor.Text "range_end", (Cbor.Tag (0, Cbor.Text v.range_end)));
+         Some (Cbor.Text "range_end", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.range_end))));
          Some (Cbor.Text "project_id", (Cbor.Text v.project_id));
-         Some (Cbor.Text "range_start", (Cbor.Tag (0, Cbor.Text v.range_start)));
+         Some (Cbor.Text "range_start", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.range_start))));
        ])
 
 and encode_project_deadline (v : project_deadline) : Cbor.t =
@@ -1142,7 +1142,7 @@ and encode_project_deadline (v : project_deadline) : Cbor.t =
        (fun x -> x)
        [
          Some (Cbor.Text "title", (Cbor.Text v.title));
-         Some (Cbor.Text "due_at", (Cbor.Tag (0, Cbor.Text v.due_at)));
+         Some (Cbor.Text "due_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.due_at))));
          Some (Cbor.Text "task_id", (Cbor.Text v.task_id));
        ])
 
@@ -1171,7 +1171,7 @@ and encode_audit_entry (v : audit_entry) : Cbor.t =
          Some (Cbor.Text "outcome", (Cbor.Text v.outcome));
          Some (Cbor.Text "audit_id", (Cbor.Text v.audit_id));
          (match v.house_id with Some csil_x -> Some (Cbor.Text "house_id", (Cbor.Text csil_x)) | None -> None);
-         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text v.created_at)));
+         Some (Cbor.Text "created_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.created_at))));
          (match v.resource_id with Some csil_x -> Some (Cbor.Text "resource_id", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "actor_domain", (Cbor.Text v.actor_domain));
          Some (Cbor.Text "service_name", (Cbor.Text v.service_name));
@@ -1186,8 +1186,8 @@ and encode_audit_query (v : audit_query) : Cbor.t =
        (fun x -> x)
        [
          (match v.limit with Some csil_x -> Some (Cbor.Text "limit", (Cbor.int64 csil_x)) | None -> None);
-         (match v.since with Some csil_x -> Some (Cbor.Text "since", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
-         (match v.until with Some csil_x -> Some (Cbor.Text "until", (Cbor.Tag (0, Cbor.Text csil_x))) | None -> None);
+         (match v.since with Some csil_x -> Some (Cbor.Text "since", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
+         (match v.until with Some csil_x -> Some (Cbor.Text "until", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp csil_x)))) | None -> None);
          (match v.action with Some csil_x -> Some (Cbor.Text "action", (Cbor.Text csil_x)) | None -> None);
          (match v.cursor with Some csil_x -> Some (Cbor.Text "cursor", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
@@ -1211,7 +1211,7 @@ and encode_trash_item (v : trash_item) : Cbor.t =
        [
          (match v.title with Some csil_x -> Some (Cbor.Text "title", (Cbor.Text csil_x)) | None -> None);
          Some (Cbor.Text "house_id", (Cbor.Text v.house_id));
-         Some (Cbor.Text "deleted_at", (Cbor.Tag (0, Cbor.Text v.deleted_at)));
+         Some (Cbor.Text "deleted_at", (Cbor.Tag (0, Cbor.Text (Cbor.canonical_timestamp v.deleted_at))));
          Some (Cbor.Text "resource_id", (Cbor.Text v.resource_id));
          Some (Cbor.Text "deleted_op_id", (Cbor.Text v.deleted_op_id));
          Some (Cbor.Text "resource_type", (Cbor.Text v.resource_type));
@@ -1295,8 +1295,8 @@ and decode_house (csil_c : Cbor.t) : house =
       {
         name = (Cbor.to_text (csil_req "name"));
         house_id = (Cbor.to_text (csil_req "house_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
-        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
+        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         description = (match csil_field "description" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
       }
   | _ -> failwith "csilgen: expected map for house"
@@ -1315,11 +1315,11 @@ and decode_member (csil_c : Cbor.t) : member =
         house_id = (Cbor.to_text (csil_req "house_id"));
         member_id = (Cbor.to_text (csil_req "member_id"));
         avatar_url = (match csil_field "avatar_url" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
-        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
+        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         display_name = (match csil_field "display_name" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
-        last_seen_at = (match csil_field "last_seen_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
-        deactivated_at = (match csil_field "deactivated_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        last_seen_at = (match csil_field "last_seen_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        deactivated_at = (match csil_field "deactivated_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
         linkkeys_domain = (Cbor.to_text (csil_req "linkkeys_domain"));
         linkkeys_user_id = (Cbor.to_text (csil_req "linkkeys_user_id"));
         cached_public_key = (match csil_field "cached_public_key" with Some csil_v -> Some (Cbor.to_bytes csil_v) | None -> None);
@@ -1337,7 +1337,7 @@ and decode_trusted_domain (csil_c : Cbor.t) : trusted_domain =
       {
         domain = (Cbor.to_text (csil_req "domain"));
         house_id = (Cbor.to_text (csil_req "house_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         trusted_domain_id = (Cbor.to_text (csil_req "trusted_domain_id"));
       }
   | _ -> failwith "csilgen: expected map for trusted_domain"
@@ -1354,8 +1354,8 @@ and decode_role (csil_c : Cbor.t) : role =
         name = (Cbor.to_text (csil_req "name"));
         role_id = (Cbor.to_text (csil_req "role_id"));
         house_id = (Cbor.to_text (csil_req "house_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
-        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
+        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         description = (match csil_field "description" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
       }
   | _ -> failwith "csilgen: expected map for role"
@@ -1371,7 +1371,7 @@ and decode_member_role (csil_c : Cbor.t) : member_role =
       {
         role_id = (Cbor.to_text (csil_req "role_id"));
         member_id = (Cbor.to_text (csil_req "member_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
       }
   | _ -> failwith "csilgen: expected map for member_role"
 
@@ -1389,7 +1389,7 @@ and decode_member_audit (csil_c : Cbor.t) : member_audit =
         audit_id = (Cbor.to_text (csil_req "audit_id"));
         house_id = (Cbor.to_text (csil_req "house_id"));
         target_id = (match csil_field "target_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         target_type = (match csil_field "target_type" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         actor_member_id = (match csil_field "actor_member_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         subject_member_id = (Cbor.to_text (csil_req "subject_member_id"));
@@ -1408,8 +1408,8 @@ and decode_skill (csil_c : Cbor.t) : skill =
         name = (Cbor.to_text (csil_req "name"));
         house_id = (Cbor.to_text (csil_req "house_id"));
         skill_id = (Cbor.to_text (csil_req "skill_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
-        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
+        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         description = (match csil_field "description" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
       }
   | _ -> failwith "csilgen: expected map for skill"
@@ -1425,7 +1425,7 @@ and decode_member_skill (csil_c : Cbor.t) : member_skill =
       {
         skill_id = (Cbor.to_text (csil_req "skill_id"));
         member_id = (Cbor.to_text (csil_req "member_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
       }
   | _ -> failwith "csilgen: expected map for member_skill"
 
@@ -1440,7 +1440,7 @@ and decode_group_skill (csil_c : Cbor.t) : group_skill =
       {
         group_id = (Cbor.to_text (csil_req "group_id"));
         skill_id = (Cbor.to_text (csil_req "skill_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
       }
   | _ -> failwith "csilgen: expected map for group_skill"
 
@@ -1456,8 +1456,8 @@ and decode_group (csil_c : Cbor.t) : group =
         name = (Cbor.to_text (csil_req "name"));
         group_id = (Cbor.to_text (csil_req "group_id"));
         house_id = (Cbor.to_text (csil_req "house_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
-        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
+        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         description = (match csil_field "description" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
       }
   | _ -> failwith "csilgen: expected map for group"
@@ -1473,7 +1473,7 @@ and decode_group_member (csil_c : Cbor.t) : group_member =
       {
         group_id = (Cbor.to_text (csil_req "group_id"));
         member_id = (Cbor.to_text (csil_req "member_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
       }
   | _ -> failwith "csilgen: expected map for group_member"
 
@@ -1491,9 +1491,9 @@ and decode_project (csil_c : Cbor.t) : project =
         category = (match csil_field "category" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         house_id = (Cbor.to_text (csil_req "house_id"));
         personal = (match csil_field "personal" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         project_id = (Cbor.to_text (csil_req "project_id"));
-        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         visibility = (match csil_field "visibility" with Some csil_v -> Some (decode_access_level csil_v) | None -> None);
         description = (match csil_field "description" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         created_by_member_id = (match csil_field "created_by_member_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
@@ -1511,7 +1511,7 @@ and decode_project_task (csil_c : Cbor.t) : project_task =
       {
         task_id = (Cbor.to_text (csil_req "task_id"));
         position = (Cbor.to_i64 (csil_req "position"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         project_id = (Cbor.to_text (csil_req "project_id"));
       }
   | _ -> failwith "csilgen: expected map for project_task"
@@ -1526,7 +1526,7 @@ and decode_project_member (csil_c : Cbor.t) : project_member =
       ignore csil_req;
       {
         member_id = (Cbor.to_text (csil_req "member_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         project_id = (Cbor.to_text (csil_req "project_id"));
       }
   | _ -> failwith "csilgen: expected map for project_member"
@@ -1541,7 +1541,7 @@ and decode_project_owner (csil_c : Cbor.t) : project_owner =
       ignore csil_req;
       {
         member_id = (Cbor.to_text (csil_req "member_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         project_id = (Cbor.to_text (csil_req "project_id"));
       }
   | _ -> failwith "csilgen: expected map for project_owner"
@@ -1558,9 +1558,9 @@ and decode_milestone (csil_c : Cbor.t) : milestone =
         label = (Cbor.to_text (csil_req "label"));
         state = (decode_milestone_state (csil_req "state"));
         position = (Cbor.to_i64 (csil_req "position"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         project_id = (Cbor.to_text (csil_req "project_id"));
-        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         when_label = (Cbor.to_text (csil_req "when_label"));
         milestone_id = (Cbor.to_text (csil_req "milestone_id"));
       }
@@ -1577,16 +1577,16 @@ and decode_event (csil_c : Cbor.t) : event =
       {
         title = (Cbor.to_text (csil_req "title"));
         all_day = (match csil_field "all_day" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
-        ends_at = (match csil_field "ends_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        ends_at = (match csil_field "ends_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
         event_id = (Cbor.to_text (csil_req "event_id"));
         house_id = (Cbor.to_text (csil_req "house_id"));
         location = (match csil_field "location" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         revision = (match csil_field "revision" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
         timezone = (match csil_field "timezone" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
-        starts_at = (match csil_field "starts_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        starts_at = (match csil_field "starts_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         edit_scope = (match csil_field "edit_scope" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
-        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         description = (match csil_field "description" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         calendar_state = (match csil_field "calendar_state" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         owner_member_id = (Cbor.to_text (csil_req "owner_member_id"));
@@ -1595,7 +1595,7 @@ and decode_event (csil_c : Cbor.t) : event =
         calendar_unbound = (match csil_field "calendar_unbound" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
         clear_recurrence = (match csil_field "clear_recurrence" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
         publication_error = (match csil_field "publication_error" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
-        next_recurrence_at = (match csil_field "next_recurrence_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        next_recurrence_at = (match csil_field "next_recurrence_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
         recurrence_interval = (match csil_field "recurrence_interval" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
         recurrence_by_setpos = (match csil_field "recurrence_by_setpos" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
         proposed_by_member_id = (match csil_field "proposed_by_member_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
@@ -1616,14 +1616,14 @@ and decode_task (csil_c : Cbor.t) : task =
       {
         tag = (match csil_field "tag" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         title = (Cbor.to_text (csil_req "title"));
-        due_at = (match csil_field "due_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        due_at = (match csil_field "due_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
         status = (match csil_field "status" with Some csil_v -> Some (decode_task_status csil_v) | None -> None);
         task_id = (Cbor.to_text (csil_req "task_id"));
         house_id = (Cbor.to_text (csil_req "house_id"));
         assignees = (match csil_field "assignees" with Some csil_v -> Some (match csil_v with Cbor.Array csil_xs -> List.map (fun csil_e -> (Cbor.to_text csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | None -> None);
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
-        deleted_at = (match csil_field "deleted_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
-        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
+        deleted_at = (match csil_field "deleted_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         visibility = (match csil_field "visibility" with Some csil_v -> Some (decode_access_level csil_v) | None -> None);
         description = (match csil_field "description" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         parent_task_id = (match csil_field "parent_task_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
@@ -1631,7 +1631,7 @@ and decode_task (csil_c : Cbor.t) : task =
         recurrence_freq = (match csil_field "recurrence_freq" with Some csil_v -> Some (decode_recurrence_freq csil_v) | None -> None);
         clear_recurrence = (match csil_field "clear_recurrence" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
         estimate_minutes = (match csil_field "estimate_minutes" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
-        next_recurrence_at = (match csil_field "next_recurrence_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        next_recurrence_at = (match csil_field "next_recurrence_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
         recurrence_interval = (match csil_field "recurrence_interval" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
         assigned_to_skill_id = (match csil_field "assigned_to_skill_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         recurrence_by_setpos = (match csil_field "recurrence_by_setpos" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
@@ -1654,8 +1654,8 @@ and decode_comment (csil_c : Cbor.t) : comment =
         member_id = (Cbor.to_text (csil_req "member_id"));
         target_id = (Cbor.to_text (csil_req "target_id"));
         comment_id = (Cbor.to_text (csil_req "comment_id"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
-        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
+        updated_at = (match (csil_req "updated_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         target_type = (decode_target_type (csil_req "target_type"));
       }
   | _ -> failwith "csilgen: expected map for comment"
@@ -1672,8 +1672,8 @@ and decode_share (csil_c : Cbor.t) : share =
         house_id = (Cbor.to_text (csil_req "house_id"));
         share_id = (Cbor.to_text (csil_req "share_id"));
         shared_by = (Cbor.to_text (csil_req "shared_by"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
-        expires_at = (match csil_field "expires_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
+        expires_at = (match csil_field "expires_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
         resource_id = (Cbor.to_text (csil_req "resource_id"));
         access_level = (match csil_field "access_level" with Some csil_v -> Some (decode_access_level csil_v) | None -> None);
         resource_type = (decode_resource_type (csil_req "resource_type"));
@@ -1812,7 +1812,7 @@ and decode_login_response (csil_c : Cbor.t) : login_response =
         token = (Cbor.to_text (csil_req "token"));
         domain = (Cbor.to_text (csil_req "domain"));
         user_id = (Cbor.to_text (csil_req "user_id"));
-        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         display_name = (match csil_field "display_name" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
       }
   | _ -> failwith "csilgen: expected map for login_response"
@@ -1829,11 +1829,11 @@ and decode_cli_token_response (csil_c : Cbor.t) : cli_token_response =
         token = (Cbor.to_text (csil_req "token"));
         domain = (Cbor.to_text (csil_req "domain"));
         user_id = (Cbor.to_text (csil_req "user_id"));
-        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         session_id = (Cbor.to_text (csil_req "session_id"));
         display_name = (match csil_field "display_name" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         refresh_token = (Cbor.to_text (csil_req "refresh_token"));
-        refresh_expires_at = (match (csil_req "refresh_expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        refresh_expires_at = (match (csil_req "refresh_expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
       }
   | _ -> failwith "csilgen: expected map for cli_token_response"
 
@@ -1860,7 +1860,7 @@ and decode_begin_cli_login_response (csil_c : Cbor.t) : begin_cli_login_response
       ignore csil_req;
       {
         user_code = (Cbor.to_text (csil_req "user_code"));
-        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         device_code = (Cbor.to_text (csil_req "device_code"));
         interval_seconds = (Cbor.to_i64 (csil_req "interval_seconds"));
         verification_url = (Cbor.to_text (csil_req "verification_url"));
@@ -1890,7 +1890,7 @@ and decode_cli_login_request_info (csil_c : Cbor.t) : cli_login_request_info =
       ignore csil_req;
       {
         user_code = (Cbor.to_text (csil_req "user_code"));
-        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         client_name = (Cbor.to_text (csil_req "client_name"));
       }
   | _ -> failwith "csilgen: expected map for cli_login_request_info"
@@ -1959,12 +1959,12 @@ and decode_cli_session_summary (csil_c : Cbor.t) : cli_session_summary =
       {
         kind = (match csil_field "kind" with Some csil_v -> Some (decode_session_kind csil_v) | None -> None);
         current = (match csil_field "current" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
-        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
-        revoked_at = (match csil_field "revoked_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
+        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
+        revoked_at = (match csil_field "revoked_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
         session_id = (Cbor.to_text (csil_req "session_id"));
         client_name = (Cbor.to_text (csil_req "client_name"));
-        last_used_at = (match (csil_req "last_used_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        last_used_at = (match (csil_req "last_used_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
       }
   | _ -> failwith "csilgen: expected map for cli_session_summary"
 
@@ -2051,7 +2051,7 @@ and decode_me_response (csil_c : Cbor.t) : me_response =
         domain = (Cbor.to_text (csil_req "domain"));
         houses = (match (csil_req "houses") with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_house_summary csil_e)) csil_xs | _ -> failwith "csilgen: expected array");
         user_id = (Cbor.to_text (csil_req "user_id"));
-        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         display_name = (match csil_field "display_name" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
       }
   | _ -> failwith "csilgen: expected map for me_response"
@@ -2116,8 +2116,8 @@ and decode_event_list_request (csil_c : Cbor.t) : event_list_request =
         limit = (match csil_field "limit" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
         offset = (match csil_field "offset" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
         house_id = (Cbor.to_text (csil_req "house_id"));
-        range_end = (match csil_field "range_end" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
-        range_start = (match csil_field "range_start" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        range_end = (match csil_field "range_end" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        range_start = (match csil_field "range_start" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
       }
   | _ -> failwith "csilgen: expected map for event_list_request"
 
@@ -2134,11 +2134,11 @@ and decode_task_list_request (csil_c : Cbor.t) : task_list_request =
         limit = (match csil_field "limit" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
         loose = (match csil_field "loose" with Some csil_v -> Some (Cbor.to_bool csil_v) | None -> None);
         state = (match csil_field "state" with Some csil_v -> Some (decode_task_state csil_v) | None -> None);
-        due_to = (match csil_field "due_to" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        due_to = (match csil_field "due_to" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
         offset = (match csil_field "offset" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
-        due_from = (match csil_field "due_from" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        due_from = (match csil_field "due_from" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
         house_id = (Cbor.to_text (csil_req "house_id"));
-        due_before = (match csil_field "due_before" with Some csil_v -> Some (match csil_v with Cbor.Array csil_xs -> List.map (fun csil_e -> (match csil_e with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp")) csil_xs | _ -> failwith "csilgen: expected array") | None -> None);
+        due_before = (match csil_field "due_before" with Some csil_v -> Some (match csil_v with Cbor.Array csil_xs -> List.map (fun csil_e -> (match csil_e with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp")) csil_xs | _ -> failwith "csilgen: expected array") | None -> None);
       }
   | _ -> failwith "csilgen: expected map for task_list_request"
 
@@ -2233,12 +2233,12 @@ and decode_notification (csil_c : Cbor.t) : notification =
         body = (Cbor.to_text (csil_req "body"));
         kind = (Cbor.to_text (csil_req "kind"));
         read = (Cbor.to_bool (csil_req "read"));
-        read_at = (match csil_field "read_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        read_at = (match csil_field "read_at" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
         house_id = (Cbor.to_text (csil_req "house_id"));
         member_id = (Cbor.to_text (csil_req "member_id"));
         target_id = (match csil_field "target_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         actor_name = (Cbor.to_text (csil_req "actor_name"));
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         target_type = (match csil_field "target_type" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         target_title = (Cbor.to_text (csil_req "target_title"));
         actor_member_id = (match csil_field "actor_member_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
@@ -2700,7 +2700,7 @@ and decode_act_as_token_response (csil_c : Cbor.t) : act_as_token_response =
         grantee = (Cbor.to_text (csil_req "grantee"));
         user_id = (Cbor.to_text (csil_req "user_id"));
         grant_id = (Cbor.to_text (csil_req "grant_id"));
-        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
       }
   | _ -> failwith "csilgen: expected map for act_as_token_response"
 
@@ -2762,7 +2762,7 @@ and decode_calendar_status (csil_c : Cbor.t) : calendar_status =
         available = (Cbor.to_bool (csil_req "available"));
         connected = (Cbor.to_bool (csil_req "connected"));
         last_error = (match csil_field "last_error" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
-        sync_pending_since = (match csil_field "sync_pending_since" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        sync_pending_since = (match csil_field "sync_pending_since" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
       }
   | _ -> failwith "csilgen: expected map for calendar_status"
 
@@ -2819,8 +2819,8 @@ and decode_calendar_trash_entry (csil_c : Cbor.t) : calendar_trash_entry =
       {
         event = (decode_event (csil_req "event"));
         trash_id = (Cbor.to_text (csil_req "trash_id"));
-        deleted_at = (match (csil_req "deleted_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
-        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        deleted_at = (match (csil_req "deleted_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
+        expires_at = (match (csil_req "expires_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
       }
   | _ -> failwith "csilgen: expected map for calendar_trash_entry"
 
@@ -2863,9 +2863,9 @@ and decode_project_deadline_request (csil_c : Cbor.t) : project_deadline_request
       in
       ignore csil_req;
       {
-        range_end = (match (csil_req "range_end") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        range_end = (match (csil_req "range_end") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         project_id = (Cbor.to_text (csil_req "project_id"));
-        range_start = (match (csil_req "range_start") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        range_start = (match (csil_req "range_start") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
       }
   | _ -> failwith "csilgen: expected map for project_deadline_request"
 
@@ -2879,7 +2879,7 @@ and decode_project_deadline (csil_c : Cbor.t) : project_deadline =
       ignore csil_req;
       {
         title = (Cbor.to_text (csil_req "title"));
-        due_at = (match (csil_req "due_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        due_at = (match (csil_req "due_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         task_id = (Cbor.to_text (csil_req "task_id"));
       }
   | _ -> failwith "csilgen: expected map for project_deadline"
@@ -2918,7 +2918,7 @@ and decode_audit_entry (csil_c : Cbor.t) : audit_entry =
         outcome = (Cbor.to_text (csil_req "outcome"));
         audit_id = (Cbor.to_text (csil_req "audit_id"));
         house_id = (match csil_field "house_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
-        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        created_at = (match (csil_req "created_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         resource_id = (match csil_field "resource_id" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         actor_domain = (Cbor.to_text (csil_req "actor_domain"));
         service_name = (Cbor.to_text (csil_req "service_name"));
@@ -2938,8 +2938,8 @@ and decode_audit_query (csil_c : Cbor.t) : audit_query =
       ignore csil_req;
       {
         limit = (match csil_field "limit" with Some csil_v -> Some (Cbor.to_i64 csil_v) | None -> None);
-        since = (match csil_field "since" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
-        until = (match csil_field "until" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        since = (match csil_field "since" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
+        until = (match csil_field "until" with Some csil_v -> Some (match csil_v with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp") | None -> None);
         action = (match csil_field "action" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         cursor = (match csil_field "cursor" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         house_id = (Cbor.to_text (csil_req "house_id"));
@@ -2973,7 +2973,7 @@ and decode_trash_item (csil_c : Cbor.t) : trash_item =
       {
         title = (match csil_field "title" with Some csil_v -> Some (Cbor.to_text csil_v) | None -> None);
         house_id = (Cbor.to_text (csil_req "house_id"));
-        deleted_at = (match (csil_req "deleted_at") with Cbor.Tag (0, Cbor.Text csil_s) -> csil_s | _ -> failwith "csilgen: bad timestamp");
+        deleted_at = (match (csil_req "deleted_at") with Cbor.Tag (0, Cbor.Text csil_s) -> Cbor.canonical_timestamp csil_s | _ -> failwith "csilgen: bad timestamp");
         resource_id = (Cbor.to_text (csil_req "resource_id"));
         deleted_op_id = (Cbor.to_text (csil_req "deleted_op_id"));
         resource_type = (Cbor.to_text (csil_req "resource_type"));
@@ -3776,6 +3776,17 @@ let encode_house_service_delete_house_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
+let encode_house_service_list_houses_request value = Cbor.encode (encode_house_list_request value)
+let decode_house_service_list_houses_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_house_list_request root) | Error e -> failwith e
+
+let decode_house_service_list_houses_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_house csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_house_service_list_houses_reply = function
+  | Ok value -> ("HouseItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_house csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
 let encode_member_service_create_member_request value = Cbor.encode (encode_member value)
 let decode_member_service_create_member_request bytes =
   match Cbor.decode bytes with Ok root -> (decode_member root) | Error e -> failwith e
@@ -3842,6 +3853,17 @@ let encode_member_service_reactivate_member_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
+let encode_member_service_list_members_request value = Cbor.encode (encode_house_scoped_list_request value)
+let decode_member_service_list_members_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_house_scoped_list_request root) | Error e -> failwith e
+
+let decode_member_service_list_members_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_member csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_member_service_list_members_reply = function
+  | Ok value -> ("MemberItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_member csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
 let encode_trusted_domain_service_add_trusted_domain_request value = Cbor.encode (encode_trusted_domain value)
 let decode_trusted_domain_service_add_trusted_domain_request bytes =
   match Cbor.decode bytes with Ok root -> (decode_trusted_domain root) | Error e -> failwith e
@@ -3862,6 +3884,17 @@ let decode_trusted_domain_service_remove_trusted_domain_success bytes =
 
 let encode_trusted_domain_service_remove_trusted_domain_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_trusted_domain_service_list_trusted_domains_request value = Cbor.encode (Cbor.Text value)
+let decode_trusted_domain_service_list_trusted_domains_request bytes =
+  match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
+
+let decode_trusted_domain_service_list_trusted_domains_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_trusted_domain csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_trusted_domain_service_list_trusted_domains_reply = function
+  | Ok value -> ("TrustedDomainItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_trusted_domain csil_e)) value)))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
 let encode_trusted_domain_service_is_domain_trusted_request value = Cbor.encode (encode_trusted_domain value)
@@ -3908,6 +3941,17 @@ let encode_role_service_delete_role_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
+let encode_role_service_list_roles_request value = Cbor.encode (encode_house_scoped_list_request value)
+let decode_role_service_list_roles_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_house_scoped_list_request root) | Error e -> failwith e
+
+let decode_role_service_list_roles_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_role csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_role_service_list_roles_reply = function
+  | Ok value -> ("RoleItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_role csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
 let encode_role_service_grant_role_request value = Cbor.encode (encode_member_role_ref value)
 let decode_role_service_grant_role_request bytes =
   match Cbor.decode bytes with Ok root -> (decode_member_role_ref root) | Error e -> failwith e
@@ -3928,6 +3972,17 @@ let decode_role_service_revoke_role_success bytes =
 
 let encode_role_service_revoke_role_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_role_service_list_member_roles_request value = Cbor.encode (encode_member_scoped_list_request value)
+let decode_role_service_list_member_roles_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_member_scoped_list_request root) | Error e -> failwith e
+
+let decode_role_service_list_member_roles_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_role csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_role_service_list_member_roles_reply = function
+  | Ok value -> ("RoleItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_role csil_e)) value)))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
 let encode_skill_service_create_skill_request value = Cbor.encode (encode_skill value)
@@ -3963,6 +4018,17 @@ let encode_skill_service_delete_skill_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
+let encode_skill_service_list_skills_request value = Cbor.encode (encode_house_scoped_list_request value)
+let decode_skill_service_list_skills_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_house_scoped_list_request root) | Error e -> failwith e
+
+let decode_skill_service_list_skills_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_skill csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_skill_service_list_skills_reply = function
+  | Ok value -> ("SkillItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_skill csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
 let encode_skill_service_add_member_skill_request value = Cbor.encode (encode_member_skill_ref value)
 let decode_skill_service_add_member_skill_request bytes =
   match Cbor.decode bytes with Ok root -> (decode_member_skill_ref root) | Error e -> failwith e
@@ -3985,6 +4051,17 @@ let encode_skill_service_remove_member_skill_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
+let encode_skill_service_list_member_skills_request value = Cbor.encode (encode_member_scoped_list_request value)
+let decode_skill_service_list_member_skills_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_member_scoped_list_request root) | Error e -> failwith e
+
+let decode_skill_service_list_member_skills_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_skill csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_skill_service_list_member_skills_reply = function
+  | Ok value -> ("SkillItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_skill csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
 let encode_skill_service_add_group_skill_request value = Cbor.encode (encode_group_skill_ref value)
 let decode_skill_service_add_group_skill_request bytes =
   match Cbor.decode bytes with Ok root -> (decode_group_skill_ref root) | Error e -> failwith e
@@ -4005,6 +4082,17 @@ let decode_skill_service_remove_group_skill_success bytes =
 
 let encode_skill_service_remove_group_skill_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_skill_service_list_group_skills_request value = Cbor.encode (Cbor.Text value)
+let decode_skill_service_list_group_skills_request bytes =
+  match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
+
+let decode_skill_service_list_group_skills_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_skill csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_skill_service_list_group_skills_reply = function
+  | Ok value -> ("SkillItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_skill csil_e)) value)))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
 let encode_group_service_create_group_request value = Cbor.encode (encode_group value)
@@ -4040,6 +4128,17 @@ let encode_group_service_delete_group_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
+let encode_group_service_list_groups_request value = Cbor.encode (encode_house_scoped_list_request value)
+let decode_group_service_list_groups_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_house_scoped_list_request root) | Error e -> failwith e
+
+let decode_group_service_list_groups_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_group csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_group_service_list_groups_reply = function
+  | Ok value -> ("GroupItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_group csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
 let encode_group_service_add_group_member_request value = Cbor.encode (encode_group_member_ref value)
 let decode_group_service_add_group_member_request bytes =
   match Cbor.decode bytes with Ok root -> (decode_group_member_ref root) | Error e -> failwith e
@@ -4060,6 +4159,17 @@ let decode_group_service_remove_group_member_success bytes =
 
 let encode_group_service_remove_group_member_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_group_service_list_group_members_request value = Cbor.encode (encode_member_scoped_list_request value)
+let decode_group_service_list_group_members_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_member_scoped_list_request root) | Error e -> failwith e
+
+let decode_group_service_list_group_members_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_member csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_group_service_list_group_members_reply = function
+  | Ok value -> ("MemberItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_member csil_e)) value)))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
 let encode_project_service_create_project_request value = Cbor.encode (encode_project value)
@@ -4161,6 +4271,17 @@ let encode_project_service_set_project_task_position_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
+let encode_project_service_list_project_members_request value = Cbor.encode (Cbor.Text value)
+let decode_project_service_list_project_members_request bytes =
+  match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
+
+let decode_project_service_list_project_members_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_member csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_project_service_list_project_members_reply = function
+  | Ok value -> ("MemberItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_member csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
 let encode_project_service_add_project_member_request value = Cbor.encode (encode_project_member_ref value)
 let decode_project_service_add_project_member_request bytes =
   match Cbor.decode bytes with Ok root -> (decode_project_member_ref root) | Error e -> failwith e
@@ -4183,6 +4304,17 @@ let encode_project_service_remove_project_member_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
+let encode_project_service_list_project_owners_request value = Cbor.encode (Cbor.Text value)
+let decode_project_service_list_project_owners_request bytes =
+  match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
+
+let decode_project_service_list_project_owners_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_member csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_project_service_list_project_owners_reply = function
+  | Ok value -> ("MemberItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_member csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
 let encode_project_service_add_project_owner_request value = Cbor.encode (encode_project_owner_ref value)
 let decode_project_service_add_project_owner_request bytes =
   match Cbor.decode bytes with Ok root -> (decode_project_owner_ref root) | Error e -> failwith e
@@ -4203,6 +4335,17 @@ let decode_project_service_remove_project_owner_success bytes =
 
 let encode_project_service_remove_project_owner_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_project_service_list_milestones_request value = Cbor.encode (Cbor.Text value)
+let decode_project_service_list_milestones_request bytes =
+  match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
+
+let decode_project_service_list_milestones_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_milestone csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_project_service_list_milestones_reply = function
+  | Ok value -> ("MilestoneItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_milestone csil_e)) value)))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
 let encode_project_service_create_milestone_request value = Cbor.encode (encode_milestone value)
@@ -4247,6 +4390,17 @@ let decode_project_service_set_project_visibility_success bytes =
 
 let encode_project_service_set_project_visibility_reply = function
   | Ok value -> ("Project", Cbor.encode (encode_project value))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_project_service_list_project_grants_request value = Cbor.encode (Cbor.Text value)
+let decode_project_service_list_project_grants_request bytes =
+  match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
+
+let decode_project_service_list_project_grants_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_grant csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_project_service_list_project_grants_reply = function
+  | Ok value -> ("GrantItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_grant csil_e)) value)))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
 let encode_project_service_put_project_grant_request value = Cbor.encode (encode_put_project_grant_request value)
@@ -4326,6 +4480,17 @@ let encode_event_service_delete_event_and_future_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
+let encode_event_service_list_events_request value = Cbor.encode (encode_event_list_request value)
+let decode_event_service_list_events_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_event_list_request root) | Error e -> failwith e
+
+let decode_event_service_list_events_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_event csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_event_service_list_events_reply = function
+  | Ok value -> ("EventItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_event csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
 let encode_event_service_get_calendar_view_request value = Cbor.encode (Cbor.Text value)
 let decode_event_service_get_calendar_view_request bytes =
   match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
@@ -4379,6 +4544,17 @@ let decode_event_service_decline_event_success bytes =
 
 let encode_event_service_decline_event_reply = function
   | Ok value -> ("Event", Cbor.encode (encode_event value))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_event_service_list_local_events_request value = Cbor.encode (Cbor.Text value)
+let decode_event_service_list_local_events_request bytes =
+  match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
+
+let decode_event_service_list_local_events_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_event csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_event_service_list_local_events_reply = function
+  | Ok value -> ("EventItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_event csil_e)) value)))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
 let encode_calendar_service_list_project_deadlines_request value = Cbor.encode (encode_project_deadline_request value)
@@ -4445,6 +4621,28 @@ let decode_calendar_service_disconnect_success bytes =
 
 let encode_calendar_service_disconnect_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_calendar_service_preview_migration_request value = Cbor.encode (Cbor.Text value)
+let decode_calendar_service_preview_migration_request bytes =
+  match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
+
+let decode_calendar_service_preview_migration_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_calendar_migration_row csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_calendar_service_preview_migration_reply = function
+  | Ok value -> ("CalendarMigrationRowItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_calendar_migration_row csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_calendar_service_list_trash_request value = Cbor.encode (Cbor.Text value)
+let decode_calendar_service_list_trash_request bytes =
+  match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
+
+let decode_calendar_service_list_trash_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_calendar_trash_entry csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_calendar_service_list_trash_reply = function
+  | Ok value -> ("CalendarTrashEntryItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_calendar_trash_entry csil_e)) value)))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
 let encode_calendar_service_restore_event_request value = Cbor.encode (encode_restore_calendar_event_request value)
@@ -4533,6 +4731,17 @@ let decode_task_service_set_task_visibility_success bytes =
 
 let encode_task_service_set_task_visibility_reply = function
   | Ok value -> ("Task", Cbor.encode (encode_task value))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_task_service_list_task_grants_request value = Cbor.encode (Cbor.Text value)
+let decode_task_service_list_task_grants_request bytes =
+  match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
+
+let decode_task_service_list_task_grants_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_grant csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_task_service_list_task_grants_reply = function
+  | Ok value -> ("GrantItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_grant csil_e)) value)))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
 let encode_task_service_put_task_grant_request value = Cbor.encode (encode_put_task_grant_request value)
@@ -4634,6 +4843,28 @@ let encode_comment_service_delete_comment_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
+let encode_comment_service_list_comments_request value = Cbor.encode (encode_comment_list_request value)
+let decode_comment_service_list_comments_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_comment_list_request root) | Error e -> failwith e
+
+let decode_comment_service_list_comments_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_comment csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_comment_service_list_comments_reply = function
+  | Ok value -> ("CommentItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_comment csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_notification_service_list_notifications_request value = Cbor.encode (encode_notification_list_request value)
+let decode_notification_service_list_notifications_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_notification_list_request root) | Error e -> failwith e
+
+let decode_notification_service_list_notifications_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_notification csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_notification_service_list_notifications_reply = function
+  | Ok value -> ("NotificationItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_notification csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
 let encode_notification_service_unread_count_request value = Cbor.encode (Cbor.Text value)
 let decode_notification_service_unread_count_request bytes =
   match Cbor.decode bytes with Ok root -> (Cbor.to_text root) | Error e -> failwith e
@@ -4689,6 +4920,17 @@ let encode_share_service_delete_share_reply = function
   | Ok value -> ("EmptyResponse", Cbor.encode (encode_empty_response value))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
+let encode_share_service_list_shares_by_resource_request value = Cbor.encode (encode_resource_ref value)
+let decode_share_service_list_shares_by_resource_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_resource_ref root) | Error e -> failwith e
+
+let decode_share_service_list_shares_by_resource_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_share csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_share_service_list_shares_by_resource_reply = function
+  | Ok value -> ("ShareItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_share csil_e)) value)))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
 let encode_share_service_check_access_request value = Cbor.encode (encode_share_access_request value)
 let decode_share_service_check_access_request bytes =
   match Cbor.decode bytes with Ok root -> (decode_share_access_request root) | Error e -> failwith e
@@ -4698,6 +4940,17 @@ let decode_share_service_check_access_success bytes =
 
 let encode_share_service_check_access_reply = function
   | Ok value -> ("Share", Cbor.encode (encode_share value))
+  | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
+
+let encode_member_audit_service_list_audits_for_member_request value = Cbor.encode (encode_member_scoped_list_request value)
+let decode_member_audit_service_list_audits_for_member_request bytes =
+  match Cbor.decode bytes with Ok root -> (decode_member_scoped_list_request root) | Error e -> failwith e
+
+let decode_member_audit_service_list_audits_for_member_success bytes =
+  match Cbor.decode bytes with Ok root -> (match root with Cbor.Array csil_xs -> List.map (fun csil_e -> (decode_member_audit csil_e)) csil_xs | _ -> failwith "csilgen: expected array") | Error e -> failwith e
+
+let encode_member_audit_service_list_audits_for_member_reply = function
+  | Ok value -> ("MemberAuditItems", Cbor.encode (Cbor.Array (List.map (fun csil_e -> (encode_member_audit csil_e)) value)))
   | Error (`Service_error value) -> ("ServiceError", Cbor.encode (encode_service_error value))
 
 let encode_settings_service_get_settings_request value = Cbor.encode (Cbor.Text value)
@@ -4875,6 +5128,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "HouseService", "delete-house", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "HouseService", "delete-house", _ -> failwith "invalid RPC reply variant"
+  | "HouseService", "list-houses", Some "HouseItems" -> payload
+  | "HouseService", "list-houses", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "HouseService", "list-houses", _ -> failwith "invalid RPC reply variant"
   | "MemberService", "create-member", Some "Member" -> payload
   | "MemberService", "create-member", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -4899,6 +5156,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "MemberService", "reactivate-member", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "MemberService", "reactivate-member", _ -> failwith "invalid RPC reply variant"
+  | "MemberService", "list-members", Some "MemberItems" -> payload
+  | "MemberService", "list-members", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "MemberService", "list-members", _ -> failwith "invalid RPC reply variant"
   | "TrustedDomainService", "add-trusted-domain", Some "TrustedDomain" -> payload
   | "TrustedDomainService", "add-trusted-domain", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -4907,6 +5168,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "TrustedDomainService", "remove-trusted-domain", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "TrustedDomainService", "remove-trusted-domain", _ -> failwith "invalid RPC reply variant"
+  | "TrustedDomainService", "list-trusted-domains", Some "TrustedDomainItems" -> payload
+  | "TrustedDomainService", "list-trusted-domains", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "TrustedDomainService", "list-trusted-domains", _ -> failwith "invalid RPC reply variant"
   | "TrustedDomainService", "is-domain-trusted", Some "BoolResponse" -> payload
   | "TrustedDomainService", "is-domain-trusted", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -4923,6 +5188,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "RoleService", "delete-role", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "RoleService", "delete-role", _ -> failwith "invalid RPC reply variant"
+  | "RoleService", "list-roles", Some "RoleItems" -> payload
+  | "RoleService", "list-roles", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "RoleService", "list-roles", _ -> failwith "invalid RPC reply variant"
   | "RoleService", "grant-role", Some "EmptyResponse" -> payload
   | "RoleService", "grant-role", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -4931,6 +5200,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "RoleService", "revoke-role", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "RoleService", "revoke-role", _ -> failwith "invalid RPC reply variant"
+  | "RoleService", "list-member-roles", Some "RoleItems" -> payload
+  | "RoleService", "list-member-roles", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "RoleService", "list-member-roles", _ -> failwith "invalid RPC reply variant"
   | "SkillService", "create-skill", Some "Skill" -> payload
   | "SkillService", "create-skill", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -4943,6 +5216,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "SkillService", "delete-skill", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "SkillService", "delete-skill", _ -> failwith "invalid RPC reply variant"
+  | "SkillService", "list-skills", Some "SkillItems" -> payload
+  | "SkillService", "list-skills", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "SkillService", "list-skills", _ -> failwith "invalid RPC reply variant"
   | "SkillService", "add-member-skill", Some "EmptyResponse" -> payload
   | "SkillService", "add-member-skill", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -4951,6 +5228,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "SkillService", "remove-member-skill", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "SkillService", "remove-member-skill", _ -> failwith "invalid RPC reply variant"
+  | "SkillService", "list-member-skills", Some "SkillItems" -> payload
+  | "SkillService", "list-member-skills", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "SkillService", "list-member-skills", _ -> failwith "invalid RPC reply variant"
   | "SkillService", "add-group-skill", Some "EmptyResponse" -> payload
   | "SkillService", "add-group-skill", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -4959,6 +5240,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "SkillService", "remove-group-skill", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "SkillService", "remove-group-skill", _ -> failwith "invalid RPC reply variant"
+  | "SkillService", "list-group-skills", Some "SkillItems" -> payload
+  | "SkillService", "list-group-skills", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "SkillService", "list-group-skills", _ -> failwith "invalid RPC reply variant"
   | "GroupService", "create-group", Some "Group" -> payload
   | "GroupService", "create-group", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -4971,6 +5256,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "GroupService", "delete-group", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "GroupService", "delete-group", _ -> failwith "invalid RPC reply variant"
+  | "GroupService", "list-groups", Some "GroupItems" -> payload
+  | "GroupService", "list-groups", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "GroupService", "list-groups", _ -> failwith "invalid RPC reply variant"
   | "GroupService", "add-group-member", Some "EmptyResponse" -> payload
   | "GroupService", "add-group-member", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -4979,6 +5268,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "GroupService", "remove-group-member", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "GroupService", "remove-group-member", _ -> failwith "invalid RPC reply variant"
+  | "GroupService", "list-group-members", Some "MemberItems" -> payload
+  | "GroupService", "list-group-members", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "GroupService", "list-group-members", _ -> failwith "invalid RPC reply variant"
   | "ProjectService", "create-project", Some "Project" -> payload
   | "ProjectService", "create-project", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -5015,6 +5308,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "ProjectService", "set-project-task-position", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "ProjectService", "set-project-task-position", _ -> failwith "invalid RPC reply variant"
+  | "ProjectService", "list-project-members", Some "MemberItems" -> payload
+  | "ProjectService", "list-project-members", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "ProjectService", "list-project-members", _ -> failwith "invalid RPC reply variant"
   | "ProjectService", "add-project-member", Some "EmptyResponse" -> payload
   | "ProjectService", "add-project-member", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -5023,6 +5320,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "ProjectService", "remove-project-member", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "ProjectService", "remove-project-member", _ -> failwith "invalid RPC reply variant"
+  | "ProjectService", "list-project-owners", Some "MemberItems" -> payload
+  | "ProjectService", "list-project-owners", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "ProjectService", "list-project-owners", _ -> failwith "invalid RPC reply variant"
   | "ProjectService", "add-project-owner", Some "EmptyResponse" -> payload
   | "ProjectService", "add-project-owner", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -5031,6 +5332,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "ProjectService", "remove-project-owner", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "ProjectService", "remove-project-owner", _ -> failwith "invalid RPC reply variant"
+  | "ProjectService", "list-milestones", Some "MilestoneItems" -> payload
+  | "ProjectService", "list-milestones", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "ProjectService", "list-milestones", _ -> failwith "invalid RPC reply variant"
   | "ProjectService", "create-milestone", Some "Milestone" -> payload
   | "ProjectService", "create-milestone", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -5047,6 +5352,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "ProjectService", "set-project-visibility", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "ProjectService", "set-project-visibility", _ -> failwith "invalid RPC reply variant"
+  | "ProjectService", "list-project-grants", Some "GrantItems" -> payload
+  | "ProjectService", "list-project-grants", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "ProjectService", "list-project-grants", _ -> failwith "invalid RPC reply variant"
   | "ProjectService", "put-project-grant", Some "EmptyResponse" -> payload
   | "ProjectService", "put-project-grant", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -5075,6 +5384,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "EventService", "delete-event-and-future", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "EventService", "delete-event-and-future", _ -> failwith "invalid RPC reply variant"
+  | "EventService", "list-events", Some "EventItems" -> payload
+  | "EventService", "list-events", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "EventService", "list-events", _ -> failwith "invalid RPC reply variant"
   | "EventService", "get-calendar-view", Some "CalendarView" -> payload
   | "EventService", "get-calendar-view", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -5095,6 +5408,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "EventService", "decline-event", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "EventService", "decline-event", _ -> failwith "invalid RPC reply variant"
+  | "EventService", "list-local-events", Some "EventItems" -> payload
+  | "EventService", "list-local-events", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "EventService", "list-local-events", _ -> failwith "invalid RPC reply variant"
   | "CalendarService", "list-project-deadlines", Some "ProjectDeadlineList" -> payload
   | "CalendarService", "list-project-deadlines", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -5119,6 +5436,14 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "CalendarService", "disconnect", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "CalendarService", "disconnect", _ -> failwith "invalid RPC reply variant"
+  | "CalendarService", "preview-migration", Some "CalendarMigrationRowItems" -> payload
+  | "CalendarService", "preview-migration", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "CalendarService", "preview-migration", _ -> failwith "invalid RPC reply variant"
+  | "CalendarService", "list-trash", Some "CalendarTrashEntryItems" -> payload
+  | "CalendarService", "list-trash", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "CalendarService", "list-trash", _ -> failwith "invalid RPC reply variant"
   | "CalendarService", "restore-event", Some "Event" -> payload
   | "CalendarService", "restore-event", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -5151,6 +5476,10 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "TaskService", "set-task-visibility", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "TaskService", "set-task-visibility", _ -> failwith "invalid RPC reply variant"
+  | "TaskService", "list-task-grants", Some "GrantItems" -> payload
+  | "TaskService", "list-task-grants", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "TaskService", "list-task-grants", _ -> failwith "invalid RPC reply variant"
   | "TaskService", "put-task-grant", Some "EmptyResponse" -> payload
   | "TaskService", "put-task-grant", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -5187,6 +5516,14 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "CommentService", "delete-comment", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "CommentService", "delete-comment", _ -> failwith "invalid RPC reply variant"
+  | "CommentService", "list-comments", Some "CommentItems" -> payload
+  | "CommentService", "list-comments", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "CommentService", "list-comments", _ -> failwith "invalid RPC reply variant"
+  | "NotificationService", "list-notifications", Some "NotificationItems" -> payload
+  | "NotificationService", "list-notifications", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "NotificationService", "list-notifications", _ -> failwith "invalid RPC reply variant"
   | "NotificationService", "unread-count", Some "NotificationUnreadCount" -> payload
   | "NotificationService", "unread-count", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
@@ -5207,10 +5544,18 @@ let resolve_rpc_reply ~service ~op ~variant payload =
   | "ShareService", "delete-share", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "ShareService", "delete-share", _ -> failwith "invalid RPC reply variant"
+  | "ShareService", "list-shares-by-resource", Some "ShareItems" -> payload
+  | "ShareService", "list-shares-by-resource", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "ShareService", "list-shares-by-resource", _ -> failwith "invalid RPC reply variant"
   | "ShareService", "check-access", Some "Share" -> payload
   | "ShareService", "check-access", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
   | "ShareService", "check-access", _ -> failwith "invalid RPC reply variant"
+  | "MemberAuditService", "list-audits-for-member", Some "MemberAuditItems" -> payload
+  | "MemberAuditService", "list-audits-for-member", Some "ServiceError" ->
+      (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)
+  | "MemberAuditService", "list-audits-for-member", _ -> failwith "invalid RPC reply variant"
   | "SettingsService", "get-settings", Some "EffectiveSettings" -> payload
   | "SettingsService", "get-settings", Some "ServiceError" ->
       (match Cbor.decode payload with Ok root -> raise (Service_error_refusal ((decode_service_error root))) | Error e -> failwith e)

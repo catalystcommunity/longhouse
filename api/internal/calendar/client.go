@@ -88,7 +88,7 @@ func New(cfg Config) (*Client, error) {
 		return nil, err
 	}
 	app := cal.NewAppSession(cfg.URL, &cal.AppSigner{Application: keys.Application, InstanceID: keys.InstanceID, KeyID: keys.Keys[0].KeyID, Key: private})
-	return &Client{Config: cfg, Keys: keys, RP: transport, Home: home, App: cal.NewHTTPTransport(cfg.URL, app), signer: rp.NewApplicationGranteeSigner(keys.InstanceID, rp.ApplicationSigner{KeyID: keys.Keys[0].KeyID, Algorithm: "ed25519", PrivateKeyBytes: private.Seed()}), resolver: rp.NewCachedResolver(transport, rp.CachedResolverOptions{})}, nil
+	return &Client{Config: cfg, Keys: keys, RP: transport, Home: home, App: cal.NewHTTPTransport(cfg.URL, app), signer: rp.NewApplicationGranteeSigner(keys.InstanceID, rp.ApplicationSigner{KeyID: keys.Keys[0].KeyID, Algorithm: lk.KeyAlgorithmEd25519, PrivateKeyBytes: private.Seed()}), resolver: rp.NewCachedResolver(transport, rp.CachedResolverOptions{})}, nil
 }
 func (c *Client) grantee() lk.GranteeRef {
 	a := c.Keys.Application
@@ -145,8 +145,8 @@ func (c *Client) Begin(ctx context.Context, nonce string) (string, error) {
 			return "", errors.New("calendar offered unexpected scopes")
 		}
 	}
-	now := time.Now().UTC()
-	request, err := rp.SignGrantRequest(lk.ActAsGrantRequest{Grantee: c.grantee(), ScopeSet: signed, CallbackUrl: c.Config.CallbackURL, Nonce: nonce, RequestedAt: now.Format(time.RFC3339), ExpiresAt: now.Add(10 * time.Minute).Format(time.RFC3339)}, c.signer)
+	now := time.Now().UTC().Truncate(time.Second)
+	request, err := rp.SignGrantRequest(lk.ActAsGrantRequest{Grantee: c.grantee(), ScopeSet: signed, CallbackUrl: c.Config.CallbackURL, Nonce: nonce, RequestedAt: now, ExpiresAt: now.Add(10 * time.Minute)}, c.signer)
 	if err != nil {
 		return "", err
 	}
@@ -179,11 +179,11 @@ func (c *Client) Member(ctx context.Context, domain, userID, grantID string) (ca
 			if _, err = rand.Read(nonce); err != nil {
 				return nil, err
 			}
-			credential, err := rp.Present(result.Grant, audience, cal.Digest(cal.ActAsDigestInput), time.Now().UTC(), nonce, c.signer)
+			credential, err := rp.Present(result.Grant, audience, cal.Digest(cal.ActAsDigestInput), time.Now().UTC().Truncate(time.Second), nonce, c.signer)
 			if err != nil {
 				return nil, err
 			}
-			return lk.EncodeActAsCredential(credential), nil
+			return lk.EncodeActAsCredential(credential)
 		})
 		c.sessions[key] = session
 	}
@@ -204,16 +204,16 @@ func (c *Client) Member(ctx context.Context, domain, userID, grantID string) (ca
 	return cal.NewHTTPTransport(c.Config.URL, session), nil
 }
 func (c *Client) refreshMemberGrant(ctx context.Context, domain, userID, grantID string, audience lk.ApplicationRef) (rp.RefreshedGrant, error) {
-	now := time.Now().UTC()
-	request, err := rp.SignRefreshRequest(lk.ActAsRefreshRequest{GrantId: grantID, Grantee: c.grantee(), RequestedAt: now.Format(time.RFC3339), ExpiresAt: now.Add(5 * time.Minute).Format(time.RFC3339), Nonce: Nonce()}, c.signer)
+	now := time.Now().UTC().Truncate(time.Second)
+	request, err := rp.SignRefreshRequest(lk.ActAsRefreshRequest{GrantId: grantID, Grantee: c.grantee(), RequestedAt: now, ExpiresAt: now.Add(5 * time.Minute), Nonce: Nonce()}, c.signer)
 	if err != nil {
 		return rp.RefreshedGrant{}, err
 	}
 	result, err := rp.RefreshGrant(ctx, c.RP, domain, request)
 	if err != nil {
 		// LinkKeys also uses an authentication error for rate limiting. Only an
-		// explicit grant revocation or expiry makes the saved connection unusable.
-		if strings.Contains(err.Error(), "the grant is revoked") || strings.Contains(err.Error(), "the grant has expired") {
+		// missing, revoked or expired grant makes the saved connection unusable.
+		if strings.Contains(err.Error(), "the grant is revoked") || strings.Contains(err.Error(), "the grant has expired") || strings.Contains(err.Error(), "no such grant for this grantee") {
 			return result, ErrGrantUnavailable
 		}
 		return result, err
@@ -222,8 +222,7 @@ func (c *Client) refreshMemberGrant(ctx context.Context, domain, userID, grantID
 	if grant.UserId != userID || grant.SubjectDomain != domain || grant.Audience != audience || len(grant.ApprovedScope) != 2 || !slices.Contains(grant.ApprovedScope, "events.write") || !slices.Contains(grant.ApprovedScope, "calendars.read") {
 		return result, ErrGrantUnavailable
 	}
-	expires, err := time.Parse(time.RFC3339, grant.ExpiresAt)
-	if err != nil || !expires.After(now) {
+	if !grant.ExpiresAt.After(now) {
 		return result, ErrGrantUnavailable
 	}
 	return result, nil

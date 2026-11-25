@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the ProjectService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -16,94 +14,117 @@ public final class ProjectClient {
     }
 
     public Project createProject(Project req) throws ClientException {
-        return CsilCbor.decodeProject(transport.call("ProjectService", "create-project", CsilCbor.encodeProject(req)));
+        WireReply reply = transport.callReply("ProjectService", "create-project", CsilCbor.encodeProject(req));
+        return CsilCbor.decodeProject(CsilCbor.resolveRpcReply("ProjectService", "create-project", reply.variant(), reply.payload()));
     }
 
     public Project getProject(ProjectId req) throws ClientException {
-        return CsilCbor.decodeProject(transport.call("ProjectService", "get-project", CsilCbor.encodeProjectGetProjectRequest(req)));
+        WireReply reply = transport.callReply("ProjectService", "get-project", CsilCbor.encodeProjectGetProjectRequest(req));
+        return CsilCbor.decodeProject(CsilCbor.resolveRpcReply("ProjectService", "get-project", reply.variant(), reply.payload()));
     }
 
     public Project updateProject(Project req) throws ClientException {
-        return CsilCbor.decodeProject(transport.call("ProjectService", "update-project", CsilCbor.encodeProject(req)));
+        WireReply reply = transport.callReply("ProjectService", "update-project", CsilCbor.encodeProject(req));
+        return CsilCbor.decodeProject(CsilCbor.resolveRpcReply("ProjectService", "update-project", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deleteProject(ProjectId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ProjectService", "delete-project", CsilCbor.encodeProjectDeleteProjectRequest(req)));
+        WireReply reply = transport.callReply("ProjectService", "delete-project", CsilCbor.encodeProjectDeleteProjectRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ProjectService", "delete-project", reply.variant(), reply.payload()));
     }
 
     public ProjectList listProjects(HouseScopedListRequest req) throws ClientException {
-        return CsilCbor.decodeProjectList(transport.call("ProjectService", "list-projects", CsilCbor.encodeHouseScopedListRequest(req)));
+        WireReply reply = transport.callReply("ProjectService", "list-projects", CsilCbor.encodeHouseScopedListRequest(req));
+        return CsilCbor.decodeProjectList(CsilCbor.resolveRpcReply("ProjectService", "list-projects", reply.variant(), reply.payload()));
     }
 
     public TaskList listProjectTasks(ProjectScopedListRequest req) throws ClientException {
-        return CsilCbor.decodeTaskList(transport.call("ProjectService", "list-project-tasks", CsilCbor.encodeProjectScopedListRequest(req)));
+        WireReply reply = transport.callReply("ProjectService", "list-project-tasks", CsilCbor.encodeProjectScopedListRequest(req));
+        return CsilCbor.decodeTaskList(CsilCbor.resolveRpcReply("ProjectService", "list-project-tasks", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse addProjectTask(ProjectTaskOrderRequest req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ProjectService", "add-project-task", CsilCbor.encodeProjectTaskOrderRequest(req)));
+        WireReply reply = transport.callReply("ProjectService", "add-project-task", CsilCbor.encodeProjectTaskOrderRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ProjectService", "add-project-task", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse removeProjectTask(ProjectTaskRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ProjectService", "remove-project-task", CsilCbor.encodeProjectTaskRef(req)));
+        WireReply reply = transport.callReply("ProjectService", "remove-project-task", CsilCbor.encodeProjectTaskRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ProjectService", "remove-project-task", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse setProjectTaskPosition(ProjectTaskOrderRequest req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ProjectService", "set-project-task-position", CsilCbor.encodeProjectTaskOrderRequest(req)));
+        WireReply reply = transport.callReply("ProjectService", "set-project-task-position", CsilCbor.encodeProjectTaskOrderRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ProjectService", "set-project-task-position", reply.variant(), reply.payload()));
     }
 
-    public List<Member> listProjectMembers(ProjectId req) throws ClientException {
-        return CsilCbor.decodeProjectListProjectMembersResponse(transport.call("ProjectService", "list-project-members", CsilCbor.encodeProjectListProjectMembersRequest(req)));
+    public MemberItems listProjectMembers(ProjectId req) throws ClientException {
+        WireReply reply = transport.callReply("ProjectService", "list-project-members", CsilCbor.encodeProjectListProjectMembersRequest(req));
+        return CsilCbor.decodeProjectListProjectMembersResponse(CsilCbor.resolveRpcReply("ProjectService", "list-project-members", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse addProjectMember(ProjectMemberRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ProjectService", "add-project-member", CsilCbor.encodeProjectMemberRef(req)));
+        WireReply reply = transport.callReply("ProjectService", "add-project-member", CsilCbor.encodeProjectMemberRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ProjectService", "add-project-member", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse removeProjectMember(ProjectMemberRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ProjectService", "remove-project-member", CsilCbor.encodeProjectMemberRef(req)));
+        WireReply reply = transport.callReply("ProjectService", "remove-project-member", CsilCbor.encodeProjectMemberRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ProjectService", "remove-project-member", reply.variant(), reply.payload()));
     }
 
-    public List<Member> listProjectOwners(ProjectId req) throws ClientException {
-        return CsilCbor.decodeProjectListProjectOwnersResponse(transport.call("ProjectService", "list-project-owners", CsilCbor.encodeProjectListProjectOwnersRequest(req)));
+    public MemberItems listProjectOwners(ProjectId req) throws ClientException {
+        WireReply reply = transport.callReply("ProjectService", "list-project-owners", CsilCbor.encodeProjectListProjectOwnersRequest(req));
+        return CsilCbor.decodeProjectListProjectOwnersResponse(CsilCbor.resolveRpcReply("ProjectService", "list-project-owners", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse addProjectOwner(ProjectOwnerRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ProjectService", "add-project-owner", CsilCbor.encodeProjectOwnerRef(req)));
+        WireReply reply = transport.callReply("ProjectService", "add-project-owner", CsilCbor.encodeProjectOwnerRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ProjectService", "add-project-owner", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse removeProjectOwner(ProjectOwnerRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ProjectService", "remove-project-owner", CsilCbor.encodeProjectOwnerRef(req)));
+        WireReply reply = transport.callReply("ProjectService", "remove-project-owner", CsilCbor.encodeProjectOwnerRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ProjectService", "remove-project-owner", reply.variant(), reply.payload()));
     }
 
-    public List<Milestone> listMilestones(ProjectId req) throws ClientException {
-        return CsilCbor.decodeProjectListMilestonesResponse(transport.call("ProjectService", "list-milestones", CsilCbor.encodeProjectListMilestonesRequest(req)));
+    public MilestoneItems listMilestones(ProjectId req) throws ClientException {
+        WireReply reply = transport.callReply("ProjectService", "list-milestones", CsilCbor.encodeProjectListMilestonesRequest(req));
+        return CsilCbor.decodeProjectListMilestonesResponse(CsilCbor.resolveRpcReply("ProjectService", "list-milestones", reply.variant(), reply.payload()));
     }
 
     public Milestone createMilestone(Milestone req) throws ClientException {
-        return CsilCbor.decodeMilestone(transport.call("ProjectService", "create-milestone", CsilCbor.encodeMilestone(req)));
+        WireReply reply = transport.callReply("ProjectService", "create-milestone", CsilCbor.encodeMilestone(req));
+        return CsilCbor.decodeMilestone(CsilCbor.resolveRpcReply("ProjectService", "create-milestone", reply.variant(), reply.payload()));
     }
 
     public Milestone updateMilestone(Milestone req) throws ClientException {
-        return CsilCbor.decodeMilestone(transport.call("ProjectService", "update-milestone", CsilCbor.encodeMilestone(req)));
+        WireReply reply = transport.callReply("ProjectService", "update-milestone", CsilCbor.encodeMilestone(req));
+        return CsilCbor.decodeMilestone(CsilCbor.resolveRpcReply("ProjectService", "update-milestone", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deleteMilestone(MilestoneId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ProjectService", "delete-milestone", CsilCbor.encodeProjectDeleteMilestoneRequest(req)));
+        WireReply reply = transport.callReply("ProjectService", "delete-milestone", CsilCbor.encodeProjectDeleteMilestoneRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ProjectService", "delete-milestone", reply.variant(), reply.payload()));
     }
 
     public Project setProjectVisibility(SetProjectVisibilityRequest req) throws ClientException {
-        return CsilCbor.decodeProject(transport.call("ProjectService", "set-project-visibility", CsilCbor.encodeSetProjectVisibilityRequest(req)));
+        WireReply reply = transport.callReply("ProjectService", "set-project-visibility", CsilCbor.encodeSetProjectVisibilityRequest(req));
+        return CsilCbor.decodeProject(CsilCbor.resolveRpcReply("ProjectService", "set-project-visibility", reply.variant(), reply.payload()));
     }
 
-    public List<Grant> listProjectGrants(ProjectId req) throws ClientException {
-        return CsilCbor.decodeProjectListProjectGrantsResponse(transport.call("ProjectService", "list-project-grants", CsilCbor.encodeProjectListProjectGrantsRequest(req)));
+    public GrantItems listProjectGrants(ProjectId req) throws ClientException {
+        WireReply reply = transport.callReply("ProjectService", "list-project-grants", CsilCbor.encodeProjectListProjectGrantsRequest(req));
+        return CsilCbor.decodeProjectListProjectGrantsResponse(CsilCbor.resolveRpcReply("ProjectService", "list-project-grants", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse putProjectGrant(PutProjectGrantRequest req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ProjectService", "put-project-grant", CsilCbor.encodePutProjectGrantRequest(req)));
+        WireReply reply = transport.callReply("ProjectService", "put-project-grant", CsilCbor.encodePutProjectGrantRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ProjectService", "put-project-grant", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deleteProjectGrant(ProjectGrantRef req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("ProjectService", "delete-project-grant", CsilCbor.encodeProjectGrantRef(req)));
+        WireReply reply = transport.callReply("ProjectService", "delete-project-grant", CsilCbor.encodeProjectGrantRef(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("ProjectService", "delete-project-grant", reply.variant(), reply.payload()));
     }
 }

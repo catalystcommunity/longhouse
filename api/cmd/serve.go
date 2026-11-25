@@ -325,9 +325,7 @@ func buildPKIClient() csilservices.PKIClient {
 	}
 }
 
-// loginApplicationID returns the application_id for Rp/sign-request. An
-// explicit setting wins. Otherwise the act-as key file names the enrolled
-// application, so login consent and act-as use one ApplicationRef.
+// loginApplicationID returns the expected application ID for browser login.
 func loginApplicationID() string {
 	if id := strings.TrimSpace(config.LinkkeysApplicationID); id != "" {
 		return id

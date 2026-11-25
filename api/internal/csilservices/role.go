@@ -92,7 +92,7 @@ func (s *RoleService) DeleteRole(ctx context.Context, id csil.RoleID) (csil.Empt
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *RoleService) ListRoles(ctx context.Context, req csil.HouseScopedListRequest) ([]csil.Role, error) {
+func (s *RoleService) ListRoles(ctx context.Context, req csil.HouseScopedListRequest) (csil.RoleItems, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (s *RoleService) RevokeRole(ctx context.Context, ref csil.MemberRoleRef) (c
 	return csil.EmptyResponse{}, nil
 }
 
-func (s *RoleService) ListMemberRoles(ctx context.Context, req csil.MemberScopedListRequest) ([]csil.Role, error) {
+func (s *RoleService) ListMemberRoles(ctx context.Context, req csil.MemberScopedListRequest) (csil.RoleItems, error) {
 	if _, _, err := requireMemberForHouse(ctx, string(req.HouseId)); err != nil {
 		return nil, err
 	}

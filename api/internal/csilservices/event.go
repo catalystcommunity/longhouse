@@ -102,7 +102,7 @@ func (s *EventService) SetCalendarView(ctx context.Context, in csil.CalendarView
 	return calendarViewToCSIL(string(in.HouseId), viewerMemberID, view), nil
 }
 
-func (s *EventService) ListEvents(ctx context.Context, req csil.EventListRequest) ([]csil.Event, error) {
+func (s *EventService) ListEvents(ctx context.Context, req csil.EventListRequest) (csil.EventItems, error) {
 	if s.Calendar != nil {
 		return s.Calendar.ListEvents(ctx, req)
 	}

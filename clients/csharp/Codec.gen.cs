@@ -19,7 +19,9 @@ public abstract record CborValue
     public sealed record Text(string Value) : CborValue;
     public sealed record Bytes(byte[] Value) : CborValue;
     public sealed record Array(System.Collections.Generic.IReadOnlyList<CborValue> Items) : CborValue;
-    public sealed record Map(System.Collections.Generic.IReadOnlyList<(CborValue Key, CborValue Value)> Entries) : CborValue;
+    // Canonical is false when a decoded map's encoded keys were not strictly ascending
+    // bytewise (RFC 8949 section 4.2.1): a dynamic map rejects that, a record does not.
+    public sealed record Map(System.Collections.Generic.IReadOnlyList<(CborValue Key, CborValue Value)> Entries, bool Canonical = true) : CborValue;
     public sealed record Tag(ulong Number, CborValue Inner) : CborValue;
 }
 
@@ -187,6 +189,11 @@ public static partial class Cbor
                 case 21: csilPos += 1; return new CborValue.Bool(true);
                 case 22:
                 case 23: csilPos += 1; return new CborValue.Null();
+                case 25:
+                {
+                    var bits = ReadArg(b, ref csilPos, low);
+                    return new CborValue.Float((double)System.BitConverter.UInt16BitsToHalf((ushort)bits));
+                }
                 case 26:
                 {
                     var bits = ReadArg(b, ref csilPos, low);
@@ -241,13 +248,38 @@ public static partial class Cbor
                 if (arg > (ulong)(b.Length - csilPos)) { throw new CborException("map length exceeds remaining input"); }
                 var n = (int)arg;
                 var kvs = new System.Collections.Generic.List<(CborValue, CborValue)>(System.Math.Min(n, PreallocLimit));
+                // Each key is compared with the one before it as raw bytes, so the order
+                // check is O(n). Only a map out of order can repeat a key, so the set of
+                // seen keys is built only then.
+                var csilKeys = new System.Collections.Generic.List<(int Start, int Length)>(System.Math.Min(n, PreallocLimit));
+                System.Collections.Generic.HashSet<string>? csilSeen = null;
                 for (int csilI = 0; csilI < n; csilI++)
                 {
+                    var csilStart = csilPos;
                     var k = Dec(b, ref csilPos, csilDepth + 1);
+                    var csilKey = (Start: csilStart, Length: csilPos - csilStart);
+                    if (!ShortestHead(b, csilStart)) { throw new CborException("csil cbor: map key is not in shortest form"); }
+                    if (csilSeen == null && csilI > 0)
+                    {
+                        var csilPrev = csilKeys[csilI - 1];
+                        if (System.MemoryExtensions.SequenceCompareTo(new System.ReadOnlySpan<byte>(b, csilPrev.Start, csilPrev.Length), new System.ReadOnlySpan<byte>(b, csilKey.Start, csilKey.Length)) >= 0)
+                        {
+                            csilSeen = new System.Collections.Generic.HashSet<string>();
+                            foreach (var csilEarlier in csilKeys)
+                            {
+                                csilSeen.Add(System.Convert.ToHexString(b, csilEarlier.Start, csilEarlier.Length));
+                            }
+                        }
+                    }
+                    if (csilSeen != null && !csilSeen.Add(System.Convert.ToHexString(b, csilKey.Start, csilKey.Length)))
+                    {
+                        throw new CborException($"csil cbor: duplicate key {DescribeKey(k)}");
+                    }
+                    csilKeys.Add(csilKey);
                     var val = Dec(b, ref csilPos, csilDepth + 1);
                     kvs.Add((k, val));
                 }
-                return new CborValue.Map(kvs);
+                return new CborValue.Map(kvs, csilSeen == null);
             }
             case 6:
             {
@@ -331,21 +363,175 @@ public static partial class Cbor
     public static System.Collections.Generic.IReadOnlyList<(CborValue Key, CborValue Value)> AsMap(CborValue v) =>
         v is CborValue.Map x ? x.Entries : throw new CborException("expected map");
 
+    /// <summary>The entries of a dynamic map, which must arrive in canonical key order.</summary>
+    public static System.Collections.Generic.IReadOnlyList<(CborValue Key, CborValue Value)> AsDynamicMap(CborValue v) =>
+        v is CborValue.Map { Canonical: false }
+            ? throw new CborException("csil cbor: map keys are not in canonical order")
+            : AsMap(v);
+
+    /// <summary>The entries in canonical order: bytewise order of each key's encoding,
+    /// which is not the order of the .NET keys.</summary>
+    public static System.Collections.Generic.List<(CborValue, CborValue)> CanonicalEntries(
+        System.Collections.Generic.IEnumerable<(CborValue Key, CborValue Value)> entries) =>
+        entries
+            .Select(csilEntry => (Bytes: Encode(csilEntry.Key), Entry: csilEntry))
+            .OrderBy(csilEntry => csilEntry.Bytes, CsilKeyOrder.Instance)
+            .Select(csilEntry => ((CborValue)csilEntry.Entry.Key, csilEntry.Entry.Value))
+            .ToList();
+
+    sealed class CsilKeyOrder : System.Collections.Generic.IComparer<byte[]>
+    {
+        public static readonly CsilKeyOrder Instance = new();
+
+        public int Compare(byte[]? x, byte[]? y) =>
+            System.MemoryExtensions.SequenceCompareTo(new System.ReadOnlySpan<byte>(x), new System.ReadOnlySpan<byte>(y));
+    }
+
+    /// <summary>Whether the head at <paramref name="at"/> uses the shortest argument for
+    /// its value. A float head (major 7) carries no length, so it is not checked.</summary>
+    static bool ShortestHead(byte[] b, int at)
+    {
+        var major = b[at] >> 5;
+        var low = b[at] & 0x1f;
+        if (major == 7 || low < 24) { return true; }
+        var width = 1 << (low - 24);
+        ulong arg = 0;
+        for (int csilI = 1; csilI <= width; csilI++) { arg = (arg << 8) | b[at + csilI]; }
+        ulong floor = low == 24 ? 24UL : 1UL << (8 * (width / 2));
+        return arg >= floor;
+    }
+
+    static string DescribeKey(CborValue k) =>
+        k is CborValue.Text t ? $"\"{t.Value}\"" : System.Convert.ToHexString(Encode(k)).ToLowerInvariant();
+
     public static string AsTaggedText(CborValue v, ulong num) =>
         v is CborValue.Tag x && x.Number == num ? AsText(x.Inner) : throw new CborException("expected tagged text");
 }
 
 public static partial class Cbor
 {
-    public static CborValue EncTimestamp(System.DateTimeOffset value) =>
-        new CborValue.Tag(0, new CborValue.Text(
-            value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFFFFF'Z'", System.Globalization.CultureInfo.InvariantCulture)));
+    public static CborValue EncTimestamp(System.DateTimeOffset value)
+    {
+        var u = value.UtcDateTime;
+        var b = new System.Text.StringBuilder(30);
+        TimestampDigits(b, u.Year, 4).Append('-');
+        TimestampDigits(b, u.Month, 2).Append('-');
+        TimestampDigits(b, u.Day, 2).Append('T');
+        TimestampDigits(b, u.Hour, 2).Append(':');
+        TimestampDigits(b, u.Minute, 2).Append(':');
+        TimestampDigits(b, u.Second, 2);
+        long nano = (u.Ticks % System.TimeSpan.TicksPerSecond) * 100;
+        if (nano != 0)
+        {
+            b.Append('.');
+            if (nano % 1_000_000 == 0) TimestampDigits(b, nano / 1_000_000, 3);
+            else if (nano % 1_000 == 0) TimestampDigits(b, nano / 1_000, 6);
+            else TimestampDigits(b, nano, 9);
+        }
+        b.Append('Z');
+        return new CborValue.Tag(0, new CborValue.Text(b.ToString()));
+    }
+
+    private static System.Text.StringBuilder TimestampDigits(System.Text.StringBuilder b, long value, int width)
+    {
+        var text = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return b.Append('0', System.Math.Max(0, width - text.Length)).Append(text);
+    }
 
     public static System.DateTimeOffset AsTimestamp(CborValue v) =>
-        System.DateTimeOffset.Parse(
-            AsTaggedText(v, 0),
-            System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal);
+        v is CborValue.Tag t && t.Number == 0 && t.Inner is CborValue.Text text
+            ? ParseTimestamp(text.Value)
+            : throw new CborException("expected CBOR tag 0 timestamp");
+
+    private static int TimestampField(string s, int at, int width)
+    {
+        if (at + width > s.Length) throw new CborException("invalid timestamp text");
+        int value = 0;
+        for (int i = at; i < at + width; i++)
+        {
+            char c = s[i];
+            if (c < '0' || c > '9') throw new CborException("invalid timestamp text");
+            value = value * 10 + (c - '0');
+        }
+        return value;
+    }
+
+    private static void TimestampSeparator(string s, int at, char a, char b)
+    {
+        if (at >= s.Length || (s[at] != a && s[at] != b)) throw new CborException("invalid timestamp text");
+    }
+
+    // Days since 0001-01-01 in the proleptic Gregorian calendar. Computed by hand so the
+    // offset is applied in tick arithmetic, where a result outside 0001-9999 UTC is a
+    // range check and not a DateTime constructor exception.
+    private static long TimestampDays(int year, int month, int day)
+    {
+        long y = month <= 2 ? year - 1 : year;
+        long era = (y >= 0 ? y : y - 399) / 400;
+        long yoe = y - era * 400;
+        long doy = (153 * (month > 2 ? month - 3 : month + 9) + 2) / 5 + day - 1;
+        long doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+        return era * 146097 + doe - 306;
+    }
+
+    private static System.DateTimeOffset ParseTimestamp(string s)
+    {
+        int year = TimestampField(s, 0, 4);
+        TimestampSeparator(s, 4, '-', '-');
+        int month = TimestampField(s, 5, 2);
+        TimestampSeparator(s, 7, '-', '-');
+        int day = TimestampField(s, 8, 2);
+        TimestampSeparator(s, 10, 'T', 't');
+        int hour = TimestampField(s, 11, 2);
+        TimestampSeparator(s, 13, ':', ':');
+        int minute = TimestampField(s, 14, 2);
+        TimestampSeparator(s, 16, ':', ':');
+        int second = TimestampField(s, 17, 2);
+        bool leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+        int monthDays = month == 2 ? (leap ? 29 : 28) : (month == 4 || month == 6 || month == 9 || month == 11 ? 30 : 31);
+        if (year < 1 || month < 1 || month > 12 || day < 1 || day > monthDays || hour > 23 || minute > 59 || second > 59)
+            throw new CborException("invalid timestamp value");
+        int at = 19;
+        long fraction = 0;
+        if (at < s.Length && s[at] == '.')
+        {
+            int start = ++at;
+            while (at < s.Length && s[at] >= '0' && s[at] <= '9') at++;
+            int digits = at - start;
+            if (digits < 1 || digits > 9) throw new CborException("invalid timestamp fraction");
+            for (int i = start; i < start + 7; i++) fraction = fraction * 10 + (i < at ? s[i] - '0' : 0);
+            for (int i = start + 7; i < at; i++)
+                if (s[i] != '0') throw new CborException("timestamp fraction finer than 100 ns");
+        }
+        if (at >= s.Length) throw new CborException("timestamp has no offset");
+        char zone = s[at];
+        long offset;
+        if (zone == 'Z' || zone == 'z')
+        {
+            offset = 0;
+            at += 1;
+        }
+        else if (zone == '+' || zone == '-')
+        {
+            int offsetHour = TimestampField(s, at + 1, 2);
+            TimestampSeparator(s, at + 3, ':', ':');
+            int offsetMinute = TimestampField(s, at + 4, 2);
+            if (offsetHour > 23 || offsetMinute > 59) throw new CborException("invalid timestamp offset");
+            offset = (zone == '-' ? -1 : 1) * (offsetHour * 3600L + offsetMinute * 60L);
+            at += 6;
+        }
+        else
+        {
+            throw new CborException("invalid timestamp offset");
+        }
+        if (at != s.Length) throw new CborException("trailing timestamp text");
+        long seconds = TimestampDays(year, month, day) * 86_400L + hour * 3_600L + minute * 60L + second - offset;
+        long ticks = seconds * System.TimeSpan.TicksPerSecond + fraction;
+        // DateTime spans exactly 0001-01-01 through 9999-12-31 UTC, the contract's range.
+        if (ticks < 0 || ticks > System.DateTime.MaxValue.Ticks)
+            throw new CborException("timestamp year outside 0001-9999");
+        return new System.DateTimeOffset(ticks, System.TimeSpan.Zero);
+    }
 }
 
 /// <summary>The typed CBOR codec: encodes/decodes a generated record to and
@@ -4253,10 +4439,10 @@ public static class Codec
     public static HouseID DecodeHouseDeleteHouseRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the HouseListHousesResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeHouseListHousesResponse(System.Collections.Generic.List<House> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)HouseToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeHouseListHousesResponse(HouseItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)HouseToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the HouseListHousesResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<House> DecodeHouseListHousesResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => HouseFromCborValue(csilElem)).ToList();
+    public static HouseItems DecodeHouseListHousesResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => HouseFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the MemberGetMemberRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeMemberGetMemberRequest(MemberID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4277,10 +4463,10 @@ public static class Codec
     public static MemberID DecodeMemberReactivateMemberRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the MemberListMembersResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeMemberListMembersResponse(System.Collections.Generic.List<Member> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeMemberListMembersResponse(MemberItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the MemberListMembersResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Member> DecodeMemberListMembersResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MemberFromCborValue(csilElem)).ToList();
+    public static MemberItems DecodeMemberListMembersResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MemberFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the TrustedDomainRemoveTrustedDomainRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeTrustedDomainRemoveTrustedDomainRequest(TrustedDomainID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4295,10 +4481,10 @@ public static class Codec
     public static HouseID DecodeTrustedDomainListTrustedDomainsRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the TrustedDomainListTrustedDomainsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeTrustedDomainListTrustedDomainsResponse(System.Collections.Generic.List<TrustedDomain> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)TrustedDomainToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeTrustedDomainListTrustedDomainsResponse(TrustedDomainItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)TrustedDomainToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the TrustedDomainListTrustedDomainsResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<TrustedDomain> DecodeTrustedDomainListTrustedDomainsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => TrustedDomainFromCborValue(csilElem)).ToList();
+    public static TrustedDomainItems DecodeTrustedDomainListTrustedDomainsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => TrustedDomainFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the RoleDeleteRoleRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeRoleDeleteRoleRequest(RoleID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4307,16 +4493,16 @@ public static class Codec
     public static RoleID DecodeRoleDeleteRoleRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the RoleListRolesResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeRoleListRolesResponse(System.Collections.Generic.List<Role> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)RoleToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeRoleListRolesResponse(RoleItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)RoleToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the RoleListRolesResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Role> DecodeRoleListRolesResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => RoleFromCborValue(csilElem)).ToList();
+    public static RoleItems DecodeRoleListRolesResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => RoleFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the RoleListMemberRolesResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeRoleListMemberRolesResponse(System.Collections.Generic.List<Role> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)RoleToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeRoleListMemberRolesResponse(RoleItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)RoleToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the RoleListMemberRolesResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Role> DecodeRoleListMemberRolesResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => RoleFromCborValue(csilElem)).ToList();
+    public static RoleItems DecodeRoleListMemberRolesResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => RoleFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the SkillDeleteSkillRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeSkillDeleteSkillRequest(SkillID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4325,16 +4511,16 @@ public static class Codec
     public static SkillID DecodeSkillDeleteSkillRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the SkillListSkillsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeSkillListSkillsResponse(System.Collections.Generic.List<Skill> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)SkillToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeSkillListSkillsResponse(SkillItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)SkillToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the SkillListSkillsResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Skill> DecodeSkillListSkillsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => SkillFromCborValue(csilElem)).ToList();
+    public static SkillItems DecodeSkillListSkillsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => SkillFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the SkillListMemberSkillsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeSkillListMemberSkillsResponse(System.Collections.Generic.List<Skill> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)SkillToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeSkillListMemberSkillsResponse(SkillItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)SkillToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the SkillListMemberSkillsResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Skill> DecodeSkillListMemberSkillsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => SkillFromCborValue(csilElem)).ToList();
+    public static SkillItems DecodeSkillListMemberSkillsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => SkillFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the SkillListGroupSkillsRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeSkillListGroupSkillsRequest(GroupID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4343,10 +4529,10 @@ public static class Codec
     public static GroupID DecodeSkillListGroupSkillsRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the SkillListGroupSkillsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeSkillListGroupSkillsResponse(System.Collections.Generic.List<Skill> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)SkillToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeSkillListGroupSkillsResponse(SkillItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)SkillToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the SkillListGroupSkillsResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Skill> DecodeSkillListGroupSkillsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => SkillFromCborValue(csilElem)).ToList();
+    public static SkillItems DecodeSkillListGroupSkillsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => SkillFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the GroupDeleteGroupRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeGroupDeleteGroupRequest(GroupID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4355,16 +4541,16 @@ public static class Codec
     public static GroupID DecodeGroupDeleteGroupRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the GroupListGroupsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeGroupListGroupsResponse(System.Collections.Generic.List<Group> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)GroupToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeGroupListGroupsResponse(GroupItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)GroupToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the GroupListGroupsResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Group> DecodeGroupListGroupsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => GroupFromCborValue(csilElem)).ToList();
+    public static GroupItems DecodeGroupListGroupsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => GroupFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the GroupListGroupMembersResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeGroupListGroupMembersResponse(System.Collections.Generic.List<Member> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeGroupListGroupMembersResponse(MemberItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the GroupListGroupMembersResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Member> DecodeGroupListGroupMembersResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MemberFromCborValue(csilElem)).ToList();
+    public static MemberItems DecodeGroupListGroupMembersResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MemberFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the ProjectGetProjectRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeProjectGetProjectRequest(ProjectID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4385,10 +4571,10 @@ public static class Codec
     public static ProjectID DecodeProjectListProjectMembersRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the ProjectListProjectMembersResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeProjectListProjectMembersResponse(System.Collections.Generic.List<Member> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeProjectListProjectMembersResponse(MemberItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the ProjectListProjectMembersResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Member> DecodeProjectListProjectMembersResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MemberFromCborValue(csilElem)).ToList();
+    public static MemberItems DecodeProjectListProjectMembersResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MemberFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the ProjectListProjectOwnersRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeProjectListProjectOwnersRequest(ProjectID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4397,10 +4583,10 @@ public static class Codec
     public static ProjectID DecodeProjectListProjectOwnersRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the ProjectListProjectOwnersResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeProjectListProjectOwnersResponse(System.Collections.Generic.List<Member> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeProjectListProjectOwnersResponse(MemberItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the ProjectListProjectOwnersResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Member> DecodeProjectListProjectOwnersResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MemberFromCborValue(csilElem)).ToList();
+    public static MemberItems DecodeProjectListProjectOwnersResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MemberFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the ProjectListMilestonesRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeProjectListMilestonesRequest(ProjectID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4409,10 +4595,10 @@ public static class Codec
     public static ProjectID DecodeProjectListMilestonesRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the ProjectListMilestonesResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeProjectListMilestonesResponse(System.Collections.Generic.List<Milestone> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MilestoneToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeProjectListMilestonesResponse(MilestoneItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MilestoneToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the ProjectListMilestonesResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Milestone> DecodeProjectListMilestonesResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MilestoneFromCborValue(csilElem)).ToList();
+    public static MilestoneItems DecodeProjectListMilestonesResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MilestoneFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the ProjectDeleteMilestoneRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeProjectDeleteMilestoneRequest(MilestoneID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4427,10 +4613,10 @@ public static class Codec
     public static ProjectID DecodeProjectListProjectGrantsRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the ProjectListProjectGrantsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeProjectListProjectGrantsResponse(System.Collections.Generic.List<Grant> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)GrantToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeProjectListProjectGrantsResponse(GrantItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)GrantToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the ProjectListProjectGrantsResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Grant> DecodeProjectListProjectGrantsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => GrantFromCborValue(csilElem)).ToList();
+    public static GrantItems DecodeProjectListProjectGrantsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => GrantFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the EventGetEventRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeEventGetEventRequest(EventID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4451,10 +4637,10 @@ public static class Codec
     public static EventID DecodeEventDeleteEventAndFutureRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the EventListEventsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeEventListEventsResponse(System.Collections.Generic.List<Event> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)EventToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeEventListEventsResponse(EventItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)EventToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the EventListEventsResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Event> DecodeEventListEventsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => EventFromCborValue(csilElem)).ToList();
+    public static EventItems DecodeEventListEventsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => EventFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the EventGetCalendarViewRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeEventGetCalendarViewRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4475,10 +4661,10 @@ public static class Codec
     public static HouseID DecodeEventListLocalEventsRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the EventListLocalEventsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeEventListLocalEventsResponse(System.Collections.Generic.List<Event> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)EventToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeEventListLocalEventsResponse(EventItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)EventToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the EventListLocalEventsResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Event> DecodeEventListLocalEventsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => EventFromCborValue(csilElem)).ToList();
+    public static EventItems DecodeEventListLocalEventsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => EventFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the CalendarGetStatusRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeCalendarGetStatusRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4505,10 +4691,10 @@ public static class Codec
     public static HouseID DecodeCalendarPreviewMigrationRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the CalendarPreviewMigrationResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeCalendarPreviewMigrationResponse(System.Collections.Generic.List<CalendarMigrationRow> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)CalendarMigrationRowToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeCalendarPreviewMigrationResponse(CalendarMigrationRowItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)CalendarMigrationRowToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the CalendarPreviewMigrationResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<CalendarMigrationRow> DecodeCalendarPreviewMigrationResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => CalendarMigrationRowFromCborValue(csilElem)).ToList();
+    public static CalendarMigrationRowItems DecodeCalendarPreviewMigrationResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => CalendarMigrationRowFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the CalendarListTrashRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeCalendarListTrashRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4517,10 +4703,10 @@ public static class Codec
     public static HouseID DecodeCalendarListTrashRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the CalendarListTrashResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeCalendarListTrashResponse(System.Collections.Generic.List<CalendarTrashEntry> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)CalendarTrashEntryToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeCalendarListTrashResponse(CalendarTrashEntryItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)CalendarTrashEntryToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the CalendarListTrashResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<CalendarTrashEntry> DecodeCalendarListTrashResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => CalendarTrashEntryFromCborValue(csilElem)).ToList();
+    public static CalendarTrashEntryItems DecodeCalendarListTrashResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => CalendarTrashEntryFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the TaskGetTaskRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeTaskGetTaskRequest(TaskID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4541,10 +4727,10 @@ public static class Codec
     public static TaskID DecodeTaskListTaskGrantsRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the TaskListTaskGrantsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeTaskListTaskGrantsResponse(System.Collections.Generic.List<Grant> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)GrantToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeTaskListTaskGrantsResponse(GrantItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)GrantToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the TaskListTaskGrantsResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Grant> DecodeTaskListTaskGrantsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => GrantFromCborValue(csilElem)).ToList();
+    public static GrantItems DecodeTaskListTaskGrantsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => GrantFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the CommentGetCommentRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeCommentGetCommentRequest(CommentID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4559,16 +4745,16 @@ public static class Codec
     public static CommentID DecodeCommentDeleteCommentRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the CommentListCommentsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeCommentListCommentsResponse(System.Collections.Generic.List<Comment> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)CommentToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeCommentListCommentsResponse(CommentItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)CommentToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the CommentListCommentsResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Comment> DecodeCommentListCommentsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => CommentFromCborValue(csilElem)).ToList();
+    public static CommentItems DecodeCommentListCommentsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => CommentFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the NotificationListNotificationsResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeNotificationListNotificationsResponse(System.Collections.Generic.List<Notification> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)NotificationToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeNotificationListNotificationsResponse(NotificationItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)NotificationToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the NotificationListNotificationsResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Notification> DecodeNotificationListNotificationsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => NotificationFromCborValue(csilElem)).ToList();
+    public static NotificationItems DecodeNotificationListNotificationsResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => NotificationFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the NotificationUnreadCountRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeNotificationUnreadCountRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4595,16 +4781,16 @@ public static class Codec
     public static ShareID DecodeShareDeleteShareRequest(byte[] data) => Cbor.AsText(Cbor.Decode(data));
 
     /// <summary>Encode the ShareListSharesByResourceResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeShareListSharesByResourceResponse(System.Collections.Generic.List<Share> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)ShareToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeShareListSharesByResourceResponse(ShareItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)ShareToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the ShareListSharesByResourceResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<Share> DecodeShareListSharesByResourceResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => ShareFromCborValue(csilElem)).ToList();
+    public static ShareItems DecodeShareListSharesByResourceResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => ShareFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the MemberAuditListAuditsForMemberResponse op-boundary payload to canonical CSIL CBOR bytes.</summary>
-    public static byte[] EncodeMemberAuditListAuditsForMemberResponse(System.Collections.Generic.List<MemberAudit> value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberAuditToCborValue(csilElem)).ToList()));
+    public static byte[] EncodeMemberAuditListAuditsForMemberResponse(MemberAuditItems value) => Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberAuditToCborValue(csilElem)).ToList()));
 
     /// <summary>Decode canonical CSIL CBOR bytes into the MemberAuditListAuditsForMemberResponse op-boundary payload.</summary>
-    public static System.Collections.Generic.List<MemberAudit> DecodeMemberAuditListAuditsForMemberResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MemberAuditFromCborValue(csilElem)).ToList();
+    public static MemberAuditItems DecodeMemberAuditListAuditsForMemberResponse(byte[] data) => Cbor.AsArray(Cbor.Decode(data)).Select(csilElem => MemberAuditFromCborValue(csilElem)).ToList();
 
     /// <summary>Encode the SettingsGetSettingsRequest op-boundary payload to canonical CSIL CBOR bytes.</summary>
     public static byte[] EncodeSettingsGetSettingsRequest(HouseID value) => Cbor.Encode(new CborValue.Text(value));
@@ -4929,6 +5115,19 @@ public static class Codec
         }
     }
 
+    public static (string Variant, byte[] Payload) EncodeHouseListHousesReply(System.Func<HouseItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("HouseItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)HouseToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
     public static (string Variant, byte[] Payload) EncodeMemberCreateMemberReply(System.Func<Member> handler)
     {
         try
@@ -5007,6 +5206,19 @@ public static class Codec
         }
     }
 
+    public static (string Variant, byte[] Payload) EncodeMemberListMembersReply(System.Func<MemberItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("MemberItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
     public static (string Variant, byte[] Payload) EncodeTrustedDomainAddTrustedDomainReply(System.Func<TrustedDomain> handler)
     {
         try
@@ -5026,6 +5238,19 @@ public static class Codec
         {
             var value = handler();
             return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTrustedDomainListTrustedDomainsReply(System.Func<TrustedDomainItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("TrustedDomainItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)TrustedDomainToCborValue(csilElem)).ToList())));
         }
         catch (ServiceErrorRefusal refusal)
         {
@@ -5085,6 +5310,19 @@ public static class Codec
         }
     }
 
+    public static (string Variant, byte[] Payload) EncodeRoleListRolesReply(System.Func<RoleItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("RoleItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)RoleToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
     public static (string Variant, byte[] Payload) EncodeRoleGrantRoleReply(System.Func<EmptyResponse> handler)
     {
         try
@@ -5104,6 +5342,19 @@ public static class Codec
         {
             var value = handler();
             return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeRoleListMemberRolesReply(System.Func<RoleItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("RoleItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)RoleToCborValue(csilElem)).ToList())));
         }
         catch (ServiceErrorRefusal refusal)
         {
@@ -5150,6 +5401,19 @@ public static class Codec
         }
     }
 
+    public static (string Variant, byte[] Payload) EncodeSkillListSkillsReply(System.Func<SkillItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("SkillItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)SkillToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
     public static (string Variant, byte[] Payload) EncodeSkillAddMemberSkillReply(System.Func<EmptyResponse> handler)
     {
         try
@@ -5176,6 +5440,19 @@ public static class Codec
         }
     }
 
+    public static (string Variant, byte[] Payload) EncodeSkillListMemberSkillsReply(System.Func<SkillItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("SkillItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)SkillToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
     public static (string Variant, byte[] Payload) EncodeSkillAddGroupSkillReply(System.Func<EmptyResponse> handler)
     {
         try
@@ -5195,6 +5472,19 @@ public static class Codec
         {
             var value = handler();
             return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeSkillListGroupSkillsReply(System.Func<SkillItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("SkillItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)SkillToCborValue(csilElem)).ToList())));
         }
         catch (ServiceErrorRefusal refusal)
         {
@@ -5241,6 +5531,19 @@ public static class Codec
         }
     }
 
+    public static (string Variant, byte[] Payload) EncodeGroupListGroupsReply(System.Func<GroupItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("GroupItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)GroupToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
     public static (string Variant, byte[] Payload) EncodeGroupAddGroupMemberReply(System.Func<EmptyResponse> handler)
     {
         try
@@ -5260,6 +5563,19 @@ public static class Codec
         {
             var value = handler();
             return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeGroupListGroupMembersReply(System.Func<MemberItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("MemberItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList())));
         }
         catch (ServiceErrorRefusal refusal)
         {
@@ -5384,6 +5700,19 @@ public static class Codec
         }
     }
 
+    public static (string Variant, byte[] Payload) EncodeProjectListProjectMembersReply(System.Func<MemberItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("MemberItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
     public static (string Variant, byte[] Payload) EncodeProjectAddProjectMemberReply(System.Func<EmptyResponse> handler)
     {
         try
@@ -5410,6 +5739,19 @@ public static class Codec
         }
     }
 
+    public static (string Variant, byte[] Payload) EncodeProjectListProjectOwnersReply(System.Func<MemberItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("MemberItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
     public static (string Variant, byte[] Payload) EncodeProjectAddProjectOwnerReply(System.Func<EmptyResponse> handler)
     {
         try
@@ -5429,6 +5771,19 @@ public static class Codec
         {
             var value = handler();
             return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectListMilestonesReply(System.Func<MilestoneItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("MilestoneItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MilestoneToCborValue(csilElem)).ToList())));
         }
         catch (ServiceErrorRefusal refusal)
         {
@@ -5481,6 +5836,19 @@ public static class Codec
         {
             var value = handler();
             return ("Project", Cbor.Encode(ProjectToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeProjectListProjectGrantsReply(System.Func<GrantItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("GrantItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)GrantToCborValue(csilElem)).ToList())));
         }
         catch (ServiceErrorRefusal refusal)
         {
@@ -5579,6 +5947,19 @@ public static class Codec
         }
     }
 
+    public static (string Variant, byte[] Payload) EncodeEventListEventsReply(System.Func<EventItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EventItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)EventToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
     public static (string Variant, byte[] Payload) EncodeEventGetCalendarViewReply(System.Func<CalendarView> handler)
     {
         try
@@ -5637,6 +6018,19 @@ public static class Codec
         {
             var value = handler();
             return ("Event", Cbor.Encode(EventToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeEventListLocalEventsReply(System.Func<EventItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("EventItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)EventToCborValue(csilElem)).ToList())));
         }
         catch (ServiceErrorRefusal refusal)
         {
@@ -5715,6 +6109,32 @@ public static class Codec
         {
             var value = handler();
             return ("EmptyResponse", Cbor.Encode(EmptyResponseToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCalendarPreviewMigrationReply(System.Func<CalendarMigrationRowItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CalendarMigrationRowItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)CalendarMigrationRowToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeCalendarListTrashReply(System.Func<CalendarTrashEntryItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CalendarTrashEntryItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)CalendarTrashEntryToCborValue(csilElem)).ToList())));
         }
         catch (ServiceErrorRefusal refusal)
         {
@@ -5819,6 +6239,19 @@ public static class Codec
         {
             var value = handler();
             return ("Task", Cbor.Encode(TaskToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeTaskListTaskGrantsReply(System.Func<GrantItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("GrantItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)GrantToCborValue(csilElem)).ToList())));
         }
         catch (ServiceErrorRefusal refusal)
         {
@@ -5943,6 +6376,32 @@ public static class Codec
         }
     }
 
+    public static (string Variant, byte[] Payload) EncodeCommentListCommentsReply(System.Func<CommentItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("CommentItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)CommentToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeNotificationListNotificationsReply(System.Func<NotificationItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("NotificationItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)NotificationToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
     public static (string Variant, byte[] Payload) EncodeNotificationUnreadCountReply(System.Func<NotificationUnreadCount> handler)
     {
         try
@@ -6008,12 +6467,38 @@ public static class Codec
         }
     }
 
+    public static (string Variant, byte[] Payload) EncodeShareListSharesByResourceReply(System.Func<ShareItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("ShareItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)ShareToCborValue(csilElem)).ToList())));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
     public static (string Variant, byte[] Payload) EncodeShareCheckAccessReply(System.Func<Share> handler)
     {
         try
         {
             var value = handler();
             return ("Share", Cbor.Encode(ShareToCborValue(value)));
+        }
+        catch (ServiceErrorRefusal refusal)
+        {
+            return ("ServiceError", Cbor.Encode(ServiceErrorToCborValue(refusal.Value)));
+        }
+    }
+
+    public static (string Variant, byte[] Payload) EncodeMemberAuditListAuditsForMemberReply(System.Func<MemberAuditItems> handler)
+    {
+        try
+        {
+            var value = handler();
+            return ("MemberAuditItems", Cbor.Encode(new CborValue.Array(value.Select(csilElem => (CborValue)MemberAuditToCborValue(csilElem)).ToList())));
         }
         catch (ServiceErrorRefusal refusal)
         {
@@ -6330,6 +6815,15 @@ public static class Codec
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
         }
+        if (service == "HouseService" && op == "list-houses")
+        {
+            return variant switch
+            {
+                "HouseItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
         if (service == "MemberService" && op == "create-member")
         {
             return variant switch
@@ -6384,6 +6878,15 @@ public static class Codec
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
         }
+        if (service == "MemberService" && op == "list-members")
+        {
+            return variant switch
+            {
+                "MemberItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
         if (service == "TrustedDomainService" && op == "add-trusted-domain")
         {
             return variant switch
@@ -6398,6 +6901,15 @@ public static class Codec
             return variant switch
             {
                 "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TrustedDomainService" && op == "list-trusted-domains")
+        {
+            return variant switch
+            {
+                "TrustedDomainItems" => payload,
                 "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
@@ -6438,6 +6950,15 @@ public static class Codec
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
         }
+        if (service == "RoleService" && op == "list-roles")
+        {
+            return variant switch
+            {
+                "RoleItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
         if (service == "RoleService" && op == "grant-role")
         {
             return variant switch
@@ -6452,6 +6973,15 @@ public static class Codec
             return variant switch
             {
                 "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "RoleService" && op == "list-member-roles")
+        {
+            return variant switch
+            {
+                "RoleItems" => payload,
                 "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
@@ -6483,6 +7013,15 @@ public static class Codec
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
         }
+        if (service == "SkillService" && op == "list-skills")
+        {
+            return variant switch
+            {
+                "SkillItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
         if (service == "SkillService" && op == "add-member-skill")
         {
             return variant switch
@@ -6501,6 +7040,15 @@ public static class Codec
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
         }
+        if (service == "SkillService" && op == "list-member-skills")
+        {
+            return variant switch
+            {
+                "SkillItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
         if (service == "SkillService" && op == "add-group-skill")
         {
             return variant switch
@@ -6515,6 +7063,15 @@ public static class Codec
             return variant switch
             {
                 "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "SkillService" && op == "list-group-skills")
+        {
+            return variant switch
+            {
+                "SkillItems" => payload,
                 "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
@@ -6546,6 +7103,15 @@ public static class Codec
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
         }
+        if (service == "GroupService" && op == "list-groups")
+        {
+            return variant switch
+            {
+                "GroupItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
         if (service == "GroupService" && op == "add-group-member")
         {
             return variant switch
@@ -6560,6 +7126,15 @@ public static class Codec
             return variant switch
             {
                 "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "GroupService" && op == "list-group-members")
+        {
+            return variant switch
+            {
+                "MemberItems" => payload,
                 "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
@@ -6645,6 +7220,15 @@ public static class Codec
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
         }
+        if (service == "ProjectService" && op == "list-project-members")
+        {
+            return variant switch
+            {
+                "MemberItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
         if (service == "ProjectService" && op == "add-project-member")
         {
             return variant switch
@@ -6663,6 +7247,15 @@ public static class Codec
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
         }
+        if (service == "ProjectService" && op == "list-project-owners")
+        {
+            return variant switch
+            {
+                "MemberItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
         if (service == "ProjectService" && op == "add-project-owner")
         {
             return variant switch
@@ -6677,6 +7270,15 @@ public static class Codec
             return variant switch
             {
                 "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "list-milestones")
+        {
+            return variant switch
+            {
+                "MilestoneItems" => payload,
                 "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
@@ -6713,6 +7315,15 @@ public static class Codec
             return variant switch
             {
                 "Project" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "ProjectService" && op == "list-project-grants")
+        {
+            return variant switch
+            {
+                "GrantItems" => payload,
                 "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
@@ -6780,6 +7391,15 @@ public static class Codec
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
         }
+        if (service == "EventService" && op == "list-events")
+        {
+            return variant switch
+            {
+                "EventItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
         if (service == "EventService" && op == "get-calendar-view")
         {
             return variant switch
@@ -6821,6 +7441,15 @@ public static class Codec
             return variant switch
             {
                 "Event" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "EventService" && op == "list-local-events")
+        {
+            return variant switch
+            {
+                "EventItems" => payload,
                 "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
@@ -6875,6 +7504,24 @@ public static class Codec
             return variant switch
             {
                 "EmptyResponse" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CalendarService" && op == "preview-migration")
+        {
+            return variant switch
+            {
+                "CalendarMigrationRowItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "CalendarService" && op == "list-trash")
+        {
+            return variant switch
+            {
+                "CalendarTrashEntryItems" => payload,
                 "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
@@ -6947,6 +7594,15 @@ public static class Codec
             return variant switch
             {
                 "Task" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "TaskService" && op == "list-task-grants")
+        {
+            return variant switch
+            {
+                "GrantItems" => payload,
                 "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
@@ -7032,6 +7688,24 @@ public static class Codec
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
         }
+        if (service == "CommentService" && op == "list-comments")
+        {
+            return variant switch
+            {
+                "CommentItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "NotificationService" && op == "list-notifications")
+        {
+            return variant switch
+            {
+                "NotificationItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
         if (service == "NotificationService" && op == "unread-count")
         {
             return variant switch
@@ -7077,11 +7751,29 @@ public static class Codec
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };
         }
+        if (service == "ShareService" && op == "list-shares-by-resource")
+        {
+            return variant switch
+            {
+                "ShareItems" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
         if (service == "ShareService" && op == "check-access")
         {
             return variant switch
             {
                 "Share" => payload,
+                "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
+                _ => throw new CborException("invalid RPC reply variant: " + variant),
+            };
+        }
+        if (service == "MemberAuditService" && op == "list-audits-for-member")
+        {
+            return variant switch
+            {
+                "MemberAuditItems" => payload,
                 "ServiceError" => throw new ServiceErrorRefusal(ServiceErrorFromCborValue(Cbor.Decode(payload))),
                 _ => throw new CborException("invalid RPC reply variant: " + variant),
             };

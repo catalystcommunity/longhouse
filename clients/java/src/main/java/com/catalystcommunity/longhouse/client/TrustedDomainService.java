@@ -2,14 +2,12 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The TrustedDomainService server handler interface; the host implements it.
  */
 public interface TrustedDomainService {
     TrustedDomain addTrustedDomain(TrustedDomain req);
     EmptyResponse removeTrustedDomain(TrustedDomainId req);
-    List<TrustedDomain> listTrustedDomains(HouseId req);
+    TrustedDomainItems listTrustedDomains(HouseId req);
     BoolResponse isDomainTrusted(TrustedDomain req);
 }

@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The MemberService server handler interface; the host implements it.
  */
@@ -14,5 +12,5 @@ public interface MemberService {
     Member updateMember(Member req);
     EmptyResponse deactivateMember(MemberId req);
     EmptyResponse reactivateMember(MemberId req);
-    List<Member> listMembers(HouseScopedListRequest req);
+    MemberItems listMembers(HouseScopedListRequest req);
 }

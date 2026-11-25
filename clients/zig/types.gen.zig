@@ -233,6 +233,51 @@ pub const NotificationEventID = []const u8;
 /// CliSessionID is a type alias.
 pub const CliSessionID = []const u8;
 
+/// CalendarMigrationRowItems is a type alias.
+pub const CalendarMigrationRowItems = []CalendarMigrationRow;
+
+/// CalendarTrashEntryItems is a type alias.
+pub const CalendarTrashEntryItems = []CalendarTrashEntry;
+
+/// CommentItems is a type alias.
+pub const CommentItems = []Comment;
+
+/// EventItems is a type alias.
+pub const EventItems = []Event;
+
+/// GrantItems is a type alias.
+pub const GrantItems = []Grant;
+
+/// GroupItems is a type alias.
+pub const GroupItems = []Group;
+
+/// HouseItems is a type alias.
+pub const HouseItems = []House;
+
+/// MemberItems is a type alias.
+pub const MemberItems = []Member;
+
+/// MemberAuditItems is a type alias.
+pub const MemberAuditItems = []MemberAudit;
+
+/// MilestoneItems is a type alias.
+pub const MilestoneItems = []Milestone;
+
+/// NotificationItems is a type alias.
+pub const NotificationItems = []Notification;
+
+/// RoleItems is a type alias.
+pub const RoleItems = []Role;
+
+/// ShareItems is a type alias.
+pub const ShareItems = []Share;
+
+/// SkillItems is a type alias.
+pub const SkillItems = []Skill;
+
+/// TrustedDomainItems is a type alias.
+pub const TrustedDomainItems = []TrustedDomain;
+
 /// AuditID is a type alias.
 pub const AuditID = []const u8;
 
@@ -1218,6 +1263,10 @@ pub const HouseServiceDeleteHouseReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
+pub const HouseServiceListHousesReply = union(enum) {
+    house_items: HouseItems,
+    service_error: ServiceError,
+};
 pub const MemberServiceCreateMemberReply = union(enum) {
     member: Member,
     service_error: ServiceError,
@@ -1242,12 +1291,20 @@ pub const MemberServiceReactivateMemberReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
+pub const MemberServiceListMembersReply = union(enum) {
+    member_items: MemberItems,
+    service_error: ServiceError,
+};
 pub const TrustedDomainServiceAddTrustedDomainReply = union(enum) {
     trusted_domain: TrustedDomain,
     service_error: ServiceError,
 };
 pub const TrustedDomainServiceRemoveTrustedDomainReply = union(enum) {
     empty_response: EmptyResponse,
+    service_error: ServiceError,
+};
+pub const TrustedDomainServiceListTrustedDomainsReply = union(enum) {
+    trusted_domain_items: TrustedDomainItems,
     service_error: ServiceError,
 };
 pub const TrustedDomainServiceIsDomainTrustedReply = union(enum) {
@@ -1266,12 +1323,20 @@ pub const RoleServiceDeleteRoleReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
+pub const RoleServiceListRolesReply = union(enum) {
+    role_items: RoleItems,
+    service_error: ServiceError,
+};
 pub const RoleServiceGrantRoleReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
 pub const RoleServiceRevokeRoleReply = union(enum) {
     empty_response: EmptyResponse,
+    service_error: ServiceError,
+};
+pub const RoleServiceListMemberRolesReply = union(enum) {
+    role_items: RoleItems,
     service_error: ServiceError,
 };
 pub const SkillServiceCreateSkillReply = union(enum) {
@@ -1286,6 +1351,10 @@ pub const SkillServiceDeleteSkillReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
+pub const SkillServiceListSkillsReply = union(enum) {
+    skill_items: SkillItems,
+    service_error: ServiceError,
+};
 pub const SkillServiceAddMemberSkillReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
@@ -1294,12 +1363,20 @@ pub const SkillServiceRemoveMemberSkillReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
+pub const SkillServiceListMemberSkillsReply = union(enum) {
+    skill_items: SkillItems,
+    service_error: ServiceError,
+};
 pub const SkillServiceAddGroupSkillReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
 pub const SkillServiceRemoveGroupSkillReply = union(enum) {
     empty_response: EmptyResponse,
+    service_error: ServiceError,
+};
+pub const SkillServiceListGroupSkillsReply = union(enum) {
+    skill_items: SkillItems,
     service_error: ServiceError,
 };
 pub const GroupServiceCreateGroupReply = union(enum) {
@@ -1314,12 +1391,20 @@ pub const GroupServiceDeleteGroupReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
+pub const GroupServiceListGroupsReply = union(enum) {
+    group_items: GroupItems,
+    service_error: ServiceError,
+};
 pub const GroupServiceAddGroupMemberReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
 pub const GroupServiceRemoveGroupMemberReply = union(enum) {
     empty_response: EmptyResponse,
+    service_error: ServiceError,
+};
+pub const GroupServiceListGroupMembersReply = union(enum) {
+    member_items: MemberItems,
     service_error: ServiceError,
 };
 pub const ProjectServiceCreateProjectReply = union(enum) {
@@ -1358,6 +1443,10 @@ pub const ProjectServiceSetProjectTaskPositionReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
+pub const ProjectServiceListProjectMembersReply = union(enum) {
+    member_items: MemberItems,
+    service_error: ServiceError,
+};
 pub const ProjectServiceAddProjectMemberReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
@@ -1366,12 +1455,20 @@ pub const ProjectServiceRemoveProjectMemberReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
+pub const ProjectServiceListProjectOwnersReply = union(enum) {
+    member_items: MemberItems,
+    service_error: ServiceError,
+};
 pub const ProjectServiceAddProjectOwnerReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
 pub const ProjectServiceRemoveProjectOwnerReply = union(enum) {
     empty_response: EmptyResponse,
+    service_error: ServiceError,
+};
+pub const ProjectServiceListMilestonesReply = union(enum) {
+    milestone_items: MilestoneItems,
     service_error: ServiceError,
 };
 pub const ProjectServiceCreateMilestoneReply = union(enum) {
@@ -1388,6 +1485,10 @@ pub const ProjectServiceDeleteMilestoneReply = union(enum) {
 };
 pub const ProjectServiceSetProjectVisibilityReply = union(enum) {
     project: Project,
+    service_error: ServiceError,
+};
+pub const ProjectServiceListProjectGrantsReply = union(enum) {
+    grant_items: GrantItems,
     service_error: ServiceError,
 };
 pub const ProjectServicePutProjectGrantReply = union(enum) {
@@ -1418,6 +1519,10 @@ pub const EventServiceDeleteEventAndFutureReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
+pub const EventServiceListEventsReply = union(enum) {
+    event_items: EventItems,
+    service_error: ServiceError,
+};
 pub const EventServiceGetCalendarViewReply = union(enum) {
     calendar_view: CalendarView,
     service_error: ServiceError,
@@ -1436,6 +1541,10 @@ pub const EventServiceRecoverEditReply = union(enum) {
 };
 pub const EventServiceDeclineEventReply = union(enum) {
     event: Event,
+    service_error: ServiceError,
+};
+pub const EventServiceListLocalEventsReply = union(enum) {
+    event_items: EventItems,
     service_error: ServiceError,
 };
 pub const CalendarServiceListProjectDeadlinesReply = union(enum) {
@@ -1460,6 +1569,14 @@ pub const CalendarServiceCompleteConnectReply = union(enum) {
 };
 pub const CalendarServiceDisconnectReply = union(enum) {
     empty_response: EmptyResponse,
+    service_error: ServiceError,
+};
+pub const CalendarServicePreviewMigrationReply = union(enum) {
+    calendar_migration_row_items: CalendarMigrationRowItems,
+    service_error: ServiceError,
+};
+pub const CalendarServiceListTrashReply = union(enum) {
+    calendar_trash_entry_items: CalendarTrashEntryItems,
     service_error: ServiceError,
 };
 pub const CalendarServiceRestoreEventReply = union(enum) {
@@ -1492,6 +1609,10 @@ pub const TaskServiceCreatePersonalTaskReply = union(enum) {
 };
 pub const TaskServiceSetTaskVisibilityReply = union(enum) {
     task: Task,
+    service_error: ServiceError,
+};
+pub const TaskServiceListTaskGrantsReply = union(enum) {
+    grant_items: GrantItems,
     service_error: ServiceError,
 };
 pub const TaskServicePutTaskGrantReply = union(enum) {
@@ -1530,6 +1651,14 @@ pub const CommentServiceDeleteCommentReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
+pub const CommentServiceListCommentsReply = union(enum) {
+    comment_items: CommentItems,
+    service_error: ServiceError,
+};
+pub const NotificationServiceListNotificationsReply = union(enum) {
+    notification_items: NotificationItems,
+    service_error: ServiceError,
+};
 pub const NotificationServiceUnreadCountReply = union(enum) {
     notification_unread_count: NotificationUnreadCount,
     service_error: ServiceError,
@@ -1550,8 +1679,16 @@ pub const ShareServiceDeleteShareReply = union(enum) {
     empty_response: EmptyResponse,
     service_error: ServiceError,
 };
+pub const ShareServiceListSharesByResourceReply = union(enum) {
+    share_items: ShareItems,
+    service_error: ServiceError,
+};
 pub const ShareServiceCheckAccessReply = union(enum) {
     share: Share,
+    service_error: ServiceError,
+};
+pub const MemberAuditServiceListAuditsForMemberReply = union(enum) {
+    member_audit_items: MemberAuditItems,
     service_error: ServiceError,
 };
 pub const SettingsServiceGetSettingsReply = union(enum) {

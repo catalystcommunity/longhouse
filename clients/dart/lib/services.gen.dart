@@ -51,7 +51,7 @@ abstract interface class HouseServiceHandler {
   House getHouse(HouseId request);
   House updateHouse(House request);
   EmptyResponse deleteHouse(HouseId request);
-  List<House> listHouses(HouseListRequest request);
+  HouseItems listHouses(HouseListRequest request);
 }
 
 /// The MemberService service contract. A host `implements` this; the router
@@ -63,15 +63,15 @@ abstract interface class MemberServiceHandler {
   Member updateMember(Member request);
   EmptyResponse deactivateMember(MemberId request);
   EmptyResponse reactivateMember(MemberId request);
-  List<Member> listMembers(HouseScopedListRequest request);
+  MemberItems listMembers(HouseScopedListRequest request);
 }
 
-/// The TrustedDomainService service contract. A host `implements` this; the router
-/// dispatches decoded requests/messages to it.
+/// The TrustedDomainService service contract. A host `implements` this; the
+/// router dispatches decoded requests/messages to it.
 abstract interface class TrustedDomainServiceHandler {
   TrustedDomain addTrustedDomain(TrustedDomain request);
   EmptyResponse removeTrustedDomain(TrustedDomainId request);
-  List<TrustedDomain> listTrustedDomains(HouseId request);
+  TrustedDomainItems listTrustedDomains(HouseId request);
   BoolResponse isDomainTrusted(TrustedDomain request);
 }
 
@@ -81,10 +81,10 @@ abstract interface class RoleServiceHandler {
   Role createRole(Role request);
   Role updateRole(Role request);
   EmptyResponse deleteRole(RoleId request);
-  List<Role> listRoles(HouseScopedListRequest request);
+  RoleItems listRoles(HouseScopedListRequest request);
   EmptyResponse grantRole(MemberRoleRef request);
   EmptyResponse revokeRole(MemberRoleRef request);
-  List<Role> listMemberRoles(MemberScopedListRequest request);
+  RoleItems listMemberRoles(MemberScopedListRequest request);
 }
 
 /// The SkillService service contract. A host `implements` this; the router
@@ -93,13 +93,13 @@ abstract interface class SkillServiceHandler {
   Skill createSkill(Skill request);
   Skill updateSkill(Skill request);
   EmptyResponse deleteSkill(SkillId request);
-  List<Skill> listSkills(HouseScopedListRequest request);
+  SkillItems listSkills(HouseScopedListRequest request);
   EmptyResponse addMemberSkill(MemberSkillRef request);
   EmptyResponse removeMemberSkill(MemberSkillRef request);
-  List<Skill> listMemberSkills(MemberScopedListRequest request);
+  SkillItems listMemberSkills(MemberScopedListRequest request);
   EmptyResponse addGroupSkill(GroupSkillRef request);
   EmptyResponse removeGroupSkill(GroupSkillRef request);
-  List<Skill> listGroupSkills(GroupId request);
+  SkillItems listGroupSkills(GroupId request);
 }
 
 /// The GroupService service contract. A host `implements` this; the router
@@ -108,10 +108,10 @@ abstract interface class GroupServiceHandler {
   Group createGroup(Group request);
   Group updateGroup(Group request);
   EmptyResponse deleteGroup(GroupId request);
-  List<Group> listGroups(HouseScopedListRequest request);
+  GroupItems listGroups(HouseScopedListRequest request);
   EmptyResponse addGroupMember(GroupMemberRef request);
   EmptyResponse removeGroupMember(GroupMemberRef request);
-  List<Member> listGroupMembers(MemberScopedListRequest request);
+  MemberItems listGroupMembers(MemberScopedListRequest request);
 }
 
 /// The ProjectService service contract. A host `implements` this; the router
@@ -126,18 +126,18 @@ abstract interface class ProjectServiceHandler {
   EmptyResponse addProjectTask(ProjectTaskOrderRequest request);
   EmptyResponse removeProjectTask(ProjectTaskRef request);
   EmptyResponse setProjectTaskPosition(ProjectTaskOrderRequest request);
-  List<Member> listProjectMembers(ProjectId request);
+  MemberItems listProjectMembers(ProjectId request);
   EmptyResponse addProjectMember(ProjectMemberRef request);
   EmptyResponse removeProjectMember(ProjectMemberRef request);
-  List<Member> listProjectOwners(ProjectId request);
+  MemberItems listProjectOwners(ProjectId request);
   EmptyResponse addProjectOwner(ProjectOwnerRef request);
   EmptyResponse removeProjectOwner(ProjectOwnerRef request);
-  List<Milestone> listMilestones(ProjectId request);
+  MilestoneItems listMilestones(ProjectId request);
   Milestone createMilestone(Milestone request);
   Milestone updateMilestone(Milestone request);
   EmptyResponse deleteMilestone(MilestoneId request);
   Project setProjectVisibility(SetProjectVisibilityRequest request);
-  List<Grant> listProjectGrants(ProjectId request);
+  GrantItems listProjectGrants(ProjectId request);
   EmptyResponse putProjectGrant(PutProjectGrantRequest request);
   EmptyResponse deleteProjectGrant(ProjectGrantRef request);
 }
@@ -150,13 +150,13 @@ abstract interface class EventServiceHandler {
   Event updateEvent(Event request);
   EmptyResponse deleteEvent(EventId request);
   EmptyResponse deleteEventAndFuture(EventId request);
-  List<Event> listEvents(EventListRequest request);
+  EventItems listEvents(EventListRequest request);
   CalendarView getCalendarView(HouseId request);
   CalendarView setCalendarView(CalendarView request);
   Event acceptEvent(EventDecision request);
   Event recoverEdit(EventId request);
   Event declineEvent(EventDecision request);
-  List<Event> listLocalEvents(HouseId request);
+  EventItems listLocalEvents(HouseId request);
 }
 
 /// The CalendarService service contract. A host `implements` this; the router
@@ -168,8 +168,8 @@ abstract interface class CalendarServiceHandler {
   CalendarConnectResponse beginConnect(HouseId request);
   CalendarStatus completeConnect(CompleteCalendarConnectRequest request);
   EmptyResponse disconnect(HouseId request);
-  List<CalendarMigrationRow> previewMigration(HouseId request);
-  List<CalendarTrashEntry> listTrash(HouseId request);
+  CalendarMigrationRowItems previewMigration(HouseId request);
+  CalendarTrashEntryItems listTrash(HouseId request);
   Event restoreEvent(RestoreCalendarEventRequest request);
 }
 
@@ -183,7 +183,7 @@ abstract interface class TaskServiceHandler {
   TaskList listTasks(TaskListRequest request);
   Task createPersonalTask(Task request);
   Task setTaskVisibility(SetTaskVisibilityRequest request);
-  List<Grant> listTaskGrants(TaskId request);
+  GrantItems listTaskGrants(TaskId request);
   EmptyResponse putTaskGrant(PutTaskGrantRequest request);
   EmptyResponse deleteTaskGrant(TaskGrantRef request);
 }
@@ -203,13 +203,13 @@ abstract interface class CommentServiceHandler {
   Comment getComment(CommentId request);
   Comment updateComment(Comment request);
   EmptyResponse deleteComment(CommentId request);
-  List<Comment> listComments(CommentListRequest request);
+  CommentItems listComments(CommentListRequest request);
 }
 
-/// The NotificationService service contract. A host `implements` this; the router
-/// dispatches decoded requests/messages to it.
+/// The NotificationService service contract. A host `implements` this; the
+/// router dispatches decoded requests/messages to it.
 abstract interface class NotificationServiceHandler {
-  List<Notification> listNotifications(NotificationListRequest request);
+  NotificationItems listNotifications(NotificationListRequest request);
   NotificationUnreadCount unreadCount(HouseId request);
   Notification markRead(NotificationId request);
   EmptyResponse markAllRead(HouseId request);
@@ -220,14 +220,14 @@ abstract interface class NotificationServiceHandler {
 abstract interface class ShareServiceHandler {
   Share createShare(Share request);
   EmptyResponse deleteShare(ShareId request);
-  List<Share> listSharesByResource(ResourceRef request);
+  ShareItems listSharesByResource(ResourceRef request);
   Share checkAccess(ShareAccessRequest request);
 }
 
-/// The MemberAuditService service contract. A host `implements` this; the router
-/// dispatches decoded requests/messages to it.
+/// The MemberAuditService service contract. A host `implements` this; the
+/// router dispatches decoded requests/messages to it.
 abstract interface class MemberAuditServiceHandler {
-  List<MemberAudit> listAuditsForMember(MemberScopedListRequest request);
+  MemberAuditItems listAuditsForMember(MemberScopedListRequest request);
 }
 
 /// The SettingsService service contract. A host `implements` this; the router

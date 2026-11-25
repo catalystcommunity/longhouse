@@ -225,7 +225,7 @@ func TestGeneratedClientOperationUsesCSILNamesAndCodec(t *testing.T) {
 	task.Title = "Repair gate"
 	want := *task
 	want.TaskId = longhouseclient.TaskID("01TESTTASK")
-	transport := &recordingGeneratedTransport{response: longhouseclient.EncodeTask(want)}
+	transport := &recordingGeneratedTransport{variant: "Task", response: encodeTestPayload(t, longhouseclient.EncodeTask, want)}
 
 	result, err := operation.call(context.Background(), transport, request)
 	if err != nil {
@@ -338,7 +338,17 @@ func TestTypedCLIReferenceRejectsWrongType(t *testing.T) {
 	}
 }
 
+func encodeTestPayload[T any](t *testing.T, encode func(T) ([]byte, error), value T) []byte {
+	t.Helper()
+	payload, err := encode(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return payload
+}
+
 type recordingGeneratedTransport struct {
+	variant   string
 	service   string
 	operation string
 	request   []byte
@@ -354,6 +364,11 @@ func (t *recordingGeneratedTransport) Call(_ context.Context, service, operation
 		return nil, t.err
 	}
 	return append([]byte(nil), t.response...), nil
+}
+
+func (t *recordingGeneratedTransport) CallReply(ctx context.Context, service, operation string, request []byte) (longhouseclient.WireReply, error) {
+	payload, err := t.Call(ctx, service, operation, request)
+	return longhouseclient.WireReply{Variant: &t.variant, Payload: payload}, err
 }
 
 var _ longhouseclient.Transport = (*recordingGeneratedTransport)(nil)

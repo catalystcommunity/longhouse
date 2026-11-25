@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * A typed, blocking client for the MemberService service.
  * The client owns (de)serialization via the codec; the transport only moves bytes.
@@ -16,30 +14,37 @@ public final class MemberClient {
     }
 
     public Member createMember(Member req) throws ClientException {
-        return CsilCbor.decodeMember(transport.call("MemberService", "create-member", CsilCbor.encodeMember(req)));
+        WireReply reply = transport.callReply("MemberService", "create-member", CsilCbor.encodeMember(req));
+        return CsilCbor.decodeMember(CsilCbor.resolveRpcReply("MemberService", "create-member", reply.variant(), reply.payload()));
     }
 
     public Member getMember(MemberId req) throws ClientException {
-        return CsilCbor.decodeMember(transport.call("MemberService", "get-member", CsilCbor.encodeMemberGetMemberRequest(req)));
+        WireReply reply = transport.callReply("MemberService", "get-member", CsilCbor.encodeMemberGetMemberRequest(req));
+        return CsilCbor.decodeMember(CsilCbor.resolveRpcReply("MemberService", "get-member", reply.variant(), reply.payload()));
     }
 
     public Member getMemberByIdentity(Member req) throws ClientException {
-        return CsilCbor.decodeMember(transport.call("MemberService", "get-member-by-identity", CsilCbor.encodeMember(req)));
+        WireReply reply = transport.callReply("MemberService", "get-member-by-identity", CsilCbor.encodeMember(req));
+        return CsilCbor.decodeMember(CsilCbor.resolveRpcReply("MemberService", "get-member-by-identity", reply.variant(), reply.payload()));
     }
 
     public Member updateMember(Member req) throws ClientException {
-        return CsilCbor.decodeMember(transport.call("MemberService", "update-member", CsilCbor.encodeMember(req)));
+        WireReply reply = transport.callReply("MemberService", "update-member", CsilCbor.encodeMember(req));
+        return CsilCbor.decodeMember(CsilCbor.resolveRpcReply("MemberService", "update-member", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse deactivateMember(MemberId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("MemberService", "deactivate-member", CsilCbor.encodeMemberDeactivateMemberRequest(req)));
+        WireReply reply = transport.callReply("MemberService", "deactivate-member", CsilCbor.encodeMemberDeactivateMemberRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("MemberService", "deactivate-member", reply.variant(), reply.payload()));
     }
 
     public EmptyResponse reactivateMember(MemberId req) throws ClientException {
-        return CsilCbor.decodeEmptyResponse(transport.call("MemberService", "reactivate-member", CsilCbor.encodeMemberReactivateMemberRequest(req)));
+        WireReply reply = transport.callReply("MemberService", "reactivate-member", CsilCbor.encodeMemberReactivateMemberRequest(req));
+        return CsilCbor.decodeEmptyResponse(CsilCbor.resolveRpcReply("MemberService", "reactivate-member", reply.variant(), reply.payload()));
     }
 
-    public List<Member> listMembers(HouseScopedListRequest req) throws ClientException {
-        return CsilCbor.decodeMemberListMembersResponse(transport.call("MemberService", "list-members", CsilCbor.encodeHouseScopedListRequest(req)));
+    public MemberItems listMembers(HouseScopedListRequest req) throws ClientException {
+        WireReply reply = transport.callReply("MemberService", "list-members", CsilCbor.encodeHouseScopedListRequest(req));
+        return CsilCbor.decodeMemberListMembersResponse(CsilCbor.resolveRpcReply("MemberService", "list-members", reply.variant(), reply.payload()));
     }
 }

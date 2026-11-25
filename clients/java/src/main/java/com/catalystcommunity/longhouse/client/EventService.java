@@ -2,8 +2,6 @@
 
 package com.catalystcommunity.longhouse.client;
 
-import java.util.List;
-
 /**
  * The EventService server handler interface; the host implements it.
  */
@@ -13,11 +11,11 @@ public interface EventService {
     Event updateEvent(Event req);
     EmptyResponse deleteEvent(EventId req);
     EmptyResponse deleteEventAndFuture(EventId req);
-    List<Event> listEvents(EventListRequest req);
+    EventItems listEvents(EventListRequest req);
     CalendarView getCalendarView(HouseId req);
     CalendarView setCalendarView(CalendarView req);
     Event acceptEvent(EventDecision req);
     Event recoverEdit(EventId req);
     Event declineEvent(EventDecision req);
-    List<Event> listLocalEvents(HouseId req);
+    EventItems listLocalEvents(HouseId req);
 }

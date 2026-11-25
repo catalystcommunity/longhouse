@@ -25,9 +25,13 @@ func applicationKeysFixture(t *testing.T) (Keys, lk.GetApplicationKeysResponse) 
 		if err != nil {
 			t.Fatal(err)
 		}
-		expires := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
-		attestation := lk.ApplicationKeyAttestation{SubjectDomain: "home.test", SubjectUserId: "account", ApplicationId: "longhouse", InstanceId: "instance", KeyId: key.KeyID, KeyUsage: "sign", Algorithm: "ed25519", PublicKey: pub, Fingerprint: rp.Fingerprint(pub), KeyExpiresAt: expires, AttestationExpiresAt: expires}
-		response.Keys = append(response.Keys, lk.SignedApplicationKeyAttestation{Attestation: lk.EncodeApplicationKeyAttestation(attestation)})
+		expires := time.Now().Add(time.Hour).UTC().Truncate(time.Second)
+		attestation := lk.ApplicationKeyAttestation{SubjectDomain: "home.test", SubjectUserId: "account", ApplicationId: "longhouse", InstanceId: "instance", KeyId: key.KeyID, KeyUsage: lk.KeyUsageSign, Algorithm: lk.KeyAlgorithmEd25519, PublicKey: pub, Fingerprint: rp.Fingerprint(pub), KeyExpiresAt: expires, AttestationExpiresAt: expires}
+		encoded, err := lk.EncodeApplicationKeyAttestation(attestation)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Keys = append(response.Keys, lk.SignedApplicationKeyAttestation{Attestation: encoded})
 	}
 	return keys, response
 }
@@ -60,7 +64,7 @@ func TestEnsureKeysRefusesTrustResetAndLookupFailure(t *testing.T) {
 				if lookupErr != nil {
 					return nil, lookupErr
 				}
-				return lk.EncodeGetApplicationKeysResponse(response), nil
+				return lk.EncodeGetApplicationKeysResponse(response)
 			})
 			if err := EnsureKeys(context.Background(), transport, keys); err == nil || calls != 1 {
 				t.Fatalf("unsafe ensure: %v, %d calls", err, calls)
@@ -75,13 +79,13 @@ func TestEnsureKeysRenewsExistingKeysWithoutEnrollment(t *testing.T) {
 	transport := callFunc(func(_ context.Context, _, op string, _ []byte) ([]byte, error) {
 		switch op {
 		case "get-application-keys":
-			return lk.EncodeGetApplicationKeysResponse(response), nil
+			return lk.EncodeGetApplicationKeysResponse(response)
 		case "start-key-challenge":
 			challenge := []byte("test-challenge")
-			return lk.EncodeStartApplicationKeyChallengeResponse(lk.StartApplicationKeyChallengeResponse{ChallengeId: "challenge", Challenge: &challenge, ExpiresAt: time.Now().Add(time.Minute).UTC().Format(time.RFC3339)}), nil
+			return lk.EncodeStartApplicationKeyChallengeResponse(lk.StartApplicationKeyChallengeResponse{ChallengeId: "challenge", Challenge: &challenge, ExpiresAt: time.Now().Add(time.Minute).UTC().Truncate(time.Second)})
 		case "renew-attestation":
 			renewed++
-			return lk.EncodeRenewApplicationKeyAttestationResponse(lk.RenewApplicationKeyAttestationResponse{}), nil
+			return lk.EncodeRenewApplicationKeyAttestationResponse(lk.RenewApplicationKeyAttestationResponse{})
 		default:
 			t.Fatal("unexpected enrollment:", op)
 			return nil, errors.New("unexpected operation")
@@ -106,14 +110,14 @@ func TestEnsureKeysEnrollsOnlyKnownMissingInstance(t *testing.T) {
 				if !exists {
 					return nil, &rp.ServerError{Status: status, Message: "unknown application instance"}
 				}
-				return lk.EncodeGetApplicationKeysResponse(response), nil
+				return lk.EncodeGetApplicationKeysResponse(response)
 			case "start-key-challenge":
 				challenge := []byte("test-challenge")
-				return lk.EncodeStartApplicationKeyChallengeResponse(lk.StartApplicationKeyChallengeResponse{ChallengeId: "challenge", Challenge: &challenge, ExpiresAt: time.Now().Add(time.Minute).UTC().Format(time.RFC3339)}), nil
+				return lk.EncodeStartApplicationKeyChallengeResponse(lk.StartApplicationKeyChallengeResponse{ChallengeId: "challenge", Challenge: &challenge, ExpiresAt: time.Now().Add(time.Minute).UTC().Truncate(time.Second)})
 			case "enroll-application-instance":
 				exists = true
 				enrolled++
-				return lk.EncodeEnrollApplicationInstanceResponse(lk.EnrollApplicationInstanceResponse{SubjectDomain: response.SubjectDomain, SubjectUserId: response.SubjectUserId, ApplicationId: response.ApplicationId, InstanceId: response.InstanceId, Attestations: response.Keys}), nil
+				return lk.EncodeEnrollApplicationInstanceResponse(lk.EnrollApplicationInstanceResponse{SubjectDomain: response.SubjectDomain, SubjectUserId: response.SubjectUserId, ApplicationId: response.ApplicationId, InstanceId: response.InstanceId, Attestations: response.Keys})
 			default:
 				t.Fatal("unexpected operation:", op)
 				return nil, errors.New("unexpected operation")
